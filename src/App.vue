@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+// import { RouterLink, RouterView } from 'vue-router'
+import CodeEditor from './components/CodeEditor.vue'
+// import HelloWorld from './components/HelloWorld.vue'
+import PixiCanvas from './components/PixiCanvas.vue'
 </script>
 
 <template>
-  <header>
+  <!-- <header>
     <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
 
     <div class="wrapper">
@@ -15,13 +17,26 @@ import HelloWorld from './components/HelloWorld.vue'
         <RouterLink to="/about">About</RouterLink>
       </nav>
     </div>
-  </header>
+  </header> -->
 
-  <RouterView />
+  <!-- <RouterView /> -->
+  <div class="split-container">
+    <div id="game-container">
+      <PixiCanvas/>
+    </div>
+    <CodeEditor/>
+  </div>
 </template>
 
 <style scoped>
-header {
+.split-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* header {
   line-height: 1.5;
   max-height: 100vh;
 }
@@ -54,9 +69,9 @@ nav a {
 
 nav a:first-of-type {
   border: 0;
-}
+} */
 
-@media (min-width: 1024px) {
+/* @media (min-width: 1024px) {
   header {
     display: flex;
     place-items: center;
@@ -81,5 +96,5 @@ nav a:first-of-type {
     padding: 1rem 0;
     margin-top: 1rem;
   }
-}
+} */
 </style>
