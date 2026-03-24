@@ -24,6 +24,11 @@ onMounted(async () => {
 
   bunny.x = app.screen.width / 2
   bunny.y = app.screen.height / 2
+  window.addEventListener('resize', async () => {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    bunny.x = app.screen.width / 2
+    bunny.y = app.screen.height / 2
+  })
 
   bunny.pivot.x = bunny.width / 2;
   bunny.pivot.y = bunny.height / 2;
@@ -42,10 +47,6 @@ onMounted(async () => {
 
 <style scoped>
 .canvas {
-  flex: 1;
-  height: 100%;
-  width: 50vw;
-  overflow-y: none;
-  background-color: black;
+  background-color: magenta;
 }
 </style>

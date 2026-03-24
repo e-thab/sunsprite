@@ -21,10 +21,10 @@ import PixiCanvas from './components/PixiCanvas.vue'
 
   <!-- <RouterView /> -->
   <div class="split-container">
-    <div id="game-container">
+    <div id="game-container" class="panel">
       <PixiCanvas/>
     </div>
-    <CodeEditor/>
+    <CodeEditor class="panel"/>
   </div>
 </template>
 
@@ -34,6 +34,12 @@ import PixiCanvas from './components/PixiCanvas.vue'
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+}
+
+.panel {
+  flex: 1;
+  height: 100vh;
+  overflow-y: hidden;
 }
 
 /* header {

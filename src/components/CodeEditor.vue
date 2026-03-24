@@ -26,9 +26,6 @@ const editorOptions = {
 
 <style scoped>
 .editor {
-    flex: 1;
-    height: 100%;
-    width: 50vw;
     overflow-y: auto;
 }
 </style>
