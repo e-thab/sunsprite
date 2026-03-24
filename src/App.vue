@@ -1,47 +1,14 @@
 <script setup lang="ts">
 // import { RouterLink, RouterView } from 'vue-router'
-import CodeEditor from './components/CodeEditor.vue'
 // import HelloWorld from './components/HelloWorld.vue'
-import PixiCanvas from './components/PixiCanvas.vue'
+import HomeView from './views/HomeView.vue';
 </script>
 
 <template>
-  <!-- <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header> -->
-
-  <!-- <RouterView /> -->
-  <div class="split-container">
-    <div id="game-container" class="panel">
-      <PixiCanvas/>
-    </div>
-    <CodeEditor class="panel"/>
-  </div>
+  <HomeView />
 </template>
 
 <style scoped>
-.split-container {
-  display: flex;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.panel {
-  flex: 1;
-  height: 100vh;
-  overflow-y: hidden;
-}
-
 /* header {
   line-height: 1.5;
   max-height: 100vh;
