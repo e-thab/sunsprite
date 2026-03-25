@@ -1,24 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
 import PixiCanvas from '@/components/PixiCanvas.vue'
 import CodeEditor from '@/components/CodeEditor.vue'
-
-const canvas = ref(null)
-const editor = ref(null)
-const api = ref(null)
-
-onMounted(() => {
-  // console.log(canvas.value)
-  api.value = canvas.value.createGameAPI()
-  // canvas.value.runUserCode(editor.value.code, api)
-})
-
-window.addEventListener('dblclick', async (e) => {
-    // console.log(canvas.value)
-    // console.log(editor.value)
-    // console.log(api.value)
-    await canvas.value?.runUserCode(editor.value.code, api.value)
-})
 </script>
 
 <template>

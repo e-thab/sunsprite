@@ -1,7 +1,8 @@
-import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import * as Pixi from 'pixi.js';
+import { defineStore } from 'pinia';
+import { Application } from 'pixi.js';
 
 export const usePixiAppStore = defineStore('pixiApp', () => {
-    const pixiApp = ref<Pixi.Application>(new Pixi.Application())
+    const pixiApp = ref<Application>(new Application())
+    return { pixiApp }
 })

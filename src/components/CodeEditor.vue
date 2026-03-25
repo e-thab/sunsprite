@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { CodeEditor } from 'monaco-editor-vue3';
+import { runUserCode } from '@/assets/api';
 
-const code = ref(`
-function hello() {
-    console.log('Hello, Monaco Editor Vue3!');
-}
-hello();
-
-const sprite = await addSprite('https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/330px-PNG_transparency_demonstration_1.png')
+const code = ref(`const bunny = new Sprite({
+    src: 'https://pixijs.com/assets/bunny.png',
+    x: 200
+})
+const gator = new Sprite({
+    src: 'https://woofjs.com/docs/images/river-gator.png'
+})
 
 forever(() => {
-    sprite.x += 1
+    bunny.rotation += 0.1
+    bunny.rotateAround(gator, 2).degrees()
 })
 `);
 
@@ -20,10 +22,6 @@ const editorOptions = {
     minimap: { enabled: false },
     automaticLayout: true
 };
-
-defineExpose({
-    code
-})
 </script>
 
 <template>
@@ -34,11 +32,19 @@ defineExpose({
       theme="vs-dark"
       :options="editorOptions"
     />
+    <button @click="runUserCode(code)" class="run-button">Run</button>
   </div>
 </template>
 
 <style scoped>
 .editor {
     overflow-y: auto;
+}
+.run-button {
+    position: absolute;
+    left: 47%;
+    right: 50%;
+    top: 0;
+    bottom: 97%;
 }
 </style>
