@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import * as myApi from '../assets/api.ts'
 import * as Pixi from 'pixi.js'
 
 const app: Pixi.Application = new Pixi.Application()
