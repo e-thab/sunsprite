@@ -1,8 +1,11 @@
-import { Application, Assets, Sprite as PixiSprite } from 'pixi.js';
-// import { usePixiAppStore } from '@/stores/pixi';
+import { Application, Assets, Sprite as PixiSprite, Ticker } from 'pixi.js';
+
+// Private vars / methods
+let _ticker = new Ticker()
 
 // Global (user-accessible) vars
 export const app = new Application();
+export const keysPressed: Array<string> = []
 
 const PI = 3.14159265359
 
@@ -179,6 +182,7 @@ class Sprite {
 		// and
 		// sprite.rotateAround({x:5, y:10}, PI/8).radians()
 		//
+		// Just do the math here instead of trying to use pivots
 		const sprite = this
 		return {
 			degrees() {
@@ -201,13 +205,27 @@ class Rectangle {
 }
 
 function forever(fn: Function) {
-	app.ticker.add((time) => {
+	_ticker.add((time) => {
 		fn(time.deltaTime)
 	})
 }
 
+// function onKeyDown(key: string) {
+// 	window.addEventListener('keydown', )
+// }
+
+function keyPressed(key: string) {
+	return keysPressed.includes(key)
+}
+
 function clear() {
 	app.stage.removeChildren()
+}
+
+function _resetTicker() {
+	_ticker.destroy()
+	_ticker = new Ticker()
+	_ticker.start()
 }
 
 export async function runUserCode(code: string) {
@@ -215,11 +233,10 @@ export async function runUserCode(code: string) {
     // const keys = Object.keys(api)
     // const values = Object.values(api)
 	clear()
-	// app.ticker.destroy()
-	// tickers piling up on repeat runs right now. maybe store them all and remove each?
+	_resetTicker()
 
-	const keys = [ 'PI', 'Sprite', 'forever', 'clear' ]
-	const values = [PI,   Sprite,   forever,   clear]
+	const keys = [ 'PI', 'Sprite', 'forever', 'clear', 'keyPressed' ]
+	const values = [PI,   Sprite,   forever,   clear,   keyPressed]
 
     const fn = new Function(
       ...keys,
@@ -234,6 +251,63 @@ export async function runUserCode(code: string) {
     console.error('User code error:', err)
   }
 }
+
+export async function setup() {
+	await app.init({
+		background: '#00bd7e',
+		resizeTo: document.querySelector('#game-container') as HTMLElement, // Dynamically update this on resize
+		// width: 720,
+		// height: 720,
+		antialias: true,
+		autoDensity: true
+  	})
+
+	// Key press registration needs work; right clicking while holding a key allows the
+	// user to stop pressing but it's never de-registered until pressing/releasing again
+	window.addEventListener('keypress', (event) => {
+		// console.log(document.activeElement)
+		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
+		if (!keysPressed.includes(event.key)) {
+			keysPressed.push(event.key)
+		}
+	})
+	window.addEventListener('keyup', (event) => {
+		// console.log(document.activeElement)
+		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
+		if (keysPressed.includes(event.key)) {
+			keysPressed.splice(keysPressed.indexOf(event.key), 1)
+		}
+	})
+
+	runUserCode(startCode)
+}
+export const startCode = `
+const bunny = new Sprite({
+    src: 'https://pixijs.com/assets/bunny.png',
+    x: 200
+})
+const gator = new Sprite({
+    src: 'https://woofjs.com/docs/images/river-gator.png'
+})
+
+forever(() => {
+    bunny.rotation += 2
+    // bunny.rotateAround(gator, 2).degrees()
+
+    if (keyPressed('w')) {
+        gator.y += 5
+    }
+    if (keyPressed('a')) {
+        gator.x -= 5
+    }
+    if (keyPressed('s')) {
+        gator.y -= 5
+    }
+    if (keyPressed('d')) {
+        gator.x += 5
+    }
+})
+`
 
 // function main() {
 // 	const guy = new Sprite()
@@ -285,23 +359,6 @@ export async function runUserCode(code: string) {
 // 		// bunny.rotation -= 0.01 * time.deltaTime;
 // 	// });
 // })();
-
-export async function setup() {
-	await app.init({
-		background: '#00bd7e',
-		resizeTo: document.querySelector('#game-container') as HTMLElement, // Dynamically update this on resize
-		// width: 720,
-		// height: 720,
-		antialias: true,
-		autoDensity: true
-  	})
-
-	const bunny = new Sprite({src: 'https://pixijs.com/assets/bunny.png'})
-
-	forever(() => {
-		bunny.rotation += 0.1
-	})
-}
 
 // window.addEventListener('resize', async () => {
 // 	await new Promise(resolve => setTimeout(resolve, 100))

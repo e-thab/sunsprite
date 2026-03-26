@@ -1,27 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { CodeEditor } from 'monaco-editor-vue3';
-import { runUserCode } from '@/assets/api';
+import { runUserCode, startCode } from '@/assets/api';
 
-const code = ref(`const bunny = new Sprite({
-    src: 'https://pixijs.com/assets/bunny.png',
-    x: 200
-})
-const gator = new Sprite({
-    src: 'https://woofjs.com/docs/images/river-gator.png'
-})
-
-forever(() => {
-    bunny.rotation += 0.1
-    bunny.rotateAround(gator, 2).degrees()
-})
-`);
+const code = ref(startCode)
 
 const editorOptions = {
     fontSize: 14,
     minimap: { enabled: false },
     automaticLayout: true
-};
+}
 </script>
 
 <template>
