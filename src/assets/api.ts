@@ -1,7 +1,14 @@
 import { Application, Assets, Sprite as PixiSprite, Ticker } from 'pixi.js';
 
 // Private vars / methods
-let _ticker = new Ticker()
+interface Repeatable {
+	count: number,
+	i: number,
+	fn: Function
+}
+
+let _ticker: Ticker = new Ticker()
+let _repeats: Array<Repeatable> = []
 
 // Global (user-accessible) vars
 export const app = new Application();
@@ -210,6 +217,23 @@ function forever(fn: Function) {
 	})
 }
 
+function repeat(times: number, fn: Function) {
+	_repeats.push({
+		count: times,
+		i: 0,
+		fn: fn
+	})
+}
+
+function _runRepeats() {
+	for (const repeat of _repeats) {
+		repeat.fn(repeat.i)
+		repeat.count -= 1
+		repeat.i += 1
+	}
+	_repeats = _repeats.filter((repeat) => repeat.count > 0)
+}
+
 // function onKeyDown(key: string) {
 // 	window.addEventListener('keydown', )
 // }
@@ -234,9 +258,12 @@ export async function runUserCode(code: string) {
     // const values = Object.values(api)
 	clear()
 	_resetTicker()
+	_ticker.add(() => {
+		_runRepeats()
+	})
 
-	const keys = [ 'PI', 'Sprite', 'forever', 'clear', 'keyPressed' ]
-	const values = [PI,   Sprite,   forever,   clear,   keyPressed]
+	const keys = [ 'PI', 'Sprite', 'forever', 'repeat', 'clear', 'keyPressed' ]
+	const values = [PI,   Sprite,   forever,   repeat,   clear,   keyPressed]
 
     const fn = new Function(
       ...keys,
