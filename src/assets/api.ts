@@ -1,4 +1,47 @@
 import { Application, Assets, Sprite as PixiSprite, Ticker } from 'pixi.js';
+import * as monaco from 'monaco-editor'
+
+// monaco.languages.typescript.javascriptDefaults.addExtraLib(
+// 	`
+// 	declare const PI: number
+// 	declare function deg2rad(deg: number): number
+// 	declare function rad2deg(rad: number): number
+// 	declare function forever(fn: (delta: number) => {}): void
+// 	declare function repeat(times: number, fn: (i: number) => {}): void
+// 	declare function keyPressed(key: string): boolean
+// 	declare function keyJustPressed(key: string): boolean
+// 	declare namespace Sprite {
+// 		let src: string
+// 		let x: number
+// 		let y: number
+// 		let rotation: number
+// 		let radians: number
+// 		let visible: boolean
+// 		let alpha: number
+// 		function show(): void
+// 		function hide(): void
+// 		function rotate(angle: number): void
+// 	}
+// 	`,
+// 	'file:///game-api.d.ts'
+// )
+
+// Monaco autocompletion
+monaco.languages.registerCompletionItemProvider('javascript', {
+  provideCompletionItems() {
+    return {
+      suggestions: [
+        {
+          label: 'forever',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'forever(delta => \{\n\t${1:...}\n\})',
+          insertTextRules:
+            monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+        }
+      ]
+    }
+  }
+})
 
 // Private vars / methods
 interface Repeatable {
@@ -7,26 +50,34 @@ interface Repeatable {
 	fn: Function
 }
 
+// type Key = 'Escape' | ''
+let _frame: number = 0 // current render frame index
 let _ticker: Ticker = new Ticker()
 let _repeats: Array<Repeatable> = []
 
+
 // Global (user-accessible) vars
-export const app = new Application();
-export const keysPressed: Array<string> = []
+export const app = new Application()
+let keysPressed: Array<string> = []
+let keysJustPressed: Map<string, number | undefined> = new Map()
 
-const PI = 3.14159265359
+const PI: number = 3.14159265359
 
-function deg2rad(deg: number) {
+function deg2rad(deg: number): number {
 	return deg * PI / 180
 }
 
-function rad2deg(rad: number) {
+function rad2deg(rad: number): number {
 	return 180 * rad / PI
 }
 
 interface Vector {
 	x: number
 	y: number
+}
+
+function point(x: number, y: number): Vector {
+	return {x: x, y: y}
 }
 
 /**
@@ -177,6 +228,15 @@ class Sprite {
 		this._sprite.visible = false
 	}
 
+	rotate(angle: number, unit: string = 'degrees') {
+		unit = unit.toLowerCase()
+		if (unit === 'degrees') {
+			this.rotation += angle
+		} else if (unit === 'radians') {
+			this.rotation += rad2deg(angle)
+		}
+	}
+
 	rotateAround(point: Vector, angle: number) {
 		// this._sprite.pivot.x = app.screen.width / 2 + point.x
 		// this._sprite.pivot.y = app.screen.height / 2 + point.y
@@ -187,7 +247,7 @@ class Sprite {
 		// Thinking of syntax like:
 		// sprite.rotateAround({x:5, y:10}, 45).degrees()
 		// and
-		// sprite.rotateAround({x:5, y:10}, PI/8).radians()
+		// sprite.rotateAround(point(5, 10), PI/8).radians()
 		//
 		// Just do the math here instead of trying to use pivots
 		const sprite = this
@@ -211,7 +271,7 @@ class Rectangle {
 
 }
 
-function forever(fn: Function) {
+function forever(fn: Function): void {
 	_ticker.add((time) => {
 		fn(time.deltaTime)
 	})
@@ -238,21 +298,35 @@ function _runRepeats() {
 // 	window.addEventListener('keydown', )
 // }
 
-function keyPressed(key: string) {
+function keyPressed(key: string): boolean {
 	return keysPressed.includes(key)
 }
 
-function clear() {
+// True only the frame after key press
+function keyJustPressed(key: string): boolean {
+	return keysJustPressed.get(key) !== undefined
+}
+
+function _clearKeysJustPressed(frame: number): void {
+	for (const key of keysJustPressed.keys()) {
+		if (keysJustPressed.get(key) !== frame) {
+			keysJustPressed.set(key, undefined)
+		}
+	}
+}
+
+function clear(): void {
 	app.stage.removeChildren()
 }
 
-function _resetTicker() {
+function _resetTicker(): void {
 	_ticker.destroy()
 	_ticker = new Ticker()
 	_ticker.start()
+	_frame = 0
 }
 
-export async function runUserCode(code: string) {
+export async function runUserCode(code: string): Promise<void> {
   try {
     // const keys = Object.keys(api)
     // const values = Object.values(api)
@@ -260,10 +334,12 @@ export async function runUserCode(code: string) {
 	_resetTicker()
 	_ticker.add(() => {
 		_runRepeats()
+		_clearKeysJustPressed(_frame)
+		_frame++
 	})
 
-	const keys = [ 'PI', 'Sprite', 'forever', 'repeat', 'clear', 'keyPressed' ]
-	const values = [PI,   Sprite,   forever,   repeat,   clear,   keyPressed]
+	const keys = [ 'PI', 'Sprite', 'forever', 'repeat', 'clear', 'keyPressed', 'keyJustPressed' ]
+	const values = [PI,   Sprite,   forever,   repeat,   clear,   keyPressed,   keyJustPressed]
 
     const fn = new Function(
       ...keys,
@@ -279,7 +355,7 @@ export async function runUserCode(code: string) {
   }
 }
 
-export async function setup() {
+export async function setup(): Promise<void> {
 	await app.init({
 		background: '#00bd7e',
 		resizeTo: document.querySelector('#game-container') as HTMLElement, // Dynamically update this on resize
@@ -289,21 +365,45 @@ export async function setup() {
 		autoDensity: true
   	})
 
-	// Key press registration needs work; right clicking while holding a key allows the
-	// user to stop pressing but it's never de-registered until pressing/releasing again
-	window.addEventListener('keypress', (event) => {
-		// console.log(document.activeElement)
+	const keyAlias = new Map<string, string>([
+		[' ', 'space'],
+		['ArrowDown', 'down'],
+		['ArrowLeft', 'left'],
+		['ArrowRight', 'right'],
+		['ArrowUp', 'up']
+	])
+	function apiKeyCode(key: string): string | undefined {
+		if (keyAlias.get(key)) {
+			return keyAlias.get(key)
+		}
+		return key.toLowerCase()
+	}
+
+	// Key press/release registration
+	window.addEventListener('keydown', (event) => {
 		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
-		if (!keysPressed.includes(event.key)) {
-			keysPressed.push(event.key)
+
+		const key = apiKeyCode(event.key)
+		if (key && !keysPressed.includes(key) && !event.repeat) {
+			keysPressed.push(key)
+			keysJustPressed.set(key, _frame)
 		}
 	})
 	window.addEventListener('keyup', (event) => {
-		// console.log(document.activeElement)
 		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
-		if (keysPressed.includes(event.key)) {
-			keysPressed.splice(keysPressed.indexOf(event.key), 1)
+
+		const key = apiKeyCode(event.key)
+		if (key && keysPressed.includes(key)) {
+			keysPressed.splice(keysPressed.indexOf(key), 1)
 		}
+	})
+	window.addEventListener('contextmenu', event => {
+		// Prevent opening the context menu from interrupting key registration
+		keysPressed = []
+	})
+	window.addEventListener('blur', (event) => {
+		// Prevent window losing focus from interrupting key registration
+		keysPressed = []
 	})
 
 	runUserCode(startCode)
@@ -316,6 +416,12 @@ const bunny = new Sprite({
 const gator = new Sprite({
     src: 'https://woofjs.com/docs/images/river-gator.png'
 })
+
+function spinGator() {
+    repeat(45, () => {
+        gator.rotation += 8
+    })
+}
 
 forever(() => {
     bunny.rotation += 2
@@ -332,6 +438,9 @@ forever(() => {
     }
     if (keyPressed('d')) {
         gator.x += 5
+    }
+    if (keyJustPressed('space')) {
+        spinGator()
     }
 })
 `

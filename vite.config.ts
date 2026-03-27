@@ -4,6 +4,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
+const prefix = `monaco-editor/esm/vs`
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -15,4 +17,13 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  optimizeDeps: {
+    include: [
+      `${prefix}/language/json/json.worker`,
+      `${prefix}/language/css/css.worker`,
+      `${prefix}/language/html/html.worker`,
+      `${prefix}/language/typescript/ts.worker`,
+      `${prefix}/editor/editor.worker`
+    ]
+  }
 })
