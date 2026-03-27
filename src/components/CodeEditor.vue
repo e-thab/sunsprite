@@ -2,7 +2,7 @@
 import { handleError, onMounted, ref } from 'vue';
 import { CodeEditor, useCodeEditor, type EditorOptions } from 'monaco-editor-vue3';
 import { runUserCode, startCode } from '@/assets/api';
-import * as monaco from 'monaco-editor'
+
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'

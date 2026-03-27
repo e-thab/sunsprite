@@ -1,4 +1,4 @@
-import { Application, Assets, Color, Sprite as PixiSprite, Ticker } from 'pixi.js';
+import { Application, Assets, Color, Sprite as PixiSprite, Rectangle as PixiRect, Ticker } from 'pixi.js';
 import * as monaco from 'monaco-editor'
 
 // monaco.languages.typescript.javascriptDefaults.addExtraLib(
@@ -43,7 +43,9 @@ monaco.languages.registerCompletionItemProvider('javascript', {
   }
 })
 
-// Private vars / methods
+/**
+ * Interfaces
+ */
 interface Repeatable {
 	count: number
 	i: number
@@ -51,15 +53,18 @@ interface Repeatable {
 }
 
 interface Positionable {
+	// _x: number
+	// _y: number
 	x: number
 	y: number
+	screenX: number
+	screenY: number
+	_updatePosition: Function
 }
 
-interface Camera extends Positionable {
-	_x: number
-	_y: number
-	zoom: number
-}
+// interface Rotatable
+// interface Sizable
+// ...
 
 interface Screen {
 	width: number
@@ -70,185 +75,16 @@ interface Screen {
 	leftX: number
 }
 
-function _updateSpritePositions(): void {
-	for (const sprite of _allSprites) {
-		sprite._updatePosition()
-	}
-}
-
-// type Key = 'Escape' | ''
-let _frame: number = 0 // current render frame index
-let _ticker: Ticker = new Ticker()
-let _repeats: Array<Repeatable> = []
-let _allSprites: Array<Sprite> = []
-
-
-// Global (user-accessible) vars / methods
-export const app = new Application()
-let keysPressed: Array<string> = []
-let keysJustPressed: Map<string, number | undefined> = new Map()
-const camera: Camera = {
-	// TODO: zoom, rotate, smoothing
-	_x: 0,
-	_y: 0,
-	zoom: 1,
-	get x() {
-		return this._x
-	},
-	set x(newX) {
-		this._x = newX
-		_updateSpritePositions()
-	},
-	get y() {
-		return this._y
-	},
-	set y(newY) {
-		this._y = newY
-		_updateSpritePositions()
-	}
-}
-const screen: Screen = {
-	get width() {
-		return app.screen.width
-	},
-	get height() {
-		return app.screen.height
-	},
-	get topY() {
-		return camera.y + this.height / 2
-	},
-	get bottomY() {
-		return camera.y - this.height / 2
-	},
-	get leftX() {
-		return camera.x - this.width / 2
-	},
-	get rightX() {
-		return camera.x + this.width / 2
-	}
-}
-
-const PI: number = 3.14159265359
-
-// function maxX(): number {
-// 	return camera.x + app.screen.width / 2
-// }
-
-// function minX(): number {
-// 	return camera.x - app.screen.width / 2
-// }
-
-// function maxY(): number {
-// 	return camera.y + app.screen.height / 2
-// }
-
-// function minY(): number {
-// 	return camera.y - app.screen.height / 2
-// }
-
-function deg2rad(deg: number): number {
-	return deg * PI / 180
-}
-
-function rad2deg(rad: number): number {
-	return 180 * rad / PI
-}
-
-function point(x: number, y: number): Positionable {
-	return {x: x, y: y}
-}
-
-// function move_camera(x: number, y: number): void {
-// 	camera.x += x
-// 	camera.y += y
-// 	_positionSprites()
-// }
-
-// function set_camera(x: number, y: number): void {
-// 	camera.x = x
-// 	camera.y = y
-// 	_positionSprites()
-// }
-
 /**
- * Simplified sprite class, mimics WoofJS style
+ * Classes
  */
-class Sprite {
-	readonly _sprite: PixiSprite
-	_src: string
-	_x: number
-	_y: number
-	_rotation: number
-	_radians: number
-	_alpha: number
-	// _pivot: Vector | string
-		
-	constructor({
-		src = 'https://woofjs.com/docs/images/river-gator.png',
-		x = 0,
-		y = 0,
-		rotation = 0,
-		radians = 0,
-		alpha = 100
-	} = {}) {
-		this._sprite = new PixiSprite()
-		this._src = src
-		this._x = x
-		this._y = y
-		// this._pivot = { x: 0, y: 0 }
-		this._rotation = rotation
-		this._radians = radians
-		this._alpha = alpha
-		this._setProps(src, x, y, rotation, radians)
+abstract class GameObject implements Positionable {
+	protected _x: number
+	protected _y: number
 
-		this._sprite.pivot.x = this._sprite.width / 2
-		this._sprite.pivot.y = this._sprite.height / 2
-		
-		/**
-		 * TODO:
-		 *  - width/height
-		 *  - pivot
-		 *  - distanceTo
-		 *  - lastX / lastY
-		 *  - move
-		 *  - pointTowards
-		 *  - touching
-		 *  - z index (send to back/front)
-		 */
-		// this.width = spriteObj.width === undefined ? this._texture.width : spriteObj.width
-		// this.height = spriteObj.height === undefined ? this._texture.height : spriteObj.height
-
-		app.stage.addChild(this._sprite)
-		_allSprites.push(this)
-
-		// Temp
-		this._sprite.eventMode = 'dynamic'
-		this._sprite.on('click', () => {
-			console.log('Sprite clicked!');
-		})
-	}
-
-	_setProps(src: string, x: number, y: number, rotation: number, radians: number) {
-		this.src = src
-		this.x = x
-		this.y = y
-		this.rotation = rotation
-		this.radians = radians
-	}
-
-	_setPivotCenter() {
-		this._sprite.pivot.x = this._sprite.width / 2
-		this._sprite.pivot.y = this._sprite.height / 2
-	}
-
-	async _assignTexture() {
-		this._sprite.texture = await Assets.load(this.src)
-		this._setPivotCenter()
-	}
-
-	_updatePosition() {
-		this._sprite.x = this.x + app.screen.width / 2 - camera.x 
-		this._sprite.y = -this.y + app.screen.height / 2 + camera.y
+	constructor() {
+		this._x = 0
+		this._y = 0
 	}
 
 	get x() {
@@ -273,11 +109,115 @@ class Sprite {
 	set screenX(newX) {
 		this.x = camera.x - newX
 	}
+
 	get screenY() {
 		return this._y - camera.y
 	}
 	set screenY(newY) {
 		this.y = camera.y - newY
+	}
+	
+	_updatePosition(): void {
+
+	}
+}
+
+class Camera extends GameObject {
+	// TODO: zoom, rotate, smoothing
+	zoom: number
+
+	constructor() {
+		super()
+		this.zoom = 0
+	}
+
+	_updatePosition(): void {
+		_updateSpritePositions()
+	}
+}
+
+/**
+ * Simplified sprite class, mimics WoofJS style
+ */
+class Sprite extends GameObject {
+	/**
+	 * TODO:
+	 *  - width/height
+	 *  - pivot
+	 *  - distanceTo
+	 *  - pointTowards
+	 *  - lastX / lastY
+	 *  - move?
+	 *  - touching
+	 *  - z index (send to back/front)
+	 * 	- hitbox
+	 * 	- animation
+	 */
+	readonly _sprite: PixiSprite
+	_src: string
+	_x: number
+	_y: number
+	_rotation: number
+	_radians: number
+	_alpha: number
+	// _pivot: Vector | string
+	
+	constructor({
+		src = 'https://woofjs.com/docs/images/river-gator.png',
+		x = 0,
+		y = 0,
+		rotation = 0,
+		radians = 0,
+		alpha = 100
+	} = {}) {
+		super()
+		this._sprite = new PixiSprite()
+		this._src = src
+		this._x = x
+		this._y = y
+		// this._pivot = { x: 0, y: 0 }
+		this._rotation = rotation
+		this._radians = radians
+		this._alpha = alpha
+		this._setProps(src, x, y, rotation, radians)
+
+		this._sprite.pivot.x = this._sprite.width / 2
+		this._sprite.pivot.y = this._sprite.height / 2
+		
+		// this.width = spriteObj.width === undefined ? this._texture.width : spriteObj.width
+		// this.height = spriteObj.height === undefined ? this._texture.height : spriteObj.height
+
+		app.stage.addChild(this._sprite)
+		_allSprites.push(this)
+
+		// Temp
+		this._sprite.eventMode = 'dynamic'
+		this._sprite.on('click', () => {
+			console.log('Sprite clicked!');
+		})
+	}
+
+	_setProps(src: string, x: number, y: number, rotation: number, radians: number): void {
+		this.src = src
+		this.x = x
+		this.y = y
+		this.rotation = rotation
+		this.radians = radians
+	}
+
+	_setPivotCenter(): void {
+		this._sprite.pivot.x = this._sprite.width / 2
+		this._sprite.pivot.y = this._sprite.height / 2
+	}
+
+	async _assignTexture(): Promise<void> {
+		this._sprite.texture = await Assets.load(this.src)
+		this._setPivotCenter()
+	}
+
+	_updatePosition(): void {
+		this._sprite.x = this.x + app.screen.width / 2 - camera.x 
+		this._sprite.y = -this.y + app.screen.height / 2 + camera.y
 	}
 
 	// get pivotX() {
@@ -329,15 +269,15 @@ class Sprite {
 		this._sprite.alpha = n / 100
 	}
 
-	show() {
+	show(): void {
 		this._sprite.visible = true
 	}
 
-	hide() {
+	hide(): void {
 		this._sprite.visible = false
 	}
 
-	rotate(angle: number, unit: string = 'degrees') {
+	rotate(angle: number, unit: string = 'degrees'): void {
 		unit = unit.toLowerCase()
 		if (unit === 'degrees') {
 			this.rotation += angle
@@ -346,7 +286,7 @@ class Sprite {
 		}
 	}
 
-	rotateAround(point: Positionable, angle: number) {
+	rotateAround(point: Positionable, angle: number): {degrees: Function, radians: Function} {
 		// this._sprite.pivot.x = app.screen.width / 2 + point.x
 		// this._sprite.pivot.y = app.screen.height / 2 + point.y
 		console.log(`rotating around ${point.x}, ${point.y}`)
@@ -371,14 +311,147 @@ class Sprite {
 			}
 		}
 	}
+
+	
 }
 
 /**
  * Rectangle class, using position setters from that one WoofJS project
  */
-class Rectangle {
+class Rectangle extends GameObject {
+	readonly _rect: PixiRect
+	_x: number
+	_y: number
+	width: number
+	height: number
+	// left: number
+	// right: number
+	// top: number
+	// bottom: number
 
+	// What should happen when supplying contradictory size/place properties?
+	// A warning in the editor?
+	constructor({
+		x = 0,
+		y = 0,
+		width = 100,
+		height = 100,
+		// left = undefined,
+		// right = undefined,
+		// top = undefined,
+		// bottom = undefined
+	} = {}) {
+		super()
+		this._rect = new PixiRect()
+		this._x = x
+		this._y = y
+		this.width = width
+		this.height = height
+	}
+
+	_updatePosition(): void {
+		
+	}
 }
+
+/**
+ * Internal methods
+ */
+function _updateSpritePositions(): void {
+	for (const sprite of _allSprites) {
+		sprite._updatePosition()
+	}
+}
+
+function _runRepeats() {
+	for (const repeat of _repeats) {
+		repeat.fn(repeat.i)
+		repeat.count -= 1
+		repeat.i += 1
+	}
+	_repeats = _repeats.filter((repeat) => repeat.count > 0)
+}
+
+function _clearKeysJustPressed(frame: number): void {
+	for (const key of keysJustPressed.keys()) {
+		if (keysJustPressed.get(key) !== frame) {
+			keysJustPressed.set(key, undefined)
+		}
+	}
+}
+
+function _resetTicker(): void {
+	_ticker.destroy()
+	_ticker = new Ticker()
+	_ticker.start()
+	_frame = 0
+}
+
+/**
+ * Internal vars
+ */
+// type Key = 'Escape' | ''
+let _frame: number = 0 // current render frame index
+let _ticker: Ticker = new Ticker()
+let _repeats: Array<Repeatable> = []
+let _allSprites: Array<Sprite> = []
+
+
+/**
+ * Global (user-accessible) vars / methods
+ */
+export const app: Application = new Application()
+
+let keysPressed: Array<string> = []
+let keysJustPressed: Map<string, number | undefined> = new Map()
+
+const camera: Camera = new Camera() 
+const screen: Screen = {
+	get width(): number {
+		return app.screen.width
+	},
+	get height(): number {
+		return app.screen.height
+	},
+	get topY(): number {
+		return camera.y + this.height / 2
+	},
+	get bottomY(): number {
+		return camera.y - this.height / 2
+	},
+	get leftX(): number {
+		return camera.x - this.width / 2
+	},
+	get rightX(): number {
+		return camera.x + this.width / 2
+	}
+}
+
+const PI: number = 3.14159265359
+
+function deg2rad(deg: number): number {
+	return deg * PI / 180
+}
+
+function rad2deg(rad: number): number {
+	return 180 * rad / PI
+}
+
+// function point(x: number, y: number): Positionable {
+// 	return {x: x, y: y}
+// }
+
+// function move_camera(x: number, y: number): void {
+// 	camera.x += x
+// 	camera.y += y
+// 	_positionSprites()
+// }
+
+// function set_camera(x: number, y: number): void {
+// 	camera.x = x
+// 	camera.y = y
+// 	_positionSprites()
+// }
 
 function setBackgroundColor(color: Color) {
 	app.renderer.background.color = color
@@ -398,47 +471,26 @@ function repeat(times: number, fn: Function) {
 	})
 }
 
-function _runRepeats() {
-	for (const repeat of _repeats) {
-		repeat.fn(repeat.i)
-		repeat.count -= 1
-		repeat.i += 1
-	}
-	_repeats = _repeats.filter((repeat) => repeat.count > 0)
-}
-
-// function onKeyDown(key: string) {
-// 	window.addEventListener('keydown', )
-// }
-
 function keyPressed(key: string): boolean {
 	return keysPressed.includes(key.toLowerCase())
 }
 
-// True only the frame after key press
+// True only during the frame after key press
 function keyJustPressed(key: string): boolean {
 	return keysJustPressed.get(key.toLowerCase()) !== undefined
-}
-
-function _clearKeysJustPressed(frame: number): void {
-	for (const key of keysJustPressed.keys()) {
-		if (keysJustPressed.get(key) !== frame) {
-			keysJustPressed.set(key, undefined)
-		}
-	}
 }
 
 function clear(): void {
 	app.stage.removeChildren()
 }
 
-function _resetTicker(): void {
-	_ticker.destroy()
-	_ticker = new Ticker()
-	_ticker.start()
-	_frame = 0
-}
+// function onKeyDown(key: string, fn: Function) {
+// 	window.addEventListener('keydown', )
+// }
 
+/**
+ * API utility
+ */
 export async function runUserCode(code: string): Promise<void> {
   try {
     // const keys = Object.keys(api)
@@ -495,7 +547,7 @@ export async function setup(): Promise<void> {
 	}
 
 	// Key press/release registration
-	window.addEventListener('keydown', (event) => {
+	window.addEventListener('keydown', event => {
 		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
 
 		const key = apiKeyCode(event.key)
@@ -504,7 +556,7 @@ export async function setup(): Promise<void> {
 			keysJustPressed.set(key, _frame)
 		}
 	})
-	window.addEventListener('keyup', (event) => {
+	window.addEventListener('keyup', event => {
 		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
 
 		const key = apiKeyCode(event.key)
@@ -516,7 +568,7 @@ export async function setup(): Promise<void> {
 		// Prevent opening the context menu from interrupting key registration
 		keysPressed = []
 	})
-	window.addEventListener('blur', (event) => {
+	window.addEventListener('blur', event => {
 		// Prevent window losing focus from interrupting key registration
 		keysPressed = []
 	})
@@ -528,6 +580,7 @@ export async function setup(): Promise<void> {
 
 	runUserCode(startCode)
 }
+
 export const startCode = `
 setBackgroundColor('#00bd7e')
 
