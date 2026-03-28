@@ -457,6 +457,12 @@ function setBackgroundColor(color: Color) {
 	app.renderer.background.color = color
 }
 
+async function setCursor(src: string) {
+	// app.renderer.events.cursorStyles.default = `url(${src}), auto`;
+	// const defaultIcon = "url(https://woofjs.com/docs/images/river-gator.png),auto";
+	defaultIcon = src
+}
+
 function forever(fn: Function): void {
 	_ticker.add((time) => {
 		fn(time.deltaTime)
@@ -488,6 +494,8 @@ function clear(): void {
 // 	window.addEventListener('keydown', )
 // }
 
+let defaultIcon = ''
+
 /**
  * API utility
  */
@@ -504,8 +512,8 @@ export async function runUserCode(code: string): Promise<void> {
 	})
 	_allSprites = []
 
-	const keys = [ 'PI', 'screen', 'camera', 'Sprite', 'setBackgroundColor', 'forever', 'repeat', 'clear', 'keyPressed', 'keyJustPressed' ]
-	const values = [PI,   screen,   camera,   Sprite,   setBackgroundColor,   forever,   repeat,   clear,   keyPressed,   keyJustPressed]
+	const keys = [ 'app', 'PI', 'screen', 'camera', 'Sprite', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'clear', 'keyPressed', 'keyJustPressed' ]
+	const values = [app,   PI,   screen,   camera,   Sprite,   setBackgroundColor,   setCursor,   forever,   repeat,   clear,   keyPressed,   keyJustPressed]
 
     const fn = new Function(
       ...keys,
@@ -530,6 +538,15 @@ export async function setup(): Promise<void> {
 		antialias: true,
 		autoDensity: true
   	})
+	
+	// const defaultIcon = "url('https://pixijs.com/assets/bunny.png'),auto";
+	// const eventSystem = app.renderer.events;
+	// eventSystem.cursorStyles.default = defaultIcon;
+
+	const eventSystem = app.renderer.events;
+	eventSystem.cursorStyles.default = () => { defaultIcon };
+	// eventSystem.setCursor('default');
+
 
 	const keyAlias = new Map<string, string>([
 		[' ', 'space'],
