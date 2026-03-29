@@ -1,4 +1,4 @@
-import { Application, Assets, Color, Sprite as PixiSprite, Rectangle as PixiRect, Ticker } from 'pixi.js';
+import { Application, Assets, Color, Sprite as PixiSprite, Rectangle as PixiRect, Ticker, v8_0_0 } from 'pixi.js';
 import * as monaco from 'monaco-editor'
 
 // monaco.languages.typescript.javascriptDefaults.addExtraLib(
@@ -52,20 +52,6 @@ interface Repeatable {
 	fn: Function
 }
 
-interface Positionable {
-	// _x: number
-	// _y: number
-	x: number
-	y: number
-	screenX: number
-	screenY: number
-	_updatePosition: Function
-}
-
-// interface Rotatable
-// interface Sizable
-// ...
-
 interface Screen {
 	width: number
 	height: number
@@ -75,16 +61,88 @@ interface Screen {
 	leftX: number
 }
 
+interface Positionable {
+	// _x: number
+	// _y: number
+	x: number
+	y: number
+	screenX: number
+	screenY: number
+	// _updatePosition: Function
+}
+
+interface Rotatable extends Positionable {
+	rotation: number
+	radians: number
+	pivotX: number
+	pivotY: number
+	// _updateRotation: Function
+}
+
+interface Viewable {
+	alpha: number
+	visible: boolean
+	show: Function
+	hide: Function
+}
+
+// // Mixins
+// type Class = new (...args: any[]) => any
+
+// function PositionableMixin<Base extends Class>(base: Base) {
+// 	return class extends base {
+// 		_x: number = 0
+// 		_y: number = 0
+// 		x: number = 0
+// 		y: number = 0
+// 		screenX: number = 0
+// 		screenY: number = 0
+// 		get x():
+// 		_updatePosition: Function = () => {
+
+// 		}
+// 	}
+// }
+
+
 /**
  * Classes
  */
-abstract class GameObject implements Positionable {
+abstract class GameObject implements Positionable, Rotatable, Viewable {
+	protected _pixiObject: any
 	protected _x: number
 	protected _y: number
+	protected _rotation: number
+	// protected _pivotX: number
+	// protected _pivotY: number
+	protected _alpha: number
+	// protected _cursor: string
+	// protected _radians: number
 
-	constructor() {
-		this._x = 0
-		this._y = 0
+	constructor(
+		pixiObject: any,
+		x: number, y: number,
+		rotation: number, radians: number, // do something with radians
+		// pivotX: number, pivotY: number,
+		alpha: number,
+		cursor: string
+	) {
+		// Internal
+		this._pixiObject = pixiObject
+		this._x = x
+		this._y = y
+		this._rotation = rotation
+		// this._pivotX = pivotX
+		// this._pivotY = pivotY
+		this._alpha = alpha
+		// this._cursor = cursor
+		this.cursor = cursor
+
+		// Setters
+		this.x = x
+		this.y = y
+		this.rotation = rotation
+		this.radians = radians
 	}
 
 	get x() {
@@ -92,6 +150,7 @@ abstract class GameObject implements Positionable {
 	}
 	set x(newX) {
 		this._x = newX
+		// this._pixiObject.x = this.x + app.screen.width / 2 - camera.x 
 		this._updatePosition()
 	}
 
@@ -100,6 +159,7 @@ abstract class GameObject implements Positionable {
 	}
 	set y(newY) {
 		this._y = newY
+		// this._pixiObject.y = -this.y + app.screen.height / 2 + camera.y
 		this._updatePosition()
 	}
 
@@ -116,19 +176,143 @@ abstract class GameObject implements Positionable {
 	set screenY(newY) {
 		this.y = camera.y - newY
 	}
+
+	get rotation() {
+		return this._rotation
+	}
+	set rotation(angle) {
+		this._rotation = angle
+		this._pixiObject.rotation = deg2rad(angle)
+	}
+
+	get radians() {
+		return deg2rad(this._rotation)
+	}
+	set radians(rad) {
+		this._rotation = rad2deg(rad)
+		// this._radians = rad
+		this._pixiObject.rotation = rad
+	}
+
+	// Pivot implementation WIP
+	get pivotX() {
+		return this._pixiObject.pivot.x
+		// return this._pivotX
+	}
+	set pivotX(newX) {
+		this._pixiObject.pivot.x = newX
+	}
+
+	get pivotY() {
+		return this._pixiObject.pivot._y
+	}
+	set pivotY(newY) {
+		this._pixiObject.pivot.y = newY
+	}
+
+	get visible() {
+		return this._pixiObject.visible
+	}
+	set visible(b: boolean) {
+		this._pixiObject.visible = b
+	}
+
+	get alpha() {
+		return this._alpha
+	}
+	set alpha(n: number) {
+		this._alpha = n
+		this._pixiObject.alpha = n / 100
+	}
+
+	get cursor() {
+		return this._pixiObject.cursor
+	}
+	set cursor(cursor) {
+		this._pixiObject.cursor = cursor
+	}
+	
+
+	show(): void {
+		this._pixiObject.visible = true
+	}
+
+	hide(): void {
+		this._pixiObject.visible = false
+	}
+
+	rotate(angle: number, unit: string = 'degrees'): void {
+		unit = unit.toLowerCase()
+		if (unit === 'degrees') {
+			this.rotation += angle
+		} else if (unit === 'radians') {
+			this.rotation += rad2deg(angle)
+		}
+	}
+
+	// rotateAround(point: Positionable, angle: number): {degrees: Function, radians: Function} {
+	// 	// this._sprite.pivot.x = app.screen.width / 2 + point.x
+	// 	// this._sprite.pivot.y = app.screen.height / 2 + point.y
+	// 	console.log(`rotating around ${point.x}, ${point.y}`)
+	// 	this._pixiObject.pivot.x = this._pixiObject.x - point.x
+	// 	this._pixiObject.pivot.y = this._pixiObject.y - point.y
+		
+	// 	// Thinking of syntax like:
+	// 	// sprite.rotateAround({x:5, y:10}, 45).degrees()
+	// 	// and
+	// 	// sprite.rotateAround(point(5, 10), PI/8).radians()
+	// 	//
+	// 	// Just do the math here instead of trying to use pivots
+	// 	return {
+	// 		degrees() {
+	// 			this.rotation += angle
+	// 			this._setPivotCenter()
+	// 		},
+	// 		radians() {
+	// 			this.radians += angle
+	// 			this._setPivotCenter()
+	// 		}
+	// 	}
+	// }
 	
 	_updatePosition(): void {
-
+		this._pixiObject.x = this.x + app.screen.width / 2 - camera.x 
+		this._pixiObject.y = -this.y + app.screen.height / 2 + camera.y
 	}
+
+	// _updateRotation(): void {
+
+	// }
 }
 
-class Camera extends GameObject {
+class Camera implements Positionable {
 	// TODO: zoom, rotate, smoothing
 	zoom: number
+	_x: number = 0
+	_y: number = 0
+	screenX: number = 0
+	screenY: number = 0
 
 	constructor() {
-		super()
 		this.zoom = 0
+	}
+
+	get x() {
+		return this._x
+	}
+	set x(newX) {
+		this._x = newX
+		// this._pixiObject.x = this.x + app.screen.width / 2 - camera.x 
+		this._updatePosition()
+	}
+
+	get y() {
+		return this._y
+	}
+	set y(newY) {
+		this._y = newY
+		// this._pixiObject.y = -this.y + app.screen.height / 2 + camera.y
+		this._updatePosition()
 	}
 
 	_updatePosition(): void {
@@ -155,34 +339,33 @@ class Sprite extends GameObject {
 	 */
 	readonly _sprite: PixiSprite
 	_src: string
-	_x: number
-	_y: number
-	_rotation: number
-	_radians: number
-	_alpha: number
-	// _pivot: Vector | string
 	
 	constructor({
 		src = 'https://woofjs.com/docs/images/river-gator.png',
 		x = 0,
 		y = 0,
+		pivotX = -1,
+		pivotY = -1,
 		rotation = 0,
 		radians = 0,
-		alpha = 100
+		alpha = 100,
+		cursor = 'default'
 	} = {}) {
-		super()
-		this._sprite = new PixiSprite()
+		super(new PixiSprite(), x, y, rotation, radians, alpha, cursor)
+		this._sprite = this._pixiObject
 		this._src = src
-		this._x = x
-		this._y = y
-		// this._pivot = { x: 0, y: 0 }
-		this._rotation = rotation
-		this._radians = radians
-		this._alpha = alpha
-		this._setProps(src, x, y, rotation, radians)
+		this.src = src
+		this.x = x
+		this.y = y
+		this.rotation = rotation
+		this.radians = radians
 
-		this._sprite.pivot.x = this._sprite.width / 2
-		this._sprite.pivot.y = this._sprite.height / 2
+		if (pivotX === -1 && pivotY === -1) {
+			this.setPivotCenter()
+		} else {
+			this.pivotX = pivotX
+			this.pivotY = pivotY
+		}
 		
 		// this.width = spriteObj.width === undefined ? this._texture.width : spriteObj.width
 		// this.height = spriteObj.height === undefined ? this._texture.height : spriteObj.height
@@ -197,28 +380,20 @@ class Sprite extends GameObject {
 		})
 	}
 
-	_setProps(src: string, x: number, y: number, rotation: number, radians: number): void {
-		this.src = src
-		this.x = x
-		this.y = y
-		this.rotation = rotation
-		this.radians = radians
-	}
-
-	_setPivotCenter(): void {
+	setPivotCenter(): void {
 		this._sprite.pivot.x = this._sprite.width / 2
 		this._sprite.pivot.y = this._sprite.height / 2
 	}
 
 	async _assignTexture(): Promise<void> {
 		this._sprite.texture = await Assets.load(this.src)
-		this._setPivotCenter()
+		this.setPivotCenter()
 	}
 
-	_updatePosition(): void {
-		this._sprite.x = this.x + app.screen.width / 2 - camera.x 
-		this._sprite.y = -this.y + app.screen.height / 2 + camera.y
-	}
+	// _updatePosition(): void {
+	// 	this._sprite.x = this.x + app.screen.width / 2 - camera.x 
+	// 	this._sprite.y = -this.y + app.screen.height / 2 + camera.y
+	// }
 
 	// get pivotX() {
 	// 	return this._pivotX
@@ -235,124 +410,48 @@ class Sprite extends GameObject {
 		// Not this easy. Need to make async somehow
 		this._src = path
 		this._assignTexture()
+		// this._setPivot()
 	}
-
-	get rotation() {
-		return this._rotation
-	}
-	set rotation(angle) {
-		this._rotation = angle
-		this._sprite.rotation = deg2rad(angle)
-	}
-
-	get radians(): number {
-		return deg2rad(this._rotation)
-	}
-	set radians(rad) {
-		this._rotation = rad2deg(rad)
-		this._radians = rad
-		this._sprite.rotation = rad
-	}
-
-	get visible() {
-		return this._sprite.visible
-	}
-	set visible(b: boolean) {
-		this._sprite.visible = b
-	}
-
-	get alpha() {
-		return this._alpha
-	}
-	set alpha(n: number) {
-		this._alpha = n
-		this._sprite.alpha = n / 100
-	}
-
-	show(): void {
-		this._sprite.visible = true
-	}
-
-	hide(): void {
-		this._sprite.visible = false
-	}
-
-	rotate(angle: number, unit: string = 'degrees'): void {
-		unit = unit.toLowerCase()
-		if (unit === 'degrees') {
-			this.rotation += angle
-		} else if (unit === 'radians') {
-			this.rotation += rad2deg(angle)
-		}
-	}
-
-	rotateAround(point: Positionable, angle: number): {degrees: Function, radians: Function} {
-		// this._sprite.pivot.x = app.screen.width / 2 + point.x
-		// this._sprite.pivot.y = app.screen.height / 2 + point.y
-		console.log(`rotating around ${point.x}, ${point.y}`)
-		this._sprite.pivot.x = this._sprite.x - point.x
-		this._sprite.pivot.y = this._sprite.y - point.y
-		
-		// Thinking of syntax like:
-		// sprite.rotateAround({x:5, y:10}, 45).degrees()
-		// and
-		// sprite.rotateAround(point(5, 10), PI/8).radians()
-		//
-		// Just do the math here instead of trying to use pivots
-		const sprite = this
-		return {
-			degrees() {
-				sprite.rotation += angle
-				sprite._setPivotCenter()
-			},
-			radians() {
-				sprite.radians += angle
-				sprite._setPivotCenter()
-			}
-		}
-	}
-
-	
 }
 
 /**
  * Rectangle class, using position setters from that one WoofJS project
  */
-class Rectangle extends GameObject {
-	readonly _rect: PixiRect
-	_x: number
-	_y: number
-	width: number
-	height: number
-	// left: number
-	// right: number
-	// top: number
-	// bottom: number
+// class Rectangle extends GameObject {
+// 	readonly _rect: PixiRect
+// 	_x: number
+// 	_y: number
+// 	width: number
+// 	height: number
+// 	// left: number
+// 	// right: number
+// 	// top: number
+// 	// bottom: number
 
-	// What should happen when supplying contradictory size/place properties?
-	// A warning in the editor?
-	constructor({
-		x = 0,
-		y = 0,
-		width = 100,
-		height = 100,
-		// left = undefined,
-		// right = undefined,
-		// top = undefined,
-		// bottom = undefined
-	} = {}) {
-		super()
-		this._rect = new PixiRect()
-		this._x = x
-		this._y = y
-		this.width = width
-		this.height = height
-	}
+// 	// What should happen when supplying contradictory size/place properties?
+// 	// A warning in the editor?
+// 	constructor({
+// 		x = 0,
+// 		y = 0,
+// 		width = 100,
+// 		height = 100,
+// 		// left = undefined,
+// 		// right = undefined,
+// 		// top = undefined,
+// 		// bottom = undefined
+// 	} = {}) {
+// 		super()
+// 		this._rect = new PixiRect()
+// 		this._x = x
+// 		this._y = y
+// 		this.width = width
+// 		this.height = height
+// 	}
 
-	_updatePosition(): void {
+// 	_updatePosition(): void {
 		
-	}
-}
+// 	}
+// }
 
 /**
  * Internal methods
@@ -458,14 +557,15 @@ function setBackgroundColor(color: Color) {
 }
 
 async function setCursor(src: string) {
+	// Come back to this
 	// app.renderer.events.cursorStyles.default = `url(${src}), auto`;
-	// const defaultIcon = "url(https://woofjs.com/docs/images/river-gator.png),auto";
-	defaultIcon = src
+	// const defaultIcon = `url(${src}),auto`;
+	// app.renderer.events.cursorStyles.hover = defaultIcon;
 }
 
 function forever(fn: Function): void {
 	_ticker.add((time) => {
-		fn(time.deltaTime)
+		fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
 	})
 }
 
@@ -493,8 +593,6 @@ function clear(): void {
 // function onKeyDown(key: string, fn: Function) {
 // 	window.addEventListener('keydown', )
 // }
-
-let defaultIcon = ''
 
 /**
  * API utility
@@ -539,13 +637,21 @@ export async function setup(): Promise<void> {
 		autoDensity: true
   	})
 	
-	// const defaultIcon = "url('https://pixijs.com/assets/bunny.png'),auto";
+	const eventSystem = app.renderer.events
+	eventSystem.cursorStyles.default = "url('src/assets/images/ui-cursors/small/pointer_c.png') 5 5, auto"
+	eventSystem.cursorStyles.hover = "url('src/assets/images/ui-cursors/small/hand_open.png') 15 10, auto"
+	eventSystem.cursorStyles.help = "url('src/assets/images/ui-cursors/small/mark_question_pointer_b.png') 0 0, auto"
 	// const eventSystem = app.renderer.events;
-	// eventSystem.cursorStyles.default = defaultIcon;
-
-	const eventSystem = app.renderer.events;
-	eventSystem.cursorStyles.default = () => { defaultIcon };
+	// eventSystem.cursorStyles.default = () => { defaultIcon };
 	// eventSystem.setCursor('default');
+
+	// const el = document.querySelector('#game-container')
+	// console.log(el?.clientWidth)
+	// app.stage.hitArea = new PixiRect(0, 0, el?.clientWidth, el?.clientHeight)
+	// app.stage.cursor = 'custom'
+
+	// app.stage.eventMode = 'dynamic'
+	// console.log(app.stage.eventMode)
 
 
 	const keyAlias = new Map<string, string>([
@@ -603,10 +709,12 @@ setBackgroundColor('#00bd7e')
 
 const bunny = new Sprite({
     src: 'https://pixijs.com/assets/bunny.png',
-    x: 200
+    x: 200,
+    cursor: 'help'
 })
 const gator = new Sprite({
-    src: 'https://woofjs.com/docs/images/river-gator.png'
+    src: 'https://woofjs.com/docs/images/river-gator.png',
+	cursor: 'hover'
 })
 
 function spinGator() {
@@ -615,7 +723,27 @@ function spinGator() {
     })
 }
 
-forever(() => {
+console.log(gator.pivotX)
+console.log(bunny.pivotX)
+
+function spawnGuy() {
+    const guy = new Sprite({ src: 'src/assets/images/platformer-pack/character_pink_front.png'})
+    const speed = 100
+    forever(delta => {
+        guy.x -= speed * delta
+    })
+}
+
+let duration = 0
+
+forever(delta => {
+    if (duration >= 1) {
+        spawnGuy()
+        duration = 0
+    } else {
+        duration += delta
+    }
+
     bunny.rotation += 2
     // bunny.rotateAround(gator, 2).degrees()
 
@@ -650,7 +778,7 @@ forever(() => {
 // 	app.ticker.add((time) => {
 // 		// Continuously rotate the container!
 // 		// * use delta to create frame-independent transform *
-// 		guy.x -= 0.1 * time.deltaTime
+// 		guy.x -= 0.1 * time.deltaMS
 // 	});
 // }
 
