@@ -23,6 +23,6 @@ import CodeEditor from '@/components/CodeEditor.vue'
 .panel {
   flex: 1;
   height: 100vh;
-  overflow-y: hidden;
+  /* overflow-y: hidden; */
 }
 </style>

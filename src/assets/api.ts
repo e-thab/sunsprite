@@ -1,5 +1,49 @@
 import { Application, Assets, Color, Sprite as PixiSprite, Rectangle as PixiRect, Ticker, v8_0_0 } from 'pixi.js';
 import * as monaco from 'monaco-editor'
+import {autocompletion, CompletionContext, snippetCompletion} from "@codemirror/autocomplete"
+import { EditorState, type Extension } from "@codemirror/state"
+import { javascript, javascriptLanguage } from '@codemirror/lang-javascript';
+
+
+export function myCompletions(context: CompletionContext) {
+  let word = context.matchBefore(/\w*/)
+  if (word?.from == word?.to && !context.explicit)
+    return null
+  return {
+    from: word?.from,
+    options: [
+		// https://codemirror.net/docs/ref/#autocomplete.Completion
+		//
+		// {label: "match", type: "keyword"},
+		// {label: "hello", type: "variable", info: "(World)"},
+		// {label: "magic", type: "text", apply: "⠁⭒*.✩.*⭒⠁", detail: "macro"},
+		// {label: "pi", type: "constant", apply: "π", detail: "macro"},
+
+		snippetCompletion(`forever(delta => {\n\t#{1:/* ... */}\n)`, {
+			label: 'forever',
+			type: 'function',
+			detail: '(delta => {...})',
+			info: 'Runs once each frame.',
+			boost: 1
+		}),
+		snippetCompletion(`repeat(#{1:times}, i => {\n\t#{2:/* ... */}\n)`, {
+			label: 'repeat',
+			type: 'function',
+			detail: '(i => {...})',
+			info: 'Runs a given number of times.',
+			boost: 1
+		}),
+		snippetCompletion(`every(#{1:seconds}, () => {\n\t#{2:/* ... */}\n)`, {
+			label: 'every',
+			type: 'function',
+			detail: '(() => {...})',
+			info: 'Runs once every x seconds.',
+			boost: 1
+		}),
+    ],
+	validFor: /^\w*$/
+  }
+}
 
 // monaco.languages.typescript.javascriptDefaults.addExtraLib(
 // 	`
@@ -740,7 +784,8 @@ export async function setup(): Promise<void> {
 
 	// Key press/release registration
 	window.addEventListener('keydown', event => {
-		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
+		// if (document.activeElement?.ariaRoleDescription === 'editor') { return }
+		if (document.activeElement?.ariaPlaceholder) { return }
 
 		const key = apiKeyCode(event.key)
 		if (key && !keysPressed.includes(key) && !event.repeat) {
@@ -749,7 +794,8 @@ export async function setup(): Promise<void> {
 		}
 	})
 	window.addEventListener('keyup', event => {
-		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
+		// if (document.activeElement?.ariaRoleDescription === 'editor') { return }
+		if (document.activeElement?.ariaPlaceholder) { return }
 
 		const key = apiKeyCode(event.key)
 		if (key && keysPressed.includes(key)) {
