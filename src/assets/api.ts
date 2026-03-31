@@ -1,8 +1,6 @@
-import { Application, Assets, Color, Sprite as PixiSprite, Rectangle as PixiRect, Ticker, v8_0_0 } from 'pixi.js';
+import { Application, Assets, Color, Sprite as PixiSprite, Rectangle as PixiRect, Ticker } from 'pixi.js';
 import * as monaco from 'monaco-editor'
-import {autocompletion, CompletionContext, snippetCompletion} from "@codemirror/autocomplete"
-import { EditorState, type Extension } from "@codemirror/state"
-import { javascript, javascriptLanguage } from '@codemirror/lang-javascript';
+import { CompletionContext, snippetCompletion } from "@codemirror/autocomplete"
 
 
 export function myCompletions(context: CompletionContext) {
@@ -18,27 +16,68 @@ export function myCompletions(context: CompletionContext) {
 		// {label: "hello", type: "variable", info: "(World)"},
 		// {label: "magic", type: "text", apply: "⠁⭒*.✩.*⭒⠁", detail: "macro"},
 		// {label: "pi", type: "constant", apply: "π", detail: "macro"},
-
-		snippetCompletion(`forever(delta => {\n\t#{1:/* ... */}\n)`, {
+		snippetCompletion(`PI`, {
+			label: 'PI',
+			type: 'constant',
+			detail: '3.141592653589793',
+			// info: '3.14',
+			boost: 2
+		}),
+		snippetCompletion(`forever(delta => {\n\t#{1:/* ... */}\n})`, {
 			label: 'forever',
 			type: 'function',
 			detail: '(delta => {...})',
-			info: 'Runs once each frame.',
-			boost: 1
+			info: 'Runs once each frame.\ndelta: The number of seconds since last frame.',
+			boost: 2
 		}),
-		snippetCompletion(`repeat(#{1:times}, i => {\n\t#{2:/* ... */}\n)`, {
+		snippetCompletion(`repeat(#{1:times}, i => {\n\t#{2:/* ... */}\n})`, {
 			label: 'repeat',
 			type: 'function',
 			detail: '(i => {...})',
-			info: 'Runs a given number of times.',
-			boost: 1
+			info: 'Runs a given number of times.\ni: The number of times this repeat has run so far.',
+			boost: 2
 		}),
-		snippetCompletion(`every(#{1:seconds}, () => {\n\t#{2:/* ... */}\n)`, {
+		snippetCompletion(`every(#{1:seconds}, () => {\n\t#{2:/* ... */}\n})`, {
 			label: 'every',
 			type: 'function',
 			detail: '(() => {...})',
 			info: 'Runs once every x seconds.',
-			boost: 1
+			boost: 2
+		}),
+		snippetCompletion(`after(#{1:seconds}, () => {\n\t#{2:/* ... */}\n})`, {
+			label: 'after',
+			type: 'function',
+			detail: '(() => {...})',
+			info: 'Runs once after a delay of x seconds.',
+			boost: 2
+		}),
+		snippetCompletion(`keyPressed(#{1:key})`, {
+			label: 'keyPressed',
+			type: 'function',
+			detail: '-> bool',
+			info: 'Returns a boolean representing if the given key is currently pressed.',
+			boost: 2
+		}),
+		snippetCompletion(`keyJustPressed(#{1:key})`, {
+			label: 'keyJustPressed',
+			type: 'function',
+			detail: '-> bool',
+			info: 'Returns a boolean representing if the given key was just pressed last frame. Use this to handle single-press behaviors.',
+			boost: 2
+		}),
+		snippetCompletion(`deg2rad(#{1:degrees})`, {
+			label: 'deg2rad',
+			type: 'function',
+			detail: '-> number',
+			info: 'Converts angles from degrees to radians',
+			boost: 2
+		}),
+		snippetCompletion(`rad2deg(#{1:radians})`, {
+			label: 'rad2deg',
+			type: 'function',
+			detail: '-> number',
+			info: 'Converts angles from radians to degrees',
+			boost: 2
 		}),
     ],
 	validFor: /^\w*$/
@@ -97,19 +136,12 @@ interface Repeatable {
 	fn: Function
 }
 
-/* Used for after() */
+/* Used for after() & every() */
 interface Delayable {
 	seconds: number
 	duration: number
 	fn: Function
 }
-
-/* Used for every() */
-// interface Recurrable {
-// 	seconds: number
-// 	duration: number
-// 	fn: Function
-// }
 
 interface Screen {
 	width: number
@@ -402,6 +434,7 @@ class Sprite extends GameObject {
 	 */
 	readonly _sprite: PixiSprite
 	_src: string
+	onClick: Function
 	
 	constructor({
 		src = 'https://woofjs.com/docs/images/river-gator.png',
@@ -412,7 +445,8 @@ class Sprite extends GameObject {
 		rotation = 0,
 		radians = 0,
 		alpha = 100,
-		cursor = 'default'
+		cursor = 'default',
+		onClick = () => {}
 	} = {}) {
 		super(new PixiSprite(), x, y, rotation, radians, alpha, cursor)
 		this._sprite = this._pixiObject
@@ -422,6 +456,7 @@ class Sprite extends GameObject {
 		this.y = y
 		this.rotation = rotation
 		this.radians = radians
+		this.onClick = onClick
 
 		if (pivotX === -1 && pivotY === -1) {
 			this.setPivotCenter()
@@ -440,7 +475,16 @@ class Sprite extends GameObject {
 		this._sprite.eventMode = 'dynamic'
 		this._sprite.on('click', () => {
 			console.log('Sprite clicked!');
+			// app.renderer.events.cursorStyles
 		})
+	// 	this._sprite.on('mousedown', () => {
+	// 		this.cursor = 'handClosed'
+	// 		// app.renderer.events.setCursor('handClosed')
+	// 	})
+	// 	this._sprite.on('mouseup', () => {
+	// 		this.cursor = 'handOpen'
+	// 		// app.renderer.events.setCursor('handOpen')
+	// 	})
 	}
 
 	setPivotCenter(): void {
@@ -611,7 +655,7 @@ const screen: Screen = {
 	}
 }
 
-const PI: number = 3.14159265359
+const PI: number = 3.141592653589793
 
 function deg2rad(deg: number): number {
 	return deg * PI / 180
@@ -749,11 +793,15 @@ export async function setup(): Promise<void> {
 		antialias: true,
 		autoDensity: true
   	})
-	
+
 	const eventSystem = app.renderer.events
 	eventSystem.cursorStyles.default = "url('src/assets/images/ui-cursors/small/pointer_c.png') 5 5, auto"
-	eventSystem.cursorStyles.hover = "url('src/assets/images/ui-cursors/small/hand_open.png') 15 10, auto"
-	eventSystem.cursorStyles.help = "url('src/assets/images/ui-cursors/small/mark_question_pointer_b.png') 0 0, auto"
+	eventSystem.cursorStyles.handOpen = "url('src/assets/images/ui-cursors/small/hand_open.png') 15 10, auto"
+	eventSystem.cursorStyles.handClosed = "url('src/assets/images/ui-cursors/small/hand_closed.png') 10 10, auto"
+	eventSystem.cursorStyles.handPoint = "url('src/assets/images/ui-cursors/small/hand_point.png') 10 4, auto"
+	eventSystem.cursorStyles.question = "url('src/assets/images/ui-cursors/small/mark_question_pointer_b.png') 7 4, auto"
+	eventSystem.cursorStyles.cross = "url('src/assets/images/ui-cursors/small/cross_large.png') 16 16, auto"
+	eventSystem.cursorStyles.dot = "url('src/assets/images/ui-cursors/small/dot_large.png') 16 16, auto"
 	// const eventSystem = app.renderer.events;
 	// eventSystem.cursorStyles.default = () => { defaultIcon };
 	// eventSystem.setCursor('default');
@@ -819,17 +867,21 @@ export async function setup(): Promise<void> {
 	runUserCode(startCode)
 }
 
-export const startCode = `
-setBackgroundColor('#00bd7e')
+export const startCode = `setBackgroundColor('#00bd7e')
 
 const bunny = new Sprite({
     src: 'https://pixijs.com/assets/bunny.png',
     x: 200,
-    cursor: 'help'
+    cursor: 'question'
 })
 const gator = new Sprite({
     src: 'https://woofjs.com/docs/images/river-gator.png',
-	cursor: 'hover'
+	cursor: 'handOpen'
+})
+const refSquare = new Sprite({
+	src: 'src/assets/images/square.png',
+	y: 300,
+	cursor: 'handPoint'
 })
 
 function spinGator() {

@@ -11,7 +11,6 @@ import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
 import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
-import { autocompletion } from '@codemirror/autocomplete';
 
 const code = ref(startCode)
 const js = javascript()
@@ -74,41 +73,53 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="editor">
-    <!-- <CodeEditor
-      v-model:value="code"
-      language="javascript"
-      theme="vs-dark"
-      :options="editorOptions"
-      @mount="handleMount"
-      @error="handleErr"
-    /> -->
-    <codemirror
-		v-model="code"
-		placeholder="Code goes here..."
-		:style="{ overflow: 'auto' }"
-		:autofocus="true"
-		:indent-with-tab="true"
-		:tab-size="4"
-		:extensions="extensions"
+	<div class="editor">
+		<!-- <CodeEditor
+		v-model:value="code"
+		language="javascript"
+		theme="vs-dark"
+		:options="editorOptions"
+		@mount="handleMount"
+		@error="handleErr"
+		/> -->
+		<div class="editor-bar">
+			<button @click="runUserCode(code)" class="run-button">Run</button>
+			<!-- <span style="flex: 1;">test</span> -->
+		</div>
+		<codemirror style="overflow-y: auto;"
+			v-model="code"
+			placeholder="Code goes here..."
+			:autofocus="true"
+			:indent-with-tab="true"
+			:tab-size="4"
+			:extensions="extensions"
 		/>
-		<!-- @ready="handleReady" -->
-		<!-- @change="console.log('change', $event)"
-		@focus="console.log('focus', $event)"
-		@blur="console.log('blur', $event)" -->
-    <button @click="runUserCode(code)" class="run-button">Run</button>
-  </div>
+			<!-- :style="{ overflow-y: 'auto' }" -->
+			<!-- @ready="handleReady" -->
+			<!-- @change="console.log('change', $event)"
+			@focus="console.log('focus', $event)"
+			@blur="console.log('blur', $event)" -->
+	</div>
 </template>
 
 <style scoped>
-.editor {
+/* .editor {
     overflow-y: auto;
+} */
+.editor-bar {
+	display: flex;
+	place-items: center;
+	height: 24px;
+	/* padding-inline: 5%; */
+	/* padding-inline-start: 10%; */
 }
 .run-button {
-    position: absolute;
+    /* position: absolute;
     left: 47%;
     right: 50%;
     top: 0;
-    bottom: 97%;
+    bottom: 97%; */
+	height: 100%;
+	flex: 1;
 }
 </style>

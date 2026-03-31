@@ -5,10 +5,20 @@ import HomeView from './views/HomeView.vue';
 </script>
 
 <template>
+  <div class="navbar">
+    <p>nav</p>
+  </div>
   <HomeView />
+  <div class="navbar">
+    <p>foot</p>
+  </div>
 </template>
 
 <style scoped>
+.navbar {
+  background-color: darkslategray;
+  height: 4vh;
+}
 /* header {
   line-height: 1.5;
   max-height: 100vh;
