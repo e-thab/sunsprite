@@ -46,11 +46,26 @@ monaco.languages.registerCompletionItemProvider('javascript', {
 /**
  * Interfaces
  */
+/* used for repeat() */
 interface Repeatable {
 	count: number
 	i: number
 	fn: Function
 }
+
+/* Used for after() */
+interface Delayable {
+	seconds: number
+	duration: number
+	fn: Function
+}
+
+/* Used for every() */
+// interface Recurrable {
+// 	seconds: number
+// 	duration: number
+// 	fn: Function
+// }
 
 interface Screen {
 	width: number
@@ -69,6 +84,10 @@ interface Positionable {
 	screenX: number
 	screenY: number
 	// _updatePosition: Function
+}
+
+interface Scalable extends Positionable {
+	
 }
 
 interface Rotatable extends Positionable {
@@ -468,7 +487,27 @@ function _runRepeats() {
 		repeat.count -= 1
 		repeat.i += 1
 	}
-	_repeats = _repeats.filter((repeat) => repeat.count > 0)
+	_repeats = _repeats.filter(repeat => repeat.count > 0)
+}
+
+function _runAfters(delta: number) {
+	for (const after of _afters) {
+		after.duration += delta
+		if (after.duration >= after.seconds) {
+			after.fn()
+		}
+	}
+	_afters = _afters.filter(after => after.duration < after.seconds)
+}
+
+function _runEverys(delta: number) {
+	for (const every of _everys) {
+		every.duration += delta
+		if (every.duration >= every.seconds) {
+			every.fn()
+			every.duration = 0
+		}
+	}
 }
 
 function _clearKeysJustPressed(frame: number): void {
@@ -493,6 +532,8 @@ function _resetTicker(): void {
 let _frame: number = 0 // current render frame index
 let _ticker: Ticker = new Ticker()
 let _repeats: Array<Repeatable> = []
+let _afters: Array<Delayable> = []
+let _everys: Array<Delayable> = []
 let _allSprites: Array<Sprite> = []
 
 
@@ -563,16 +604,37 @@ async function setCursor(src: string) {
 	// app.renderer.events.cursorStyles.hover = defaultIcon;
 }
 
+/* Run function {fn} once every frame */
 function forever(fn: Function): void {
 	_ticker.add((time) => {
 		fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
 	})
 }
 
+/* Run function {fn} {times} number of times */
 function repeat(times: number, fn: Function) {
 	_repeats.push({
 		count: times,
 		i: 0,
+		fn: fn
+	})
+}
+
+/* Run function {fn} after {seconds} seconds have passed */
+function after(seconds: number, fn: Function): void {
+	_afters.push({
+		seconds: seconds,
+		duration: 0,
+		fn: fn
+	})
+}
+
+/* Run function {fn} once immediately, then every {seconds} seconds */
+function every(seconds: number, fn: Function): void {
+	fn()
+	_everys.push({
+		seconds: seconds,
+		duration: 0,
 		fn: fn
 	})
 }
@@ -602,16 +664,23 @@ export async function runUserCode(code: string): Promise<void> {
     // const keys = Object.keys(api)
     // const values = Object.values(api)
 	clear()
+	_repeats = []
+	_afters = []
+	_everys = []
+	_allSprites = []
+	
 	_resetTicker()
-	_ticker.add(() => {
+	_ticker.add(time => {
+		const delta = time.deltaMS / 1000
 		_runRepeats()
+		_runAfters(delta)
+		_runEverys(delta)
 		_clearKeysJustPressed(_frame)
 		_frame++
 	})
-	_allSprites = []
 
-	const keys = [ 'app', 'PI', 'screen', 'camera', 'Sprite', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'clear', 'keyPressed', 'keyJustPressed' ]
-	const values = [app,   PI,   screen,   camera,   Sprite,   setBackgroundColor,   setCursor,   forever,   repeat,   clear,   keyPressed,   keyJustPressed]
+	const keys = [ 'app', 'PI', 'screen', 'camera', 'Sprite', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clear', 'keyPressed', 'keyJustPressed' ]
+	const values = [app,   PI,   screen,   camera,   Sprite,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,  clear,   keyPressed,   keyJustPressed]
 
     const fn = new Function(
       ...keys,
@@ -732,18 +801,13 @@ function spawnGuy() {
     forever(delta => {
         guy.x -= speed * delta
     })
+    every(2, () => {
+        guy.y += 20
+    })
 }
-
-let duration = 0
+every(2, spawnGuy)
 
 forever(delta => {
-    if (duration >= 1) {
-        spawnGuy()
-        duration = 0
-    } else {
-        duration += delta
-    }
-
     bunny.rotation += 2
     // bunny.rotateAround(gator, 2).degrees()
 
