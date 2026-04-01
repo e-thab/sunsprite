@@ -103,9 +103,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* .editor {
+.editor {
+    flex: 1;
     overflow-y: auto;
-} */
+}
 .editor-bar {
 	display: flex;
 	place-items: center;

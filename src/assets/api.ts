@@ -859,10 +859,10 @@ export async function setup(): Promise<void> {
 		keysPressed = []
 	})
 
-	window.addEventListener('resize', async () => {
-		await new Promise(resolve => setTimeout(resolve, 100))
-		_updateSpritePositions()
-	})
+	// window.addEventListener('resize', async () => {
+	// 	await new Promise(resolve => setTimeout(resolve, 100))
+	// 	_updateSpritePositions()
+	// })
 
 	runUserCode(startCode)
 }

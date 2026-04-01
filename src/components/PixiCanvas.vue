@@ -16,6 +16,7 @@ onMounted(async () => {
 
 <style scoped>
 .canvas {
+  flex: 1;
   background-color: magenta;
 }
 </style>

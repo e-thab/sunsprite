@@ -14,16 +14,18 @@ import CodeEditor from '@/components/CodeEditor.vue'
 
 <style scoped>
 .split-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  width: 100vw;
-  height: 92vh;
-  overflow: hidden;
+  /* display: grid;
+  grid-template-columns: 1fr 1fr; */
+  display: flex;
+  /* flex: 1; */
+  /* width: 100vw; */
+  /* height: 92vh; */
+  /* overflow: hidden; */
 }
 
 .panel {
-  /* flex: 1; */
-  height: 92vh;
+  flex: 1;
+  /* height: 92vh; */
   /* overflow-y: hidden; */
 }
 </style>

@@ -2,23 +2,28 @@
 // import { RouterLink, RouterView } from 'vue-router'
 // import HelloWorld from './components/HelloWorld.vue'
 import HomeView from './views/HomeView.vue';
+import NavBar from './components/NavBar.vue';
 </script>
 
 <template>
-  <div class="navbar">
-    <p>nav</p>
-  </div>
-  <HomeView />
-  <div class="navbar">
-    <p>foot</p>
+  <div class="wrapper">
+    <NavBar />
+    <HomeView />
+    <NavBar />
   </div>
 </template>
 
 <style scoped>
-.navbar {
+.wrapper {
+  /* width: 100vw; */
+  /* height: 100vh; */
+  display: flex;
+  flex-direction: column;
+}
+/* .navbar {
   background-color: darkslategray;
   height: 4vh;
-}
+} */
 /* header {
   line-height: 1.5;
   max-height: 100vh;
