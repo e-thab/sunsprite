@@ -3,16 +3,17 @@
 
 <template>
     <div class="bar">
-        <span style="flex: 1;">Span one</span>
-        <span style="flex: 1;">Span two</span>
-        <span style="flex: 1;">Span three</span>
+        <span>Span one</span>
+        <span>Span two</span>
+        <span>Span three</span>
     </div>
 </template>
 
 <style scoped>
 .bar {
+    height: 2em;
+    /* min-height: 2em; */
     display: flex;
-    flex: 1;
-    /* width: 100vw; */
+    justify-content: space-evenly;
 }
 </style>

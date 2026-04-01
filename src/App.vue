@@ -7,18 +7,35 @@ import NavBar from './components/NavBar.vue';
 
 <template>
   <div class="wrapper">
-    <NavBar />
-    <HomeView />
-    <NavBar />
+    <NavBar class="navbar-header"/>
+    <HomeView class="content"/>
+    <!-- <div class="content">X</div> -->
+    <NavBar class="navbar-footer"/>
   </div>
 </template>
 
 <style scoped>
 .wrapper {
-  /* width: 100vw; */
-  /* height: 100vh; */
+  width: 100vw;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  /* justify-content: space-evenly; */
+}
+.content {
+  background-color: '#222';
+  flex: 1 1 100%;
+  width: 100%;
+  height: 100%;
+  overflow-y: hidden;
+}
+.navbar-header {
+  background-color: darkslategray;
+  flex: 1;
+}
+.navbar-footer {
+  background-color: darkslategray;
+  flex: 1;
 }
 /* .navbar {
   background-color: darkslategray;

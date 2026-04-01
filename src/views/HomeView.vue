@@ -6,26 +6,26 @@ import CodeEditor from '@/components/CodeEditor.vue'
 <template>
   <div class="split-container">
     <div id="game-container" class="panel">
-      <PixiCanvas ref="canvas"/>
+      <PixiCanvas ref="canvas" class="pixi-stage"/>
     </div>
     <CodeEditor ref="editor" class="panel"/>
   </div>
 </template>
 
 <style scoped>
+.pixi-stage {
+  width: 100%;
+  height: 100%;
+}
+
 .split-container {
-  /* display: grid;
-  grid-template-columns: 1fr 1fr; */
   display: flex;
-  /* flex: 1; */
-  /* width: 100vw; */
-  /* height: 92vh; */
-  /* overflow: hidden; */
 }
 
 .panel {
-  flex: 1;
-  /* height: 92vh; */
+  flex: 1 1 100%;
+  width: 100%;
+  height: 100%;
   /* overflow-y: hidden; */
 }
 </style>

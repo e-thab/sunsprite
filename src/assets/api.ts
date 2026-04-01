@@ -787,11 +787,14 @@ export async function runUserCode(code: string): Promise<void> {
 export async function setup(): Promise<void> {
 	await app.init({
 		background: '#222',
-		resizeTo: document.querySelector('#game-container') as HTMLElement, // Dynamically update this on resize
+		resizeTo: document.querySelector('#game-container'), // Dynamically update this on resize
+		// resizeTo: app.canvas,
+		// resizeTo: window,
 		// width: 720,
 		// height: 720,
 		antialias: true,
-		autoDensity: true
+		autoDensity: true,
+
   	})
 
 	const eventSystem = app.renderer.events
@@ -859,10 +862,10 @@ export async function setup(): Promise<void> {
 		keysPressed = []
 	})
 
-	// window.addEventListener('resize', async () => {
-	// 	await new Promise(resolve => setTimeout(resolve, 100))
-	// 	_updateSpritePositions()
-	// })
+	window.addEventListener('resize', async () => {
+		await new Promise(resolve => setTimeout(resolve, 100))
+		_updateSpritePositions()
+	})
 
 	runUserCode(startCode)
 }

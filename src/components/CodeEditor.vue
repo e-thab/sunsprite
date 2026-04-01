@@ -104,8 +104,9 @@ onMounted(() => {
 
 <style scoped>
 .editor {
-    flex: 1;
-    overflow-y: auto;
+    flex: 1 1 auto;
+    overflow-y: scroll;
+	/* min-height: 0; */
 }
 .editor-bar {
 	display: flex;
