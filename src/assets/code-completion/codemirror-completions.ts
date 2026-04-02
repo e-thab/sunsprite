@@ -18,7 +18,7 @@ export function completions(context: CompletionContext) {
                 label: 'PI',
                 type: 'constant',
                 detail: '3.141592653589793',
-                // info: '3.14',
+                info: 'π',
                 boost: 2
             }),
             snippetCompletion(`forever(delta => {\n\t#{1:/* ... */}\n})`, {

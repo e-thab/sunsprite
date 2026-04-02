@@ -7,6 +7,7 @@ import { completions } from '@/assets/code-completion/codemirror-completions';
 import { Codemirror } from 'vue-codemirror';
 import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { nord } from '@fsegurai/codemirror-theme-nord'
 
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
@@ -22,7 +23,8 @@ const extensions = [
     js.language.data.of({
       autocomplete: completions
     }),
-    oneDark
+    // oneDark
+	nord
 ]
 
 // Codemirror EditorView instance ref
@@ -115,7 +117,6 @@ onMounted(() => {
 }
 .editor-bar {
 	display: flex;
-	place-items: center;
 	height: 24px;
 }
 .run-button {
@@ -125,6 +126,7 @@ onMounted(() => {
     top: 0;
     bottom: 97%; */
 	height: 100%;
+	width: 8%;
 	/* flex: 1; */
 }
 </style>

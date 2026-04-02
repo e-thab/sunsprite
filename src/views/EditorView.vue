@@ -5,13 +5,13 @@ import PixiCanvas from '@/components/PixiCanvas.vue'
 import CodeEditor from '@/components/CodeEditor.vue'
 import { onMounted } from 'vue';
 
-async function resizeOnReady() {
+async function resizeAfterSplitpaneAnimation() {
   await new Promise(resolve => setTimeout(resolve, 300))
   resizeStage()
 }
 
 onMounted(() => {
-  resizeOnReady()
+  resizeAfterSplitpaneAnimation()
 })
 </script>
 
@@ -56,5 +56,13 @@ onMounted(() => {
 .inner-pane {
   width: 100%;
   height: 100%;
+}
+
+splitpanes {
+  background-color: #222;
+}
+
+pane {
+  background-color: #222;
 }
 </style>

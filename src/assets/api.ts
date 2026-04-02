@@ -687,6 +687,7 @@ export async function runUserCode(code: string): Promise<void> {
 		_runAfters(delta)
 		_runEverys(delta)
 		_clearKeysJustPressed(_frame)
+		// resizeStage()
 		_frame++
 	})
 
