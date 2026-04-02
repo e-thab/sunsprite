@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { handleError, onMounted, ref, shallowRef } from 'vue';
-// import { CodeEditor, useCodeEditor, type EditorOptions } from 'monaco-editor-vue3';
-import { myCompletions, runUserCode, startCode } from '@/assets/api';
+import { CodeEditor, useCodeEditor, type EditorOptions } from 'monaco-editor-vue3';
+import * as monaco from 'monaco-editor';
+import { runUserCode, startCode } from '@/assets/api';
+import { completions } from '@/assets/code-completion/codemirror-completions';
 import { Codemirror } from 'vue-codemirror';
-import { javascript, javascriptLanguage } from '@codemirror/lang-javascript'
+import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
 
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
@@ -18,7 +20,7 @@ const js = javascript()
 const extensions = [
     js,
     js.language.data.of({
-      autocomplete: myCompletions
+      autocomplete: completions
     }),
     oneDark
 ]
@@ -62,43 +64,47 @@ onMounted(() => {
 //     }
 //   }
 
-  // monaco.editor.create(document.getElementById('container'), {
-  //   value: "function hello() {\n\talert('Hello world!');\n}",
-  //   language: 'javascript'
-  // })
-  // javascriptLanguage.data.of({
-  //   autocompletion: myCompletions
-  // })
+//   monaco.editor.create(document.getElementById('#code-container'), {
+//     value: "function hello() {\n\talert('Hello world!');\n}",
+//     language: 'javascript'
+//   })
+//   javascriptLanguage.data.of({
+//     autocompletion: completions
+//   })
 })
 </script>
 
 <template>
-	<div class="editor">
-		<!-- <CodeEditor
-		v-model:value="code"
-		language="javascript"
-		theme="vs-dark"
-		:options="editorOptions"
-		@mount="handleMount"
-		@error="handleErr"
-		/> -->
+	<div style="display: flex; flex-direction: column;">
 		<div class="editor-bar">
 			<button @click="runUserCode(code)" class="run-button">Run</button>
 			<!-- <span style="flex: 1;">test</span> -->
 		</div>
-		<codemirror style="overflow-y: auto;"
+		<div id="code-container" class="editor">
+			<!-- <CodeEditor
+			v-model:value="code"
+			language="javascript"
+			theme="vs-dark"
+			:options="editorOptions"
+			/> -->
+			<!-- @mount="handleMount"
+			@error="handleErr" -->
+			
+			<codemirror
 			v-model="code"
 			placeholder="Code goes here..."
 			:autofocus="true"
 			:indent-with-tab="true"
 			:tab-size="4"
 			:extensions="extensions"
-		/>
+			/>
+			<!-- :style="{ overflowY: 'scroll' }" -->
 			<!-- :style="{ overflow-y: 'auto' }" -->
 			<!-- @ready="handleReady" -->
 			<!-- @change="console.log('change', $event)"
 			@focus="console.log('focus', $event)"
 			@blur="console.log('blur', $event)" -->
+		</div>
 	</div>
 </template>
 
@@ -106,14 +112,11 @@ onMounted(() => {
 .editor {
     flex: 1 1 auto;
     overflow-y: scroll;
-	/* min-height: 0; */
 }
 .editor-bar {
 	display: flex;
 	place-items: center;
 	height: 24px;
-	/* padding-inline: 5%; */
-	/* padding-inline-start: 10%; */
 }
 .run-button {
     /* position: absolute;
@@ -122,6 +125,6 @@ onMounted(() => {
     top: 0;
     bottom: 97%; */
 	height: 100%;
-	flex: 1;
+	/* flex: 1; */
 }
 </style>

@@ -11,7 +11,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div ref="canvas" class="canvas"></div>
+  <div id="game-container" ref="canvas" class="canvas"></div>
 </template>
 
 <style scoped>
