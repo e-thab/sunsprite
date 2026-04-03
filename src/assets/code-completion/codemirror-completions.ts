@@ -86,7 +86,9 @@ export function completions(context: CompletionContext) {
 export const wordHover = hoverTooltip((view, pos, side) => {
     let {from, to, text} = view.state.doc.lineAt(pos)
     let start = pos, end = pos
+    //@ts-ignore
     while (start > from && /\w/.test(text[start - from - 1])) start--
+    //@ts-ignore
     while (end < to && /\w/.test(text[end - from])) end++
     if (start == pos && side < 0 || end == pos && side > 0)
         return null

@@ -25,8 +25,8 @@ const extensions = [
       autocomplete: completions
     }),
 	wordHover,
-    // oneDark
-	nord
+    // oneDark,
+	nord,
 ]
 
 // Codemirror EditorView instance ref
@@ -120,6 +120,7 @@ onMounted(() => {
 }
 .editor-bar {
 	display: flex;
+	justify-content: space-evenly;
 	background-color: #252a33;
 	height: 24px;
 }
@@ -129,9 +130,10 @@ onMounted(() => {
     right: 50%;
     top: 0;
     bottom: 97%; */
-	height: 100%;
-	width: 8%;
-  	min-width: 40px;
+	/* width: 8%;
+	min-width: 40px; */
 	/* flex: 1; */
+	height: 100%;
+	width: 50px;
 }
 </style>
