@@ -127,6 +127,7 @@ onMounted(() => {
     bottom: 97%; */
 	height: 100%;
 	width: 8%;
+  min-width: 40px;
 	/* flex: 1; */
 }
 </style>

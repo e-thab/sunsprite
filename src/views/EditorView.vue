@@ -17,13 +17,13 @@ onMounted(() => {
 
 <template>
   <splitpanes
-    class="default-theme"
-    :push-other-panes="false"
-    @resize="resizeStage()"
+  :push-other-panes="false"
+  @resize="resizeStage()"
   >
+  <!-- class="default-theme" -->
     <!-- Left side pane: File explorer -->
     <pane size="12">
-      <div>Files</div>
+      <span>Files</span>
     </pane>
 
     <!-- Center pane: Code editor -->
@@ -45,24 +45,41 @@ onMounted(() => {
 
         <!-- Bottom left pane: Output -->
         <pane size="20">
-          <div>Output</div>
+          <span>Output</span>
         </pane>
       </splitpanes>
     </pane>
   </splitpanes>
 </template>
 
-<style scoped>
+<style>
 .inner-pane {
   width: 100%;
   height: 100%;
 }
 
-splitpanes {
-  background-color: #222;
+/* .splitpanes {
+  background: radial-gradient(#111114);
+} */
+
+.splitpanes__pane {
+  /* background: linear-gradient(-45deg, #EE7752, #E73C7E, #23A6D5, #23D5AB); */
+  /* box-shadow: 0 0 5px rgba(0, 0, 0, .2) inset; */
+  background: radial-gradient(#111114);
+  justify-content: center;
+  align-items: center;
+  display: flex;
 }
 
-pane {
-  background-color: #222;
+.splitpanes--vertical > .splitpanes__splitter {
+  min-width: 6px;
+  /* background: linear-gradient(90deg, #ccc, #111); */
+  background: radial-gradient(#222);
+}
+
+.splitpanes--horizontal > .splitpanes__splitter {
+  min-height: 6px;
+  /* background: linear-gradient(0deg, #ccc, #111); */
+  background: radial-gradient(#222);
 }
 </style>
