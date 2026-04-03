@@ -58,28 +58,25 @@ onMounted(() => {
   height: 100%;
 }
 
-/* .splitpanes {
-  background: radial-gradient(#111114);
-} */
+.splitpanes {
+  background-color: #101212;
+}
 
 .splitpanes__pane {
   /* background: linear-gradient(-45deg, #EE7752, #E73C7E, #23A6D5, #23D5AB); */
-  /* box-shadow: 0 0 5px rgba(0, 0, 0, .2) inset; */
-  background: radial-gradient(#111114);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.05) inset;
   justify-content: center;
   align-items: center;
   display: flex;
 }
 
 .splitpanes--vertical > .splitpanes__splitter {
+  background-color: #0c0c0c;
   min-width: 6px;
-  /* background: linear-gradient(90deg, #ccc, #111); */
-  background: radial-gradient(#222);
 }
 
 .splitpanes--horizontal > .splitpanes__splitter {
+  background-color: #0c0c0c;
   min-height: 6px;
-  /* background: linear-gradient(0deg, #ccc, #111); */
-  background: radial-gradient(#222);
 }
 </style>

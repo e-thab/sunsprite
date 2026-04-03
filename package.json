@@ -15,6 +15,7 @@
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/state": "^6.6.0",
     "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.41.0",
     "@fsegurai/codemirror-theme-nord": "^6.2.3",
     "codemirror": "^6.0.2",
     "monaco-editor": "^0.55.1",

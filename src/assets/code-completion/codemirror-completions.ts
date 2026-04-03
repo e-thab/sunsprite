@@ -1,5 +1,6 @@
 
 import { CompletionContext, snippetCompletion } from "@codemirror/autocomplete"
+import { hoverTooltip } from "@codemirror/view"
 
 export function completions(context: CompletionContext) {
     let word = context.matchBefore(/\w*/)
@@ -81,3 +82,76 @@ export function completions(context: CompletionContext) {
         validFor: /^\w*$/
     }
 }
+
+export const wordHover = hoverTooltip((view, pos, side) => {
+    let {from, to, text} = view.state.doc.lineAt(pos)
+    let start = pos, end = pos
+    while (start > from && /\w/.test(text[start - from - 1])) start--
+    while (end < to && /\w/.test(text[end - from])) end++
+    if (start == pos && side < 0 || end == pos && side > 0)
+        return null
+    return {
+        pos: start,
+        end,
+        above: true,
+        create(view) {
+            let dom = document.createElement("div")
+            const hoveredWord = text.slice(start - from, end - from)
+
+            dom.innerHTML = (() => {
+                switch (hoveredWord) {
+                    case 'Sprite':
+                        return  `
+                        <span style='color: Aquamarine; font-size: 20px;'>Sprite</span>
+                        <span style='color: Silver; font-size: 14'><i>class</i></span> <br>
+
+                        <span style='font-size: 18px;'>Properties</span> <br>
+                            <span style='color: Silver;'><i>string</i></span>
+                            <span style='color: Aquamarine; font-size: 16px;'>src</span>:
+                            The path to the image this sprite should display <br>
+
+                            <span style='color: Silver;'><i>number</i></span>
+                            <span style='color: Aquamarine; font-size: 16px;'>x</span>:
+                            The sprite's center x position <br>
+
+                            <span style='color: Silver;'><i>number</i></span>
+                            <span style='color: Aquamarine; font-size: 16px;'>y</span>:
+                            The sprite's center y position <br>
+
+                            <!-- pivotX / pivotY -->
+
+                            <span style='color: Silver;'><i>number</i></span>
+                            <span style='color: Aquamarine; font-size: 16px;'>rotation</span>:
+                            The rotation of the sprite in degrees <br>
+
+                            <span style='color: Silver;'><i>number</i></span>
+                            <span style='color: Aquamarine; font-size: 16px;'>radians</span>:
+                            The rotation of the sprite in <a href='https://www.mathsisfun.com/geometry/radians.html' target='_blank'>radians</a> <br>
+
+                            <span style='color: Silver;'><i>function</i></span>
+                            <span style='color: Aquamarine; font-size: 16px;'>onClick</span>:
+                            The function to run when the sprite is clicked <br>
+
+                        <span style='font-size: 18px;'>Methods</span> <br>
+                            <span style='color: Silver;'><i>void</i></span>
+                            <span style='color: Aquamarine; font-size: 16px;'>show()</span>:
+                            Makes the sprite visible <br>
+
+                            <span style='color: Silver;'><i>void</i></span>
+                            <span style='color: Aquamarine; font-size: 16px;'>hide()</span>:
+                            Makes the sprite invisible <br>
+
+                            <span style='color: Silver;'><i>void</i></span>
+                            <span style='color: Aquamarine; font-size: 16px;'>rotate(angle, unit='degrees')</span>:
+                            Set the rotation of the sprite to {angle} using {units}, which should be either 'degrees' or 'radians' <br>
+                    `
+                    
+                    default:
+                        return hoveredWord
+                }
+            })()
+
+            return {dom}
+        }
+    }
+})
