@@ -1,24 +1,15 @@
 @import './base.css';
 
-::-webkit-scrollbar {
-  display: block;
-}
-
-::-webkit-scrollbar-track {
-  /* display: none; */
-  background-color: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #434c5e  /* TODO: base this on editor theme selection */
-}
-
 /* #app {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
   font-weight: normal;
 } */
+
+.ͼo .cm-scroller::-webkit-scrollbar-corner {
+  background-color: #252a33;
+}
 
 a,
 .green {

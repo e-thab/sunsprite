@@ -1,4 +1,5 @@
 import { Application, Assets, Color, Sprite as PixiSprite, Rectangle as PixiRect, Ticker } from 'pixi.js';
+import { onMounted, ref } from 'vue';
 // import * as monaco from 'monaco-editor'
 
 // monaco.languages.typescript.javascriptDefaults.addExtraLib(
@@ -43,11 +44,35 @@ import { Application, Assets, Color, Sprite as PixiSprite, Rectangle as PixiRect
 //   }
 // })
 
-
 export function resizeStage() {
 	app.resize()
 	_updateSpritePositions()
 }
+
+// export function useMouseCoords() {
+// 	const x = ref(0)
+// 	const y = ref(0)
+
+// 	function update() {
+// 		x.value = mouseX
+// 		y.value = mouseY
+// 	}
+
+// 	return { mouseX: x, mouseY: y }
+// }
+
+// export function useFps() {
+// 	// const fps = ref(0)
+
+// 	onMounted(() => {
+// 		// app.ticker.add(time => fps.value = time.FPS)
+// 		app.stage.on('')
+// 	})
+
+// 	return { fps: ref(app.ticker.FPS) }
+// }
+export const fpsRef = ref(0)
+export const mouseRef = ref({mouseX: 0, mouseY: 0})
 
 /**
  * Interfaces
@@ -547,11 +572,13 @@ let _afters: Array<Delayable> = []
 let _everys: Array<Delayable> = []
 let _allSprites: Array<Sprite> = []
 
-
 /**
  * Global (user-accessible) vars / methods
  */
 export const app: Application = new Application()
+export let mouseX: number = 0
+export let mouseY: number = 0
+export let FPS: number = 0
 
 let keysPressed: Array<string> = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
@@ -688,6 +715,8 @@ export async function runUserCode(code: string): Promise<void> {
 		_runEverys(delta)
 		_clearKeysJustPressed(_frame)
 		// resizeStage()
+		FPS = app.ticker.FPS
+		fpsRef.value = Math.round(app.ticker.FPS)
 		_frame++
 	})
 
@@ -720,7 +749,6 @@ export async function setup(): Promise<void> {
 		// height: 720,
 		antialias: true,
 		autoDensity: true,
-
   	})
 
 	const eventSystem = app.renderer.events
@@ -742,7 +770,6 @@ export async function setup(): Promise<void> {
 
 	// app.stage.eventMode = 'dynamic'
 	// console.log(app.stage.eventMode)
-
 
 	const keyAlias = new Map<string, string>([
 		[' ', 'space'],
@@ -787,13 +814,21 @@ export async function setup(): Promise<void> {
 		// Prevent window losing focus from interrupting key registration
 		keysPressed = []
 	})
-
 	window.addEventListener('resize', async () => {
 		await new Promise(resolve => setTimeout(resolve, 100))
 		// resizeStage()
 		_updateSpritePositions()
 	})
 
+	app.stage.eventMode = 'static'
+	app.stage.on('globalmousemove', event => {
+		// console.log(event)
+		// console.log(`x: ${event.globalX}\ty:${event.globalY}`)
+		mouseX = Math.round(event.globalX - app.screen.width / 2)
+		mouseY = Math.round(app.screen.height / 2 - event.globalY)
+		// updateMouseCoords(mouseX, mouseY)
+		mouseRef.value = { mouseX, mouseY }
+	})
 	runUserCode(startCode)
 }
 

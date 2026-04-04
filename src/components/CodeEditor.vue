@@ -96,11 +96,14 @@ onMounted(() => {
 			
 			<codemirror
 			v-model="code"
-			placeholder="Code goes here..."
+			placeholder="..."
 			:autofocus="true"
 			:indent-with-tab="true"
 			:tab-size="4"
 			:extensions="extensions"
+      :style="{
+        maxHeight: '100%',
+      }"
 			/>
 			<!-- :style="{ overflowY: 'scroll' }" -->
 			<!-- :style="{ overflow-y: 'auto' }" -->
@@ -113,10 +116,16 @@ onMounted(() => {
 </template>
 
 <style scoped>
+
 .editor {
-    flex: 1 1 auto;
+  flex: 1 1 auto;
 	background-color: #252a33;
-    overflow-y: scroll;
+  /* width: 100%; */
+  /* height: 100%; */
+  /* overflow-y: auto;
+  overflow-x: auto; */
+  overflow: auto;
+  /* overflow:visible; */
 }
 .editor-bar {
 	display: flex;

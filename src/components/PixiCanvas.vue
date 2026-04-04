@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { app, setup } from '@/assets/api'
+import { app, setup, mouseRef, fpsRef } from '@/assets/api'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 
@@ -16,8 +16,11 @@ onMounted(async () => {
       <button class="test-button">Play/Pause</button>
       <!-- <button class="test-button">Test 2</button> -->
       <button class="test-button">Fullscreen</button>
-      <span style="font-size: 12px;">mouseX / mouseY</span>
-      <span style="font-size: 12px;">FPS</span>
+      <div class="coords">
+        <span style="font-size: 12px;">mouseX: {{ mouseRef.mouseX }}</span>
+        <span style="font-size: 12px;">mouseY: {{ mouseRef.mouseY }}</span>
+      </div>
+      <span style="font-size: 12px;">FPS: {{ fpsRef }}</span>
       <!-- <span style="flex: 1;">test</span> -->
     </div>
     <div id="game-container" ref="canvas" class="canvas"></div>
@@ -25,6 +28,12 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.coords {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 180px;
+}
+
 .canvas {
   width: 100%;
   height: 100%;
@@ -34,6 +43,7 @@ onMounted(async () => {
 
 .game-bar {
 	display: flex;
+  flex-direction: row;
   justify-content: space-evenly;
 	background-color: #252a33;
 	height: 24px;
