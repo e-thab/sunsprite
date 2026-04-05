@@ -534,8 +534,9 @@ export let mouseX: number = 0
 export let mouseY: number = 0
 export let FPS: number = 0
 
-const Timer = { // if Timer never gets new members, find a way to just use 'time' as a variable
-	time: 0 // time since start
+const Timer = {
+	time: 0, // time since start, does not increment during pause
+	realTime: 0, // time since start including pause time
 }
 let keysPressed: Array<string> = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
@@ -713,9 +714,11 @@ export async function runUserCode(code: string): Promise<void> {
 	_resetTicker()
 	_ticker.add(time => {
 		const delta = time.deltaMS / 1000
+		Timer.realTime += delta
 		fpsRef.value = Math.round(app.ticker.FPS)
 		FPS = app.ticker.FPS
 		_clearKeysJustPressed(_frame)
+		// whilePaused loops? or a flag to be able to run standard loops through pause?
 		
 		if (paused) { return } // Can pause from loops, but obviously not unpause. Would a workaround be useful?
 		Timer.time += delta
