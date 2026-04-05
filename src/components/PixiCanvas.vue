@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { app, setup, mouseRef, fpsRef } from '@/assets/api'
+import { app, setup, mouseRef, fpsRef, pause, play, paused } from '@/assets/api'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 
@@ -13,9 +13,17 @@ onMounted(async () => {
 <template>
   <div style="display: flex; flex-direction: column;">
     <div class="game-bar">
-      <button class="test-button">Play/Pause</button>
+      <!-- Pause/play buttons -->
+      <button v-if="paused" @click="play" class="test-button">
+        Play
+      </button>
+      <button v-else @click="pause" class="test-button">
+        Pause
+      </button>
+
       <!-- <button class="test-button">Test 2</button> -->
       <button class="test-button">Fullscreen</button>
+      <button class="test-button">Screenshot</button>
       <div class="coords">
         <span style="font-size: 12px;">mouseX: {{ mouseRef.mouseX }}</span>
         <span style="font-size: 12px;">mouseY: {{ mouseRef.mouseY }}</span>

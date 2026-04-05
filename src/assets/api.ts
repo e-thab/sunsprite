@@ -1,76 +1,11 @@
 import { Application, Assets, Color, Sprite as PixiSprite, Rectangle as PixiRect, Ticker } from 'pixi.js';
-import { onMounted, ref } from 'vue';
-// import * as monaco from 'monaco-editor'
-
-// monaco.languages.typescript.javascriptDefaults.addExtraLib(
-// 	`
-// 	declare const PI: number
-// 	declare function deg2rad(deg: number): number
-// 	declare function rad2deg(rad: number): number
-// 	declare function forever(fn: (delta: number) => {}): void
-// 	declare function repeat(times: number, fn: (i: number) => {}): void
-// 	declare function keyPressed(key: string): boolean
-// 	declare function keyJustPressed(key: string): boolean
-// 	declare namespace Sprite {
-// 		let src: string
-// 		let x: number
-// 		let y: number
-// 		let rotation: number
-// 		let radians: number
-// 		let visible: boolean
-// 		let alpha: number
-// 		function show(): void
-// 		function hide(): void
-// 		function rotate(angle: number): void
-// 	}
-// 	`,
-// 	'file:///game-api.d.ts'
-// )
-
-// // Monaco autocompletion
-// monaco.languages.registerCompletionItemProvider('javascript', {
-//   provideCompletionItems() {
-//     return {
-//       suggestions: [
-//         {
-//           label: 'forever',
-//           kind: monaco.languages.CompletionItemKind.Function,
-//           insertText: 'forever(delta => \{\n\t${1:...}\n\})',
-//           insertTextRules:
-//             monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-//         }
-//       ]
-//     }
-//   }
-// })
+import { ref } from 'vue';
 
 export function resizeStage() {
 	app.resize()
 	_updateSpritePositions()
 }
 
-// export function useMouseCoords() {
-// 	const x = ref(0)
-// 	const y = ref(0)
-
-// 	function update() {
-// 		x.value = mouseX
-// 		y.value = mouseY
-// 	}
-
-// 	return { mouseX: x, mouseY: y }
-// }
-
-// export function useFps() {
-// 	// const fps = ref(0)
-
-// 	onMounted(() => {
-// 		// app.ticker.add(time => fps.value = time.FPS)
-// 		app.stage.on('')
-// 	})
-
-// 	return { fps: ref(app.ticker.FPS) }
-// }
 export const fpsRef = ref(0)
 export const mouseRef = ref({mouseX: 0, mouseY: 0})
 
@@ -107,6 +42,7 @@ interface Positionable {
 	y: number
 	screenX: number
 	screenY: number
+	goTo(x: number, y: number): void
 	// _updatePosition: Function
 }
 
@@ -125,8 +61,8 @@ interface Rotatable extends Positionable {
 interface Viewable {
 	alpha: number
 	visible: boolean
-	show: Function
-	hide: Function
+	show(): void
+	hide(): void
 }
 
 // // Mixins
@@ -161,6 +97,7 @@ abstract class GameObject implements Positionable, Rotatable, Viewable {
 	protected _alpha: number
 	// protected _cursor: string
 	// protected _radians: number
+	protected _initTime: number
 
 	constructor(
 		pixiObject: any,
@@ -179,13 +116,14 @@ abstract class GameObject implements Positionable, Rotatable, Viewable {
 		// this._pivotY = pivotY
 		this._alpha = alpha
 		// this._cursor = cursor
-		this.cursor = cursor
-
+		this._initTime = Timer.time
+		
 		// Setters
 		this.x = x
 		this.y = y
 		this.rotation = rotation
 		this.radians = radians
+		this.cursor = cursor
 	}
 
 	get x() {
@@ -274,6 +212,10 @@ abstract class GameObject implements Positionable, Rotatable, Viewable {
 	set cursor(cursor) {
 		this._pixiObject.cursor = cursor
 	}
+
+	get age() {
+		return Timer.time - this._initTime
+	}
 	
 
 	show(): void {
@@ -282,6 +224,11 @@ abstract class GameObject implements Positionable, Rotatable, Viewable {
 
 	hide(): void {
 		this._pixiObject.visible = false
+	}
+
+	goTo(x: number, y: number): void {
+		this.x = x
+		this.y = y
 	}
 
 	rotate(angle: number, unit: string = 'degrees'): void {
@@ -358,6 +305,11 @@ class Camera implements Positionable {
 		this._updatePosition()
 	}
 
+	goTo(x: number, y: number): void {
+		this.x = x
+		this.y = y
+	}
+
 	_updatePosition(): void {
 		_updateSpritePositions()
 	}
@@ -398,6 +350,7 @@ class Sprite extends GameObject {
 	} = {}) {
 		super(new PixiSprite(), x, y, rotation, radians, alpha, cursor)
 		this._sprite = this._pixiObject
+		this._sprite.visible = false
 		this._src = src
 		this.src = src
 		this.x = x
@@ -433,6 +386,7 @@ class Sprite extends GameObject {
 	// 		this.cursor = 'handOpen'
 	// 		// app.renderer.events.setCursor('handOpen')
 	// 	})
+		this._sprite.visible = true
 	}
 
 	setPivotCenter(): void {
@@ -580,6 +534,9 @@ export let mouseX: number = 0
 export let mouseY: number = 0
 export let FPS: number = 0
 
+const Timer = { // if Timer never gets new members, find a way to just use 'time' as a variable
+	time: 0 // time since start
+}
 let keysPressed: Array<string> = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
 
@@ -615,6 +572,42 @@ function rad2deg(rad: number): number {
 	return 180 * rad / PI
 }
 
+function sin(angle: number, unit: string = 'degrees') {
+	if (unit === 'radians') {
+		return Math.sin(angle)
+	} else {
+		return Math.sin(deg2rad(angle))
+	}
+}
+
+function cos(angle: number, unit: string = 'degrees') {
+	if (unit === 'radians') {
+		return Math.cos(angle)
+	} else {
+		return Math.cos(deg2rad(angle))
+	}
+}
+
+function tan(angle: number, unit: string = 'degrees') {
+	if (unit === 'radians') {
+		return Math.tan(angle)
+	} else {
+		return Math.tan(deg2rad(angle))
+	}
+}
+
+function atan2(y: number, x: number, unit: string = 'degrees') {
+	if (unit === 'radians') {
+		return Math.atan2(y, x)
+	} else {
+		return rad2deg(Math.atan2(y, x))
+	}
+}
+
+function sqrt(x: number) {
+	return Math.sqrt(x)
+}
+
 // function point(x: number, y: number): Positionable {
 // 	return {x: x, y: y}
 // }
@@ -645,6 +638,7 @@ async function setCursor(src: string) {
 /* Run function {fn} once every frame */
 function forever(fn: Function): void {
 	_ticker.add((time) => {
+		if (paused) { return }
 		fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
 	})
 }
@@ -694,47 +688,60 @@ function clear(): void {
 // 	window.addEventListener('keydown', )
 // }
 
+export let paused: boolean = false
+export function pause() {
+	paused = true
+}
+export function play() {
+	paused = false
+}
+
 /**
  * API utility
  */
 export async function runUserCode(code: string): Promise<void> {
-  try {
-    // const keys = Object.keys(api)
+	// const keys = Object.keys(api)
     // const values = Object.values(api)
 	clear()
 	_repeats = []
 	_afters = []
 	_everys = []
 	_allSprites = []
+	Timer.time = 0
+	paused = false
 	
 	_resetTicker()
 	_ticker.add(time => {
 		const delta = time.deltaMS / 1000
+		fpsRef.value = Math.round(app.ticker.FPS)
+		FPS = app.ticker.FPS
+		_clearKeysJustPressed(_frame)
+		
+		if (paused) { return } // Can pause from loops, but obviously not unpause. Would a workaround be useful?
+		Timer.time += delta
+		_frame++
 		_runRepeats()
 		_runAfters(delta)
 		_runEverys(delta)
-		_clearKeysJustPressed(_frame)
 		// resizeStage()
-		FPS = app.ticker.FPS
-		fpsRef.value = Math.round(app.ticker.FPS)
-		_frame++
 	})
 
-	const keys = [ 'app', 'PI', 'screen', 'camera', 'Sprite', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clear', 'keyPressed', 'keyJustPressed' ]
-	const values = [app,   PI,   screen,   camera,   Sprite,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,  clear,   keyPressed,   keyJustPressed]
-
-    const fn = new Function(
-      ...keys,
-      `
-      return (async () => {
-        ${code}
-      })()
-      `
-    )
-    await fn(...values)
-  } catch (err) {
-    console.error('User code error:', err)
-  }
+	const keys = [ 'app', 'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'Timer', 'screen', 'camera', 'Sprite', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clear', 'keyPressed', 'keyJustPressed', 'pause', 'play', 'paused' ]
+	const values = [app,   PI,   sin,   cos,   tan,   atan2,   sqrt,   Timer,   screen,   camera,   Sprite,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,  clear,   keyPressed,   keyJustPressed,    pause,   play,   paused]
+	
+	try {
+		const fn = new Function(
+		...keys,
+		`
+		return (async () => {
+			${code}
+		})()
+		`
+		)
+		await fn(...values)
+	} catch (err) {
+		console.error('User code error:', err)
+	}
 }
 
 export async function setup(): Promise<void> {
@@ -859,16 +866,18 @@ console.log(gator.pivotX)
 console.log(bunny.pivotX)
 
 function spawnGuy() {
-    const guy = new Sprite({ src: 'src/assets/images/platformer-pack/character_pink_front.png'})
-    const speed = 100
-    forever(delta => {
-        guy.x -= speed * delta
+    const speed = 20
+    const guy = new Sprite({
+        src: 'src/assets/images/platformer-pack/character_pink_front.png',
+        cursor: 'dot'
     })
-    every(2, () => {
-        guy.y += 20
+
+    forever(delta => {
+        guy.x = cos(guy.age, 'radians') * guy.age * speed
+        guy.y = sin(guy.age, 'radians') * guy.age * speed
     })
 }
-every(2, spawnGuy)
+every(5, spawnGuy)
 
 forever(delta => {
     bunny.rotation += 2
@@ -885,10 +894,12 @@ forever(delta => {
     if (keyPressed('Left')) { camera.x -= 5 }
     if (keyPressed('Right')) { camera.x += 5 }
 
-    if (gator.x > screen.rightX) { gator.x = screen.leftX }
-    if (gator.x < screen.leftX) { gator.x = screen.rightX }
-    if (gator.y > screen.topY) { gator.y = screen.bottomY }
-    if (gator.y < screen.bottomY) { gator.y = screen.topY }
+    if (keyPressed('R')) { camera.goTo(0, 0) }
+
+    // if (gator.x > screen.rightX) { gator.x = screen.leftX }
+    // if (gator.x < screen.leftX) { gator.x = screen.rightX }
+    // if (gator.y > screen.topY) { gator.y = screen.bottomY }
+    // if (gator.y < screen.bottomY) { gator.y = screen.topY }
 })
 `
 

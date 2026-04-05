@@ -6,7 +6,7 @@ import CodeEditor from '@/components/CodeEditor.vue'
 import { onMounted } from 'vue';
 
 async function resizeAfterSplitpaneAnimation() {
-  await new Promise(resolve => setTimeout(resolve, 300))
+  await new Promise(resolve => setTimeout(resolve, 200))
   resizeStage()
 }
 
