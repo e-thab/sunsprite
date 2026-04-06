@@ -689,6 +689,19 @@ function clearStage(): void {
 function print(msg: string) {
 	// TODO: count repeated messages instead of showing them all (chrome console style)
     console.log(msg)
+
+	function withLeadingZeroes(num: number, length: number) {
+		let strNum = num.toString()
+
+		if (strNum.length >= length) {
+			return strNum
+		}
+
+		while (strNum.length < length) {
+			strNum = '0' + strNum
+		}
+		return strNum
+	}
 	
     const item = document.createElement('div')
     item.className = 'output-item'
@@ -700,10 +713,16 @@ function print(msg: string) {
 	
 	const stampItem = document.createElement('div')
 	stampItem.className = 'output-stamp'
-	stampItem.textContent = `Time: ${Timer.time.toPrecision(3)}`
+
+	const time = new Date()
+	const hr = withLeadingZeroes(time.getHours(), 2)
+	const min = withLeadingZeroes(time.getMinutes(), 2)
+	const sec = withLeadingZeroes(time.getSeconds(), 2)
+	const milli = withLeadingZeroes(time.getMilliseconds(), 3)
+	stampItem.textContent = `${hr}:${min}:${sec}.${milli}`
 	
-	item.appendChild(msgItem)
 	item.appendChild(stampItem)
+	item.appendChild(msgItem)
 	
 	const panel = document.querySelector('#output-panel')
 	if (panel) {

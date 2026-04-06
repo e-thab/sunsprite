@@ -72,12 +72,12 @@ onMounted(() => {
 }
 
 .splitpanes--vertical > .splitpanes__splitter {
-  background-color: #0c0c0c;
+  background-color: #23252b;
   min-width: 6px;
 }
 
 .splitpanes--horizontal > .splitpanes__splitter {
-  background-color: #0c0c0c;
+  background-color: #23252b;
   min-height: 6px;
 }
 </style>

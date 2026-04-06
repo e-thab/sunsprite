@@ -23,7 +23,9 @@ import { onMounted, ref } from 'vue';
 
 <template>
     <div class="output-wrapper">
-        <div class="output-header">Output</div>
+        <div class="output-header">
+            <div>Output</div>
+        </div>
         <!-- <hr style="border-color: #252525; border-style:solid"> -->
         <div class="output-panel" id="output-panel" ref="panel">
             <!-- <div class="output-item">Item 1</div>
@@ -42,10 +44,12 @@ import { onMounted, ref } from 'vue';
     flex-direction: column;
     width: 100%;
     height: 100%;
+    background-color: #252a33;
 }
 
 .output-header {
-    background-color: #0c0c0c;
+    display: flex;
+    justify-content: center;
 }
 
 .output-panel {
@@ -56,16 +60,20 @@ import { onMounted, ref } from 'vue';
 
 .output-item {
     display: flex;
-    justify-content: space-between;
     font-family: 'Courier New', Courier, monospace;
-    border-bottom: 1px solid #242424;
+    /* justify-content: space-between; */
+    /* border-bottom: 1px dashed #252a33; */
 }
 
-/* .output-msg {
-    color: red;
-} */
+.output-msg {
+    padding: 0 .25em;
+    background-color: #2d3341;
+    flex: 1 1 auto;
+}
 
 .output-stamp {
-    color: DimGray;
+    color: #4A546A;
+    border-right: 1px solid;
+    padding: 0 .25em;
 }
 </style>

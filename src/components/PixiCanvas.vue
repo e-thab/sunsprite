@@ -11,7 +11,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div style="display: flex; flex-direction: column;">
+  <div class="game-wrapper">
     <div class="game-bar">
       <!-- Pause/play buttons -->
       <button v-if="paused" @click="play" class="test-button">
@@ -49,12 +49,20 @@ onMounted(async () => {
   background-color: magenta;
 }
 
+.game-wrapper {
+  display: flex;
+  flex-direction: column;
+  background-color: #252a33;
+}
+
 .game-bar {
 	display: flex;
   flex-direction: row;
-  justify-content: space-evenly;
-	background-color: #252a33;
+  justify-content: space-between;
+	/* background-color: #252a33; */
 	height: 24px;
+  /* margin-right: 1em; */
+  padding-right: 1em;
 }
 
 .test-button {
