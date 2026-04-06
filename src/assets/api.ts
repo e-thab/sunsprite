@@ -1,5 +1,6 @@
 import { Application, Assets, Color, Sprite as PixiSprite, Rectangle as PixiRect, Ticker } from 'pixi.js';
-import { ref } from 'vue';
+import { ref, type Component } from 'vue';
+import output from '../components/Output.vue'
 
 export function resizeStage() {
 	app.resize()
@@ -681,8 +682,41 @@ function keyJustPressed(key: string): boolean {
 	return keysJustPressed.get(key.toLowerCase()) !== undefined
 }
 
-function clear(): void {
+function clearStage(): void {
 	app.stage.removeChildren()
+}
+
+function print(msg: string) {
+	// TODO: count repeated messages instead of showing them all (chrome console style)
+    console.log(msg)
+	
+    const item = document.createElement('div')
+    item.className = 'output-item'
+    // item.textContent = msg
+	
+	const msgItem = document.createElement('div')
+	msgItem.className = 'output-msg'
+	msgItem.textContent = msg
+	
+	const stampItem = document.createElement('div')
+	stampItem.className = 'output-stamp'
+	stampItem.textContent = `Time: ${Timer.time.toPrecision(3)}`
+	
+	item.appendChild(msgItem)
+	item.appendChild(stampItem)
+	
+	const panel = document.querySelector('#output-panel')
+	if (panel) {
+		panel.appendChild(item)
+		panel.scrollTop = panel.scrollHeight
+	}
+}
+
+function clearOutput(): void {
+	const panel = document.querySelector('#output-panel')
+	while (panel?.firstChild) {
+		panel.removeChild(panel.firstChild)
+	}
 }
 
 // function onKeyDown(key: string, fn: Function) {
@@ -703,7 +737,8 @@ export function play() {
 export async function runUserCode(code: string): Promise<void> {
 	// const keys = Object.keys(api)
     // const values = Object.values(api)
-	clear()
+	clearOutput()
+	clearStage()
 	_repeats = []
 	_afters = []
 	_everys = []
@@ -729,8 +764,8 @@ export async function runUserCode(code: string): Promise<void> {
 		// resizeStage()
 	})
 
-	const keys = [ 'app', 'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'Timer', 'screen', 'camera', 'Sprite', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clear', 'keyPressed', 'keyJustPressed', 'pause', 'play', 'paused' ]
-	const values = [app,   PI,   sin,   cos,   tan,   atan2,   sqrt,   Timer,   screen,   camera,   Sprite,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,  clear,   keyPressed,   keyJustPressed,    pause,   play,   paused]
+	const keys = [ 'app', 'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'Timer', 'screen', 'camera', 'Sprite', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused' ]
+	const values = [app,   PI,   sin,   cos,   tan,   atan2,   sqrt,   Timer,   screen,   camera,   Sprite,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,  clearStage,   keyPressed,   keyJustPressed,    print,   pause,   play,   paused]
 	
 	try {
 		const fn = new Function(
@@ -865,10 +900,11 @@ function spinGator() {
     })
 }
 
-console.log(gator.pivotX)
-console.log(bunny.pivotX)
+print(gator.pivotX)
+print(bunny.pivotX)
 
 function spawnGuy() {
+	print('spawning')
     const speed = 20
     const guy = new Sprite({
         src: 'src/assets/images/platformer-pack/character_pink_front.png',

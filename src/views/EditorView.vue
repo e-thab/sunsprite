@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage } from '@/assets/api';
+import { onMounted } from 'vue';
 import PixiCanvas from '@/components/PixiCanvas.vue'
 import CodeEditor from '@/components/CodeEditor.vue'
-import { onMounted } from 'vue';
+import Output from '@/components/Output.vue';
 
 async function resizeAfterSplitpaneAnimation() {
   await new Promise(resolve => setTimeout(resolve, 200))
@@ -45,7 +46,7 @@ onMounted(() => {
 
         <!-- Bottom left pane: Output -->
         <pane size="20">
-          <span>Output</span>
+          <Output />
         </pane>
       </splitpanes>
     </pane>

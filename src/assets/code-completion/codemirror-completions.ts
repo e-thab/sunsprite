@@ -85,6 +85,37 @@ export function completions(context: CompletionContext) {
 
 export const wordHover = hoverTooltip((view, pos, side) => {
     let {from, to, text} = view.state.doc.lineAt(pos)
+
+    /* Check 1: Look for image filenames as strings */
+    /* Come back to this */
+    // let start = pos, end = pos
+    // //@ts-ignore
+    // while (start > from && /['"]/.test(text[start - from - 1])) start--
+    // console.log(`start: ${start}`)
+    // //@ts-ignore
+    // while (end < to && /(['"])[^'"]+\.(png|jpg|svg)\1/.test(text.slice(start, end))) end++
+    // console.log(`end: ${end}`)
+    // if (!(start == pos && side < 0 || end == pos && side > 0)) {
+    //     return {
+    //         pos: start,
+    //         end,
+    //         above: true,
+    //         create(view) {
+    //             console.log('found string')
+    //             let dom = document.createElement("div")
+    //             const imageSource = text.slice(start - from, end - from)
+
+    //             dom.innerHTML = (() => {
+    //                 return `<img src=${imageSource}></img>`
+    //             })()
+
+    //             return {dom}
+    //         }
+    //     }
+    // }
+    // console.log(`non-string tested: ${text.slice(start - from, end - from)}`)
+
+    /* Check 2: Match any single words */
     let start = pos, end = pos
     //@ts-ignore
     while (start > from && /\w/.test(text[start - from - 1])) start--
@@ -145,7 +176,7 @@ export const wordHover = hoverTooltip((view, pos, side) => {
 
                             <span style='color: Silver;'><i>void</i></span>
                             <span style='color: Aquamarine; font-size: 16px;'>rotate(angle, unit='degrees')</span>:
-                            Set the rotation of the sprite to {angle} using {units}, which should be either 'degrees' or 'radians' <br>
+                            Set the rotation of the sprite to {angle} using {unit}, which should be either 'degrees' or 'radians' <br>
                     `
                     
                     default:
