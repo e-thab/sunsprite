@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { app, setup, mouseRef, fpsRef, pause, play, paused } from '@/assets/api'
+import { app, setup, mouseRef, fpsRef, pause, play, paused } from '@/assets/api/core'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 

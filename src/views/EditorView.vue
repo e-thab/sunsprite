@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Splitpanes, Pane } from 'splitpanes';
-import { resizeStage } from '@/assets/api';
+import { resizeStage } from '@/assets/api/core';
 import { onMounted } from 'vue';
 import PixiCanvas from '@/components/PixiCanvas.vue'
 import CodeEditor from '@/components/CodeEditor.vue'
