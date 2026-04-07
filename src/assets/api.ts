@@ -145,6 +145,20 @@ abstract class GameObject implements Positionable, Rotatable, Viewable {
 		this._updatePosition()
 	}
 
+	get width() {
+		return this._pixiObject.width
+	}
+	set width(n) {
+		this._pixiObject.width = n
+	}
+
+	get height() {
+		return this._pixiObject.height
+	}
+	set height(n) {
+		this._pixiObject.height = n
+	}
+
 	get screenX() {
 		return this._x - camera.x
 	}
@@ -218,6 +232,10 @@ abstract class GameObject implements Positionable, Rotatable, Viewable {
 		return Timer.time - this._initTime
 	}
 	
+	// Come back to this?
+	setScale(scale: number) {
+		this._pixiObject.scale.set(scale)
+	}
 
 	show(): void {
 		this._pixiObject.visible = true
@@ -341,8 +359,10 @@ class Sprite extends GameObject {
 		src = 'https://woofjs.com/docs/images/river-gator.png',
 		x = 0,
 		y = 0,
-		pivotX = -1,
-		pivotY = -1,
+		width = undefined,
+		height = undefined,
+		pivotX = undefined,
+		pivotY = undefined,
 		rotation = 0,
 		radians = 0,
 		alpha = 100,
@@ -360,12 +380,16 @@ class Sprite extends GameObject {
 		this.radians = radians
 		this.onClick = onClick
 
-		if (pivotX === -1 && pivotY === -1) {
+		if (pivotX === undefined && pivotY === undefined) {
 			this.setPivotCenter()
 		} else {
 			this.pivotX = pivotX
 			this.pivotY = pivotY
 		}
+
+		// Height/width still need to adjust pivot
+		if (width) this.width = width
+		if (height) this.height = height
 		
 		// this.width = spriteObj.width === undefined ? this._texture.width : spriteObj.width
 		// this.height = spriteObj.height === undefined ? this._texture.height : spriteObj.height
