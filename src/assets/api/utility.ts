@@ -1,3 +1,10 @@
+/* Get a random int, min & max inclusive */
+export function random(min: number, max: number): number {
+    const minCeiled = Math.ceil(min);
+    const maxFloored = Math.floor(max);
+    return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
+}
+
 export function deg2rad(deg: number): number {
     return deg * Math.PI / 180
 }
@@ -6,7 +13,7 @@ export function rad2deg(rad: number): number {
     return 180 * rad / Math.PI
 }
 
-export function sin(angle: number, unit: string = 'degrees') {
+export function sin(angle: number, unit: string = 'degrees'): number {
     if (unit === 'radians') {
         return Math.sin(angle)
     } else {
@@ -14,7 +21,7 @@ export function sin(angle: number, unit: string = 'degrees') {
     }
 }
 
-export function cos(angle: number, unit: string = 'degrees') {
+export function cos(angle: number, unit: string = 'degrees'): number {
     if (unit === 'radians') {
         return Math.cos(angle)
     } else {
@@ -22,7 +29,7 @@ export function cos(angle: number, unit: string = 'degrees') {
     }
 }
 
-export function tan(angle: number, unit: string = 'degrees') {
+export function tan(angle: number, unit: string = 'degrees'): number {
     if (unit === 'radians') {
         return Math.tan(angle)
     } else {
@@ -30,7 +37,7 @@ export function tan(angle: number, unit: string = 'degrees') {
     }
 }
 
-export function atan2(y: number, x: number, unit: string = 'degrees') {
+export function atan2(y: number, x: number, unit: string = 'degrees'): number {
     if (unit === 'radians') {
         return Math.atan2(y, x)
     } else {
@@ -38,7 +45,7 @@ export function atan2(y: number, x: number, unit: string = 'degrees') {
     }
 }
 
-export function sqrt(x: number) {
+export function sqrt(x: number): number {
     return Math.sqrt(x)
 }
 
@@ -71,17 +78,38 @@ print(bunny.pivotX)
 function spawnGuy() {
 	print('spawning')
     const speed = 20
-    const guy = new Sprite({
-        src: 'src/assets/images/platformer-pack/character_pink_front.png',
-        cursor: 'dot'
+    // const img = [
+    //     'src/assets/images/platformer-pack/character_pink_front.png',
+    //     'src/assets/images/platformer-pack/character_beige_walk_a.png',
+    //     'src/assets/images/platformer-pack/character_green_duck.png',
+    //     'src/assets/images/platformer-pack/character_purple_walk_a.png',
+    //     'src/assets/images/platformer-pack/character_yellow_walk_b.png'
+    // ]
+
+    // const guy = new Sprite({
+    //     src: img[random(0, 4)],
+    //     cursor: 'dot'
+    // })
+
+    const colors = [
+        '#CEEC97',
+        '#F4B393',
+        '#FC60A8',
+        '#7A28CB',
+        '#494368',
+    ]
+
+    const guy = new Rectangle({
+        color: colors[random(0, 4)]
     })
 
     forever(delta => {
         guy.x = cos(guy.age, 'radians') * guy.age * speed
         guy.y = sin(guy.age, 'radians') * guy.age * speed
+        guy.rotation += 0.06
     })
 }
-every(5, spawnGuy)
+every(0.3, spawnGuy)
 
 forever(delta => {
     bunny.rotation += 2
@@ -106,6 +134,8 @@ forever(delta => {
     // if (gator.y < screen.bottomY) { gator.y = screen.topY }
 })
 `
+
+
 /**
  * Monaco stuff
  */

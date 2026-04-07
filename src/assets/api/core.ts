@@ -1,11 +1,13 @@
 import { ref } from 'vue';
 import { Application, Color, Ticker } from 'pixi.js';
 
-import type { Repeatable, Delayable, Screen } from './interfaces';
-import { atan2, cos, sin, sqrt, startCode, tan } from './utility';
+import type { Repeatable, Delayable, Screen, Positionable } from './interfaces';
+import { atan2, cos, random, sin, sqrt, startCode, tan } from './utility';
 
 import Camera from './Camera';
 import Sprite from './Sprite';
+import Rectangle from './Rectangle';
+import type GameObject from './GameObject';
 
 export function resizeStage() {
 	app.resize()
@@ -19,8 +21,8 @@ export const mouseRef = ref({mouseX: 0, mouseY: 0})
  * API internal methods
  */
 export function updateSpritePositions(): void {
-	for (const sprite of allSprites) {
-		sprite._updatePosition()
+	for (const object of allPositionables) {
+		object._updatePosition()
 	}
 }
 
@@ -72,7 +74,7 @@ function _resetTicker(): void {
  * API Internal vars
  */
 // type Key = 'Escape' | ''
-export let allSprites: Array<Sprite> = []
+export let allPositionables: Array<Positionable> = []
 let _frame: number = 0 // current render frame index
 let _ticker: Ticker = new Ticker()
 let _repeats: Array<Repeatable> = []
@@ -268,7 +270,7 @@ export async function runUserCode(code: string): Promise<void> {
 	_repeats = []
 	_afters = []
 	_everys = []
-	allSprites = []
+	allPositionables = []
 	Timer.time = 0
 	paused = false
 	
@@ -290,8 +292,8 @@ export async function runUserCode(code: string): Promise<void> {
 		resizeStage() // -necessary?
 	})
 
-	const keys = [ 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'Timer', 'screen', 'camera', 'Sprite', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused' ]
-	const values = [app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   Timer,   screen,   camera,   Sprite,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,  clearStage,   keyPressed,   keyJustPressed,    print,   pause,   play,   paused]
+	const keys = [ 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused' ]
+	const values = [app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused]
 	
 	try {
 		const fn = new Function(

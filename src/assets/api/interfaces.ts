@@ -33,11 +33,17 @@ export interface Positionable {
 	screenX: number
 	screenY: number
 	goTo(x: number, y: number): void
+    _updatePosition(): void
 	// _updatePosition: Function
 }
 
 export interface Scalable extends Positionable {
-	
+	width: number
+    height: number
+    scale: {
+        x: number
+        y: number
+    }
 }
 
 export interface Rotatable extends Positionable {

@@ -1,5 +1,5 @@
 import { Sprite as PixiSprite, Assets } from "pixi.js"
-import { allSprites, app } from "./core"
+import { allPositionables, app } from "./core"
 import GameObject from "./GameObject"
 
 /**
@@ -62,7 +62,7 @@ export default class Sprite extends GameObject {
 		// this.height = spriteObj.height === undefined ? this._texture.height : spriteObj.height
 
 		app.stage.addChild(this._sprite)
-		allSprites.push(this)
+		allPositionables.push(this)
 
 		// Temp
 		this._sprite.eventMode = 'dynamic'
