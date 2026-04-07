@@ -6,11 +6,12 @@ import GameObject from "./GameObject"
  * Rectangle class, using position setters from that one WoofJS project
  */
 export default class Rectangle extends GameObject {
-	readonly _rect: PixiRect
+	// readonly _rect: PixiRect
 	_x: number
 	_y: number
-    _graphics: Graphics
+    _graphicsRect: Graphics
     _color: string
+    _visible: boolean
 	// left: number
 	// right: number
 	// top: number
@@ -33,44 +34,41 @@ export default class Rectangle extends GameObject {
 		// top = undefined,
 		// bottom = undefined
 	} = {}) {
-        const left = x + app.screen.width / 2 - width / 2
-        const top = y + app.screen.height / 2 - height / 2
+        const pos = {
+            x: x + app.screen.width / 2 - width / 2,
+            y: y + app.screen.height / 2 - height / 2
+        }
 
-		super(new PixiRect(left, top, width, height), x, y, rotation, radians, alpha, cursor)
-		this._rect = this._pixiObject
+		super(
+            new Graphics()
+                .rect(x, y, width, height)
+                .fill(color),
+            x, y, rotation, radians, alpha, cursor
+        )
+		// this._rect = this._pixiObject
+        this._graphicsRect = this._pixiObject
+        this._graphicsRect.visible = false
         this._color = color
-
-        this._graphics = new Graphics()
-        this._graphics
-            .rect(left, top, width, height)
-            .fill(color)
-        app.stage.addChild(this._graphics)
+        this._visible = true
 
         allPositionables.push(this)
-
-		this._x = x
-		this._y = y
+        
+        this._x = x
+        this._y = y
+        app.stage.addChild(this._graphicsRect)
 		// this.width = width
 		// this.height = height
 	}
 
 	_updatePosition(): void {
         // this._rect.x = 
-        // this._graphics.moveTo(
-        //     this._x + app.screen.width / 2 - this.width / 2,
-        //     this._y + app.screen.height / 2 - this.height / 2
-        // )
-
-        // this._graphics.destroy()
-        app.stage.removeChild(this._graphics)
-        
-        const left = this._x + app.screen.width / 2 - this.width / 2 - camera.x
-        const top = -this._y + app.screen.height / 2 - this.height / 2 + camera.y
-        // this._graphics.moveTo(left, top).fill(this.color)
-        this._graphics = new Graphics()
-            .rect(left, top, this.width, this.height)
-            .fill(this.color)
-        app.stage.addChild(this._graphics)
+        if (this._graphicsRect) {
+            // Check user-set pivot before setting here
+            this._graphicsRect.pivot.set(this.width / 2, this.height / 2)
+            this._graphicsRect.x = this._x + app.screen.width / 2 - camera.x
+            this._graphicsRect.y = -this._y + app.screen.height / 2 + camera.y
+            if (this.visible) this._graphicsRect.visible = true
+        }
 	}
 
     get color() {
@@ -79,7 +77,7 @@ export default class Rectangle extends GameObject {
     set color(color) {
         console.log(`drawing a ${color} rect`)
         this._color = color
-        this._graphics.fill(color)
+        this._graphicsRect.fill(color)
     }
 
     get x() {
@@ -98,5 +96,23 @@ export default class Rectangle extends GameObject {
         this._y = newY
         // this._pixiObject.y = -this.y + app.screen.height / 2 + camera.y
         this._updatePosition()
+    }
+
+    get visible() {
+        return this._visible
+    }
+    set visible(visible: boolean) {
+        this._visible = visible
+        this._graphicsRect.visible = visible
+    }
+
+    show() {
+        this.visible = true
+        this._graphicsRect.visible = true
+    }
+
+    hide() {
+        this.visible = false
+        this._graphicsRect.visible = false
     }
 }

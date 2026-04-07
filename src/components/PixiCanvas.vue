@@ -3,10 +3,23 @@ import { ref, onMounted } from 'vue'
 import { app, setup, mouseRef, fpsRef, pause, play, paused } from '@/assets/api/core'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
+const fps = ref()
+
+async function updateFpsInterval() {
+  // This won't cause any issues.. right?
+  while (true) {
+    fps.value = fpsRef.value
+    await new Promise(resolve => setTimeout(resolve, 500)).then()
+  }
+}
+
+// New funcs here for play/pause to update an internal ref rather than using imported 'paused'
+// ...
 
 onMounted(async () => {
   await setup()
   canvas.value?.appendChild(app.canvas)
+  updateFpsInterval()
 })
 </script>
 
@@ -28,7 +41,7 @@ onMounted(async () => {
         <span style="font-size: 12px;">mouseX: {{ mouseRef.mouseX }}</span>
         <span style="font-size: 12px;">mouseY: {{ mouseRef.mouseY }}</span>
       </div>
-      <span style="font-size: 12px;">FPS: {{ fpsRef }}</span>
+      <span style="font-size: 12px; width: 4em;">FPS: {{ fps }}</span>
       <!-- <span style="flex: 1;">test</span> -->
     </div>
     <div id="game-container" ref="canvas" class="canvas"></div>

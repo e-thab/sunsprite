@@ -76,7 +76,6 @@ print(gator.pivotX)
 print(bunny.pivotX)
 
 function spawnGuy() {
-	print('spawning')
     const speed = 20
     // const img = [
     //     'src/assets/images/platformer-pack/character_pink_front.png',
@@ -92,11 +91,11 @@ function spawnGuy() {
     // })
 
     const colors = [
-        '#CEEC97',
-        '#F4B393',
-        '#FC60A8',
-        '#7A28CB',
-        '#494368',
+        '#F72585',
+        '#7209B7',
+        '#3A0CA3',
+        '#F3A712',
+        '#D6F8D6',
     ]
 
     const guy = new Rectangle({
@@ -106,7 +105,7 @@ function spawnGuy() {
     forever(delta => {
         guy.x = cos(guy.age, 'radians') * guy.age * speed
         guy.y = sin(guy.age, 'radians') * guy.age * speed
-        guy.rotation += 0.06
+        guy.rotation += sqrt(guy.age) / speed
     })
 }
 every(0.3, spawnGuy)
