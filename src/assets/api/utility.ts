@@ -76,7 +76,8 @@ print(gator.pivotX)
 print(bunny.pivotX)
 
 function spawnGuy() {
-    const speed = 20
+    const moveSpeed = 40
+    const rotSpeed = 1
     // const img = [
     //     'src/assets/images/platformer-pack/character_pink_front.png',
     //     'src/assets/images/platformer-pack/character_beige_walk_a.png',
@@ -98,34 +99,44 @@ function spawnGuy() {
         '#D6F8D6',
     ]
 
+    let r = random(0, 4)
+    while (colors[r] === lastColor) {
+        r = random(0, 4)
+    }
+    
     const guy = new Rectangle({
-        color: colors[random(0, 4)]
+        color: colors[r]
     })
+    lastColor = colors[r]
 
     forever(delta => {
-        guy.x = cos(guy.age, 'radians') * guy.age * speed
-        guy.y = sin(guy.age, 'radians') * guy.age * speed
-        guy.rotation += sqrt(guy.age) / speed
+        guy.x = cos(guy.age, 'radians') * sqrt(guy.age) * moveSpeed
+        guy.y = sin(guy.age, 'radians') * sqrt(guy.age) * moveSpeed
+        // guy.rotation += sqrt(guy.age * rotSpeed)
+        guy.rotation += sqrt(guy.age / 4) * rotSpeed
     })
 }
-every(0.3, spawnGuy)
+
+let lastColor = ''
+let i = 0
+every(0.1, spawnGuy)
 
 forever(delta => {
     bunny.rotation += 2
     // bunny.rotateAround(gator, 2).degrees()
 
-    if (keyPressed('W')) { gator.y += 5 }
-    if (keyPressed('A')) { gator.x -= 5 }
-    if (keyPressed('S')) { gator.y -= 5 }
-    if (keyPressed('D')) { gator.x += 5 }
-    if (keyJustPressed('Space')) { spinGator() }
+    if (keyPressed('W')) gator.y += 5
+    if (keyPressed('A')) gator.x -= 5
+    if (keyPressed('S')) gator.y -= 5
+    if (keyPressed('D')) gator.x += 5
+    if (keyJustPressed('Space')) spinGator()
 
-    if (keyPressed('Up')) { camera.y += 5 }
-    if (keyPressed('Down')) { camera.y -= 5 }
-    if (keyPressed('Left')) { camera.x -= 5 }
-    if (keyPressed('Right')) { camera.x += 5 }
+    if (keyPressed('Up')) camera.y += 5
+    if (keyPressed('Down')) camera.y -= 5
+    if (keyPressed('Left')) camera.x -= 5
+    if (keyPressed('Right')) camera.x += 5
 
-    if (keyPressed('R')) { camera.goTo(0, 0) }
+    if (keyPressed('R')) camera.goTo(0, 0)
 
     // if (gator.x > screen.rightX) { gator.x = screen.leftX }
     // if (gator.x < screen.leftX) { gator.x = screen.rightX }

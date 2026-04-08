@@ -389,7 +389,7 @@ export async function setup(): Promise<void> {
 		updateSpritePositions()
 	})
 
-	app.stage.eventMode = 'static'
+	app.stage.eventMode = 'dynamic'
 	app.stage.on('globalmousemove', event => {
 		mouseX = Math.round(event.globalX - app.screen.width / 2)
 		mouseY = Math.round(app.screen.height / 2 - event.globalY)

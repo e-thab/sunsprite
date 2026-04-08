@@ -63,13 +63,18 @@ export default abstract class GameObject implements Positionable, Rotatable, Vie
         return this._pixiObject.width
     }
     set width(n) {
+        const lastWidth = this.width
+        // this._pixiObject.pivot.set(0.5)
         this._pixiObject.width = n
+        this._updatePosition()
     }
 
     get height() {
         return this._pixiObject.height
     }
     set height(n) {
+        const lastHeight = this.height
+        this._pixiObject.pivot.set(0.5)
         this._pixiObject.height = n
     }
 
@@ -140,6 +145,13 @@ export default abstract class GameObject implements Positionable, Rotatable, Vie
     }
     set cursor(cursor) {
         this._pixiObject.cursor = cursor
+    }
+
+    get layer() {
+        return this._pixiObject.zIndex
+    }
+    set layer(layer: number) {
+        this._pixiObject.zIndex = layer
     }
 
     get age() {
