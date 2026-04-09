@@ -50,6 +50,8 @@ import { onMounted, ref } from 'vue';
 .output-header {
     display: flex;
     justify-content: center;
+    color: #d8dee9;
+    height: 24px;
 }
 
 .output-panel {

@@ -16,6 +16,16 @@ export function resizeStage() {
 
 export const fpsRef = ref(0)
 export const mouseRef = ref({mouseX: 0, mouseY: 0})
+export const pausedRef = ref(false)
+
+export function pause() {
+	paused = true
+	pausedRef.value = true
+}
+export function play() {
+	paused = false
+	pausedRef.value = false
+}
 
 /**
  * API internal methods
@@ -119,13 +129,6 @@ const screen: Screen = {
 	}
 }
 
-export function pause() {
-	paused = true
-}
-export function play() {
-	paused = false
-}
-
 // function point(x: number, y: number): Positionable {
 // 	return {x: x, y: y}
 // }
@@ -156,7 +159,7 @@ async function setCursor(src: string) {
 /* Run function {fn} once every frame */
 function forever(fn: Function): void {
 	_ticker.add((time) => {
-		if (paused) { return }
+		if (paused) return
 		fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
 	})
 }
@@ -203,7 +206,11 @@ function clearStage(): void {
 	app.stage.removeChildren()
 }
 
-function print(msg: string) {
+export function warn() {
+	// TODO
+}
+
+export function print(msg: string, bgColor: string | undefined = undefined, textColor: string | undefined = undefined) {
 	// TODO: count repeated messages instead of showing them all (chrome console style)
     console.log(msg)
 
@@ -213,20 +220,26 @@ function print(msg: string) {
 		if (strNum.length >= length) {
 			return strNum
 		}
-
 		while (strNum.length < length) {
 			strNum = '0' + strNum
 		}
+
 		return strNum
 	}
 	
     const item = document.createElement('div')
     item.className = 'output-item'
-    // item.textContent = msg
 	
 	const msgItem = document.createElement('div')
 	msgItem.className = 'output-msg'
-	msgItem.textContent = msg
+	// msgItem.textContent = msg
+	msgItem.innerHTML = msg  // Unsafe
+	if (bgColor) {
+		msgItem.style.backgroundColor = bgColor
+	}
+	if (textColor) {
+		msgItem.style.color = textColor
+	}
 	
 	const stampItem = document.createElement('div')
 	stampItem.className = 'output-stamp'
@@ -267,12 +280,14 @@ export async function runUserCode(code: string): Promise<void> {
     // const values = Object.values(api)
 	clearOutput()
 	clearStage()
+	play()
 	_repeats = []
 	_afters = []
 	_everys = []
 	allPositionables = []
 	Timer.time = 0
-	paused = false
+
+	print('<i>Running</i>', undefined, '#626f8b')
 	
 	_resetTicker()
 	_ticker.add(time => {
@@ -283,7 +298,7 @@ export async function runUserCode(code: string): Promise<void> {
 		_clearKeysJustPressed(_frame)
 		// whilePaused loops? or a flag to be able to run standard loops through pause?
 		
-		if (paused) { return } // Can pause from loops, but obviously not unpause. Would a workaround be useful?
+		if (paused) return // Can pause from loops, but obviously not unpause. Would a workaround be useful?
 		Timer.time += delta
 		_frame++
 		_runRepeats()
@@ -358,7 +373,7 @@ export async function setup(): Promise<void> {
 	// Key press/release registration
 	window.addEventListener('keydown', event => {
 		// if (document.activeElement?.ariaRoleDescription === 'editor') { return }
-		if (document.activeElement?.ariaPlaceholder) { return }
+		if (document.activeElement?.ariaPlaceholder) return
 
 		const key = apiKeyCode(event.key)
 		if (key && !keysPressed.includes(key) && !event.repeat) {
@@ -368,7 +383,7 @@ export async function setup(): Promise<void> {
 	})
 	window.addEventListener('keyup', event => {
 		// if (document.activeElement?.ariaRoleDescription === 'editor') { return }
-		if (document.activeElement?.ariaPlaceholder) { return }
+		if (document.activeElement?.ariaPlaceholder) return
 
 		const key = apiKeyCode(event.key)
 		if (key && keysPressed.includes(key)) {

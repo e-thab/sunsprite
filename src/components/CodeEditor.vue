@@ -12,25 +12,26 @@ const code = ref(startCode)
 const js = javascript()
 
 const extensions = [
-    js,
+	js,
     js.language.data.of({
-      autocomplete: completions
+		autocomplete: completions
     }),
 	wordHover,
     // oneDark,
 	nord,
 ]
 
-onMounted(() => {
-
-})
+function runActiveUserCode() {
+  runUserCode(code.value)
+}
+defineExpose({ runActiveUserCode })
 </script>
 
 <template>
 	<div style="display: flex; flex-direction: column;">
 		<div class="editor-bar">
-			<button @click="runUserCode(code)" class="run-button">Run</button>
-			<!-- <span style="flex: 1;">test</span> -->
+			&nbsp;
+			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
 		</div>
 		<div id="code-container" class="editor">
 			<codemirror

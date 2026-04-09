@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage } from '@/assets/api/core';
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import PixiCanvas from '@/components/PixiCanvas.vue'
 import CodeEditor from '@/components/CodeEditor.vue'
 import Output from '@/components/Output.vue';
 
+// const canvas = ref()
+const editor = ref()
+
 async function resizeAfterSplitpaneAnimation() {
   await new Promise(resolve => setTimeout(resolve, 200))
   resizeStage()
+}
+
+function runActiveUserCode() {
+  editor.value.runActiveUserCode()
 }
 
 onMounted(() => {
@@ -41,7 +48,7 @@ onMounted(() => {
       >
         <!-- Top right pane: Game view -->
         <pane size="80" min-size="60">
-          <PixiCanvas ref="canvas" class="inner-pane"/>
+          <PixiCanvas @run-game="runActiveUserCode" ref="canvas" class="inner-pane"/>
         </pane>
 
         <!-- Bottom left pane: Output -->

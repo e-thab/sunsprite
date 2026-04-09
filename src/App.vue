@@ -21,10 +21,7 @@ import NavBar from './components/NavBar.vue';
   flex-direction: column;
 }
 .content {
-  /* background-color: '#222'; */
   flex: 1 1 100%;
-  /* width: 100%;
-  height: 100%; */
   overflow-y: hidden;
 }
 .navbar-header {

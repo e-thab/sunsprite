@@ -1,55 +1,81 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { app, setup, mouseRef, fpsRef, pause, play, paused } from '@/assets/api/core'
+import { app, setup, mouseRef, fpsRef, pause, play, pausedRef, print } from '@/assets/api/core'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const fps = ref()
+const fpsColor = ref()
 
-async function updateFpsInterval() {
-  // This won't cause any issues.. right?
-  while (true) {
-    fps.value = fpsRef.value
-    await new Promise(resolve => setTimeout(resolve, 500)).then()
+function updateFpsInterval() {
+  fps.value = fpsRef.value
+  if (fps.value >= 55) {
+    fpsColor.value = 'SpringGreen'
+  } else if (fps.value >= 30) {
+    fpsColor.value = 'PaleGreen'
+  } else if (fps.value >= 20) {
+    fpsColor.value = 'Khaki'
+  } else if (fps.value >= 10) {
+    fpsColor.value = 'Gold'
+  } else {
+    fpsColor.value = 'Tomato'
   }
 }
 
-// New funcs here for play/pause to update an internal ref rather than using imported 'paused'
-// ...
+defineEmits(['runGame'])
 
 onMounted(async () => {
   await setup()
   canvas.value?.appendChild(app.canvas)
-  updateFpsInterval()
+  window.setInterval(updateFpsInterval, 250)
 })
 </script>
 
 <template>
   <div class="game-wrapper">
     <div class="game-bar">
-      <!-- Pause/play buttons -->
-      <button v-if="paused" @click="play" class="test-button">
-        Play
-      </button>
-      <button v-else @click="pause" class="test-button">
-        Pause
-      </button>
+      <!-- Play -->
+      <img v-show="pausedRef" @click="play" class="play-button" src="@/assets/images/game-icons/right.png" />
 
-      <!-- <button class="test-button">Test 2</button> -->
-      <button class="test-button">Fullscreen</button>
-      <button class="test-button">Screenshot</button>
+      <!-- Pause -->
+      <img v-show="!pausedRef" @click="pause" class="play-button" src="@/assets/images/game-icons/pause.png" />
+
+      <!-- Restart / Run code -->
+      <img @click="$emit('runGame')" class="play-button" src="@/assets/images/game-icons/return.png" />
+      
+      <!-- Screenshot -->
+      <img @click="print('screenshot')" class="play-button" src="@/assets/images/game-icons/export.png" />
+      
+      <!-- mouseX/Y -->
       <div class="coords">
         <span style="font-size: 12px;">mouseX: {{ mouseRef.mouseX }}</span>
         <span style="font-size: 12px;">mouseY: {{ mouseRef.mouseY }}</span>
       </div>
-      <span style="font-size: 12px; width: 4em;">FPS: {{ fps }}</span>
-      <!-- <span style="flex: 1;">test</span> -->
+      
+      <!-- FPS indicator -->
+      <span style="font-size: 12px; width: 4em;">FPS: <span class="fps-number">{{ fps }}</span></span>
+      
+      <!-- Fullscreen -->
+      <img @click="print('fullscreen')" class="play-button" src="@/assets/images/game-icons/larger.png" />
+
+      <!-- Settings -->
+      <img @click="print('settings')" class="play-button" src="@/assets/images/game-icons/gear.png" />
     </div>
     <div id="game-container" ref="canvas" class="canvas"></div>
   </div>
 </template>
 
 <style scoped>
+* {
+  color: #d8dee9;
+  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+
+.fps-number {
+  color: v-bind(fpsColor)
+}
+
 .coords {
+  justify-items: center;
   display: grid;
   grid-template-columns: 1fr 1fr;
   width: 180px;
@@ -70,18 +96,28 @@ onMounted(async () => {
 
 .game-bar {
 	display: flex;
-  flex-direction: row;
   justify-content: space-between;
+  align-items: center;
+  /* display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  justify-items: center; */
 	/* background-color: #252a33; */
-	height: 24px;
+	max-height: 24px;
+  /* width: 100%; */
   /* margin-right: 1em; */
-  padding-right: 1em;
+  /* padding-right: 1em; */
+  padding-left: 0.1em;
+  padding-right: 0.2em;
 }
 
-.test-button {
-	height: 100%;
-	/* width: 8%;
-  min-width: 40px; */
-  /* width: 60px; */
+.play-button {
+  display: block;
+  /* height: 100%; */
+  height: 24px;
+  /* display: none; */
 }
+
+/* .test-button {
+	height: 100%;
+} */
 </style>
