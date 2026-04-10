@@ -67,7 +67,7 @@ onMounted(() => {
 }
 
 .splitpanes {
-  background-color: #101212;
+  background-color: #252a33;
 }
 
 .splitpanes__pane {

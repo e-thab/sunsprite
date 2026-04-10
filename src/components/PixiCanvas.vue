@@ -34,16 +34,16 @@ onMounted(async () => {
   <div class="game-wrapper">
     <div class="game-bar">
       <!-- Play -->
-      <img v-show="pausedRef" @click="play" class="play-button" src="@/assets/images/game-icons/right.png" />
+      <img v-show="pausedRef" @click="play" class="img-button" src="@/assets/images/game-icons/right.png" />
 
       <!-- Pause -->
-      <img v-show="!pausedRef" @click="pause" class="play-button" src="@/assets/images/game-icons/pause.png" />
+      <img v-show="!pausedRef" @click="pause" class="img-button" src="@/assets/images/game-icons/pause.png" />
 
       <!-- Restart / Run code -->
-      <img @click="$emit('runGame')" class="play-button" src="@/assets/images/game-icons/return.png" />
+      <img @click="$emit('runGame')" class="img-button" src="@/assets/images/game-icons/return.png" />
       
       <!-- Screenshot -->
-      <img @click="print('screenshot')" class="play-button" src="@/assets/images/game-icons/export.png" />
+      <img @click="print('screenshot')" class="img-button" src="@/assets/images/game-icons/export.png" />
       
       <!-- mouseX/Y -->
       <div class="coords">
@@ -55,10 +55,10 @@ onMounted(async () => {
       <span style="font-size: 12px; width: 4em;">FPS: <span class="fps-number">{{ fps }}</span></span>
       
       <!-- Fullscreen -->
-      <img @click="print('fullscreen')" class="play-button" src="@/assets/images/game-icons/larger.png" />
+      <img @click="print('fullscreen')" class="img-button" src="@/assets/images/game-icons/larger.png" />
 
       <!-- Settings -->
-      <img @click="print('settings')" class="play-button" src="@/assets/images/game-icons/gear.png" />
+      <img @click="print('settings')" class="img-button" src="@/assets/images/game-icons/gear.png" />
     </div>
     <div id="game-container" ref="canvas" class="canvas"></div>
   </div>
@@ -101,23 +101,19 @@ onMounted(async () => {
   /* display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
   justify-items: center; */
-	/* background-color: #252a33; */
 	max-height: 24px;
-  /* width: 100%; */
-  /* margin-right: 1em; */
-  /* padding-right: 1em; */
   padding-left: 0.1em;
   padding-right: 0.2em;
 }
 
-.play-button {
+.img-button {
   display: block;
-  /* height: 100%; */
   height: 24px;
-  /* display: none; */
+  transition: 0.2s;
+  filter: opacity(80%);
 }
 
-/* .test-button {
-	height: 100%;
-} */
+.img-button:hover {
+  filter: opacity(100%);
+}
 </style>
