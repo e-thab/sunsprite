@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useFullscreenStore } from '@/stores/fullscreen';
+const fsStore = useFullscreenStore()
 </script>
 
 <template>
-    <div class="bar">
+    <div v-if="!fsStore.fullscreen" id="nav-header" class="bar">
         <span>Header</span>
         <!-- <span>Span two</span> -->
         <!-- <span>Span three</span> -->

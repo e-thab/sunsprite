@@ -1,15 +1,15 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage } from '@/assets/api/core';
-import { onMounted, ref } from 'vue';
+import { useFullscreenStore } from '@/stores/fullscreen';
 import PixiCanvas from '@/components/PixiCanvas.vue'
 import CodeEditor from '@/components/CodeEditor.vue'
 import Output from '@/components/Output.vue';
 
-
 // const canvas = ref()
 const editor = ref()
-const fullscreen = ref(false)
+const fsStore = useFullscreenStore()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
 
 const canvasWidth = ref(44)
@@ -26,19 +26,14 @@ const paneSize: { [index: string]: number } = {
   'output-pane': 20
 }
 
-async function resizeAfterSplitpaneAnimation() {
-  await new Promise(resolve => setTimeout(resolve, 200))
-  resizeStage()
-}
-
 function runActiveUserCode() {
+  // Run the code currently in the code editor
   editor.value.runActiveUserCode()
 }
 
 async function toggleFullscreen() {
-  fullscreen.value = !fullscreen.value
-
-  if (fullscreen.value) {
+  // Toggle fullscreen state (pinia store) when pressing fullscreen button
+  if (fsStore.toggle()) {
     splitterDisplay.value = 'none'
     canvasWidth.value = 100
     canvasHeight.value = 100
@@ -54,24 +49,18 @@ async function toggleFullscreen() {
   })
 }
 
-type ResizeEvent = { prevPane: EventPane, nextPane: EventPane }
 type EventPane = { el: HTMLElement, size: number }
+type ResizeEvent = { prevPane: EventPane, nextPane: EventPane }
+
 const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
   paneSize[`${prevPane.el.id}`] = prevPane.size
   paneSize[`${nextPane.el.id}`] = nextPane.size
-  // console.log(paneSize)
 }
 
 function resizeSplitpanes(event: ResizeEvent) {
   storePaneSizes(event)
   resizeStage()
 }
-
-defineExpose({ fullscreen })
-
-onMounted(() => {
-  // resizeAfterSplitpaneAnimation()
-})
 </script>
 
 <template>
@@ -82,12 +71,12 @@ onMounted(() => {
   >
   <!-- class="default-theme" -->
     <!-- Left side pane: File explorer -->
-    <pane id="explorer-pane" v-show="!fullscreen" size="12">
+    <pane id="explorer-pane" v-show="!fsStore.fullscreen" size="12">
       <span>Files</span>
     </pane>
 
     <!-- Center pane: Code editor -->
-    <pane id="code-pane" v-show="!fullscreen" size="44" min-size="15">
+    <pane id="code-pane" v-show="!fsStore.fullscreen" size="44" min-size="15">
       <CodeEditor ref="editor" class="inner-pane"/>
     </pane>
 
@@ -106,11 +95,11 @@ onMounted(() => {
             @fullscreen="toggleFullscreen"
             id="canvas-pane"
             ref="canvas"
-            class="game-pane"/>
+            class="inner-pane"/>
         </pane>
 
         <!-- Bottom left pane: Output -->
-        <pane id="output-pane" v-show="!fullscreen" :size="100-canvasHeight">
+        <pane id="output-pane" v-show="!fsStore.fullscreen" :size="100-canvasHeight">
           <Output></Output>
         </pane>
       </splitpanes>
@@ -119,10 +108,10 @@ onMounted(() => {
 </template>
 
 <style>
-.game-pane {
+/* .game-pane {
   width: 100%;
   height: 100%;
-}
+} */
 
 .inner-pane {
   width: 100%;
@@ -151,11 +140,6 @@ onMounted(() => {
 .splitpanes--horizontal > .splitpanes__splitter {
   background-color: #23252b;
   min-height: 6px;
-  display: v-bind(splitterDisplay);
-}
-
-/* Doesn't work; look into this (should hide header bar on fullscreen) */
-.bar {
   display: v-bind(splitterDisplay);
 }
 </style>

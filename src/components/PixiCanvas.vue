@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { app, setup, mouseRef, fpsRef, pause, play, pausedRef, print } from '@/assets/api/core'
+import { useFullscreenStore } from '@/stores/fullscreen'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const fps = ref()
 const fpsColor = ref()
-const fullscreen = ref(false)
-
-const largerIcon = '/src/assets/images/game-icons/larger.png'
-const smallerIcon = '/src/assets/images/game-icons/smaller.png'
-const fullscreenIcon = ref(largerIcon)
+const fsStore = useFullscreenStore()
 
 function updateFpsInterval() {
   fps.value = fpsRef.value
@@ -23,17 +20,6 @@ function updateFpsInterval() {
     fpsColor.value = 'Gold'
   } else {
     fpsColor.value = 'Tomato'
-  }
-}
-
-function toggleFullscreen() {
-  emit('fullscreen')
-  fullscreen.value = !fullscreen.value
-
-  if (fullscreen.value) {
-    fullscreenIcon.value = smallerIcon
-  } else {
-    fullscreenIcon.value = largerIcon
   }
 }
 
@@ -78,7 +64,7 @@ onMounted(async () => {
       <img @click="print('settings')" class="img-button" src="@/assets/images/game-icons/gear.png" />
 
       <!-- Fullscreen -->
-      <img @click="toggleFullscreen" class="img-button" :src="fullscreenIcon" />
+      <img @click="$emit('fullscreen')" class="img-button" :src="fsStore.icon" />
     </div>
     <div id="game-container" ref="canvas" class="canvas"></div>
   </div>
