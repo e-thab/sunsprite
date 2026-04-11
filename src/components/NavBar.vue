@@ -3,9 +3,9 @@
 
 <template>
     <div class="bar">
-        <span>Span one</span>
-        <span>Span two</span>
-        <span>Span three</span>
+        <span>Header</span>
+        <!-- <span>Span two</span> -->
+        <!-- <span>Span three</span> -->
     </div>
 </template>
 

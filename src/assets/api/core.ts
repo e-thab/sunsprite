@@ -307,7 +307,7 @@ export async function runUserCode(code: string): Promise<void> {
 		_runRepeats()
 		_runAfters(delta)
 		_runEverys(delta)
-		resizeStage() // -necessary?
+		// resizeStage() // -necessary?
 	})
 
 	const keys = [ 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused' ]

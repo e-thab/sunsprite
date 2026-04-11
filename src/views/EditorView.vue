@@ -10,6 +10,7 @@ import Output from '@/components/Output.vue';
 // const canvas = ref()
 const editor = ref()
 const fullscreen = ref(false)
+const splitterDisplay = ref<'inline' | 'none'>('inline')
 
 const canvasWidth = ref(44)
 const canvasHeight = ref(80)
@@ -34,24 +35,36 @@ function runActiveUserCode() {
   editor.value.runActiveUserCode()
 }
 
-function toggleFullscreen() {
-  // Sorta works. Just need to store previous 
+async function toggleFullscreen() {
   fullscreen.value = !fullscreen.value
 
   if (fullscreen.value) {
+    splitterDisplay.value = 'none'
     canvasWidth.value = 100
     canvasHeight.value = 100
   } else {
+    splitterDisplay.value = 'inline'
     canvasWidth.value = paneSize['right-pane'] ?? 0
     canvasHeight.value = paneSize['canvas-pane'] ?? 0
   }
+
+  await new Promise(resolve => setTimeout(resolve, 0)).then(() => {
+    // Without the await, stage doesn't resize after fullscreen
+    resizeStage()
+  })
 }
 
-const storePaneSizes = ({ prevPane, nextPane }) => {
+type ResizeEvent = { prevPane: EventPane, nextPane: EventPane }
+type EventPane = { el: HTMLElement, size: number }
+const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
   paneSize[`${prevPane.el.id}`] = prevPane.size
   paneSize[`${nextPane.el.id}`] = nextPane.size
-    
-  console.log(paneSize)
+  // console.log(paneSize)
+}
+
+function resizeSplitpanes(event: ResizeEvent) {
+  storePaneSizes(event)
+  resizeStage()
 }
 
 defineExpose({ fullscreen })
@@ -64,7 +77,8 @@ onMounted(() => {
 <template>
   <splitpanes
   :push-other-panes="false"
-  @resized="storePaneSizes"
+  @resize="resizeStage"
+  @resized="resizeSplitpanes"
   >
   <!-- class="default-theme" -->
     <!-- Left side pane: File explorer -->
@@ -82,7 +96,8 @@ onMounted(() => {
       <splitpanes
         horizontal
         :push-other-panes="false"
-        @resized="storePaneSizes"
+        @resize="resizeStage"
+        @resized="resizeSplitpanes"
       >
         <!-- Top right pane: Game view -->
         <pane :size="canvasHeight" min-size="60">
@@ -130,10 +145,17 @@ onMounted(() => {
 .splitpanes--vertical > .splitpanes__splitter {
   background-color: #23252b;
   min-width: 6px;
+  display: v-bind(splitterDisplay);
 }
 
 .splitpanes--horizontal > .splitpanes__splitter {
   background-color: #23252b;
   min-height: 6px;
+  display: v-bind(splitterDisplay);
+}
+
+/* Doesn't work; look into this (should hide header bar on fullscreen) */
+.bar {
+  display: v-bind(splitterDisplay);
 }
 </style>

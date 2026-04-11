@@ -35,7 +35,6 @@ function toggleFullscreen() {
   } else {
     fullscreenIcon.value = largerIcon
   }
-  console.log(fullscreenIcon.value)
 }
 
 const emit = defineEmits(['runGame', 'fullscreen'])
@@ -71,9 +70,13 @@ onMounted(async () => {
       <!-- FPS indicator -->
       <span style="font-size: 12px; width: 4em;">FPS: <span class="fps-number">{{ fps }}</span></span>
       
+      <!-- Sound -->
+      <!-- Icon should change based on volume -->
+      <img @click="print('sound')" class="img-button" src="@/assets/images/game-icons/audioOn.png" />
+      
       <!-- Settings -->
       <img @click="print('settings')" class="img-button" src="@/assets/images/game-icons/gear.png" />
-      
+
       <!-- Fullscreen -->
       <img @click="toggleFullscreen" class="img-button" :src="fullscreenIcon" />
     </div>
