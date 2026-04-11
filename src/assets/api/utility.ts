@@ -76,7 +76,8 @@ print(gator.pivotX)
 print(bunny.pivotX)
 
 function spawnGuy() {
-    const moveSpeed = 40
+    const growSpeed = 40
+    const moveSpeed = 1
     const rotSpeed = 1
     // const img = [
     //     'src/assets/images/platformer-pack/character_pink_front.png',
@@ -108,12 +109,14 @@ function spawnGuy() {
         color: colors[r]
     })
     lastColor = colors[r]
+    // guy._rect.zIndex = i++
 
     forever(delta => {
-        guy.x = cos(guy.age, 'radians') * sqrt(guy.age) * moveSpeed
-        guy.y = sin(guy.age, 'radians') * sqrt(guy.age) * moveSpeed
+        guy.x = cos(sqrt(guy.age * 16) * moveSpeed, 'radians') * guy.age / 4 * growSpeed
+        guy.y = sin(sqrt(guy.age * 16) * moveSpeed, 'radians') * guy.age / 4 * growSpeed
         // guy.rotation += sqrt(guy.age * rotSpeed)
-        guy.rotation += sqrt(guy.age / 4) * rotSpeed
+        guy.rotation += sqrt(guy.age / 4) * rotSpeed / 2
+        guy.scale = sqrt(guy.age / 12)
     })
 }
 

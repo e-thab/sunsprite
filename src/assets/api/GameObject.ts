@@ -78,6 +78,15 @@ export default abstract class GameObject implements Positionable, Rotatable, Vie
         this._pixiObject.height = n
     }
 
+    get scale() {
+        return this._pixiObject.scale
+    }
+    set scale(value) {
+        this._pixiObject.scale.set(value)
+        // this.x += this.width / 2
+        // this.y -= this.height / 2
+    }
+
     get screenX() {
         return this._x - camera.x
     }

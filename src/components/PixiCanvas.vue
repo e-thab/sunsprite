@@ -5,6 +5,11 @@ import { app, setup, mouseRef, fpsRef, pause, play, pausedRef, print } from '@/a
 const canvas = ref<HTMLCanvasElement | null>(null)
 const fps = ref()
 const fpsColor = ref()
+const fullscreen = ref(false)
+
+const largerIcon = '/src/assets/images/game-icons/larger.png'
+const smallerIcon = '/src/assets/images/game-icons/smaller.png'
+const fullscreenIcon = ref(largerIcon)
 
 function updateFpsInterval() {
   fps.value = fpsRef.value
@@ -21,7 +26,19 @@ function updateFpsInterval() {
   }
 }
 
-defineEmits(['runGame'])
+function toggleFullscreen() {
+  emit('fullscreen')
+  fullscreen.value = !fullscreen.value
+
+  if (fullscreen.value) {
+    fullscreenIcon.value = smallerIcon
+  } else {
+    fullscreenIcon.value = largerIcon
+  }
+  console.log(fullscreenIcon.value)
+}
+
+const emit = defineEmits(['runGame', 'fullscreen'])
 
 onMounted(async () => {
   await setup()
@@ -55,7 +72,7 @@ onMounted(async () => {
       <span style="font-size: 12px; width: 4em;">FPS: <span class="fps-number">{{ fps }}</span></span>
       
       <!-- Fullscreen -->
-      <img @click="print('fullscreen')" class="img-button" src="@/assets/images/game-icons/larger.png" />
+      <img @click="toggleFullscreen" class="img-button" :src="fullscreenIcon" />
 
       <!-- Settings -->
       <img @click="print('settings')" class="img-button" src="@/assets/images/game-icons/gear.png" />
@@ -82,8 +99,7 @@ onMounted(async () => {
 }
 
 .canvas {
-  width: 100%;
-  height: 100%;
+  height: 0;
   flex: 1 1 auto;
   background-color: magenta;
 }

@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { Application, Color, Ticker } from 'pixi.js';
+import { Application, Color, Graphics, Ticker } from 'pixi.js';
 
 import type { Repeatable, Delayable, Screen, Positionable } from './interfaces';
 import { atan2, cos, random, sin, sqrt, startCode, tan } from './utility';
@@ -94,6 +94,7 @@ let _everys: Array<Delayable> = []
 /**
  * User-accessible
  */
+// Idea: setScreenSize()
 export const app: Application = new Application()
 export const camera: Camera = new Camera() 
 export const Timer = {
@@ -212,6 +213,7 @@ export function warn() {
 
 export function print(msg: string, bgColor: string | undefined = undefined, textColor: string | undefined = undefined) {
 	// TODO: count repeated messages instead of showing them all (chrome console style)
+	// TODO: allow arbitrary number of msg args
     console.log(msg)
 
 	function withLeadingZeroes(num: number, length: number) {
@@ -285,6 +287,7 @@ export async function runUserCode(code: string): Promise<void> {
 	_afters = []
 	_everys = []
 	allPositionables = []
+	camera.goTo(0, 0)
 	Timer.time = 0
 
 	print('<i>Running</i>', undefined, '#626f8b')
@@ -309,6 +312,11 @@ export async function runUserCode(code: string): Promise<void> {
 
 	const keys = [ 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused' ]
 	const values = [app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused]
+
+	// temp
+	keys.push('Graphics')
+	// @ts-ignore
+	values.push(Graphics)
 	
 	try {
 		const fn = new Function(

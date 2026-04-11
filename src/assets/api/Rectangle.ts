@@ -9,7 +9,7 @@ export default class Rectangle extends GameObject {
 	// readonly _rect: PixiRect
 	_x: number
 	_y: number
-    _graphicsRect: Graphics
+    _rect: Graphics
     _color: string
     _visible: boolean
 	// left: number
@@ -46,8 +46,8 @@ export default class Rectangle extends GameObject {
             x, y, rotation, radians, alpha, cursor
         )
 		// this._rect = this._pixiObject
-        this._graphicsRect = this._pixiObject
-        this._graphicsRect.visible = false
+        this._rect = this._pixiObject
+        this._rect.visible = false
         this._color = color
         this._visible = true
 
@@ -55,19 +55,19 @@ export default class Rectangle extends GameObject {
         
         this._x = x
         this._y = y
-        app.stage.addChild(this._graphicsRect)
+        app.stage.addChild(this._rect)
 		// this.width = width
 		// this.height = height
+        this._rect.pivot.set(this.width / 2, this.height / 2)
 	}
 
 	_updatePosition(): void {
         // this._rect.x = 
-        if (this._graphicsRect) {
+        if (this._rect) {
             // Check user-set pivot before setting here
-            this._graphicsRect.pivot.set(this.width / 2, this.height / 2)
-            this._graphicsRect.x = this._x + app.screen.width / 2 - camera.x
-            this._graphicsRect.y = -this._y + app.screen.height / 2 + camera.y
-            if (this.visible) this._graphicsRect.visible = true
+            this._rect.x = this._x + app.screen.width / 2 - camera.x
+            this._rect.y = -this._y + app.screen.height / 2 + camera.y
+            if (this.visible) this._rect.visible = true
         }
 	}
 
@@ -75,9 +75,8 @@ export default class Rectangle extends GameObject {
         return this._color
     }
     set color(color) {
-        console.log(`drawing a ${color} rect`)
         this._color = color
-        this._graphicsRect.fill(color)
+        this._rect.fill(color)
     }
 
     get x() {
@@ -103,16 +102,16 @@ export default class Rectangle extends GameObject {
     }
     set visible(visible: boolean) {
         this._visible = visible
-        this._graphicsRect.visible = visible
+        this._rect.visible = visible
     }
 
     show() {
         this.visible = true
-        this._graphicsRect.visible = true
+        this._rect.visible = true
     }
 
     hide() {
         this.visible = false
-        this._graphicsRect.visible = false
+        this._rect.visible = false
     }
 }
