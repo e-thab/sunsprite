@@ -55,6 +55,7 @@ export default class Sprite extends GameObject {
 		}
 
 		// Height/width still need to adjust pivot
+		// Test nullish coalescing operator here {??}
 		if (width) this.width = width
 		if (height) this.height = height
 		

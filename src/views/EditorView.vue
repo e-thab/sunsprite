@@ -14,7 +14,7 @@ const fullscreen = ref(false)
 const canvasWidth = ref(44)
 const canvasHeight = ref(80)
 
-const paneSize = {
+const paneSize: { [index: string]: number } = {
   // Column panes (left - middle - right)
   'explorer-pane': 12,
   'code-pane': 44,
@@ -42,17 +42,14 @@ function toggleFullscreen() {
     canvasWidth.value = 100
     canvasHeight.value = 100
   } else {
-    canvasWidth.value = 44
-    canvasHeight.value = 80
+    canvasWidth.value = paneSize['right-pane'] ?? 0
+    canvasHeight.value = paneSize['canvas-pane'] ?? 0
   }
 }
 
 const storePaneSizes = ({ prevPane, nextPane }) => {
   paneSize[`${prevPane.el.id}`] = prevPane.size
   paneSize[`${nextPane.el.id}`] = nextPane.size
-  // for (const pane of panes) {
-    //   console.log(pane)
-    // }
     
   console.log(paneSize)
 }
@@ -94,11 +91,11 @@ onMounted(() => {
             @fullscreen="toggleFullscreen"
             id="canvas-pane"
             ref="canvas"
-            class="inner-pane"/>
+            class="game-pane"/>
         </pane>
 
         <!-- Bottom left pane: Output -->
-        <pane id="output-pane" v-show="!fullscreen" size="20">
+        <pane id="output-pane" v-show="!fullscreen" :size="100-canvasHeight">
           <Output></Output>
         </pane>
       </splitpanes>
@@ -107,6 +104,11 @@ onMounted(() => {
 </template>
 
 <style>
+.game-pane {
+  width: 100%;
+  height: 100%;
+}
+
 .inner-pane {
   width: 100%;
   height: 100%;

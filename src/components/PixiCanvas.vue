@@ -71,11 +71,11 @@ onMounted(async () => {
       <!-- FPS indicator -->
       <span style="font-size: 12px; width: 4em;">FPS: <span class="fps-number">{{ fps }}</span></span>
       
-      <!-- Fullscreen -->
-      <img @click="toggleFullscreen" class="img-button" :src="fullscreenIcon" />
-
       <!-- Settings -->
       <img @click="print('settings')" class="img-button" src="@/assets/images/game-icons/gear.png" />
+      
+      <!-- Fullscreen -->
+      <img @click="toggleFullscreen" class="img-button" :src="fullscreenIcon" />
     </div>
     <div id="game-container" ref="canvas" class="canvas"></div>
   </div>
