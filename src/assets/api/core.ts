@@ -408,9 +408,10 @@ export async function setup(): Promise<void> {
 		keysPressed = []
 	})
 	window.addEventListener('resize', async () => {
-		await new Promise(resolve => setTimeout(resolve, 100))
-		// resizeStage()
-		updateSpritePositions()
+		new Promise(resolve => setTimeout(resolve, 100)).then(() => {
+			// resizeStage()
+			updateSpritePositions()
+		})
 	})
 
 	app.stage.eventMode = 'dynamic'

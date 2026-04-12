@@ -30,7 +30,7 @@ defineExpose({ runActiveUserCode })
 <template>
 	<div style="display: flex; flex-direction: column;">
 		<div class="editor-bar">
-			&nbsp;
+			<!-- &nbsp; -->
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
 		</div>
 		<div id="code-container" class="editor">
@@ -59,7 +59,7 @@ defineExpose({ runActiveUserCode })
 	display: flex;
 	justify-content: space-evenly;
 	background-color: var(--nord-background-dark);
-	height: 24px;
+	min-height: 24px;
 }
 .run-button {
 	height: 100%;

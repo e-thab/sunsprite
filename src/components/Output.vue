@@ -1,70 +1,55 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { ref } from 'vue';
 
-// const panel = ref<HTMLElement>()
-
-// function print(msg: string) {
-//     console.log(msg)
-
-//     const item = document.createElement('div')
-//     item.className = 'output-item'
-//     item.textContent = msg
-//     document.querySelector('#output-panel')?.appendChild(item)
-// }
-
-// onMounted(() => {
-//     for (let i = 0; i < 20; i++) {
-//         print(`Print test ${i}`)
-//     }
-// })
-
-type OutputTab = 'output' | 'watch'
+type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
-const outputTabColor = ref(getTabColor('output'))
-const watchTabColor = ref(getTabColor('watch'))
 
-const outputActive = ref(true)
-const watchActive = ref(false)
+function isTabActive(tab: OutputTab) {
+    return tab === activeTab.value
+}
 
 function getTabColor(tab: OutputTab) {
-    return tab === activeTab.value ? '#2d3341' : '#252a33'
+    const activeColor = window.getComputedStyle(document.getElementById('nav-header') as Element).backgroundColor
+    const inactiveColor = window.getComputedStyle(document.querySelector('.output-wrapper') as Element).backgroundColor
+    return tab === activeTab.value ? activeColor : inactiveColor
 }
 
-function setActiveTabColors() {
-    outputTabColor.value = getTabColor('output')
-    watchTabColor.value = getTabColor('watch')
+function getTabHoverBrightness(tab: OutputTab) {
+    return tab === activeTab.value ? 1.0 : 1.2
 }
 
-function activateOutputTab() {
-    activeTab.value = 'output'
-    setActiveTabColors()
-    outputActive.value = true
-    watchActive.value = false
+function activateTab(tab: OutputTab) {
+    activeTab.value = tab
 }
 
-function activateWatchTab() {
-    activeTab.value = 'watch'
-    setActiveTabColors()
-    outputActive.value = false
-    watchActive.value = true
-}
-
+defineEmits([ 'collapseOutput' ])
 </script>
 
 
 <template>
     <div class="output-wrapper">
         <div class="output-header">
-            <div @click="activateOutputTab" class="output-header-item output-tab">Output</div>
-            <div @click="activateWatchTab" class="output-header-item watch-tab">Watch</div>
+            <div @click="activateTab('output')" class="output-header-item output-tab">Output</div>
+            <div @click="activateTab('info')" class="output-header-item info-tab">Info</div>
+            <div @click="activateTab('watch')" class="output-header-item watch-tab">Watch</div>
+            
+            <img 
+                @click="$emit('collapseOutput')"
+                src="/src/assets/images/game-icons/down.png"
+                id="collapse-button"
+            />
         </div>
         <!-- <hr style="border-color: #252525; border-style:solid"> -->
-        <div v-show="outputActive" class="output-panel" id="output-panel" ref="panel">
+        <div v-show="isTabActive('output')" class="output-panel" id="output-panel" ref="panel">
             <!-- Output items are inserted here -->
         </div>
 
-        <div v-show="watchActive" class="watch-panel">
-            Watch
+        <div v-show="isTabActive('info')" class="info-panel">
+            <span>Info</span>
+        </div>
+
+        <div v-show="isTabActive('watch')" class="watch-panel">
+            <span>Watch</span>
         </div>
     </div>
 </template>
@@ -82,21 +67,38 @@ function activateWatchTab() {
 .output-header {
     display: flex;
     justify-content: center;
+    align-items: center;
     color: var(--nord-text-bright);
     height: 24px;
+    /* border-bottom: 1px solid var(--nord-scroll-neutral); */
 }
 
 .output-header-item {
     flex-grow: 1;
     text-align: center;
+    font-weight: 500;
+    transition: 0.2s;
 }
 
 .output-tab {
-    background-color: v-bind(outputTabColor);
+    background-color: v-bind(getTabColor('output'));
+}
+.output-tab:hover {
+    filter: brightness(v-bind(getTabHoverBrightness('output')));
+}
+
+.info-tab {
+    background-color: v-bind(getTabColor('info'));
+}
+.info-tab:hover {
+    filter: brightness(v-bind(getTabHoverBrightness('info')));
 }
 
 .watch-tab {
-    background-color: v-bind(watchTabColor);
+    background-color: v-bind(getTabColor('watch'));
+}
+.watch-tab:hover {
+    filter: brightness(v-bind(getTabHoverBrightness('watch')));
 }
 
 .output-panel {
@@ -114,19 +116,40 @@ function activateWatchTab() {
 
 .output-msg {
     padding: 0 .25em;
+    color: var(--nord-text-bright);
     background-color: var(--nord-background-neutral);
     flex: 1 1 auto;
 }
 
 .output-stamp {
     color: var(--nord-text-dim);
-    border-right: 1px solid;
+    border-right: 1px solid var(--nord-scroll-neutral);
     padding: 0 .25em;
 }
 
-.watch-panel {
-    display: flex;
+.info-panel {
+    width: 100%;
+    height: 100%;
     justify-content: center;
-    align-content: center;
+    align-items: center;
+    display: flex;
+}
+
+.watch-panel {
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    display: flex;
+}
+
+#collapse-button {
+    background-color: var(--nord-background-dark);
+    height: 24px;
+    transition: 0.2s;
+}
+#collapse-button:hover {
+    /* background-color: transparent; */
+    filter: brightness(1.2);
 }
 </style>

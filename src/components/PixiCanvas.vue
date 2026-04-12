@@ -114,11 +114,11 @@ onMounted(async () => {
 .img-button {
   display: block;
   height: 24px;
-  transition: 0.2s;
-  filter: opacity(80%);
+  transition: 0.15s;
+  filter: brightness(0.8)
 }
-
 .img-button:hover {
-  filter: opacity(100%);
+  /* background: radial-gradient(rgba(255, 255, 255, 0.07), transparent); */
+  filter: brightness(1);
 }
 </style>

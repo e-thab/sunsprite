@@ -23,14 +23,17 @@
 
 /* Codemirror theme colors: Nord */
 :root {
-  --nord-background-dark: #252a33;
   --nord-background-darker: #23252b;
-  --nord-background-neutral: #2d3341;
+  --nord-background-dark: #252a33;
+  --nord-background-neutral: #2e3440;
+  --nord-background-light: #353b48;
 
   --nord-text-dim: #4a546a;
   --nord-text-bright: #d8dee9;
 
   /* scrollbar, scrollbar-highlight, line-highlight */
+  --nord-scroll-neutral: #434c5e;
+  --nord-scroll-light: #4c566a;
 }
 
 /* semantic color variables for this project */

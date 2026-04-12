@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage } from '@/assets/api/core';
 import { useFullscreenStore } from '@/stores/fullscreen';
@@ -15,6 +15,9 @@ const splitterDisplay = ref<'inline' | 'none'>('inline')
 const canvasWidth = ref(44)
 const canvasHeight = ref(80)
 
+const canvasHeightBeforeCollapse = ref(80)
+// let isOutputCollapsed = false
+
 const paneSize: { [index: string]: number } = {
   // Column panes (left - middle - right)
   'explorer-pane': 12,
@@ -22,8 +25,8 @@ const paneSize: { [index: string]: number } = {
   'right-pane': 44,
 
   // Right side nested row panes (top right - bottom right)
-  'canvas-pane': 80,
-  'output-pane': 20
+  'canvas-v-pane': 80,
+  'output-v-pane': 20
 }
 
 function runActiveUserCode() {
@@ -40,10 +43,10 @@ async function toggleFullscreen() {
   } else {
     splitterDisplay.value = 'inline'
     canvasWidth.value = paneSize['right-pane'] ?? 0
-    canvasHeight.value = paneSize['canvas-pane'] ?? 0
+    canvasHeight.value = paneSize['canvas-v-pane'] ?? 0
   }
 
-  await new Promise(resolve => setTimeout(resolve, 0)).then(() => {
+  new Promise(resolve => setTimeout(resolve, 0)).then(() => {
     // Without the await, stage doesn't resize after fullscreen
     resizeStage()
   })
@@ -55,11 +58,30 @@ type ResizeEvent = { prevPane: EventPane, nextPane: EventPane }
 const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
   paneSize[`${prevPane.el.id}`] = prevPane.size
   paneSize[`${nextPane.el.id}`] = nextPane.size
+
+  if (prevPane.el.id === 'canvas-v-pane') {
+    // isOutputCollapsed = false
+    canvasHeight.value = prevPane.size
+  }
+  console.log(prevPane.el.id)
 }
 
 function resizeSplitpanes(event: ResizeEvent) {
   storePaneSizes(event)
   resizeStage()
+}
+
+async function collapseOutput() {
+  // paneSize['canvas-v-pane'] = 100,
+  // paneSize['output-v-pane'] = 0
+  canvasHeightBeforeCollapse.value = canvasHeight.value
+  canvasHeight.value = 100
+  // isOutputCollapsed = true
+
+  new Promise(resolve => setTimeout(resolve, 0)).then(() => {
+    // Without the await, stage doesn't resize after fullscreen
+    resizeStage()
+  })
 }
 </script>
 
@@ -89,18 +111,18 @@ function resizeSplitpanes(event: ResizeEvent) {
         @resized="resizeSplitpanes"
       >
         <!-- Top right pane: Game view -->
-        <pane :size="canvasHeight" min-size="60">
+        <pane id="canvas-v-pane" :size="canvasHeight" min-size="15">
           <PixiCanvas
             @run-game="runActiveUserCode"
             @fullscreen="toggleFullscreen"
-            id="canvas-pane"
             ref="canvas"
-            class="inner-pane"/>
+            class="inner-pane"
+          />
         </pane>
 
         <!-- Bottom left pane: Output -->
-        <pane id="output-pane" v-show="!fsStore.fullscreen" :size="100-canvasHeight">
-          <Output></Output>
+        <pane id="output-v-pane" v-show="!fsStore.fullscreen" :size="100-canvasHeight">
+          <Output @collapse-output="collapseOutput" />
         </pane>
       </splitpanes>
     </pane>
@@ -132,14 +154,24 @@ function resizeSplitpanes(event: ResizeEvent) {
 }
 
 .splitpanes--vertical > .splitpanes__splitter {
-  background-color: var(--nord-background-darker);
-  min-width: 6px;
+  background-color: var(--nord-background-light);
+  min-width: 5px;
   display: v-bind(splitterDisplay);
+  transition: 0.15s 0.1s;
+}
+.splitpanes--vertical > .splitpanes__splitter:hover {
+  /* min-width: 7px; */
+  background-color: var(--nord-scroll-light);
 }
 
 .splitpanes--horizontal > .splitpanes__splitter {
-  background-color: var(--nord-background-darker);
-  min-height: 6px;
+  background-color: var(--nord-background-light);
+  min-height: 5px;
   display: v-bind(splitterDisplay);
+  transition: 0.15s 0.1s;
+}
+.splitpanes--horizontal > .splitpanes__splitter:hover {
+  /* min-height: 7px; */
+  background-color: var(--nord-scroll-light);
 }
 </style>

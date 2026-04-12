@@ -1,5 +1,5 @@
 import { Sprite as PixiSprite, Assets } from "pixi.js"
-import { allPositionables, app } from "./core"
+import { allPositionables, app, print } from "./core"
 import GameObject from "./GameObject"
 
 /**
@@ -68,7 +68,7 @@ export default class Sprite extends GameObject {
 		// Temp
 		this._sprite.eventMode = 'dynamic'
 		this._sprite.on('click', () => {
-			console.log('Sprite clicked!');
+			print('Sprite click');
 			// app.renderer.events.cursorStyles
 		})
 	// 	this._sprite.on('mousedown', () => {
