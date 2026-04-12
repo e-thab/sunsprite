@@ -76,13 +76,13 @@ function activateWatchTab() {
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background-color: #252a33;
+    background-color: var(--nord-background-dark);
 }
 
 .output-header {
     display: flex;
     justify-content: center;
-    color: #d8dee9;
+    color: var(--nord-text-bright);
     height: 24px;
 }
 
@@ -114,12 +114,12 @@ function activateWatchTab() {
 
 .output-msg {
     padding: 0 .25em;
-    background-color: #2d3341;
+    background-color: var(--nord-background-neutral);
     flex: 1 1 auto;
 }
 
 .output-stamp {
-    color: #4A546A;
+    color: var(--nord-text-dim);
     border-right: 1px solid;
     padding: 0 .25em;
 }

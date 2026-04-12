@@ -72,7 +72,7 @@ onMounted(async () => {
 
 <style scoped>
 * {
-  color: #d8dee9;
+  color: var(--nord-text-bright);
   font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
 }
 
@@ -96,7 +96,7 @@ onMounted(async () => {
 .game-wrapper {
   display: flex;
   flex-direction: column;
-  background-color: #252a33;
+  background-color: var(--nord-background-dark);
 }
 
 .game-bar {

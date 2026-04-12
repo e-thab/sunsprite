@@ -25,7 +25,7 @@ import NavBar from './components/NavBar.vue';
   overflow-y: hidden;
 }
 .navbar-header {
-  background-color: darkslategray;
+  background-color: var(--nord-background-darker);
   flex: 1;
 }
 </style>

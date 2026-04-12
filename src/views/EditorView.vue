@@ -119,7 +119,7 @@ function resizeSplitpanes(event: ResizeEvent) {
 }
 
 .splitpanes {
-  background-color: #252a33;
+  background-color: var(--nord-background-dark);
 }
 
 .splitpanes__pane {
@@ -132,13 +132,13 @@ function resizeSplitpanes(event: ResizeEvent) {
 }
 
 .splitpanes--vertical > .splitpanes__splitter {
-  background-color: #23252b;
+  background-color: var(--nord-background-darker);
   min-width: 6px;
   display: v-bind(splitterDisplay);
 }
 
 .splitpanes--horizontal > .splitpanes__splitter {
-  background-color: #23252b;
+  background-color: var(--nord-background-darker);
   min-height: 6px;
   display: v-bind(splitterDisplay);
 }

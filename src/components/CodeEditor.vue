@@ -50,16 +50,15 @@ defineExpose({ runActiveUserCode })
 </template>
 
 <style scoped>
-
 .editor {
 	flex: 1 1 auto;
-	background-color: #252a33;
+	background-color: var(--nord-background-dark);
 	overflow: auto;
 }
 .editor-bar {
 	display: flex;
 	justify-content: space-evenly;
-	background-color: #252a33;
+	background-color: var(--nord-background-dark);
 	height: 24px;
 }
 .run-button {

@@ -1,3 +1,5 @@
+// TODO: min, max, clamp
+
 /* Get a random int, min & max inclusive */
 export function random(min: number, max: number): number {
     const minCeiled = Math.ceil(min);

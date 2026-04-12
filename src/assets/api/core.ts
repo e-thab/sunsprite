@@ -290,6 +290,7 @@ export async function runUserCode(code: string): Promise<void> {
 	camera.goTo(0, 0)
 	Timer.time = 0
 
+	// Switch this to an internal addInput func that can modify innerHTML
 	print('<i>Running</i>', undefined, '#626f8b')
 	
 	_resetTicker()
