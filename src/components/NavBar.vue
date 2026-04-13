@@ -9,18 +9,9 @@ const fsStore = useFullscreenStore()
         <!-- <span>Header</span> -->
         <!-- <span>Span two</span> -->
         <!-- <span>Span three</span> -->
-        <img src="/src/assets/images/game-icons/home.png"
-            @click="print('Home click')" 
-        />
-
-        <img src="/src/assets/sun.svg"
-            id="logo"
-            @click="print('Logo click')"
-        />
-
-        <img src="/src/assets/images/game-icons/multiplayer.png"
-            @click="print('Account click')"
-        />
+        <img @click="print('home')" class="img-button" src="/src/assets/images/game-icons/home.png" />
+        <img @click="print('logo')" class="img-button" id="logo" src="/src/assets/sun.svg" />
+        <img @click="print('account')" class="img-button" src="/src/assets/images/game-icons/multiplayer.png" />
     </div>
 </template>
 
@@ -34,10 +25,6 @@ const fsStore = useFullscreenStore()
 
 img {
     height: 2em;
-    filter: brightness(0.8);
-}
-img:hover {
-    filter: brightness(1);
 }
 
 #logo {

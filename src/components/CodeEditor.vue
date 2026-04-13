@@ -31,7 +31,7 @@ defineExpose({ runActiveUserCode })
 	<div class="panel-wrapper">
 		<div class="panel-bar">
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
-			<img class="img-button" src="/src/assets/images/game-icons/save.png" />
+			<img @click="print('save file')" class="img-button" src="/src/assets/images/game-icons/save.png" />
 		</div>
 		<div id="code-container" class="editor">
 			<codemirror
