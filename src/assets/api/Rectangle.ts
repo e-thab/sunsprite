@@ -28,7 +28,7 @@ export default class Rectangle extends GameObject {
         radians = 0,
         alpha = 100,
         cursor = 'default',
-        color = 'red'
+        color = 'white'
 		// left = undefined,
 		// right = undefined,
 		// top = undefined,
@@ -55,10 +55,12 @@ export default class Rectangle extends GameObject {
         
         this._x = x
         this._y = y
-        app.stage.addChild(this._rect)
-		// this.width = width
-		// this.height = height
+		this.width = width
+		this.height = height
         this._rect.pivot.set(this.width / 2, this.height / 2)
+        this._updatePosition()
+
+        app.stage.addChild(this._rect)
 	}
 
 	_updatePosition(): void {

@@ -72,11 +72,8 @@ function resizeSplitpanes(event: ResizeEvent) {
 }
 
 async function collapseOutput() {
-  // paneSize['canvas-v-pane'] = 100,
-  // paneSize['output-v-pane'] = 0
   canvasHeightBeforeCollapse.value = canvasHeight.value
   canvasHeight.value = 100
-  // isOutputCollapsed = true
 
   new Promise(resolve => setTimeout(resolve, 0)).then(() => {
     // Without the await, stage doesn't resize after fullscreen

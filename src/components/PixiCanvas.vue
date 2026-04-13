@@ -33,8 +33,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="game-wrapper">
-    <div class="game-bar">
+  <div class="panel-wrapper">
+    <div class="panel-bar">
       <!-- Play -->
       <img v-show="pausedRef" @click="play" class="img-button" src="@/assets/images/game-icons/right.png" />
 
@@ -70,12 +70,7 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped>
-* {
-  color: var(--nord-text-bright);
-  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-}
-
+<style>
 .fps-number {
   color: v-bind(fpsColor)
 }
@@ -93,20 +88,23 @@ onMounted(async () => {
   background-color: magenta;
 }
 
-.game-wrapper {
+.panel-wrapper {
   display: flex;
   flex-direction: column;
   background-color: var(--nord-background-dark);
 }
 
-.game-bar {
-	display: flex;
+.panel-bar {
+  display: flex;
   justify-content: space-between;
   align-items: center;
+  color: var(--nord-text-bright);
+  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
   /* display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
   justify-items: center; */
 	max-height: 24px;
+  min-height: 24px;
   padding-left: 0.1em;
   padding-right: 0.2em;
 }
@@ -120,5 +118,6 @@ onMounted(async () => {
 .img-button:hover {
   /* background: radial-gradient(rgba(255, 255, 255, 0.07), transparent); */
   filter: brightness(1);
+  cursor: pointer;
 }
 </style>

@@ -28,6 +28,8 @@ defineEmits([ 'collapseOutput' ])
 
 <template>
     <div class="output-wrapper">
+        <!-- Header tabs -->
+        <!-- TODO: Have output tab flash when another tab is focused and a new print/warn/err appears -->
         <div class="output-header">
             <div @click="activateTab('output')" class="output-header-item output-tab">Output</div>
             <div @click="activateTab('info')" class="output-header-item info-tab">Info</div>
@@ -39,15 +41,18 @@ defineEmits([ 'collapseOutput' ])
                 id="collapse-button"
             />
         </div>
-        <!-- <hr style="border-color: #252525; border-style:solid"> -->
+
+        <!-- Ouput panel: shows print/warn/err output -->
         <div v-show="isTabActive('output')" class="output-panel" id="output-panel" ref="panel">
             <!-- Output items are inserted here -->
         </div>
 
+        <!-- Info panel: shows  -->
         <div v-show="isTabActive('info')" class="info-panel">
             <span>Info</span>
         </div>
 
+        <!-- Watch panel -->
         <div v-show="isTabActive('watch')" class="watch-panel">
             <span>Watch</span>
         </div>
@@ -151,5 +156,6 @@ defineEmits([ 'collapseOutput' ])
 #collapse-button:hover {
     /* background-color: transparent; */
     filter: brightness(1.2);
+    cursor: pointer;
 }
 </style>

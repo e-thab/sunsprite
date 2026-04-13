@@ -77,7 +77,7 @@ function spinGator() {
 print(gator.pivotX)
 print(bunny.pivotX)
 
-function spawnGuy() {
+function spawnRect() {
     const growSpeed = 40
     const moveSpeed = 1
     const rotSpeed = 1
@@ -107,24 +107,24 @@ function spawnGuy() {
         r = random(0, 4)
     }
     
-    const guy = new Rectangle({
+    const rect = new Rectangle({
         color: colors[r]
     })
     lastColor = colors[r]
-    // guy._rect.zIndex = i++
+    // rect._rect.zIndex = i++
 
     forever(delta => {
-        guy.x = cos(sqrt(guy.age * 16) * moveSpeed, 'radians') * guy.age / 4 * growSpeed
-        guy.y = sin(sqrt(guy.age * 16) * moveSpeed, 'radians') * guy.age / 4 * growSpeed
-        // guy.rotation += sqrt(guy.age * rotSpeed)
-        guy.rotation += sqrt(guy.age / 4) * rotSpeed / 2
-        guy.scale = sqrt(guy.age / 12)
+        rect.x = cos(sqrt(rect.age * 16) * moveSpeed, 'radians') * rect.age / 4 * growSpeed
+        rect.y = sin(sqrt(rect.age * 16) * moveSpeed, 'radians') * rect.age / 4 * growSpeed
+        // rect.rotation += sqrt(rect.age * rotSpeed)
+        rect.rotation += sqrt(rect.age / 4) * rotSpeed / 2
+        rect.scale = sqrt(rect.age / 12)
     })
 }
 
-let lastColor = ''
-let i = 0
-every(0.1, spawnGuy)
+// let lastColor = ''
+// let i = 0
+// every(0.1, spawnRect)
 
 forever(delta => {
     bunny.rotation += 2

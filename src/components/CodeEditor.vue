@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { runUserCode, startCode } from '@/assets/api/core';
+import { runUserCode, startCode, print } from '@/assets/api/core';
 import { completions } from '@/assets/code-completion/codemirror-completions';
 import { Codemirror } from 'vue-codemirror';
 import { javascript } from '@codemirror/lang-javascript'
@@ -28,10 +28,10 @@ defineExpose({ runActiveUserCode })
 </script>
 
 <template>
-	<div style="display: flex; flex-direction: column;">
-		<div class="editor-bar">
-			<!-- &nbsp; -->
+	<div class="panel-wrapper">
+		<div class="panel-bar">
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
+			<img class="img-button" src="/src/assets/images/game-icons/save.png" />
 		</div>
 		<div id="code-container" class="editor">
 			<codemirror
@@ -52,14 +52,14 @@ defineExpose({ runActiveUserCode })
 <style scoped>
 .editor {
 	flex: 1 1 auto;
-	background-color: var(--nord-background-dark);
 	overflow: auto;
 }
 .editor-bar {
-	display: flex;
+	/* display: flex;
 	justify-content: space-evenly;
 	background-color: var(--nord-background-dark);
-	min-height: 24px;
+	min-height: 24px; */
+	border-bottom: 20px;
 }
 .run-button {
 	height: 100%;
