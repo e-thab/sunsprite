@@ -63,6 +63,11 @@
   --color-text: var(--vt-c-text-dark-2);
 }
 
+:root {
+  --ui-primary: white;
+  --ui-bg-elevated: var(--nord-background-dark);
+}
+
 *,
 *::before,
 *::after {

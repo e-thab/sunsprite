@@ -5,6 +5,7 @@ import { resizeStage } from '@/assets/api/core';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import PixiCanvas from '@/components/PixiCanvas.vue'
 import CodeEditor from '@/components/CodeEditor.vue'
+import FileTree from '@/components/FileTree.vue';
 import Output from '@/components/Output.vue';
 
 // const canvas = ref()
@@ -91,7 +92,8 @@ async function collapseOutput() {
   <!-- class="default-theme" -->
     <!-- Left side pane: File explorer -->
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" size="12">
-      <span>Files</span>
+      <!-- <span>Files</span> -->
+      <FileTree />
     </pane>
 
     <!-- Center pane: Code editor -->
@@ -144,9 +146,10 @@ async function collapseOutput() {
 .splitpanes__pane {
   /* background: linear-gradient(-45deg, #EE7752, #E73C7E, #23A6D5, #23D5AB); */
   /* box-shadow: 0 0 5px rgba(255, 255, 255, 0.05) inset; */
-  justify-content: center;
-  align-items: center;
-  display: flex;
+  /* justify-content: center; */
+  /* align-items: center; */
+  /* display: flex; */
+  background-color: var(--nord-background-neutral);
   transition: none !important;
 }
 

@@ -6,11 +6,13 @@ import NavBar from './components/NavBar.vue';
 </script>
 
 <template>
-  <div class="wrapper">
-    <NavBar class="navbar-header"/>
-    <EditorView class="content"/>
-    <!-- <NavBar class="navbar-footer"/> -->
-  </div>
+  <UApp>
+    <div class="wrapper">
+      <NavBar class="navbar-header"/>
+      <EditorView class="content"/>
+      <!-- <NavBar class="navbar-footer"/> -->
+    </div>
+  </UApp>
 </template>
 
 <style scoped>
