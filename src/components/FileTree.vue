@@ -65,62 +65,85 @@ import { ref } from 'vue'
 // ])
 import type { TreeItem } from '@nuxt/ui'
 
+// https://icones.js.org/collection/tabler
+// https://icones.js.org/collection/catppuccin
+
 const items = ref<TreeItem[]>([
   {
-    label: 'app/',
+    label: 'Images',
     defaultExpanded: true,
     children: [
       {
-        label: 'composables/',
-        children: [
-          {
-            label: 'useAuth.js',
-            icon: 'vscode-icons:file-type-js-official'
-          },
-          {
-            label: 'useUser.ts',
-            icon: 'vscode-icons:file-type-typescript-official'
-          }
-        ]
+        label: 'image.png',
+        icon: 'catppuccin:image'
       },
       {
-        label: 'components/',
-        defaultExpanded: true,
-        children: [
-          {
-            label: 'Card.vue',
-            icon: 'vscode-icons:file-type-vue'
-          },
-          {
-            label: 'Button.vue',
-            icon: 'vscode-icons:file-type-vue'
-          }
-        ]
-      },
-      {
-        label: 'Assets',
-        defaultExpanded: false,
-        children: [
-            {
-                label: 'image.png',
-                icon: 'vscode-icons:file-type-image'
-            },
-            {
-                label: 'sound.wav',
-                icon: 'vscode-icons:file-type-audio'
-            },
-        ]
+        label: 'icon.svg',
+        icon: 'catppuccin:svg'
       },
     ]
   },
   {
-    label: 'app.vue',
-    icon: 'vscode-icons:file-type-vue'
+    label: 'Sounds',
+    defaultExpanded: true,
+    children: [
+      {
+        label: 'sound.wav',
+        icon: 'catppuccin:audio'
+      },
+    ]
   },
   {
-    label: 'nuxt.config.ts',
-    icon: 'vscode-icons:file-type-nuxt'
+    label: 'Scripts',
+    defaultExpanded: true,
+    children: [
+      {
+        label: 'main.ts',
+        icon: 'catppuccin:typescript'
+      }
+    ]
   },
+  // {
+  //   label: 'app/',
+  //   defaultExpanded: true,
+  //   children: [
+  //     {
+  //       label: 'composables/',
+  //       children: [
+  //         {
+  //           label: 'useAuth.js',
+  //           icon: 'catppuccin:javascript'
+  //         },
+  //         {
+  //           label: 'useUser.ts',
+  //           icon: 'catppuccin:typescript'
+  //         }
+  //       ]
+  //     },
+  //     {
+  //       label: 'components/',
+  //       defaultExpanded: false,
+  //       children: [
+  //         {
+  //           label: 'Card.vue',
+  //           icon: 'catppuccin:vue'
+  //         },
+  //         {
+  //           label: 'Button.vue',
+  //           icon: 'catppuccin:vue'
+  //         }
+  //       ]
+  //     },
+  //   ]
+  // },
+  // {
+  //   label: 'app.vue',
+  //   icon: 'catppuccin:vue'
+  // },
+  // {
+  //   label: 'nuxt.config.ts',
+  //   icon: 'catppuccin:nuxt'
+  // },
 ])
 </script>
 
