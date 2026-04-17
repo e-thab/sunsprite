@@ -34,18 +34,11 @@ export default class Rectangle extends GameObject {
 		// top = undefined,
 		// bottom = undefined
 	} = {}) {
-        const pos = {
-            x: x + app.screen.width / 2 - width / 2,
-            y: y + app.screen.height / 2 - height / 2
-        }
-
-		super(
-            new Graphics()
-                .rect(x, y, width, height)
-                .fill(color),
-            x, y, rotation, radians, alpha, cursor
-        )
-		// this._rect = this._pixiObject
+        const rect = new Graphics()
+            .rect(x, y, width, height)
+            .fill(color)
+            
+		super(rect, x, y, rotation, radians, alpha, cursor)
         this._rect = this._pixiObject
         this._rect.visible = false
         this._color = color
@@ -64,7 +57,6 @@ export default class Rectangle extends GameObject {
 	}
 
 	_updatePosition(): void {
-        // this._rect.x = 
         if (this._rect) {
             // Check user-set pivot before setting here
             this._rect.x = this._x + app.screen.width / 2 - camera.x
@@ -86,7 +78,6 @@ export default class Rectangle extends GameObject {
     }
     set x(newX) {
         this._x = newX
-        // this._pixiObject.x = this.x + app.screen.width / 2 - camera.x 
         this._updatePosition()
     }
 
@@ -95,8 +86,28 @@ export default class Rectangle extends GameObject {
     }
     set y(newY) {
         this._y = newY
-        // this._pixiObject.y = -this.y + app.screen.height / 2 + camera.y
         this._updatePosition()
+    }
+
+    get width() {
+        return this._rect.width
+    }
+    set width(n) {
+        this._rect.width = n
+    }
+
+    get height() {
+        return this._rect.height
+    }
+    set height(n) {
+        this._rect.height = n
+    }
+
+    // get scale() {
+    //     return this._rect.scale
+    // }
+    set scale(value: number) {
+        this._rect.scale.set(value)
     }
 
     get visible() {
@@ -105,6 +116,25 @@ export default class Rectangle extends GameObject {
     set visible(visible: boolean) {
         this._visible = visible
         this._rect.visible = visible
+    }
+
+    get pivotX() {
+        return this._rect.pivot.x
+    }
+    set pivotX(newX) {
+        this._pixiObject.pivot.x = newX
+    }
+
+    get pivotY() {
+        return this._pixiObject.pivot._y
+    }
+    set pivotY(newY) {
+        this._pixiObject.pivot.y = newY
+    }
+
+    setPivotCenter(): void {
+    	this._rect.pivot.x = this._pixiObject.width / 2
+    	this._rect.pivot.y = this._pixiObject.height / 2
     }
 
     show() {

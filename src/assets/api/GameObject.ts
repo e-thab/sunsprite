@@ -1,6 +1,7 @@
 import type { Positionable, Rotatable, Viewable } from "./interfaces"
 import { app, camera, Timer } from "./core"
 import { deg2rad, rad2deg } from "./utility"
+import { Sprite as PixiSprite, Graphics } from 'pixi.js'
 
 export default abstract class GameObject implements Positionable, Rotatable, Viewable {
     protected _pixiObject: any
@@ -59,33 +60,40 @@ export default abstract class GameObject implements Positionable, Rotatable, Vie
         this._updatePosition()
     }
 
-    get width() {
-        return this._pixiObject.width
-    }
-    set width(n) {
-        const lastWidth = this.width
-        // this._pixiObject.pivot.set(0.5)
-        this._pixiObject.width = n
-        this._updatePosition()
-    }
+    // get width() {
+    //     return this._pixiObject.width
+    // }
+    // set width(n) {
+    //     // const lastWidth = this.width
+    //     // this._pixiObject.pivot.set(0.5)
+    //     // this._pixiObject.pivot.x = this._pixiObject.width / 2
+    //     this.setAnchorCenter()
+    //     this._pixiObject.width = n
+    //     // this._updatePosition()
+    // }
 
-    get height() {
-        return this._pixiObject.height
-    }
-    set height(n) {
-        const lastHeight = this.height
-        this._pixiObject.pivot.set(0.5)
-        this._pixiObject.height = n
-    }
+    // get height() {
+    //     return this._pixiObject.height
+    // }
+    // set height(n) {
+    //     // const lastHeight = this.height
+    //     // this._pixiObject.pivot.y = this._pixiObject.height / 2
+    //     this.setAnchorCenter()
+    //     this._pixiObject.height = n
+    //     // this._updatePosition()
+    // }
 
-    get scale() {
-        return this._pixiObject.scale
-    }
-    set scale(value) {
-        this._pixiObject.scale.set(value)
-        // this.x += this.width / 2
-        // this.y -= this.height / 2
-    }
+    // get scale() {
+    //     return this._pixiObject.scale
+    // }
+    // set scale(value: number) {
+    //     // this.setPivotCenter()
+    //     this.setAnchorCenter()
+    //     // this._pixiObject.scale.set(value)
+    //     this._pixiObject.scale.set(value)
+    //     // this.x += this.width / 2
+    //     // this.y -= this.height / 2
+    // }
 
     get screenX() {
         return this._x - camera.x
@@ -119,20 +127,36 @@ export default abstract class GameObject implements Positionable, Rotatable, Vie
     }
 
     // Pivot implementation WIP
-    get pivotX() {
-        return this._pixiObject.pivot.x
-        // return this._pivotX
-    }
-    set pivotX(newX) {
-        this._pixiObject.pivot.x = newX
-    }
+    // get pivotX() {
+    //     return this._pixiObject.pivot.x
+    //     // return this._pivotX
+    // }
+    // set pivotX(newX) {
+    //     this._pixiObject.pivot.x = newX
+    // }
 
-    get pivotY() {
-        return this._pixiObject.pivot._y
-    }
-    set pivotY(newY) {
-        this._pixiObject.pivot.y = newY
-    }
+    // get pivotY() {
+    //     return this._pixiObject.pivot._y
+    // }
+    // set pivotY(newY) {
+    //     this._pixiObject.pivot.y = newY
+    // }
+
+    // // Anchor implementation WIP
+    // get anchorX() {
+    //     return this._pixiObject.anchor.x
+    //     // return this._anchorX
+    // }
+    // set anchorX(newX) {
+    //     this._pixiObject.anchor.x = newX
+    // }
+
+    // get anchorY() {
+    //     return this._pixiObject.anchor._y
+    // }
+    // set anchorY(newY) {
+    //     this._pixiObject.anchor.y = newY
+    // }
 
     get visible() {
         return this._pixiObject.visible
@@ -166,6 +190,15 @@ export default abstract class GameObject implements Positionable, Rotatable, Vie
     get age() {
         return Timer.time - this._initTime
     }
+
+    // setPivotCenter(): void {
+	// 	this._pixiObject.pivot.x = this._pixiObject.width / 2
+	// 	this._pixiObject.pivot.y = this._pixiObject.height / 2
+	// }
+
+    // setAnchorCenter(): void {
+    //     this._pixiObject.anchor.set(0.5)
+    // }
     
     // Come back to this?
     setScale(scale: number) {
@@ -220,6 +253,8 @@ export default abstract class GameObject implements Positionable, Rotatable, Vie
     // }
     
     _updatePosition(): void {
+        // this.setAnchorCenter()
+        // this.setPivotCenter()
         this._pixiObject.x = this.x + app.screen.width / 2 - camera.x 
         this._pixiObject.y = -this.y + app.screen.height / 2 + camera.y
     }

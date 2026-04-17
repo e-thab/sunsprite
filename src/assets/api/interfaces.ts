@@ -49,8 +49,8 @@ export interface Scalable extends Positionable {
 export interface Rotatable extends Positionable {
 	rotation: number
 	radians: number
-	pivotX: number
-	pivotY: number
+	// pivotX: number
+	// pivotY: number
 	// _updateRotation: Function
 }
 

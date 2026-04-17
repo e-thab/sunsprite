@@ -7,7 +7,7 @@ import GameObject from "./GameObject"
  * 
  * TODO:
  *  - width/height
- *  - pivot
+ *  - pivot / anchor
  *  - distanceTo
  *  - pointTowards
  *  - lastX / lastY
@@ -28,17 +28,19 @@ export default class Sprite extends GameObject {
 		y = 0,
 		width = undefined,
 		height = undefined,
-		pivotX = undefined,
-		pivotY = undefined,
+		anchorX = undefined,
+		anchorY = undefined,
 		rotation = 0,
 		radians = 0,
 		alpha = 100,
 		cursor = 'default',
 		onClick = () => {}
 	} = {}) {
-		super(new PixiSprite(), x, y, rotation, radians, alpha, cursor)
-		this._sprite = this._pixiObject
+		const sprite = new PixiSprite()
+		super(sprite, x, y, rotation, radians, alpha, cursor)
+		this._sprite = sprite
 		this._sprite.visible = false
+		
 		this._src = src
 		this.src = src
 		this.x = x
@@ -47,20 +49,15 @@ export default class Sprite extends GameObject {
 		this.radians = radians
 		this.onClick = onClick
 
-		if (pivotX === undefined && pivotY === undefined) {
-			this.setPivotCenter()
+		if (anchorX === undefined && anchorY === undefined) {
+			this.setAnchorCenter()
 		} else {
-			this.pivotX = pivotX
-			this.pivotY = pivotY
+			this.anchorX = anchorX ?? this.width / 2
+			this.anchorY = anchorY ?? this.height / 2
 		}
 
-		// Height/width still need to adjust pivot
-		// Test nullish coalescing operator here {??}
 		if (width) this.width = width
 		if (height) this.height = height
-		
-		// this.width = spriteObj.width === undefined ? this._texture.width : spriteObj.width
-		// this.height = spriteObj.height === undefined ? this._texture.height : spriteObj.height
 
 		app.stage.addChild(this._sprite)
 		allPositionables.push(this)
@@ -71,39 +68,21 @@ export default class Sprite extends GameObject {
 			print('Sprite click');
 			// app.renderer.events.cursorStyles
 		})
-	// 	this._sprite.on('mousedown', () => {
-	// 		this.cursor = 'handClosed'
-	// 		// app.renderer.events.setCursor('handClosed')
-	// 	})
-	// 	this._sprite.on('mouseup', () => {
-	// 		this.cursor = 'handOpen'
-	// 		// app.renderer.events.setCursor('handOpen')
-	// 	})
+		// 	this._sprite.on('mousedown', () => {
+		// 		this.cursor = 'handClosed'
+		// 		// app.renderer.events.setCursor('handClosed')
+		// 	})
+		// 	this._sprite.on('mouseup', () => {
+		// 		this.cursor = 'handOpen'
+		// 		// app.renderer.events.setCursor('handOpen')
+		// 	})
 		this._sprite.visible = true
-	}
-
-	setPivotCenter(): void {
-		this._sprite.pivot.x = this._sprite.width / 2
-		this._sprite.pivot.y = this._sprite.height / 2
 	}
 
 	async _assignTexture(): Promise<void> {
 		this._sprite.texture = await Assets.load(this.src)
-		this.setPivotCenter()
+		this.setAnchorCenter()
 	}
-
-	// _updatePosition(): void {
-	// 	this._sprite.x = this.x + app.screen.width / 2 - camera.x 
-	// 	this._sprite.y = -this.y + app.screen.height / 2 + camera.y
-	// }
-
-	// get pivotX() {
-	// 	return this._pivotX
-	// }
-	// set pivotX(x) {
-	// 	this._pivotX = x
-	// 	this._sprite.pivot.x = app.screen.width / 2 + x
-	// }
 
 	get src() {
 		return this._src
@@ -112,6 +91,86 @@ export default class Sprite extends GameObject {
 		// Not this easy. Need to make async somehow
 		this._src = path
 		this._assignTexture()
-		// this._setPivot()
 	}
+
+	get x() {
+        return this._x
+    }
+    set x(newX) {
+        this._x = newX
+        this._updatePosition()
+    }
+
+    get y() {
+        return this._y
+    }
+    set y(newY) {
+        this._y = newY
+        this._updatePosition()
+    }
+
+    get width() {
+        return this._sprite.width
+    }
+    set width(n) {
+		this._sprite.width = n
+    }
+
+    get height() {
+        return this._sprite.height
+    }
+    set height(n) {
+        this._sprite.height = n
+    }
+
+    // get scale(): { x: number, y: number } {
+    //     return this._sprite.scale
+    // }
+    set scale(value: number) {
+		this.setAnchorCenter()
+        this._sprite.scale.set(value)
+    }
+
+	get anchor(): { x: number, y: number } {
+		return this._sprite.anchor
+	}
+	set anchor(value: number) {
+		this._sprite.anchor.set(value)
+	}
+
+	get anchorX() {
+		return this._sprite.anchor.x
+	}
+	set anchorX(newX) {
+		this._sprite.anchor.x = newX
+	}
+
+	get anchorY() {
+		return this._sprite.anchor._y
+	}
+	set anchorY(newY) {
+		this._sprite.anchor.y = newY
+	}
+
+	setAnchorCenter(): void {
+		this._sprite.anchor.set(0.5)
+	}
+
+	// get pivotX() {
+    //     return this._sprite.pivot.x
+    // }
+    // set pivotX(newX) {
+    //     this._sprite.pivot.x = newX
+    // }
+
+    // get pivotY() {
+    //     return this._sprite.pivot._y
+    // }
+    // set pivotY(newY) {
+    //     this._sprite.pivot.y = newY
+    // }
+	// setPivotCenter(): void {
+	// 	this._sprite.pivot.x = this._sprite.width / 2
+	// 	this._sprite.pivot.y = this._sprite.height / 2
+	// }
 }
