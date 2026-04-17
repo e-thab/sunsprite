@@ -53,47 +53,29 @@ export function sqrt(x: number): number {
 
 export const startCode = `setBackgroundColor('#00bd7e')
 
-const bunny = new Sprite({
-    src: 'https://pixijs.com/assets/bunny.png',
-    x: 200,
-    cursor: 'question'
-})
-const gator = new Sprite({
-    src: 'https://woofjs.com/docs/images/river-gator.png',
-	cursor: 'handOpen'
-})
-const refSquare = new Sprite({
-	src: 'src/assets/images/square.png',
-	y: 300,
-	cursor: 'handPoint'
-})
+function bunnySpiral() {
+    const growSpeed = 50
+    const moveSpeed = 5
+    const rotSpeed = 0.5
 
-function spinGator() {
-    repeat(45, () => {
-        gator.rotation += 8
+    every(0.1, () => {
+        const bunny = new Sprite({
+            src: 'https://pixijs.com/assets/bunny.png'
+        })
+        
+        forever(delta => {
+            bunny.x = cos(sqrt(bunny.age * 16) * moveSpeed, 'radians') * bunny.age / 4 * growSpeed
+            bunny.y = sin(sqrt(bunny.age * 16) * moveSpeed, 'radians') * bunny.age / 4 * growSpeed
+            bunny.rotation += 1 / (bunny.age + 1) * rotSpeed
+            bunny.scale = sqrt(bunny.age / 12)
+        })
     })
 }
 
-print(gator.pivotX)
-print(bunny.pivotX)
-
-function spawnRect() {
+function rectSpiral() {
     const growSpeed = 40
     const moveSpeed = 1
     const rotSpeed = 1
-    // const img = [
-    //     'src/assets/images/platformer-pack/character_pink_front.png',
-    //     'src/assets/images/platformer-pack/character_beige_walk_a.png',
-    //     'src/assets/images/platformer-pack/character_green_duck.png',
-    //     'src/assets/images/platformer-pack/character_purple_walk_a.png',
-    //     'src/assets/images/platformer-pack/character_yellow_walk_b.png'
-    // ]
-
-    // const guy = new Sprite({
-    //     src: img[random(0, 4)],
-    //     cursor: 'dot'
-    // })
-
     const colors = [
         '#F72585',
         '#7209B7',
@@ -101,52 +83,75 @@ function spawnRect() {
         '#F3A712',
         '#D6F8D6',
     ]
-
+    let lastColor = ''
     let r = random(0, 4)
-    while (colors[r] === lastColor) {
-        r = random(0, 4)
-    }
+    // let i = 0
     
-    const rect = new Rectangle({
-        color: colors[r]
-    })
-    lastColor = colors[r]
-    // rect._rect.zIndex = i++
-
-    forever(delta => {
-        rect.x = cos(sqrt(rect.age * 16) * moveSpeed, 'radians') * rect.age / 4 * growSpeed
-        rect.y = sin(sqrt(rect.age * 16) * moveSpeed, 'radians') * rect.age / 4 * growSpeed
-        // rect.rotation += sqrt(rect.age * rotSpeed)
-        rect.rotation += sqrt(rect.age / 4) * rotSpeed / 2
-        rect.scale = sqrt(rect.age / 12)
+    every(0.1, () => {
+        while (colors[r] === lastColor) r = random(0, 4)
+        
+        const rect = new Rectangle({
+            color: colors[r]
+        })
+        lastColor = colors[r]
+        // rect._rect.zIndex = i++
+    
+        forever(delta => {
+            rect.x = cos(sqrt(rect.age * 16) * moveSpeed, 'radians') * rect.age / 4 * growSpeed
+            rect.y = sin(sqrt(rect.age * 16) * moveSpeed, 'radians') * rect.age / 4 * growSpeed
+            rect.rotation += sqrt(rect.age / 4) * rotSpeed / 2
+            rect.scale = sqrt(rect.age / 12)
+        })
     })
 }
 
-// let lastColor = ''
-// let i = 0
-// every(0.1, spawnRect)
-
+//// Example objects
+const bunny = new Sprite({
+    src: 'https://pixijs.com/assets/bunny.png',
+    x: 200,
+    cursor: 'question'
+})
 forever(delta => {
     bunny.rotation += 2
     // bunny.rotateAround(gator, 2).degrees()
+})
 
+const gator = new Sprite({
+    src: 'https://woofjs.com/docs/images/river-gator.png',
+	cursor: 'handOpen'
+})
+function spinGator() {
+    repeat(45, () => {
+        gator.rotation += 8
+    })
+}
+forever(delta => {
     if (keyPressed('W')) gator.y += 5
     if (keyPressed('A')) gator.x -= 5
     if (keyPressed('S')) gator.y -= 5
     if (keyPressed('D')) gator.x += 5
     if (keyJustPressed('Space')) spinGator()
-
-    if (keyPressed('Up')) camera.y += 5
-    if (keyPressed('Down')) camera.y -= 5
-    if (keyPressed('Left')) camera.x -= 5
-    if (keyPressed('Right')) camera.x += 5
-
-    if (keyPressed('R')) camera.goTo(0, 0)
-
     // if (gator.x > screen.rightX) { gator.x = screen.leftX }
     // if (gator.x < screen.leftX) { gator.x = screen.rightX }
     // if (gator.y > screen.topY) { gator.y = screen.bottomY }
     // if (gator.y < screen.bottomY) { gator.y = screen.topY }
+})
+
+const refSquare = new Sprite({
+	src: 'src/assets/images/square.png',
+	y: 300,
+	cursor: 'handPoint'
+})
+
+// bunnySpiral()
+// rectSpiral()
+
+forever(delta => {
+    if (keyPressed('Up')) camera.y += 5
+    if (keyPressed('Down')) camera.y -= 5
+    if (keyPressed('Left')) camera.x -= 5
+    if (keyPressed('Right')) camera.x += 5
+    if (keyPressed('R')) camera.goTo(0, 0)
 })
 `
 
