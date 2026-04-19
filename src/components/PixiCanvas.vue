@@ -23,12 +23,13 @@ function updateFpsInterval() {
   }
 }
 
-const emit = defineEmits(['runGame', 'fullscreen'])
+const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
 onMounted(async () => {
   await setup()
   canvas.value?.appendChild(app.canvas)
   window.setInterval(updateFpsInterval, 250)
+  emit('ready')
 })
 </script>
 

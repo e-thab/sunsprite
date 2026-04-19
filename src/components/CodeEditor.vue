@@ -21,17 +21,40 @@ const extensions = [
 	nord,
 ]
 
+function resetCode() {
+	if (!confirm('Reset editor code to default?')) return
+	code.value = startCode
+	localStorage.setItem('code', startCode)
+}
+
+function saveCurrentCode() {
+	localStorage.setItem('code', code.value)
+}
+
 function runActiveUserCode() {
   runUserCode(code.value)
 }
+
 defineExpose({ runActiveUserCode })
+
+onMounted(() => {
+	code.value = localStorage.getItem('code') ?? startCode
+	// runActiveUserCode()
+})
+
+// TODO: 
+// 	- Save info element next to save button (last save time, changed, color-coding)
+//	- Visual indicator of save state (is saved/edited) / progress / completion
+//	- Visual indicator that the game already running is not using the edited code (coloring the game reset button?)
 </script>
 
 <template>
 	<div class="panel-wrapper">
 		<div class="panel-bar">
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
-			<img @click="print('save file')" class="img-button" src="/src/assets/images/game-icons/save.png" />
+			<img @click="saveCurrentCode" class="img-button" src="/src/assets/images/game-icons/save.png" />
+			<img @click="resetCode" class="img-button" src="/src/assets/images/game-icons/previous.png" />
+			<div style="width: 50em;"></div>
 		</div>
 		<div id="code-container" class="editor">
 			<codemirror
@@ -45,6 +68,7 @@ defineExpose({ runActiveUserCode })
 				maxHeight: '100%',
 			}"
 			/>
+			<!-- @change="saveCurrentCode($event)" -->
 		</div>
 	</div>
 </template>
@@ -54,6 +78,7 @@ defineExpose({ runActiveUserCode })
 	flex: 1 1 auto;
 	overflow: auto;
 }
+
 .editor-bar {
 	/* display: flex;
 	justify-content: space-evenly;
@@ -61,8 +86,13 @@ defineExpose({ runActiveUserCode })
 	min-height: 24px; */
 	border-bottom: 20px;
 }
+
 .run-button {
 	height: 100%;
 	width: 50px;
 }
+
+/* .save-info {
+
+} */
 </style>

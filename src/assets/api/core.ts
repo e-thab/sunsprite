@@ -420,7 +420,7 @@ export async function setup(): Promise<void> {
 		mouseY = Math.round(app.screen.height / 2 - event.globalY)
 		mouseRef.value = { mouseX, mouseY }
 	})
-	runUserCode(startCode)
+	// runUserCode(startCode)
 }
 
 export { startCode };

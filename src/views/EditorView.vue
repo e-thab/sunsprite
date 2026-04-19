@@ -30,6 +30,10 @@ const paneSize: { [index: string]: number } = {
   'output-v-pane': 20
 }
 
+function onCanvasReady() {
+  runActiveUserCode()
+}
+
 function runActiveUserCode() {
   // Run the code currently in the code editor
   editor.value.runActiveUserCode()
@@ -112,6 +116,7 @@ async function collapseOutput() {
         <!-- Top right pane: Game view -->
         <pane id="canvas-v-pane" :size="canvasHeight" min-size="15">
           <PixiCanvas
+            @ready="onCanvasReady"
             @run-game="runActiveUserCode"
             @fullscreen="toggleFullscreen"
             ref="canvas"
