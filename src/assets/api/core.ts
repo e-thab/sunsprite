@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { Application, Color, Graphics, Ticker } from 'pixi.js';
-import type { Repeatable, Delayable, Screen } from './interfaces';
+import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
 import { atan2, cos, random, sin, sqrt, startCode, tan, deg2rad, rad2deg } from './utility';
 
 import Camera from './Camera';
@@ -47,6 +47,18 @@ function _runRepeats() {
 	_repeats = _repeats.filter(repeat => repeat.count > 0)
 }
 
+function _runRepeatUntils() {
+	for (const repeatUntil of _repeatUntils) {
+		if (repeatUntil.condition()) {
+			if (repeatUntil.then) repeatUntil.then(repeatUntil.i)
+		} else {
+			repeatUntil.fn(repeatUntil.i)
+			repeatUntil.i += 1
+		}
+	}
+	_repeatUntils = _repeatUntils.filter(repeatUntil => !repeatUntil.condition())
+}
+
 function _runAfters(delta: number) {
 	for (const after of _afters) {
 		after.duration += delta
@@ -91,6 +103,7 @@ export let allPositionables: { _updatePosition(): void }[] = []
 let _frame: number = 0 // current render frame index
 let _ticker: Ticker = new Ticker()
 let _repeats: Array<Repeatable> = []
+let _repeatUntils: Array<RepeatableUntil> = []
 let _afters: Array<Delayable> = []
 let _everys: Array<Delayable> = []
 
@@ -135,19 +148,17 @@ const screen: Screen = {
 }
 
 // function point(x: number, y: number): Positionable {
-// 	return {x: x, y: y}
+// 	return { x, y }
 // }
 
-// function move_camera(x: number, y: number): void {
+// function moveCamera(x: number, y: number): void {
 // 	camera.x += x
 // 	camera.y += y
-// 	_positionSprites()
 // }
 
-// function set_camera(x: number, y: number): void {
+// function setCamera(x: number, y: number): void {
 // 	camera.x = x
 // 	camera.y = y
-// 	_positionSprites()
 // }
 
 function setBackgroundColor(color: Color) {
@@ -170,22 +181,22 @@ function forever(fn: Function) {
 }
 
 /* Run function {fn} {times} number of times */
-function repeat(times: number, fn: Function) {
+function repeat(times: number, fn: () => void) {
 	const repeatable: Repeatable = {
 		count: times,
 		i: 0,
-		fn: fn,
-		then: undefined
+		fn,
+		// then: undefined
 	}
 	_repeats.push(repeatable)
 
 	return {
-		then(thenFn: Function) {
+		then(thenFn: Action) {
 			repeatable.then = thenFn
 		}
 	}
 }
-/* Alternate syntax: then as another argument (like WoofJS) */
+/* Alternate syntax: 'then' as another argument (like WoofJS) */
 // function repeat(times: number, fn: Function, then?: Function) {
 // 	_repeats.push({
 // 		count: times,
@@ -195,22 +206,38 @@ function repeat(times: number, fn: Function) {
 // 	})
 // }
 
+function repeatUntil(condition: Predicate, fn: Action) {
+	const repeatableUntil: RepeatableUntil = {
+		condition,
+		fn,
+		i: 0,
+		// then: undefined
+	}
+	_repeatUntils.push(repeatableUntil)
+
+	return {
+		then(thenFn: Action) {
+			repeatableUntil.then = thenFn
+		}
+	}
+}
+
 /* Run function {fn} after {seconds} seconds have passed */
-function after(seconds: number, fn: Function) {
+function after(seconds: number, fn: Action) {
 	_afters.push({
-		seconds: seconds,
 		duration: 0,
-		fn: fn
+		seconds,
+		fn
 	})
 }
 
 /* Run function {fn} once immediately, then every {seconds} seconds */
-function every(seconds: number, fn: Function) {
+function every(seconds: number, fn: Action) {
 	fn()
 	_everys.push({
-		seconds: seconds,
 		duration: 0,
-		fn: fn
+		seconds,
+		fn
 	})
 }
 
@@ -308,6 +335,7 @@ export async function runUserCode(code: string): Promise<void> {
 	_repeats = []
 	_afters = []
 	_everys = []
+	_repeatUntils = []
 	allPositionables = []
 	camera.goTo(0, 0)
 	Timer.time = 0
@@ -332,11 +360,12 @@ export async function runUserCode(code: string): Promise<void> {
 		_runRepeats()
 		_runAfters(delta)
 		_runEverys(delta)
+		_runRepeatUntils()
 		// resizeStage() // -necessary?
 	})
 
-	const keys = [ 'deg2rad', 'rad2deg', 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused' ]
-	const values = [deg2rad,   rad2deg,   app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused]
+	const keys = [ 'deg2rad', 'rad2deg', 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused' ]
+	const values = [deg2rad,   rad2deg,   app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused]
 
 	// temp
 	keys.push('Graphics')

@@ -2,19 +2,27 @@
  * Interfaces
  */
 
+export type Action = (...args: any[]) => void
+export type Predicate = (...args: any[]) => boolean
+
 /* used for repeat() */
 export interface Repeatable {
 	count: number
 	i: number
-	fn: Function
-	then?: Function
+	fn: Action
+	then?: Action
+}
+
+/* Used for repeatUntil() */
+export interface RepeatableUntil extends Omit<Repeatable, 'count'> {
+	condition: Predicate
 }
 
 /* Used for after() & every() */
 export interface Delayable {
 	seconds: number
 	duration: number
-	fn: Function
+	fn: Action
 }
 
 export interface Screen {

@@ -112,6 +112,14 @@ const bunny = new Sprite({
     cursor: 'question'
 })
 forever(delta => {
+    if (keyJustPressed('F')) {
+        bunny.rotation = 0
+        repeatUntil(() => bunny.rotation == 360, i => {
+            print(\`\${i}: \${bunny.rotation}\`)
+        }).then(
+            i => print(\`done \${i}: \${bunny.rotation}\`)
+        )
+    }
     bunny.rotation += 2
     // bunny.rotateAround(gator, 2).degrees()
 })
