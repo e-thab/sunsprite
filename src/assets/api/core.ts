@@ -30,7 +30,7 @@ export function play() {
 /**
  * API internal methods
  */
-export function updateSpritePositions(): void {
+export function updateSpritePositions() {
 	for (const object of allPositionables) {
 		object._updatePosition()
 	}
@@ -41,6 +41,10 @@ function _runRepeats() {
 		repeat.fn(repeat.i)
 		repeat.count -= 1
 		repeat.i += 1
+
+		if (repeat.count <= 0 && repeat.then) {
+			repeat.then()
+		}
 	}
 	_repeats = _repeats.filter(repeat => repeat.count > 0)
 }
@@ -65,7 +69,7 @@ function _runEverys(delta: number) {
 	}
 }
 
-function _clearKeysJustPressed(frame: number): void {
+function _clearKeysJustPressed(frame: number) {
 	for (const key of keysJustPressed.keys()) {
 		if (keysJustPressed.get(key) !== frame) {
 			keysJustPressed.set(key, undefined)
@@ -73,7 +77,7 @@ function _clearKeysJustPressed(frame: number): void {
 	}
 }
 
-function _resetTicker(): void {
+function _resetTicker() {
 	_ticker.destroy()
 	_ticker = new Ticker()
 	_ticker.start()
@@ -158,7 +162,7 @@ async function setCursor(src: string) {
 }
 
 /* Run function {fn} once every frame */
-function forever(fn: Function): void {
+function forever(fn: Function) {
 	_ticker.add((time) => {
 		if (paused) return
 		fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
@@ -167,15 +171,32 @@ function forever(fn: Function): void {
 
 /* Run function {fn} {times} number of times */
 function repeat(times: number, fn: Function) {
-	_repeats.push({
+	const repeatable: Repeatable = {
 		count: times,
 		i: 0,
-		fn: fn
-	})
+		fn: fn,
+		then: undefined
+	}
+	_repeats.push(repeatable)
+
+	return {
+		then(thenFn: Function) {
+			repeatable.then = thenFn
+		}
+	}
 }
+/* Alternate syntax: then as another argument (like WoofJS) */
+// function repeat(times: number, fn: Function, then?: Function) {
+// 	_repeats.push({
+// 		count: times,
+// 		i: 0,
+// 		fn: fn,
+// 		then: then ?? undefined
+// 	})
+// }
 
 /* Run function {fn} after {seconds} seconds have passed */
-function after(seconds: number, fn: Function): void {
+function after(seconds: number, fn: Function) {
 	_afters.push({
 		seconds: seconds,
 		duration: 0,
@@ -184,7 +205,7 @@ function after(seconds: number, fn: Function): void {
 }
 
 /* Run function {fn} once immediately, then every {seconds} seconds */
-function every(seconds: number, fn: Function): void {
+function every(seconds: number, fn: Function) {
 	fn()
 	_everys.push({
 		seconds: seconds,
@@ -203,7 +224,7 @@ function keyJustPressed(key: string): boolean {
 	return keysJustPressed.get(key.toLowerCase()) !== undefined
 }
 
-function clearStage(): void {
+function clearStage() {
 	app.stage.removeChildren()
 }
 
@@ -263,7 +284,7 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 	}
 }
 
-function clearOutput(): void {
+function clearOutput() {
 	const panel = document.querySelector('#output-panel')
 	while (panel?.firstChild) {
 		panel.removeChild(panel.firstChild)
@@ -278,6 +299,7 @@ function clearOutput(): void {
  * API utility
  */
 export async function runUserCode(code: string): Promise<void> {
+	// BUG: doesn't reset bg color
 	// const keys = Object.keys(api)
     // const values = Object.values(api)
 	clearOutput()

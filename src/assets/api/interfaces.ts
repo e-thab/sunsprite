@@ -2,11 +2,21 @@
  * Interfaces
  */
 
+// Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
+type GameObject<T = {}> = new (...args: any[]) => T
+
+type Pable = GameObject<{
+	x: number
+	y: number
+	screenX: number
+}>
+
 /* used for repeat() */
 export interface Repeatable {
 	count: number
 	i: number
 	fn: Function
+	then?: Function
 }
 
 /* Used for after() & every() */
