@@ -2,15 +2,6 @@
  * Interfaces
  */
 
-// Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
-type GameObject<T = {}> = new (...args: any[]) => T
-
-type Pable = GameObject<{
-	x: number
-	y: number
-	screenX: number
-}>
-
 /* used for repeat() */
 export interface Repeatable {
 	count: number
@@ -35,38 +26,38 @@ export interface Screen {
 	leftX: number
 }
 
-export interface Positionable {
-	// _x: number
-	// _y: number
-	x: number
-	y: number
-	screenX: number
-	screenY: number
-	goTo(x: number, y: number): void
-    _updatePosition(): void
-	// _updatePosition: Function
-}
+// export interface Positionable {
+// 	// _x: number
+// 	// _y: number
+// 	x: number
+// 	y: number
+// 	screenX: number
+// 	screenY: number
+// 	goTo(x: number, y: number): void
+//     _updatePosition(): void
+// 	// _updatePosition: Function
+// }
 
-export interface Scalable extends Positionable {
-	width: number
-    height: number
-    scale: {
-        x: number
-        y: number
-    }
-}
+// export interface Scalable extends Positionable {
+// 	width: number
+//     height: number
+//     scale: {
+//         x: number
+//         y: number
+//     }
+// }
 
-export interface Rotatable extends Positionable {
-	rotation: number
-	radians: number
-	// pivotX: number
-	// pivotY: number
-	// _updateRotation: Function
-}
+// export interface Rotatable extends Positionable {
+// 	rotation: number
+// 	radians: number
+// 	// pivotX: number
+// 	// pivotY: number
+// 	// _updateRotation: Function
+// }
 
-export interface Viewable {
-	alpha: number
-	visible: boolean
-	show(): void
-	hide(): void
-}
+// export interface Viewable {
+// 	alpha: number
+// 	visible: boolean
+// 	show(): void
+// 	hide(): void
+// }

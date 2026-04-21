@@ -121,8 +121,14 @@ const gator = new Sprite({
 	cursor: 'handOpen'
 })
 function spinGator() {
+    if (gator.spinning) return
+    gator.spinning = true
+    
     repeat(45, () => {
         gator.rotation += 8
+    }).then(() => {
+        gator.spinning = false
+        print('done')
     })
 }
 forever(delta => {
@@ -130,7 +136,7 @@ forever(delta => {
     if (keyPressed('A')) gator.x -= 5
     if (keyPressed('S')) gator.y -= 5
     if (keyPressed('D')) gator.x += 5
-    if (keyJustPressed('Space')) spinGator()
+    if (keyPressed('Space')) spinGator()
     // if (gator.x > screen.rightX) { gator.x = screen.leftX }
     // if (gator.x < screen.leftX) { gator.x = screen.rightX }
     // if (gator.y > screen.topY) { gator.y = screen.bottomY }

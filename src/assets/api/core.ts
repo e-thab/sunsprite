@@ -1,13 +1,11 @@
 import { ref } from 'vue';
 import { Application, Color, Graphics, Ticker } from 'pixi.js';
-
-import type { Repeatable, Delayable, Screen, Positionable } from './interfaces';
-import { atan2, cos, random, sin, sqrt, startCode, tan } from './utility';
+import type { Repeatable, Delayable, Screen } from './interfaces';
+import { atan2, cos, random, sin, sqrt, startCode, tan, deg2rad, rad2deg } from './utility';
 
 import Camera from './Camera';
 import Sprite from './Sprite';
 import Rectangle from './Rectangle';
-import type GameObject from './GameObject';
 
 export function resizeStage() {
 	app.resize()
@@ -88,7 +86,8 @@ function _resetTicker() {
  * API Internal vars
  */
 // type Key = 'Escape' | ''
-export let allPositionables: Array<Positionable> = []
+// export let allPositionables: typeof Positionable[] = []
+export let allPositionables: { _updatePosition(): void }[] = []
 let _frame: number = 0 // current render frame index
 let _ticker: Ticker = new Ticker()
 let _repeats: Array<Repeatable> = []
@@ -104,6 +103,7 @@ export const camera: Camera = new Camera()
 export const Timer = {
 	time: 0, // time since start, does not increment during pause
 	realTime: 0, // time since start including pause time
+	delta: 0 // time since last frame
 }
 export let mouseX: number = 0
 export let mouseY: number = 0
@@ -311,6 +311,7 @@ export async function runUserCode(code: string): Promise<void> {
 	allPositionables = []
 	camera.goTo(0, 0)
 	Timer.time = 0
+	Timer.realTime = 0
 
 	// Switch this to an internal addInput func that can modify innerHTML
 	print('<i>Running</i>', undefined, '#626f8b')
@@ -318,6 +319,7 @@ export async function runUserCode(code: string): Promise<void> {
 	_resetTicker()
 	_ticker.add(time => {
 		const delta = time.deltaMS / 1000
+		Timer.delta = delta
 		Timer.realTime += delta
 		fpsRef.value = Math.round(app.ticker.FPS)
 		FPS = app.ticker.FPS
@@ -333,8 +335,8 @@ export async function runUserCode(code: string): Promise<void> {
 		// resizeStage() // -necessary?
 	})
 
-	const keys = [ 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused' ]
-	const values = [app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused]
+	const keys = [ 'deg2rad', 'rad2deg', 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused' ]
+	const values = [deg2rad,   rad2deg,   app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   setBackgroundColor,   setCursor,   forever,   repeat,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused]
 
 	// temp
 	keys.push('Graphics')

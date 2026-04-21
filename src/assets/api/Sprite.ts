@@ -18,11 +18,13 @@ import GameObject from "./GameObject"
  * 	- animation
 */
 export default class Sprite extends GameObject {
-	readonly _sprite: PixiSprite
-	_src: string
-	onClick: Function
-	
-	constructor({
+    readonly _sprite: PixiSprite
+    _src?: string
+    onClick: Function
+
+    // Can I break down these args and keep them defined just in the mixins?
+    // Maybe use ...args?
+    constructor({
 		src = 'https://woofjs.com/docs/images/river-gator.png',
 		x = 0,
 		y = 0,
@@ -36,141 +38,91 @@ export default class Sprite extends GameObject {
 		cursor = 'default',
 		onClick = () => {}
 	} = {}) {
-		const sprite = new PixiSprite()
-		super(sprite, x, y, rotation, radians, alpha, cursor)
-		this._sprite = sprite
-		this._sprite.visible = false
-		
-		this._src = src
+        const sprite = new PixiSprite()
+        super()
+
+		this._pixiObj = sprite
+        this._sprite = sprite
+        this.hide()
+
 		this.src = src
 		this.x = x
 		this.y = y
-		this.rotation = rotation
-		this.radians = radians
+        this.alpha = alpha
+        this.cursor = cursor
 		this.onClick = onClick
 
-		if (anchorX === undefined && anchorY === undefined) {
-			this.setAnchorCenter()
+        if (!anchorX && !anchorY) {
+            this.setAnchorCenter()
 		} else {
 			this.anchorX = anchorX ?? this.width / 2
 			this.anchorY = anchorY ?? this.height / 2
-		}
+        }
 
-		if (width) this.width = width
-		if (height) this.height = height
+        if (rotation && radians) {
+            // warn?
+        }
+        if (rotation) this.rotation = rotation
+        if (radians) this.radians = radians
 
-		app.stage.addChild(this._sprite)
-		allPositionables.push(this)
+        if (width) this.width = width
+        if (height) this.height = height
 
-		// Temp
-		this._sprite.eventMode = 'dynamic'
-		this._sprite.on('click', () => {
-			print('Sprite click');
-			// app.renderer.events.cursorStyles
-		})
-		// 	this._sprite.on('mousedown', () => {
-		// 		this.cursor = 'handClosed'
-		// 		// app.renderer.events.setCursor('handClosed')
-		// 	})
-		// 	this._sprite.on('mouseup', () => {
-		// 		this.cursor = 'handOpen'
-		// 		// app.renderer.events.setCursor('handOpen')
-		// 	})
-		this._sprite.visible = true
-	}
+        app.stage.addChild(this._sprite)
+        allPositionables.push(this)
 
-	async _assignTexture(): Promise<void> {
-		this._sprite.texture = await Assets.load(this.src)
-		this.setAnchorCenter()
-	}
-
-	get src() {
-		return this._src
-	}
-	set src(path) {
-		// Not this easy. Need to make async somehow
-		this._src = path
-		this._assignTexture()
-	}
-
-	get x() {
-        return this._x
+        // Temp
+        this._sprite.eventMode = 'dynamic'
+        this._sprite.on('click', () => {
+            print('Sprite click');
+            // app.renderer.events.cursorStyles
+        })
+        // 	this._sprite.on('mousedown', () => {
+        // 		this.cursor = 'handClosed'
+        // 		// app.renderer.events.setCursor('handClosed')
+        // 	})
+        // 	this._sprite.on('mouseup', () => {
+        // 		this.cursor = 'handOpen'
+        // 		// app.renderer.events.setCursor('handOpen')
+        // 	})
+        this.show()
     }
-    set x(newX) {
-        this._x = newX
-        this._updatePosition()
+    
+    get src() {
+        return this._src
+    }
+    set src(path) {
+        // Not necessarily this easy. Need to make async somehow?
+        this._src = path
+        this._assignTexture()
     }
 
-    get y() {
-        return this._y
+    get anchorX() {
+        return this._sprite.anchor.x
     }
-    set y(newY) {
-        this._y = newY
-        this._updatePosition()
-    }
-
-    get width() {
-        return this._sprite.width
-    }
-    set width(n) {
-		this._sprite.width = n
+    set anchorX(newX) {
+        this._sprite.anchor.x = newX
     }
 
-    get height() {
-        return this._sprite.height
+    get anchorY() {
+        return this._sprite.anchor._y
     }
-    set height(n) {
-        this._sprite.height = n
+    set anchorY(newY) {
+        this._sprite.anchor.y = newY
     }
 
-    // get scale(): { x: number, y: number } {
-    //     return this._sprite.scale
-    // }
+    // Override
     set scale(value: number) {
-		this.setAnchorCenter()
+        this.setAnchorCenter()
         this._sprite.scale.set(value)
     }
 
-	get anchor(): { x: number, y: number } {
-		return this._sprite.anchor
-	}
-	set anchor(value: number) {
-		this._sprite.anchor.set(value)
-	}
+    setAnchorCenter(): void {
+        this._sprite.anchor.set(0.5)
+    }
 
-	get anchorX() {
-		return this._sprite.anchor.x
+    async _assignTexture(): Promise<void> {
+		if (this.src) this._sprite.texture = await Assets.load(this.src)
+		this.setAnchorCenter()
 	}
-	set anchorX(newX) {
-		this._sprite.anchor.x = newX
-	}
-
-	get anchorY() {
-		return this._sprite.anchor._y
-	}
-	set anchorY(newY) {
-		this._sprite.anchor.y = newY
-	}
-
-	setAnchorCenter(): void {
-		this._sprite.anchor.set(0.5)
-	}
-
-	// get pivotX() {
-    //     return this._sprite.pivot.x
-    // }
-    // set pivotX(newX) {
-    //     this._sprite.pivot.x = newX
-    // }
-
-    // get pivotY() {
-    //     return this._sprite.pivot._y
-    // }
-    // set pivotY(newY) {
-    //     this._sprite.pivot.y = newY
-    // }
-	// setPivotCenter(): void {
-	// 	this._sprite.pivot.x = this._sprite.width / 2
-	// 	this._sprite.pivot.y = this._sprite.height / 2
-	// }
 }
