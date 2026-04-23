@@ -1,5 +1,3 @@
-// TODO: min, max, clamp
-
 /* Get a random int, min & max inclusive */
 export function random(min: number, max: number): number {
     const minCeiled = Math.ceil(min);
@@ -49,6 +47,24 @@ export function atan2(y: number, x: number, unit: string = 'degrees'): number {
 
 export function sqrt(x: number): number {
     return Math.sqrt(x)
+}
+
+export function min(...args: number[]): number {
+    return Math.min(...args)
+}
+
+export function max(...args: number[]): number {
+    return Math.max(...args)
+}
+
+export function clamp(value: number, min: number, max: number): number {
+    if (value < min) {
+        return min
+    } else if (value > max) {
+        return max
+    } else {
+        return value
+    }
 }
 
 export const startCode = `setBackgroundColor('#00bd7e')
@@ -145,6 +161,8 @@ forever(delta => {
     if (keyPressed('S')) gator.y -= 5
     if (keyPressed('D')) gator.x += 5
     if (keyPressed('Space')) spinGator()
+    gator.x = clamp(gator.x, screen.leftX, screen.rightX)
+    gator.y = clamp(gator.y, screen.bottomY, screen.topY)
     // if (gator.x > screen.rightX) { gator.x = screen.leftX }
     // if (gator.x < screen.leftX) { gator.x = screen.rightX }
     // if (gator.y > screen.topY) { gator.y = screen.bottomY }

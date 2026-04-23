@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { Application, Color, Graphics, Ticker } from 'pixi.js';
 import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
-import { atan2, cos, random, sin, sqrt, startCode, tan, deg2rad, rad2deg } from './utility';
+import { atan2, cos, random, sin, sqrt, startCode, tan, deg2rad, rad2deg, clamp, max, min } from './utility';
 
 import Camera from './Camera';
 import Sprite from './Sprite';
@@ -364,13 +364,8 @@ export async function runUserCode(code: string): Promise<void> {
 		// resizeStage() // -necessary?
 	})
 
-	const keys = [ 'deg2rad', 'rad2deg', 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused' ]
-	const values = [deg2rad,   rad2deg,   app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused]
-
-	// temp
-	keys.push('Graphics')
-	// @ts-ignore
-	values.push(Graphics)
+	const keys = [ 'deg2rad', 'rad2deg', 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused', 'min', 'max', 'clamp' ]
+	const values = [deg2rad,   rad2deg,   app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused,   min,   max,   clamp ]
 	
 	try {
 		const fn = new Function(
