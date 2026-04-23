@@ -65,11 +65,17 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         _updateX() {
-            if (this._pixiObj) this._pixiObj.x = this.x + app.screen.width / 2 - camera.x
+            if (this._pixiObj) {
+                this._pixiObj.x = this.x + app.screen.width / 2 - camera.x
+                console.log(`Setting x to ${this.x}: (${this._pixiObj.x})`)
+            }
         }
 
         _updateY() { 
-            if (this._pixiObj) this._pixiObj.y = -this.y + app.screen.height / 2 + camera.y
+            if (this._pixiObj) {
+                this._pixiObj.y = -this.y + app.screen.height / 2 + camera.y
+                console.log(`Setting y to ${this.y}: (${this._pixiObj.y})`)
+            }
         }
     }
 }

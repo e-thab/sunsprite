@@ -31,37 +31,25 @@ export default class Rectangle extends GameObject {
 		// bottom = undefined
 	} = {}) {
         super()
-        const rect = new Graphics()
-            .rect(x, y, width, height)
+        this._rect = new Graphics()
+            .rect(0, 0, width, height)
             .fill(color)
-            
-        this._pixiObj = rect
-        this._rect = rect
-        this.hide()
-        
-        this._color = color
+        this._pixiObj = this._rect
 
-        allPositionables.push(this)
-        
-        this._x = x
-        this._y = y
+        this.hide()
+        this._color = color
+        this.color = color
+
 		if (width) this.width = width
 		if (height) this.height = height
 
-        this._rect.pivot.set(this.width / 2, this.height / 2)
-        this._updatePosition()
-
+        this.setPivotCenter()
+        this.x = x
+        this.y = y
+        
+        allPositionables.push(this)
         app.stage.addChild(this._rect)
         this.show()
-	}
-
-	_updatePosition(): void {
-        if (this._rect) {
-            // Check user-set pivot before setting here
-            this._rect.x = this._x + app.screen.width / 2 - camera.x
-            this._rect.y = -this._y + app.screen.height / 2 + camera.y
-            if (this.visible) this._rect.visible = true
-        }
 	}
 
     get color() {
