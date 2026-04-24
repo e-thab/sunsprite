@@ -5,12 +5,39 @@ import { deg2rad, rad2deg } from "./utility"
 
 type Class<T = {}> = new (...args: any[]) => T
 
+export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & ViewableProps // ...etc.
+export const defaults: Required<GameObjectProps> = {
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 100,
+    cursor: 'default',
+    rotation: 0,
+    radians: 0,
+    alpha: 100,
+    layer: 0,
+    visible: true
+    // ...etc.
+}
+
+// mixin constructors take props objects, but will be the deepest element in an arbitrarily
+// nested array of the form [[...[PropsObject]]] (nest order depends on composition order
+// in the derived class args is coming from). Next, constructors need a way to deconstruct
+// this array to get just the base object. Then var initialization can be moved into the
+// constructors
+
 export function Positionable<Base extends Class>(base: Base) {
     return class Positionable extends base {
         _x: number = 0
         _y: number = 0
         _cursor: string = 'default'
         _pixiObj?: any
+
+        constructor(...args: any[]) {
+            console.log(`Positionable args:`)
+            console.log(args)
+            super(args)
+        }
 
         get x() {
             return this._x
@@ -67,22 +94,32 @@ export function Positionable<Base extends Class>(base: Base) {
         _updateX() {
             if (this._pixiObj) {
                 this._pixiObj.x = this.x + app.screen.width / 2 - camera.x
-                console.log(`Setting x to ${this.x}: (${this._pixiObj.x})`)
+                // console.log(`Setting x to ${this.x}: (${this._pixiObj.x})`)
             }
         }
 
         _updateY() { 
             if (this._pixiObj) {
                 this._pixiObj.y = -this.y + app.screen.height / 2 + camera.y
-                console.log(`Setting y to ${this.y}: (${this._pixiObj.y})`)
+                // console.log(`Setting y to ${this.y}: (${this._pixiObj.y})`)
             }
         }
     }
 }
 
+type PositionableProps = {
+    x?: number
+    y?: number
+    cursor?: string
+}
+
 export function Sizable<Base extends Class>(base: Base) {
     return class Sizable extends base {
         _pixiObj?: any
+
+        constructor(...args: any[]) {
+            super(args)
+        }
 
         get width() {
             return this._pixiObj.width
@@ -107,10 +144,20 @@ export function Sizable<Base extends Class>(base: Base) {
     }
 }
 
+type SizableProps = {
+    width?: number
+    height?: number
+    //scale? - still needs testing
+}
+
 export function Rotatable<Base extends Class>(base: Base) {
     return class Rotatable extends base {
         _rotation: number = 0
         _pixiObj?: any
+
+        constructor(...args: any[]) {
+            super(args)
+        }
 
         // Rotation doesn't work
         get rotation() {
@@ -132,12 +179,21 @@ export function Rotatable<Base extends Class>(base: Base) {
     }
 }
 
+type RotatableProps = {
+    rotation?: number
+    radians?: number
+}
+
 export function Viewable<Base extends Class>(base: Base) {
     return class Viewable extends base {
         _alpha: number = 100
         _layer: number = 0
         _visible: boolean = true
         _pixiObj?: any
+
+        constructor(...args: any[]) {
+            super(args)
+        }
 
         get alpha() {
             return this._alpha
@@ -173,12 +229,18 @@ export function Viewable<Base extends Class>(base: Base) {
     }
 }
 
+type ViewableProps = {
+    alpha?: number
+    layer?: number
+    visible?: boolean
+}
+
 export function Timeable<Base extends Class>(base: Base) {
     return class Timeable extends base {
         _initTime: number
 
         constructor(...args: any[]) {
-            super()
+            super(args)
             this._initTime = Timer.time
         }
 

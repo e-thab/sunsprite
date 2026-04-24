@@ -1,6 +1,8 @@
 import { Sprite as PixiSprite, Assets } from "pixi.js"
 import { allPositionables, app, print } from "./core"
 import GameObject from "./GameObject"
+import type { GameObjectProps } from "./mixins"
+import { defaults } from "./mixins"
 
 /**
  * Simplified sprite class, mimics WoofJS style
@@ -17,66 +19,64 @@ import GameObject from "./GameObject"
  * 	- hitbox
  * 	- animation
 */
+
+type SpriteProps = GameObjectProps & {
+    src?: string
+}
+
 export default class Sprite extends GameObject {
     readonly _sprite: PixiSprite
-    _src?: string
+    _src?: string // make optional
     onClick: Function
 
-    // Can I break down these args and keep them defined just in the mixins?
-    // Maybe use ...args?
-    constructor({
-		src = 'https://woofjs.com/docs/images/river-gator.png',
-		x = 0,
-		y = 0,
-		width = undefined,
-		height = undefined,
-		anchorX = undefined,
-		anchorY = undefined,
-		rotation = 0,
-		radians = 0,
-		alpha = 100,
-		cursor = 'default',
-		onClick = () => {}
-	} = {}) {
+    // Last steps for consolidating constructors(?): props type for each mixin interface + intersection type
+    // have each class (Sprite, Rectangle) constructor take one optional arg with that intersection type.
+    // Figure out how to introduce new props as needed like src for Sprite
+    constructor(props: SpriteProps) {
         const sprite = new PixiSprite()
-        super()
+        console.log(`Sprite props:`)
+        console.log(props)
+        super(props)
 
 		this._pixiObj = sprite
         this._sprite = sprite
         this.hide()
 
-		this.src = src
-		this.x = x
-		this.y = y
-        this.alpha = alpha
-        this.cursor = cursor
-		this.onClick = onClick
+        // The majority of these prop assigns aside from src will be moved to each mixin def
+		this.src = props.src ?? 'https://woofjs.com/docs/images/river-gator.png'
+		this.x = props.x ?? defaults.x
+		this.y = props.y ?? defaults.y
+        this.cursor = props.cursor ?? defaults.cursor
+        this.alpha = props.alpha ?? defaults.alpha
+		// this.onClick = onClick
 
-        if (!anchorX && !anchorY) {
-            this.setAnchorCenter()
-		} else {
-			this.anchorX = anchorX ?? this.width / 2
-			this.anchorY = anchorY ?? this.height / 2
-        }
+        // if (!anchorX && !anchorY) {
+        //  this.setAnchorCenter()
+        // } else {
+        //  this.anchorX = anchorX ?? this.width / 2
+        // 	this.anchorY = anchorY ?? this.height / 2
+        // }
+        this.setAnchorCenter()
+        this.width = props.width ?? defaults.width
+        this.height = props.height ?? defaults.height
 
-        if (rotation && radians) {
+        if (props.rotation && props.radians) {
             // warn?
         }
-        if (rotation) this.rotation = rotation
-        if (radians) this.radians = radians
+        this.rotation = props.rotation ?? defaults.rotation
+        this.radians = props.radians ?? defaults.radians
 
-        if (width) this.width = width
-        if (height) this.height = height
+        //Temp
+        this.onClick = () => { print('Sprite click') }
+        this._sprite.on('click', () => {
+            this.onClick()
+        })
 
         app.stage.addChild(this._sprite)
         allPositionables.push(this)
 
         // Temp
         this._sprite.eventMode = 'dynamic'
-        this._sprite.on('click', () => {
-            print('Sprite click');
-            // app.renderer.events.cursorStyles
-        })
         // 	this._sprite.on('mousedown', () => {
         // 		this.cursor = 'handClosed'
         // 		// app.renderer.events.setCursor('handClosed')
