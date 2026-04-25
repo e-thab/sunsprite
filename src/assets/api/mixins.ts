@@ -25,6 +25,14 @@ export const defaults: Required<GameObjectProps> = {
 // in the derived class args is coming from). Next, constructors need a way to deconstruct
 // this array to get just the base object. Then var initialization can be moved into the
 // constructors
+function getProps(nestedArray: any[]) {
+    // First attempt, revisit this approach to get con
+    let item = nestedArray
+    while (item instanceof Array) {
+        item = item[0]
+    }
+    return item
+}
 
 export function Positionable<Base extends Class>(base: Base) {
     return class Positionable extends base {
@@ -34,8 +42,6 @@ export function Positionable<Base extends Class>(base: Base) {
         _pixiObj?: any
 
         constructor(...args: any[]) {
-            console.log(`Positionable args:`)
-            console.log(args)
             super(args)
         }
 

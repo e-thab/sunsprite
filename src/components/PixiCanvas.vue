@@ -86,7 +86,7 @@ onMounted(async () => {
 .canvas {
   height: 0;
   flex: 1 1 auto;
-  background-color: magenta;
+  background-color: magenta; /* Magenta for debugging; update this from core whenever bg color is set */
 }
 
 .panel-wrapper {

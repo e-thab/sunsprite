@@ -4,9 +4,6 @@ import { Sizable, Positionable, Rotatable, Viewable, Timeable } from "./mixins"
  * General type for most objects actually rendered in the game. Saves the trouble of
  * typing out Sizable(Positionable(Rotatable(... every time
  */
-interface Props {
-
-}
 export default abstract class GameObject extends
     Sizable(
     Positionable(
@@ -14,11 +11,13 @@ export default abstract class GameObject extends
     Viewable(
     Timeable(class {
         constructor(...args: any[]) {
-            // console.log(args)
+            // Constructor needs the args in order for concrete object constructors
+            // to pass their props object argument to each component constructor.
         }
     }))))) {
 
     constructor(...args: any[]) {
+        // This constructor also needs to receive args and pass it to super
         super(args)
     }
 }

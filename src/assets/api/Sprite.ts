@@ -34,7 +34,7 @@ export default class Sprite extends GameObject {
     // Figure out how to introduce new props as needed like src for Sprite
     constructor(props: SpriteProps) {
         const sprite = new PixiSprite()
-        console.log(`Sprite props:`)
+        console.log('Sprite props:')
         console.log(props)
         super(props)
 

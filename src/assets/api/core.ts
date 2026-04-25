@@ -112,7 +112,15 @@ let _everys: Array<Delayable> = []
  */
 // Idea: setScreenSize()
 export const app: Application = new Application()
-export const camera: Camera = new Camera() 
+// export const camera: Camera = new Camera()
+
+// TEMP !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+export const camera = {
+	x: 0,
+	y: 0,
+	goTo(a: any, b: any) {}
+}
+
 export const Timer = {
 	time: 0, // time since start, does not increment during pause
 	realTime: 0, // time since start including pause time
