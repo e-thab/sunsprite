@@ -1,10 +1,16 @@
 import { Graphics } from "pixi.js"
-import { allPositionables, app, camera } from "./core"
+import { allPositionables, app, camera, print } from "./core"
 import GameObject from "./GameObject"
+import { defaults, type GameObjectProps } from "./mixins"
 
 /**
  * Rectangle class, using position setters from that one WoofJS project
  */
+
+type RectangleProps = GameObjectProps & {
+    color?: string
+}
+
 export default class Rectangle extends GameObject {
     readonly _rect: Graphics
     _color: string
@@ -15,37 +21,35 @@ export default class Rectangle extends GameObject {
 
 	// What should happen when supplying contradictory size/place properties?
 	// Just pick one to overwrite and push a warning to the output panel?
-	constructor({
-		x = 0,
-		y = 0,
-		width = 100,
-		height = 100,
-        rotation = 0,
-        radians = 0,
-        alpha = 100,
-        cursor = 'default',
-        color = 'white'
-		// left = undefined,
-		// right = undefined,
-		// top = undefined,
-		// bottom = undefined
-	} = {}) {
-        super()
+	constructor(props: RectangleProps) {
+        super(props)
+        const color = props.color ?? 'white'
+        this._color = color
+
         this._rect = new Graphics()
-            .rect(0, 0, width, height)
+            .rect(0, 0, defaults.width, defaults.height)
             .fill(color)
         this._pixiObj = this._rect
-
         this.hide()
-        this._color = color
-        this.color = color
 
-		if (width) this.width = width
-		if (height) this.height = height
+        this.x = props.x ?? defaults.x
+        this.y = props.y ?? defaults.y
 
         this.setPivotCenter()
-        this.x = x
-        this.y = y
+		this.width = props.width ?? defaults.width
+		this.height = props.height ?? defaults.height
+
+        // !--Cursor and onClick not working (maybe Graphics limitations)
+        this.cursor = props.cursor ?? defaults.cursor
+        this.alpha = props.alpha ?? defaults.alpha
+        this.onClick = () => { print('Rect click') }
+
+        // !--Rotation not working
+        if (props.rotation && props.radians) {
+            // warn?
+        }
+        this.rotation = props.rotation ?? defaults.rotation
+        this.radians = props.radians ?? defaults.radians
         
         allPositionables.push(this)
         app.stage.addChild(this._rect)

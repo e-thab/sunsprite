@@ -16,7 +16,8 @@ export const defaults: Required<GameObjectProps> = {
     radians: 0,
     alpha: 100,
     layer: 0,
-    visible: true
+    visible: true,
+    onClick() {}
     // ...etc.
 }
 
@@ -26,7 +27,7 @@ export const defaults: Required<GameObjectProps> = {
 // this array to get just the base object. Then var initialization can be moved into the
 // constructors
 function getProps(nestedArray: any[]) {
-    // First attempt, revisit this approach to get con
+    // First attempt, revisit this approach to get prop assignments into mixin constructors?
     let item = nestedArray
     while (item instanceof Array) {
         item = item[0]
@@ -75,21 +76,21 @@ export function Positionable<Base extends Class>(base: Base) {
             this.y = camera.y - newY
         }
 
-        get cursor() {
-            return this._cursor
-        }
-        set cursor(cursor) {
-            this._cursor = cursor
-            if (this._pixiObj) this._pixiObj.cursor = cursor
-        }
+        // get cursor() {
+        //     return this._cursor
+        // }
+        // set cursor(cursor) {
+        //     this._cursor = cursor
+        //     if (this._pixiObj) this._pixiObj.cursor = cursor
+        // }
+
+        // resetCursor() {
+        //     this.cursor = 'default'
+        // }
 
         goTo(x: number, y: number) {
             this.x = x
             this.y = y
-        }
-
-        resetCursor() {
-            this.cursor = 'default'
         }
 
         _updatePosition() {
@@ -116,7 +117,6 @@ export function Positionable<Base extends Class>(base: Base) {
 type PositionableProps = {
     x?: number
     y?: number
-    cursor?: string
 }
 
 export function Sizable<Base extends Class>(base: Base) {
@@ -192,9 +192,11 @@ type RotatableProps = {
 
 export function Viewable<Base extends Class>(base: Base) {
     return class Viewable extends base {
-        _alpha: number = 100
-        _layer: number = 0
-        _visible: boolean = true
+        _alpha: number = defaults.alpha
+        _layer: number = defaults.layer
+        _visible: boolean = defaults.visible
+        _cursor: string = defaults.cursor
+        _onClick: () => void = defaults.onClick
         _pixiObj?: any
 
         constructor(...args: any[]) {
@@ -225,6 +227,32 @@ export function Viewable<Base extends Class>(base: Base) {
             if (this._pixiObj) this._pixiObj.visible = visible
         }
 
+        get cursor() {
+            return this._cursor
+        }
+        set cursor(cursor) {
+            this._cursor = cursor
+            if (this._pixiObj) this._pixiObj.cursor = cursor
+        }
+
+        get onClick() {
+            return this._onClick
+        }
+        set onClick(onClick) {
+            // Logic to actually RE-assign onClick instead of just assigning new every time?
+            // (garbage collect)
+            this._onClick = onClick
+            if (this._pixiObj) {
+                this._pixiObj.on('click', () => {
+                    this.onClick()
+                })
+            }
+        }
+
+        resetCursor() {
+            this.cursor = 'default'
+        }
+
         show() {
             if (this._pixiObj) this._pixiObj.visible = true
         }
@@ -239,6 +267,8 @@ type ViewableProps = {
     alpha?: number
     layer?: number
     visible?: boolean
+    cursor?: string
+    onClick(): void
 }
 
 export function Timeable<Base extends Class>(base: Base) {

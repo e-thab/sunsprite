@@ -27,15 +27,12 @@ type SpriteProps = GameObjectProps & {
 export default class Sprite extends GameObject {
     readonly _sprite: PixiSprite
     _src?: string // make optional
-    onClick: Function
 
     // Last steps for consolidating constructors(?): props type for each mixin interface + intersection type
     // have each class (Sprite, Rectangle) constructor take one optional arg with that intersection type.
     // Figure out how to introduce new props as needed like src for Sprite
     constructor(props: SpriteProps) {
         const sprite = new PixiSprite()
-        console.log('Sprite props:')
-        console.log(props)
         super(props)
 
 		this._pixiObj = sprite
@@ -48,17 +45,11 @@ export default class Sprite extends GameObject {
 		this.y = props.y ?? defaults.y
         this.cursor = props.cursor ?? defaults.cursor
         this.alpha = props.alpha ?? defaults.alpha
-		// this.onClick = onClick
+        this.onClick = () => { print('Sprite click') }
 
-        // if (!anchorX && !anchorY) {
-        //  this.setAnchorCenter()
-        // } else {
-        //  this.anchorX = anchorX ?? this.width / 2
-        // 	this.anchorY = anchorY ?? this.height / 2
-        // }
         this.setAnchorCenter()
-        this.width = props.width ?? defaults.width
-        this.height = props.height ?? defaults.height
+        if (props.width) this.width = props.width
+        if (props.height) this.height = props.height
 
         if (props.rotation && props.radians) {
             // warn?
@@ -66,15 +57,7 @@ export default class Sprite extends GameObject {
         this.rotation = props.rotation ?? defaults.rotation
         this.radians = props.radians ?? defaults.radians
 
-        //Temp
-        this.onClick = () => { print('Sprite click') }
-        this._sprite.on('click', () => {
-            this.onClick()
-        })
-
-        app.stage.addChild(this._sprite)
-        allPositionables.push(this)
-
+        
         // Temp
         this._sprite.eventMode = 'dynamic'
         // 	this._sprite.on('mousedown', () => {
@@ -85,6 +68,9 @@ export default class Sprite extends GameObject {
         // 		this.cursor = 'handOpen'
         // 		// app.renderer.events.setCursor('handOpen')
         // 	})
+
+        app.stage.addChild(this._sprite)
+        allPositionables.push(this)
         this.show()
     }
     
