@@ -40,6 +40,9 @@ export default class Sprite extends GameObject {
         this.hide()
 
         // The majority of these prop assigns aside from src will be moved to each mixin def
+
+        // New idea: just use functions from mixins that assign props,
+        // like setPositionableProps(props), etc. ?
 		this.src = props.src ?? 'https://woofjs.com/docs/images/river-gator.png'
 		this.x = props.x ?? defaults.x
 		this.y = props.y ?? defaults.y

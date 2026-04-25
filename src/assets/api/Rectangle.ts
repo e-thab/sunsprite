@@ -44,12 +44,13 @@ export default class Rectangle extends GameObject {
         this.alpha = props.alpha ?? defaults.alpha
         this.onClick = () => { print('Rect click') }
 
-        // !--Rotation not working
         if (props.rotation && props.radians) {
             // warn?
+        } else if (props.rotation) {
+            this.rotation = props.rotation
+        } else if (props.radians) {
+            this.radians = props.radians
         }
-        this.rotation = props.rotation ?? defaults.rotation
-        this.radians = props.radians ?? defaults.radians
         
         allPositionables.push(this)
         app.stage.addChild(this._rect)
