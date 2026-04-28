@@ -50,14 +50,14 @@ export function completions(context: CompletionContext) {
                 info: 'Runs once after a delay of x seconds.',
                 boost: 2
             }),
-            snippetCompletion(`keyPressed(#{1:key})`, {
+            snippetCompletion(`keyPressed('#{1:key}')`, {
                 label: 'keyPressed',
                 type: 'function',
                 detail: '-> bool',
                 info: 'Returns a boolean representing if the given key is currently pressed.',
                 boost: 2
             }),
-            snippetCompletion(`keyJustPressed(#{1:key})`, {
+            snippetCompletion(`keyJustPressed('#{1:key}')`, {
                 label: 'keyJustPressed',
                 type: 'function',
                 detail: '-> bool',

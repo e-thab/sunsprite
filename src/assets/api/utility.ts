@@ -1,8 +1,30 @@
+import { screen } from "./core"
+import type { Point } from "./interfaces";
+
 /* Get a random int, min & max inclusive */
 export function random(min: number, max: number): number {
     const minCeiled = Math.ceil(min);
     const maxFloored = Math.floor(max);
     return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
+}
+
+export function randomFloat(min: number, max: number): number {
+    return Math.random() * (max - min) + min;
+}
+
+export function randomX(): number {
+    return random(screen.left, screen.right)
+}
+
+export function randomY(): number {
+    return random(screen.top, screen.bottom)
+}
+
+export function randomPosition(): Point {
+    return {
+        x: randomX(),
+        y: randomY()
+    }
 }
 
 export function deg2rad(deg: number): number {

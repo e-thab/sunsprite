@@ -1,7 +1,7 @@
 import { Graphics } from "pixi.js"
-import { allPositionables, app, camera, print } from "./core"
+import { allPositionables, app, print } from "./core"
 import GameObject from "./GameObject"
-import { defaults, type GameObjectProps } from "./mixins"
+import type { GameObjectProps } from "./mixins"
 
 /**
  * Rectangle class, using position setters from that one WoofJS project
@@ -14,20 +14,16 @@ type RectangleProps = GameObjectProps & {
 export default class Rectangle extends GameObject {
     readonly _rect: Graphics
     _color: string
-	// left: number
-	// right: number
-	// top: number
-	// bottom: number
 
 	// What should happen when supplying contradictory size/place properties?
 	// Just pick one to overwrite and push a warning to the output panel?
-	constructor(props: RectangleProps) {
-        super(props)
-        const color = props.color ?? 'white'
+	constructor(props?: RectangleProps) {
+        super()
+        const color = props?.color ?? 'white'
         this._color = color
 
         this._rect = new Graphics()
-            .rect(0, 0, defaults.width, defaults.height)
+            .rect(0, 0, 100, 100)
             .fill(color)
         this._pixiObj = this._rect
         this.hide()
@@ -46,7 +42,6 @@ export default class Rectangle extends GameObject {
         
         allPositionables.push(this)
         app.stage.addChild(this._rect)
-        this.show()
 	}
 
     get color() {

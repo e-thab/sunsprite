@@ -1,3 +1,4 @@
+import type { Touchable } from "./interfaces"
 import { Sizable, Positionable, Rotatable, Viewable, Timeable } from "./mixins"
 
 /**
@@ -10,14 +11,42 @@ export default abstract class GameObject extends
     Rotatable(
     Viewable(
     Timeable(class {
-        constructor(...args: any[]) {
-            // Constructor needs the args in order for concrete object constructors
-            // to pass their props object argument to each component constructor.
+        constructor() {
+            // If at any point it becomes useful for mixins to have access to object
+            // props, this constructor needs the args in order for concrete object
+            // constructors to pass their props object argument to each component constructor.
         }
     }))))) {
 
-    constructor(...args: any[]) {
-        // This constructor also needs to receive args and pass it to super
-        super(args)
+    constructor() {
+        // This constructor would also need to receive args and pass the props object to super
+        super()
+    }
+
+    get left(): number {
+        return this.x - this.width / 2
+    }
+    //set left(left: number)
+
+    get right(): number {
+        return this.x + this.width / 2
+    }
+    //set right(right: number)
+
+    get top(): number {
+        return this.y + this.height / 2
+    }
+    //set top(top: number)
+
+    get bottom(): number {
+        return this.y - this.height / 2
+    }
+    //set bottom(bottom: number)
+
+    touching(other: Touchable): boolean {
+        return !(this.right < other.left ||
+                 this.left > other.right ||
+                 this.top < other.bottom ||
+                 this.bottom > other.top)
     }
 }

@@ -5,6 +5,16 @@
 export type Action = (...args: any[]) => void
 export type Predicate = (...args: any[]) => boolean
 
+export interface Touchable {
+	left: number
+	right: number
+	top: number
+	bottom: number
+	// scale: number
+	// rotation?: number
+	// radians?: number
+}
+
 /* used for repeat() */
 export interface Repeatable {
 	count: number
@@ -28,44 +38,13 @@ export interface Delayable {
 export interface Screen {
 	width: number
 	height: number
-	topY: number
-	bottomY: number
-	rightX: number
-	leftX: number
+	top: number
+	bottom: number
+	right: number
+	left: number
 }
 
-// export interface Positionable {
-// 	// _x: number
-// 	// _y: number
-// 	x: number
-// 	y: number
-// 	screenX: number
-// 	screenY: number
-// 	goTo(x: number, y: number): void
-//     _updatePosition(): void
-// 	// _updatePosition: Function
-// }
-
-// export interface Scalable extends Positionable {
-// 	width: number
-//     height: number
-//     scale: {
-//         x: number
-//         y: number
-//     }
-// }
-
-// export interface Rotatable extends Positionable {
-// 	rotation: number
-// 	radians: number
-// 	// pivotX: number
-// 	// pivotY: number
-// 	// _updateRotation: Function
-// }
-
-// export interface Viewable {
-// 	alpha: number
-// 	visible: boolean
-// 	show(): void
-// 	hide(): void
-// }
+export interface Point {
+	x: number
+	y: number
+}

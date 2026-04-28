@@ -9,24 +9,6 @@ export default class Camera extends Positionable(class {}) {
         this.zoom = 0
     }
 
-    // get x() {
-    //     return this._x
-    // }
-    // set x(x) {
-    //     this._x = x
-    //     this._updateX()
-    //     updateSpritePositions()
-    // }
-
-    // get y() {
-    //     return this._y
-    // }
-    // set y(y) {
-    //     this._y = y
-    //     this._updateY()
-    //     updateSpritePositions()
-    // }
-
     _updateX() {
         updateSpritePositions()
     }

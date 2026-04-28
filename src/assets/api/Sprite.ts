@@ -2,20 +2,17 @@ import { Sprite as PixiSprite, Assets } from "pixi.js"
 import { allPositionables, app, print } from "./core"
 import GameObject from "./GameObject"
 import type { GameObjectProps } from "./mixins"
-import { defaults } from "./mixins"
 
 /**
  * Simplified sprite class, mimics WoofJS style
  * 
  * TODO:
- *  - width/height
- *  - pivot / anchor
+ *  - pivot / anchor ?
  *  - distanceTo
  *  - pointTowards
  *  - lastX / lastY
  *  - move?
  *  - touching
- *  - z index (send to back/front)
  * 	- hitbox
  * 	- animation
 */
@@ -26,41 +23,42 @@ type SpriteProps = GameObjectProps & {
 
 export default class Sprite extends GameObject {
     readonly _sprite: PixiSprite
-    _src?: string // make optional
+    _src?: string
 
-    // Last steps for consolidating constructors(?): props type for each mixin interface + intersection type
-    // have each class (Sprite, Rectangle) constructor take one optional arg with that intersection type.
-    // Figure out how to introduce new props as needed like src for Sprite
-    constructor(props: SpriteProps) {
+    constructor(props?: SpriteProps) {
+        super()
+
         const sprite = new PixiSprite()
-        super(props) // Test removing some of these arg-containing super calls
-
 		this._pixiObj = sprite
         this._sprite = sprite
         this.hide()
-		this.src = props.src ?? 'https://woofjs.com/docs/images/river-gator.png'
+		this.src = props?.src ?? 'https://woofjs.com/docs/images/river-gator.png'
 
         // Set mixin props
         this.initPositionable(props)
         this.setAnchorCenter()
         this.initSizable(props)
+        this.initSizable({
+            width: props?.width ?? sprite.getBounds().width,
+            height: props?.height ?? sprite.getBounds().height,
+            scale: props?.scale ?? 1
+        })
         this.initRotatable(props)
         this.initViewable(props)
         
         // Temp
-        this._sprite.eventMode = 'dynamic'
-        // 	this._sprite.on('mousedown', () => {
+        sprite.eventMode = 'dynamic'
+        // 	sprite.on('mousedown', () => {
         // 		this.cursor = 'handClosed'
         // 		// app.renderer.events.setCursor('handClosed')
         // 	})
-        // 	this._sprite.on('mouseup', () => {
+        // 	sprite.on('mouseup', () => {
         // 		this.cursor = 'handOpen'
         // 		// app.renderer.events.setCursor('handOpen')
         // 	})
 
-        app.stage.addChild(this._sprite)
+        app.stage.addChild(sprite)
         allPositionables.push(this)
-        this.show()
     }
     
     get src() {
@@ -87,9 +85,9 @@ export default class Sprite extends GameObject {
     }
 
     // Override
-    set scale(value: number) {
+    _updateScale() {
         this.setAnchorCenter()
-        this._sprite.scale.set(value)
+        this._sprite.scale.set(this._scale)
     }
 
     setAnchorCenter(): void {

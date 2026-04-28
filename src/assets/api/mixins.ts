@@ -1,38 +1,25 @@
 // Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
-import { Sprite as PixiSprite, Assets } from "pixi.js"
-import { allPositionables, app, camera, print, Timer } from "./core"
-import { deg2rad, rad2deg } from "./utility"
+import { allPositionables, app, camera, mouseX, mouseY, paused, print, Timer } from "./core"
+import { deg2rad, rad2deg, randomPosition } from "./utility"
+import type { Point } from "./interfaces"
 
 type Class<T = {}> = new (...args: any[]) => T
 
-export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & ViewableProps // ...etc.
-export const defaults: Required<GameObjectProps> = {
+export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & ViewableProps /* ...etc. */
+export const defaults: Omit<Required<GameObjectProps>, 'pixiObj'> = {
     x: 0,
     y: 0,
     width: 100,
     height: 100,
-    cursor: 'default',
+    scale: 1,
     rotation: 0,
     radians: 0,
     alpha: 100,
     layer: 0,
+    cursor: 'default',
     visible: true,
-    onClick() {}
+    onClick: () => {}
     // ...etc.
-}
-
-// mixin constructors take props objects, but will be the deepest element in an arbitrarily
-// nested array of the form [[...[PropsObject]]] (nest order depends on composition order
-// in the derived class args is coming from). Next, constructors need a way to deconstruct
-// this array to get just the base object. Then var initialization can be moved into the
-// constructors
-function getProps(nestedArray: any[]) {
-    // First attempt, revisit this approach to get prop assignments into mixin constructors?
-    let item = nestedArray
-    while (item instanceof Array) {
-        item = item[0]
-    }
-    return item
 }
 
 type PositionableProps = {
@@ -47,12 +34,12 @@ export function Positionable<Base extends Class>(base: Base) {
         _y: number = 0
 
         constructor(...args: any[]) {
-            super(args)
+            super()
         }
 
-        initPositionable(props: GameObjectProps) {
-            this.x = props.x ?? 0
-            this.y = props.y ?? 0
+        initPositionable(props?: GameObjectProps) {
+            this.x = props?.x ?? 0
+            this.y = props?.y ?? 0
         }
 
         get x() {
@@ -85,9 +72,26 @@ export function Positionable<Base extends Class>(base: Base) {
             this.y = camera.y - newY
         }
 
-        goTo(x: number, y: number) {
-            this.x = x
-            this.y = y
+        goTo(position: Point): void
+        goTo(x: number, y: number): void
+        goTo(xOrPoint: number | Point, y?: number) {
+            if (typeof xOrPoint === 'number' && y !== undefined) {
+                this.x = xOrPoint
+                this.y = y
+            } else if (typeof xOrPoint === 'object') {
+                this.x = (xOrPoint as Point).x ?? this.x
+                this.y = (xOrPoint as Point).y ?? this.y
+            }
+        }
+
+        goToMouse() {
+            // Super slow in a forever loop, look into this
+            if (this._pixiObj) this._pixiObj.x = mouseX + app.screen.width / 2
+            if (this._pixiObj) this._pixiObj.y = -mouseY + app.screen.height / 2
+        }
+
+        goToRandom() {
+            this.goTo(randomPosition())
         }
 
         _updatePosition() {
@@ -96,17 +100,11 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         _updateX() {
-            if (this._pixiObj) {
-                this._pixiObj.x = this.x + app.screen.width / 2 - camera.x
-                // console.log(`Setting x to ${this.x}: (${this._pixiObj.x})`)
-            }
+            if (this._pixiObj) this._pixiObj.x = this.x + app.screen.width / 2 - camera.x
         }
 
         _updateY() { 
-            if (this._pixiObj) {
-                this._pixiObj.y = -this.y + app.screen.height / 2 + camera.y
-                // console.log(`Setting y to ${this.y}: (${this._pixiObj.y})`)
-            }
+            if (this._pixiObj) this._pixiObj.y = -this.y + app.screen.height / 2 + camera.y
         }
     }
 }
@@ -115,42 +113,60 @@ export function Positionable<Base extends Class>(base: Base) {
 type SizableProps = {
     width?: number
     height?: number
-    //scale? - still needs testing
+    scale?: number // - still needs testing
 }
 
 export function Sizable<Base extends Class>(base: Base) {
     return class Sizable extends base {
         _pixiObj?: any
+        _width?: number
+        _height?: number
+        _scale?: number
 
         constructor(...args: any[]) {
-            super(args)
+            // What happens when both width//height and scale are provided?
+            super()
         }
 
-        initSizable(props: GameObjectProps) {
+        initSizable(props?: GameObjectProps) {
             // Can't null-ish coalesce bc sprites set their own default width/height
-            if (props.width !== undefined) this.width = props.width
-            if (props.height !== undefined) this.height = props.height
+            if ((props?.width !== undefined && props?.scale !== undefined) || (props?.height !== undefined && props?.scale !== undefined)) {
+                // Handle conflict between width/scale
+            }
+            if (props?.width !== undefined) this.width = props.width
+            if (props?.height !== undefined) this.height = props.height
+            this.scale = props?.scale ?? 1
         }
 
         get width() {
-            return this._pixiObj.width
+            if (this._pixiObj) return this._pixiObj.width
+            return this._width
         }
-        set width(n) {
-            this._pixiObj.width = n
+        set width(width) {
+            this._width = width
+            if (this._pixiObj) this._pixiObj.width = width
         }
 
         get height() {
-            return this._pixiObj.height
+            if (this._pixiObj) return this._pixiObj.height
+            return this._height
         }
-        set height(n) {
-            this._pixiObj.height = n
+        set height(height) {
+            this._height = height
+            if (this._pixiObj) this._pixiObj.height = height
         }
 
-        // get scale(): { x: number, y: number } {
-        //     return this._sprite.scale
-        // }
-        set scale(value: number) {
-            this._pixiObj.scale.set(value)
+        get scale() {
+            if (this._pixiObj) return this._pixiObj.scale.x // Assuming uniform scale for now
+            return this._scale
+        }
+        set scale(scale) {
+            this._scale = scale
+            this._updateScale()
+        }
+
+        _updateScale() {
+            if (this._pixiObj) this._pixiObj.scale.set(this._scale)
         }
     }
 }
@@ -166,16 +182,16 @@ export function Rotatable<Base extends Class>(base: Base) {
         _pixiObj?: any
 
         constructor(...args: any[]) {
-            super(args)
+            super()
         }
 
-        initRotatable(props: GameObjectProps) {
+        initRotatable(props?: GameObjectProps) {
             // Can't null-ish coalesce since rotation & radians overwrite each other
-            if (props.rotation && props.radians) {
+            if (props?.rotation && props?.radians) {
                 // warn?
-            } else if (props.rotation !== undefined) {
+            } else if (props?.rotation !== undefined) {
                 this.rotation = props.rotation
-            } else if (props.radians !== undefined) {
+            } else if (props?.radians !== undefined) {
                 this.radians = props.radians
             } else {
                 // default
@@ -221,15 +237,15 @@ export function Viewable<Base extends Class>(base: Base) {
         _pixiObj?: any
 
         constructor(...args: any[]) {
-            super(args)
+            super()
         }
 
-        initViewable(props: GameObjectProps) {
-            this.alpha = props.alpha ?? 100
-            this.layer = props.layer ?? 0
-            this.cursor = props.cursor ?? 'default'
-            this.visible = props.visible ?? true
-            this.onClick = props.onClick ?? (() => {})
+        initViewable(props?: GameObjectProps) {
+            this.alpha = props?.alpha ?? 100
+            this.layer = props?.layer ?? 0
+            this.cursor = props?.cursor ?? 'default'
+            this.visible = props?.visible ?? true
+            this.onClick = props?.onClick ?? (() => {})
         }
 
         get alpha() {
@@ -253,7 +269,14 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         set visible(visible) {
             this._visible = visible
-            if (this._pixiObj) this._pixiObj.visible = visible
+
+            if (this._pixiObj) {
+                if (visible) {
+                    this.show()
+                } else {
+                    this.hide()
+                }
+            }
         }
 
         get cursor() {
@@ -273,7 +296,7 @@ export function Viewable<Base extends Class>(base: Base) {
             this._onClick = onClick
             if (this._pixiObj) {
                 this._pixiObj.on('click', () => {
-                    this.onClick()
+                    if (!paused) this.onClick()
                 })
             }
         }
@@ -297,7 +320,7 @@ export function Timeable<Base extends Class>(base: Base) {
         _initTime: number
 
         constructor(...args: any[]) {
-            super(args)
+            super()
             this._initTime = Timer.time
         }
 

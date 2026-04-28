@@ -1,11 +1,12 @@
 import { ref } from 'vue';
-import { Application, Color, Graphics, Ticker } from 'pixi.js';
+import { Application, Color, Graphics, Ticker, Sprite as PixiSprite, Assets } from 'pixi.js';
 import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
-import { atan2, cos, random, sin, sqrt, startCode, tan, deg2rad, rad2deg, clamp, max, min } from './utility';
+import { atan2, cos, random, sin, sqrt, startCode, tan, deg2rad, rad2deg, clamp, max, min, randomX, randomY, randomPosition, randomFloat } from './utility';
 
 import Camera from './Camera';
 import Sprite from './Sprite';
 import Rectangle from './Rectangle';
+import Text from './Text';
 
 export function resizeStage() {
 	app.resize()
@@ -29,8 +30,8 @@ export function play() {
  * API internal methods
  */
 export function updateSpritePositions() {
-	for (const object of allPositionables) {
-		object._updatePosition()
+	for (const positionable of allPositionables) {
+		positionable._updatePosition()
 	}
 }
 
@@ -112,14 +113,7 @@ let _everys: Array<Delayable> = []
  */
 // Idea: setScreenSize()
 export const app: Application = new Application()
-// export const camera: Camera = new Camera()
-
-// TEMP !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-export const camera = {
-	x: 0,
-	y: 0,
-	goTo(a: any, b: any) {}
-}
+export const camera: Camera = new Camera()
 
 export const Timer = {
 	time: 0, // time since start, does not increment during pause
@@ -131,46 +125,57 @@ export let mouseY: number = 0
 export let FPS: number = 0
 export let paused: boolean = false
 // export const PI: number = 3.141592653589793
+let background = new PixiSprite()
 
 let keysPressed: Array<string> = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
-const screen: Screen = {
+export const screen: Screen = {
 	get width(): number {
 		return app.screen.width
 	},
 	get height(): number {
 		return app.screen.height
 	},
-	get topY(): number {
+	get top(): number {
 		return camera.y + this.height / 2
 	},
-	get bottomY(): number {
+	get bottom(): number {
 		return camera.y - this.height / 2
 	},
-	get leftX(): number {
+	get left(): number {
 		return camera.x - this.width / 2
 	},
-	get rightX(): number {
+	get right(): number {
 		return camera.x + this.width / 2
 	}
 }
 
-// function point(x: number, y: number): Positionable {
-// 	return { x, y }
-// }
-
-// function moveCamera(x: number, y: number): void {
-// 	camera.x += x
-// 	camera.y += y
-// }
-
-// function setCamera(x: number, y: number): void {
-// 	camera.x = x
-// 	camera.y = y
-// }
-
 function setBackgroundColor(color: Color) {
 	app.renderer.background.color = color
+}
+
+async function setBackgroundImage(src: string) {
+	// if (background) {
+	// 	app.stage.removeChild(background)
+	// }
+	background.texture = await Assets.load(src)
+	background.anchor.set(0.5)
+	background.x = app.screen.width / 2
+	background.y = app.screen.height / 2
+
+	// Missing a condition? Test narrow images
+	if (app.screen.width > app.screen.height) {
+		background.width = app.screen.width
+	} else {
+		background.height = app.screen.height
+	}
+
+	background.zIndex = -Infinity
+	app.stage.addChild(background)
+}
+
+function clearBackgroundImage() {
+
 }
 
 async function setCursor(src: string) {
@@ -372,8 +377,8 @@ export async function runUserCode(code: string): Promise<void> {
 		// resizeStage() // -necessary?
 	})
 
-	const keys = [ 'deg2rad', 'rad2deg', 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused', 'min', 'max', 'clamp' ]
-	const values = [deg2rad,   rad2deg,   app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused,   min,   max,   clamp ]
+	const keys = [ 'randomFloat', 'deg2rad', 'rad2deg', 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'Text', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused', 'min', 'max', 'clamp', 'randomX', 'randomY', 'randomPosition', 'setBackgroundImage' ]
+	const values = [randomFloat,   deg2rad,   rad2deg,   app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   Text,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused,   min,   max,   clamp,   randomX,   randomY,   randomPosition,   setBackgroundImage ]
 	
 	try {
 		const fn = new Function(
