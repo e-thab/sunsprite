@@ -32,25 +32,17 @@ export default class Rectangle extends GameObject {
         this._pixiObj = this._rect
         this.hide()
 
-        this.x = props.x ?? defaults.x
-        this.y = props.y ?? defaults.y
-
+        // Set mixin props
+        this.initPositionable(props)
         this.setPivotCenter()
-		this.width = props.width ?? defaults.width
-		this.height = props.height ?? defaults.height
+        this.initSizable(props)
+        this.initRotatable(props)
+        this.initViewable(props)
 
         // !--Cursor and onClick not working (maybe Graphics limitations)
-        this.cursor = props.cursor ?? defaults.cursor
-        this.alpha = props.alpha ?? defaults.alpha
-        this.onClick = () => { print('Rect click') }
-
-        if (props.rotation && props.radians) {
-            // warn?
-        } else if (props.rotation) {
-            this.rotation = props.rotation
-        } else if (props.radians) {
-            this.radians = props.radians
-        }
+        // this.cursor = props.cursor ?? defaults.cursor
+        // this.alpha = props.alpha ?? defaults.alpha
+        // this.onClick = () => { print('Rect click') }
         
         allPositionables.push(this)
         app.stage.addChild(this._rect)

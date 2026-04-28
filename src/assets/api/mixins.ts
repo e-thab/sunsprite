@@ -35,15 +35,24 @@ function getProps(nestedArray: any[]) {
     return item
 }
 
+type PositionableProps = {
+    x?: number
+    y?: number
+}
+
 export function Positionable<Base extends Class>(base: Base) {
     return class Positionable extends base {
+        _pixiObj?: any
         _x: number = 0
         _y: number = 0
-        _cursor: string = 'default'
-        _pixiObj?: any
 
         constructor(...args: any[]) {
             super(args)
+        }
+
+        initPositionable(props: GameObjectProps) {
+            this.x = props.x ?? 0
+            this.y = props.y ?? 0
         }
 
         get x() {
@@ -76,18 +85,6 @@ export function Positionable<Base extends Class>(base: Base) {
             this.y = camera.y - newY
         }
 
-        // get cursor() {
-        //     return this._cursor
-        // }
-        // set cursor(cursor) {
-        //     this._cursor = cursor
-        //     if (this._pixiObj) this._pixiObj.cursor = cursor
-        // }
-
-        // resetCursor() {
-        //     this.cursor = 'default'
-        // }
-
         goTo(x: number, y: number) {
             this.x = x
             this.y = y
@@ -114,9 +111,11 @@ export function Positionable<Base extends Class>(base: Base) {
     }
 }
 
-type PositionableProps = {
-    x?: number
-    y?: number
+
+type SizableProps = {
+    width?: number
+    height?: number
+    //scale? - still needs testing
 }
 
 export function Sizable<Base extends Class>(base: Base) {
@@ -125,6 +124,12 @@ export function Sizable<Base extends Class>(base: Base) {
 
         constructor(...args: any[]) {
             super(args)
+        }
+
+        initSizable(props: GameObjectProps) {
+            // Can't null-ish coalesce bc sprites set their own default width/height
+            if (props.width !== undefined) this.width = props.width
+            if (props.height !== undefined) this.height = props.height
         }
 
         get width() {
@@ -150,10 +155,9 @@ export function Sizable<Base extends Class>(base: Base) {
     }
 }
 
-type SizableProps = {
-    width?: number
-    height?: number
-    //scale? - still needs testing
+type RotatableProps = {
+    rotation?: number
+    radians?: number
 }
 
 export function Rotatable<Base extends Class>(base: Base) {
@@ -163,6 +167,20 @@ export function Rotatable<Base extends Class>(base: Base) {
 
         constructor(...args: any[]) {
             super(args)
+        }
+
+        initRotatable(props: GameObjectProps) {
+            // Can't null-ish coalesce since rotation & radians overwrite each other
+            if (props.rotation && props.radians) {
+                // warn?
+            } else if (props.rotation !== undefined) {
+                this.rotation = props.rotation
+            } else if (props.radians !== undefined) {
+                this.radians = props.radians
+            } else {
+                // default
+                this.rotation = 0
+            }
         }
 
         // Rotation doesn't work
@@ -185,9 +203,12 @@ export function Rotatable<Base extends Class>(base: Base) {
     }
 }
 
-type RotatableProps = {
-    rotation?: number
-    radians?: number
+type ViewableProps = {
+    alpha?: number
+    layer?: number
+    visible?: boolean
+    cursor?: string
+    onClick?(): void
 }
 
 export function Viewable<Base extends Class>(base: Base) {
@@ -201,6 +222,14 @@ export function Viewable<Base extends Class>(base: Base) {
 
         constructor(...args: any[]) {
             super(args)
+        }
+
+        initViewable(props: GameObjectProps) {
+            this.alpha = props.alpha ?? 100
+            this.layer = props.layer ?? 0
+            this.cursor = props.cursor ?? 'default'
+            this.visible = props.visible ?? true
+            this.onClick = props.onClick ?? (() => {})
         }
 
         get alpha() {
@@ -261,14 +290,6 @@ export function Viewable<Base extends Class>(base: Base) {
             if (this._pixiObj) this._pixiObj.visible = false
         }
     }
-}
-
-type ViewableProps = {
-    alpha?: number
-    layer?: number
-    visible?: boolean
-    cursor?: string
-    onClick(): void
 }
 
 export function Timeable<Base extends Class>(base: Base) {

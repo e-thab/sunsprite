@@ -33,33 +33,19 @@ export default class Sprite extends GameObject {
     // Figure out how to introduce new props as needed like src for Sprite
     constructor(props: SpriteProps) {
         const sprite = new PixiSprite()
-        super(props)
+        super(props) // Test removing some of these arg-containing super calls
 
 		this._pixiObj = sprite
         this._sprite = sprite
         this.hide()
-
-        // The majority of these prop assigns aside from src will be moved to each mixin def
-
-        // New idea: just use functions from mixins that assign props,
-        // like setPositionableProps(props), etc. ?
 		this.src = props.src ?? 'https://woofjs.com/docs/images/river-gator.png'
-		this.x = props.x ?? defaults.x
-		this.y = props.y ?? defaults.y
-        this.cursor = props.cursor ?? defaults.cursor
-        this.alpha = props.alpha ?? defaults.alpha
-        this.onClick = () => { print('Sprite click') }
 
+        // Set mixin props
+        this.initPositionable(props)
         this.setAnchorCenter()
-        if (props.width) this.width = props.width
-        if (props.height) this.height = props.height
-
-        if (props.rotation && props.radians) {
-            // warn?
-        }
-        this.rotation = props.rotation ?? defaults.rotation
-        this.radians = props.radians ?? defaults.radians
-
+        this.initSizable(props)
+        this.initRotatable(props)
+        this.initViewable(props)
         
         // Temp
         this._sprite.eventMode = 'dynamic'
