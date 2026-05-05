@@ -3,7 +3,8 @@ import { ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage } from '@/assets/api/core';
 import { useFullscreenStore } from '@/stores/fullscreen';
-import PixiCanvas from '@/components/PixiCanvas.vue'
+// import PixiCanvas from '@/components/PixiCanvas.vue'
+import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
 import Output from '@/components/Output.vue';
@@ -115,13 +116,14 @@ async function collapseOutput() {
       >
         <!-- Top right pane: Game view -->
         <pane id="canvas-v-pane" :size="canvasHeight" min-size="15">
-          <PixiCanvas
+          <!-- <PixiCanvas
             @ready="onCanvasReady"
             @run-game="runActiveUserCode"
             @fullscreen="toggleFullscreen"
             ref="canvas"
             class="inner-pane"
-          />
+          /> -->
+          <PhaserCanvas />
         </pane>
 
         <!-- Bottom left pane: Output -->
