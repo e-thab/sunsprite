@@ -10,9 +10,40 @@ import Text from './Text';
 
 import Phaser from 'phaser';
 
+const resizeDelay = 100 // milliseconds
+type ResizeCall = {
+	time: number
+	active: boolean
+	promise?: Promise<void>
+	createPromise(): void
+}
+let lastResizeCall: ResizeCall = {
+	time: 0,
+	active: false,
+	createPromise() {}
+}
+
 export function resizeStage() {
-	// app.resize()
-	updateSpritePositions()
+	const time = new Date().getTime()
+	if (time - lastResizeCall.time < resizeDelay) {
+		lastResizeCall.active = false
+	}
+
+	lastResizeCall = {
+		createPromise() {
+			this.promise = new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => {
+				if (!this.active) return
+				print('resize')
+				// Center Y may be 10-15 pixels below actual element vertical center?
+				const size = game.scale.parentSize
+				game.scale.resize(size.width, size.height)
+				updatePositions()
+			})
+		},
+		active: true,
+		time
+	}
+	lastResizeCall.createPromise()
 }
 
 export const fpsRef = ref(0)
@@ -31,7 +62,7 @@ export function play() {
 /**
  * API internal methods
  */
-export function updateSpritePositions() {
+export function updatePositions() {
 	for (const positionable of allPositionables) {
 		positionable._updatePosition()
 	}
@@ -357,6 +388,7 @@ function clearOutput() {
 
 class UserScene extends Scene {
 	JScode: string
+	guy?: Phaser.GameObjects.Sprite
 
 	constructor(JScode: string) {
 		super('main')
@@ -370,8 +402,20 @@ class UserScene extends Scene {
 	}
 	
 	async create() {
+		this.guy = this.add.sprite(200, 200, 'guy')
+
 		console.log('create')
 		camera = this.cameras.main
+
+		Timer.time = 0
+		Timer.realTime = 0
+
+		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+			// Looks like this positioning is relative to the second guy sprite...??
+			pointer.updateWorldPoint(camera)
+			mouseRef.value.mouseX = Math.round(pointer.x - screen.width / 2)
+			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
+		})
 
 		// if (this.JScode) runUserCode(this.JScode)
 		const keys = ['Sprite']
@@ -392,8 +436,13 @@ class UserScene extends Scene {
 		}
 	}
 	
-	update() {
+	update(time: number, delta: number) {
 		// onUpdate()
+		// console.log(delta)
+		Timer.delta = delta
+		Timer.realTime = time
+
+		if (this.guy) this.guy.x += 0.1
 	}
 }
 
@@ -401,30 +450,23 @@ class UserScene extends Scene {
 
 export async function runUserCode(code: string): Promise<void> {
 	// BUG: doesn't reset bg color
-	// const keys = Object.keys(api)
-    // const values = Object.values(api)
-	// clearOutput()
+	clearOutput()
 	// clearStage()
-	// play()
+	play()
 	// _repeats = []
 	// _afters = []
 	// _everys = []
 	// _repeatUntils = []
-	// allPositionables = []
+	allPositionables = []
 	// camera.goTo(0, 0)
-	// Timer.time = 0
-	// Timer.realTime = 0
+	
 
 	// Switch this to an internal addInput func that can modify innerHTML
 	print('<i>Running</i>', undefined, '#626f8b')
 	
 	//// Pixi stuff
-	// _resetTicker()
-	// _ticker.add(time => {
-		// 	const delta = time.deltaMS / 1000
-		// 	Timer.delta = delta
-		// 	Timer.realTime += delta
-		// 	fpsRef.value = Math.round(app.ticker.FPS)
+
+	// 	fpsRef.value = Math.round(app.ticker.FPS)
 	// 	FPS = app.ticker.FPS
 	// 	_clearKeysJustPressed(_frame)
 	// 	// whilePaused loops? or a flag to be able to run standard loops through pause?
@@ -441,31 +483,9 @@ export async function runUserCode(code: string): Promise<void> {
 	
 	//// Phaser testing
 	// _resetTimeline()
-	// timeline = game.add.timeline({
+	// 	timeline = game.add.timeline({
 	// 	at: 0
 	// })
-	
-	// Maybe make a new Game instance here, providing user code as a
-	// constructor arg that builds the function to be run in create()
-	// onCreate = function () {
-	// 	console.log('onCreate')
-	// 	this.add.sprite(120, 120, 'guy')
-	// }
-	// config = {
-	// 	type: AUTO,
-	// 	parent: 'canvas-v-pane',
-	// 	backgroundColor: 'transparent',
-	// 	scene: [
-	// 		create: onCreate()
-	// 	]
-	// }
-
-	// const keys = [ 'randomFloat', 'deg2rad', 'rad2deg', 'game',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'Text', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused', 'min', 'max', 'clamp', 'randomX', 'randomY', 'randomPosition', 'setBackgroundImage' ]
-	// const values = [randomFloat,   deg2rad,   rad2deg,   game, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   Text,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused,   min,   max,   clamp,   randomX,   randomY,   randomPosition,   setBackgroundImage ]
-
-	// const values = [() => {
-	// 	this.add.sprite(540, 540, 'guy')
-	// }]
 
 	if (game) game.destroy(true)
 
@@ -473,10 +493,9 @@ export async function runUserCode(code: string): Promise<void> {
 
 	let config: Types.Core.GameConfig = {
 		type: AUTO,
-		// width: 800,
-		// height: 600,
 		scale: {
-			mode: Phaser.Scale.RESIZE
+			// mode: Phaser.Scale.RESIZE
+			mode: Phaser.Scale.NONE
 		},
 		parent: 'canvas-v-pane',
 		backgroundColor: '#333',
@@ -484,37 +503,10 @@ export async function runUserCode(code: string): Promise<void> {
 	}
 
 	game = new Game(config)
-	// game.scene.remove('main')
-	// game.scene.add('main', UserScene, true, { debug: 'foo' })
-
-	// const keys = [ 'randomFloat', 'deg2rad', 'rad2deg', 'game',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'Text', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused', 'min', 'max', 'clamp', 'randomX', 'randomY', 'randomPosition', 'setBackgroundImage' ]
-	// const values = [randomFloat,   deg2rad,   rad2deg,   game, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   Text,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused,   min,   max,   clamp,   randomX,   randomY,   randomPosition,   setBackgroundImage ]
-	
-	// try {
-	// 	const fn = new Function(
-	// 	...keys,
-	// 	`
-	// 	return (async () => {
-	// 		${code}
-	// 	})()
-	// 	`
-	// 	)
-	// 	await fn(...values)
-	// } catch (err) {
-	// 	console.error('User code error:', err)
-	// }
+	// game.scale.addListener('resize', () => {
+	// 	updatePositions()
+	// })
 }
-
-// let scene = new UserScene()
-// let config: Types.Core.GameConfig = {
-// 	type: AUTO,
-// 	// width: 800,
-// 	// height: 600,
-// 	parent: 'canvas-v-pane',
-// 	backgroundColor: 'transparent',
-// 	scene: UserScene
-// }
-// game = new Game(config)
 
 export function setup() {
 	// const gameContainer = document.querySelector('#game-container') as HTMLElement
@@ -590,12 +582,12 @@ export function setup() {
 		// Prevent window losing focus from interrupting key registration
 		keysPressed = []
 	})
-	window.addEventListener('resize', async () => {
-		new Promise(resolve => setTimeout(resolve, 100)).then(() => {
-			// resizeStage()
-			updateSpritePositions()
-		})
-	})
+	// window.addEventListener('resize', async () => {
+	// 	new Promise(resolve => setTimeout(resolve, 100)).then(() => {
+	// 		// resizeStage()
+	// 		updatePositions()
+	// 	})
+	// })
 
 	// app.stage.eventMode = 'dynamic'
 	// app.stage.on('globalmousemove', event => {

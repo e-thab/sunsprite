@@ -1,9 +1,7 @@
-import { Sprite as PixiSprite, Assets } from "pixi.js"
-import { allPositionables, app, print } from "./core"
 import GameObject from "./GameObject"
 import type { GameObjectProps } from "./mixins"
 
-import { screen, scene } from "./corephaser"
+import { scene, allPositionables } from "./corephaser"
 import Phaser from "phaser"
 // import type { Sprite } from 'phaser'
 
@@ -65,7 +63,7 @@ export default class Sprite extends GameObject {
         // // 	})
 
         // app.stage.addChild(sprite)
-        // allPositionables.push(this)
+        allPositionables.push(this)
     }
     
     // get src() {

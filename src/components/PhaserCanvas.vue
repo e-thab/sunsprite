@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { mouseRef, fpsRef, pause, play, pausedRef, print } from '@/assets/api/core'
-import { setup } from '@/assets/api/corephaser'
+import { /*mouseRef, fpsRef,*/ pause, play, pausedRef, print } from '@/assets/api/core'
+import { game, setup, mouseRef } from '@/assets/api/corephaser'
 import { useFullscreenStore } from '@/stores/fullscreen'
 import { AUTO, Game, Scene, type Types } from 'phaser'
 
@@ -11,7 +11,8 @@ const fpsColor = ref()
 const fsStore = useFullscreenStore()
 
 function updateFpsInterval() {
-  fps.value = fpsRef.value // Why delegating refs? Can't just use one?
+  fps.value = Math.round(game.loop.actualFps)
+
   if (fps.value >= 55) {
     fpsColor.value = 'SpringGreen'
   } else if (fps.value >= 30) {
@@ -27,42 +28,9 @@ function updateFpsInterval() {
 
 const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
-// class TestScene extends Scene {
-//     constructor() {
-//         super('Game')
-//     }
-
-//     preload() {
-//         console.log('preload')
-//         this.load.image('guy', 'assets/guy.png')
-//     }
-
-//     create() {
-//         console.log('create')
-//         this.add.image(0, 0, 'guy')
-//     }
-
-//     update() {
-        
-//     }
-// }
-
 onMounted(async () => {
     setup()
-    // canvas.value?.appendChild(app.canvas)
     window.setInterval(updateFpsInterval, 250)
-    // const config: Types.Core.GameConfig = {
-    //     type: AUTO,
-    //     // width: 800,
-    //     // height: 600,
-    //     parent: 'canvas-v-pane',
-    //     backgroundColor: '#c0ffee',
-    //     scene: [
-    //         TestScene
-    //     ]
-    // }
-    // new Game(config)
-
     emit('ready')
 })
 </script>
