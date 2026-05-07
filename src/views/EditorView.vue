@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
-import { resizeStage } from '@/assets/api/core';
+import { resizeStage } from '@/assets/api/corephaser';
 import { useFullscreenStore } from '@/stores/fullscreen';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
@@ -123,7 +123,9 @@ async function collapseOutput() {
             ref="canvas"
             class="inner-pane"
           /> -->
-          <PhaserCanvas />
+          <PhaserCanvas
+            @run-game="onCanvasReady"
+          />
         </pane>
 
         <!-- Bottom left pane: Output -->

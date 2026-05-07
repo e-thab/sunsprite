@@ -2,6 +2,8 @@
  * Interfaces
  */
 
+import type { TupleType } from "typescript"
+
 export type Action = (...args: any[]) => void
 export type Predicate = (...args: any[]) => boolean
 
@@ -42,6 +44,7 @@ export interface Screen {
 	bottom: number
 	right: number
 	left: number
+	center: [number, number] // <- at some point, make this required so it can be spread '...center'
 }
 
 export interface Point {

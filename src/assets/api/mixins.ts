@@ -1,7 +1,8 @@
 // Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
-import { allPositionables, app, camera, mouseX, mouseY, paused, print, Timer } from "./core"
+import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, randomPosition } from "./utility"
 import type { Point } from "./interfaces"
+import { screen, camera } from "./corephaser"
 
 type Class<T = {}> = new (...args: any[]) => T
 
@@ -46,6 +47,7 @@ export function Positionable<Base extends Class>(base: Base) {
             return this._x
         }
         set x(x) {
+            console.log(`setting x to ${x}`)
             this._x = x
             this._updateX()
         }
@@ -100,11 +102,14 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         _updateX() {
-            if (this._pixiObj) this._pixiObj.x = this.x + app.screen.width / 2 - camera.x
+            // if (this._pixiObj) this._pixiObj.x = this.x + app.screen.width / 2 - camera.x
+            if (this._pixiObj) this._pixiObj.x = this.x + screen.width / 2 - camera.x
+            if (this._pixiObj) console.log(`setting actual x to ${this.x + screen.width / 2 - camera.x}`)
         }
 
         _updateY() { 
-            if (this._pixiObj) this._pixiObj.y = -this.y + app.screen.height / 2 + camera.y
+            // if (this._pixiObj) this._pixiObj.y = -this.y + app.screen.height / 2 + camera.y
+            if (this._pixiObj) this._pixiObj.y = this.y + screen.height / 2 + camera.y
         }
     }
 }

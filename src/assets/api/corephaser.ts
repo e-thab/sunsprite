@@ -8,6 +8,8 @@ import Sprite from './Sprite';
 import Rectangle from './Rectangle';
 import Text from './Text';
 
+import Phaser from 'phaser';
+
 export function resizeStage() {
 	// app.resize()
 	updateSpritePositions()
@@ -114,7 +116,10 @@ let _everys: Array<Delayable> = []
 // Idea: setScreenSize()
 // export const app: Application = new Application()
 export let game: Game
-export const camera = new Camera()
+export let scene: Scene
+
+// export const camera = new Camera()
+export let camera: Phaser.Cameras.Scene2D.Camera
 export const Timer = {
 	time: 0, // time since start, does not increment during pause
 	realTime: 0, // time since start including pause time
@@ -129,13 +134,13 @@ export let paused = false
 
 let keysPressed: Array<string> = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
-export const screen: Screen = {
+export let screen: Screen = {
 	get width(): number {
-		return game.canvas.width
+		return camera.width
 		// return app.screen.width
 	},
 	get height(): number {
-		return game.canvas.height
+		return camera.height
 		// return app.screen.height
 	},
 	get top(): number {
@@ -149,6 +154,9 @@ export const screen: Screen = {
 	},
 	get right(): number {
 		return camera.x + this.width / 2
+	},
+	get center(): [number, number] {
+		return [this.width / 2, this.height / 2]
 	}
 }
 
@@ -340,24 +348,72 @@ function clearOutput() {
 /**
  * API utility
  */
-let _create = () => {}
-let _update = () => {}
+// let onCreate = () => {}
+// let onUpdate = () => {}
+
+// function addSpriteTest() {
+// 	scene.add.sprite(540, 540, 'guy')
+// }
+
+class UserScene extends Scene {
+	JScode: string
+
+	constructor(JScode: string) {
+		super('main')
+		this.JScode = JScode
+		scene = this
+	}
+	
+	preload() {
+		console.log('preload')
+		this.load.image('guy', 'assets/guy.png')
+	}
+	
+	async create() {
+		console.log('create')
+		camera = this.cameras.main
+
+		// if (this.JScode) runUserCode(this.JScode)
+		const keys = ['Sprite']
+		const values = [Sprite]
+
+		try {
+			const fn = new Function(
+			...keys,
+			`
+			return (async () => {
+				${this.JScode}
+			})()
+			`
+			)
+			await fn(...values)
+		} catch (err) {
+			console.error('User code error:', err)
+		}
+	}
+	
+	update() {
+		// onUpdate()
+	}
+}
+
+// scene = new UserScene()
 
 export async function runUserCode(code: string): Promise<void> {
 	// BUG: doesn't reset bg color
 	// const keys = Object.keys(api)
     // const values = Object.values(api)
-	clearOutput()
-	clearStage()
-	play()
-	_repeats = []
-	_afters = []
-	_everys = []
-	_repeatUntils = []
-	allPositionables = []
-	camera.goTo(0, 0)
-	Timer.time = 0
-	Timer.realTime = 0
+	// clearOutput()
+	// clearStage()
+	// play()
+	// _repeats = []
+	// _afters = []
+	// _everys = []
+	// _repeatUntils = []
+	// allPositionables = []
+	// camera.goTo(0, 0)
+	// Timer.time = 0
+	// Timer.realTime = 0
 
 	// Switch this to an internal addInput func that can modify innerHTML
 	print('<i>Running</i>', undefined, '#626f8b')
@@ -391,60 +447,76 @@ export async function runUserCode(code: string): Promise<void> {
 	
 	// Maybe make a new Game instance here, providing user code as a
 	// constructor arg that builds the function to be run in create()
-	scene.preload()
-	scene.create()
+	// onCreate = function () {
+	// 	console.log('onCreate')
+	// 	this.add.sprite(120, 120, 'guy')
+	// }
+	// config = {
+	// 	type: AUTO,
+	// 	parent: 'canvas-v-pane',
+	// 	backgroundColor: 'transparent',
+	// 	scene: [
+	// 		create: onCreate()
+	// 	]
+	// }
 
-	const keys = [ 'randomFloat', 'deg2rad', 'rad2deg', 'game',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'Text', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused', 'min', 'max', 'clamp', 'randomX', 'randomY', 'randomPosition', 'setBackgroundImage' ]
-	const values = [randomFloat,   deg2rad,   rad2deg,   game, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   Text,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused,   min,   max,   clamp,   randomX,   randomY,   randomPosition,   setBackgroundImage ]
+	// const keys = [ 'randomFloat', 'deg2rad', 'rad2deg', 'game',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'Text', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused', 'min', 'max', 'clamp', 'randomX', 'randomY', 'randomPosition', 'setBackgroundImage' ]
+	// const values = [randomFloat,   deg2rad,   rad2deg,   game, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   Text,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused,   min,   max,   clamp,   randomX,   randomY,   randomPosition,   setBackgroundImage ]
+
+	// const values = [() => {
+	// 	this.add.sprite(540, 540, 'guy')
+	// }]
+
+	if (game) game.destroy(true)
+
+	scene = new UserScene(code)
+
+	let config: Types.Core.GameConfig = {
+		type: AUTO,
+		// width: 800,
+		// height: 600,
+		scale: {
+			mode: Phaser.Scale.RESIZE
+		},
+		parent: 'canvas-v-pane',
+		backgroundColor: '#333',
+		scene
+	}
+
+	game = new Game(config)
+	// game.scene.remove('main')
+	// game.scene.add('main', UserScene, true, { debug: 'foo' })
+
+	// const keys = [ 'randomFloat', 'deg2rad', 'rad2deg', 'game',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'Text', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused', 'min', 'max', 'clamp', 'randomX', 'randomY', 'randomPosition', 'setBackgroundImage' ]
+	// const values = [randomFloat,   deg2rad,   rad2deg,   game, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   Text,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused,   min,   max,   clamp,   randomX,   randomY,   randomPosition,   setBackgroundImage ]
 	
-	try {
-		const fn = new Function(
-		...keys,
-		`
-		return (async () => {
-			${code}
-		})()
-		`
-		)
-		await fn(...values)
-	} catch (err) {
-		console.error('User code error:', err)
-	}
+	// try {
+	// 	const fn = new Function(
+	// 	...keys,
+	// 	`
+	// 	return (async () => {
+	// 		${code}
+	// 	})()
+	// 	`
+	// 	)
+	// 	await fn(...values)
+	// } catch (err) {
+	// 	console.error('User code error:', err)
+	// }
 }
 
-class UserScene extends Scene {
-	constructor() {
-		super('Game')
-	}
-
-	preload() {
-		console.log('preload')
-		this.load.image('guy', 'assets/guy.png')
-	}
-
-	create() {
-		console.log('create')
-		this.add.image(0, 0, 'guy')
-		// _create()
-	}
-
-	update() {
-		// _update()
-	}
-}
-let scene = new UserScene()
-const config: Types.Core.GameConfig = {
-	type: AUTO,
-	// width: 800,
-	// height: 600,
-	parent: 'canvas-v-pane',
-	backgroundColor: '#222',
-	scene
-}
-
+// let scene = new UserScene()
+// let config: Types.Core.GameConfig = {
+// 	type: AUTO,
+// 	// width: 800,
+// 	// height: 600,
+// 	parent: 'canvas-v-pane',
+// 	backgroundColor: 'transparent',
+// 	scene: UserScene
+// }
+// game = new Game(config)
 
 export function setup() {
-	game = new Game(config)
 	// const gameContainer = document.querySelector('#game-container') as HTMLElement
 
 	// await app.init({
