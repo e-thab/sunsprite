@@ -10,42 +10,6 @@ import Text from './Text';
 
 import Phaser from 'phaser';
 
-const resizeDelay = 100 // milliseconds
-type ResizeCall = {
-	time: number
-	active: boolean
-	promise?: Promise<void>
-	createPromise(): void
-}
-let lastResizeCall: ResizeCall = {
-	time: 0,
-	active: false,
-	createPromise() {}
-}
-
-export function resizeStage() {
-	const time = new Date().getTime()
-	if (time - lastResizeCall.time < resizeDelay) {
-		lastResizeCall.active = false
-	}
-
-	lastResizeCall = {
-		createPromise() {
-			this.promise = new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => {
-				if (!this.active) return
-				print('resize')
-				// Center Y may be 10-15 pixels below actual element vertical center?
-				const size = game.scale.parentSize
-				game.scale.resize(size.width, size.height)
-				updatePositions()
-			})
-		},
-		active: true,
-		time
-	}
-	lastResizeCall.createPromise()
-}
-
 export const fpsRef = ref(0)
 export const mouseRef = ref({mouseX: 0, mouseY: 0})
 export const pausedRef = ref(false)
@@ -417,6 +381,8 @@ class UserScene extends Scene {
 			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
 		})
 
+		console.log(this.scale.parent)
+
 		// if (this.JScode) runUserCode(this.JScode)
 		const keys = ['Sprite']
 		const values = [Sprite]
@@ -494,18 +460,58 @@ export async function runUserCode(code: string): Promise<void> {
 	let config: Types.Core.GameConfig = {
 		type: AUTO,
 		scale: {
-			// mode: Phaser.Scale.RESIZE
-			mode: Phaser.Scale.NONE
+			mode: Phaser.Scale.RESIZE
+			// mode: Phaser.Scale.NONE
 		},
-		parent: 'canvas-v-pane',
+		parent: 'game-container',
 		backgroundColor: '#333',
 		scene
 	}
 
 	game = new Game(config)
 	// game.scale.addListener('resize', () => {
-	// 	updatePositions()
+	// 	new Promise(resolve => setTimeout(resolve, 50)).then(updatePositions)
 	// })
+}
+
+const resizeDelay = 50 // milliseconds
+type ResizeCall = {
+	time: number
+	active: boolean
+	promise?: Promise<void>
+	createPromise(): void
+}
+let lastResizeCall: ResizeCall = {
+	time: 0,
+	active: false,
+	createPromise() {}
+}
+export function resizeStage() {
+	const time = new Date().getTime()
+	if (time - lastResizeCall.time < resizeDelay) {
+		// print(`last call was ${time - lastResizeCall.time} milliseconds ago, updating`)
+		lastResizeCall.active = false
+	}
+
+	lastResizeCall = {
+		createPromise() {
+			this.promise = new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => {
+				if (!this.active) {
+					// print('cancelled')
+					return
+				}
+				print('resize')
+				// Center Y may be 10-15 pixels below actual element vertical center?
+				const size = game.scale.parentSize
+				// game.scale.resize(size.width, size.height)
+				game.scale.setGameSize(size.width, size.height)
+				updatePositions()
+			})
+		},
+		active: true,
+		time
+	}
+	lastResizeCall.createPromise()
 }
 
 export function setup() {

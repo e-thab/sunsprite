@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
-import { resizeStage } from '@/assets/api/corephaser';
+import { resizeStage, print } from '@/assets/api/corephaser';
 import { useFullscreenStore } from '@/stores/fullscreen';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
@@ -12,24 +12,24 @@ import Output from '@/components/Output.vue';
 // const canvas = ref()
 const editor = ref()
 const fsStore = useFullscreenStore()
-const splitterDisplay = ref<'inline' | 'none'>('inline')
+// const splitterDisplay = ref<'inline' | 'none'>('inline')
 
-const canvasWidth = ref(44)
-const canvasHeight = ref(80)
+// const canvasWidth = ref(44)
+// const canvasHeight = ref(80)
 
-const canvasHeightBeforeCollapse = ref(80)
+// const canvasHeightBeforeCollapse = ref(80)
 // let isOutputCollapsed = false
 
-const paneSize: { [index: string]: number } = {
-  // Column panes (left - middle - right)
-  'explorer-pane': 12,
-  'code-pane': 44,
-  'right-pane': 44,
+// const paneSize: { [index: string]: number } = {
+//   // Column panes (left - middle - right)
+//   'explorer-pane': 12,
+//   'code-pane': 44,
+//   'right-pane': 44,
 
-  // Right side nested row panes (top right - bottom right)
-  'canvas-v-pane': 80,
-  'output-v-pane': 20
-}
+//   // Right side nested row panes (top right - bottom right)
+//   'canvas-v-pane': 80,
+//   'output-v-pane': 20
+// }
 
 function onCanvasReady() {
   runActiveUserCode()
@@ -42,56 +42,57 @@ function runActiveUserCode() {
 
 async function toggleFullscreen() {
   // Toggle fullscreen state (pinia store) when pressing fullscreen button
-  if (fsStore.toggle()) {
-    splitterDisplay.value = 'none'
-    canvasWidth.value = 100
-    canvasHeight.value = 100
-  } else {
-    splitterDisplay.value = 'inline'
-    canvasWidth.value = paneSize['right-pane'] ?? 0
-    canvasHeight.value = paneSize['canvas-v-pane'] ?? 0
-  }
+  // if (fsStore.toggle()) {
+  //   splitterDisplay.value = 'none'
+  //   canvasWidth.value = 100
+  //   canvasHeight.value = 100
+  // } else {
+  //   splitterDisplay.value = 'inline'
+  //   canvasWidth.value = paneSize['right-pane'] ?? 0
+  //   canvasHeight.value = paneSize['canvas-v-pane'] ?? 0
+  // }
 
-  new Promise(resolve => setTimeout(resolve, 0)).then(() => {
-    // Without the await, stage doesn't resize after fullscreen
-    resizeStage()
-  })
+  // new Promise(resolve => setTimeout(resolve, 0)).then(() => {
+  //   // Without the await, stage doesn't resize after fullscreen
+  //   resizeStage()
+  // })
 }
 
 type EventPane = { el: HTMLElement, size: number }
 type ResizeEvent = { prevPane: EventPane, nextPane: EventPane }
 
 const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
-  paneSize[`${prevPane.el.id}`] = prevPane.size
-  paneSize[`${nextPane.el.id}`] = nextPane.size
+  // paneSize[`${prevPane.el.id}`] = prevPane.size
+  // paneSize[`${nextPane.el.id}`] = nextPane.size
 
-  if (prevPane.el.id === 'canvas-v-pane') {
-    // isOutputCollapsed = false
-    canvasHeight.value = prevPane.size
-  }
-  console.log(prevPane.el.id)
+  // // if (prevPane.el.id === 'canvas-v-pane') {
+  // //   // isOutputCollapsed = false
+  // //   canvasHeight.value = prevPane.size
+  // // }
+  // console.log(prevPane.el.id)
 }
 
 function resizeSplitpanes(event: ResizeEvent) {
-  storePaneSizes(event)
+  // needs full rework
+  // storePaneSizes(event)
   resizeStage()
 }
 
 async function collapseOutput() {
-  canvasHeightBeforeCollapse.value = canvasHeight.value
-  canvasHeight.value = 100
+  // canvasHeightBeforeCollapse.value = canvasHeight.value
+  // canvasHeight.value = 100
 
-  new Promise(resolve => setTimeout(resolve, 0)).then(() => {
-    // Without the await, stage doesn't resize after fullscreen
-    resizeStage()
-  })
+  // new Promise(resolve => setTimeout(resolve, 0)).then(() => {
+  //   // Without the await, stage doesn't resize after fullscreen
+  //   resizeStage()
+  // })
 }
 </script>
 
 <template>
   <splitpanes
   :push-other-panes="false"
-  @resize="resizeStage"
+  @resize="resizeSplitpanes"
   @resized="resizeSplitpanes"
   >
   <!-- class="default-theme" -->
@@ -107,15 +108,15 @@ async function collapseOutput() {
     </pane>
 
     <!-- Right side pane: Nested game/output splitpanes -->
-    <pane id="right-pane" :size="canvasWidth" min-size="15">
+    <pane id="right-pane" min-size="15">
       <splitpanes
         horizontal
         :push-other-panes="false"
-        @resize="resizeStage"
+        @resize="resizeSplitpanes"
         @resized="resizeSplitpanes"
       >
         <!-- Top right pane: Game view -->
-        <pane id="canvas-v-pane" :size="canvasHeight" min-size="15">
+        <pane id="canvas-v-pane" min-size="15">
           <!-- <PixiCanvas
             @ready="onCanvasReady"
             @run-game="runActiveUserCode"
@@ -124,12 +125,16 @@ async function collapseOutput() {
             class="inner-pane"
           /> -->
           <PhaserCanvas
+            @resize="resizeSplitpanes"
+            @resized="resizeSplitpanes"
             @run-game="onCanvasReady"
+            @fullscreen="toggleFullscreen"
+            class="inner-pane"
           />
         </pane>
 
         <!-- Bottom left pane: Output -->
-        <pane id="output-v-pane" v-show="!fsStore.fullscreen" :size="100-canvasHeight">
+        <pane id="output-v-pane" v-show="!fsStore.fullscreen">
           <Output @collapse-output="collapseOutput" />
         </pane>
       </splitpanes>
@@ -165,7 +170,7 @@ async function collapseOutput() {
 .splitpanes--vertical > .splitpanes__splitter {
   background-color: var(--nord-background-light);
   min-width: 5px;
-  display: v-bind(splitterDisplay);
+  /* display: v-bind(splitterDisplay); */
   transition: 0.15s 0.1s;
 }
 .splitpanes--vertical > .splitpanes__splitter:hover {
@@ -176,7 +181,7 @@ async function collapseOutput() {
 .splitpanes--horizontal > .splitpanes__splitter {
   background-color: var(--nord-background-light);
   min-height: 5px;
-  display: v-bind(splitterDisplay);
+  /* display: v-bind(splitterDisplay); */
   transition: 0.15s 0.1s;
 }
 .splitpanes--horizontal > .splitpanes__splitter:hover {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { /*mouseRef, fpsRef,*/ pause, play, pausedRef, print } from '@/assets/api/core'
-import { game, setup, mouseRef } from '@/assets/api/corephaser'
+import { game, setup, mouseRef, resizeStage } from '@/assets/api/corephaser'
 import { useFullscreenStore } from '@/stores/fullscreen'
 import { AUTO, Game, Scene, type Types } from 'phaser'
 
@@ -30,6 +30,12 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
 onMounted(async () => {
     setup()
+
+    resizeStage()
+    // new Promise(resolve => setTimeout(resolve, 250)).then(() => {
+    //   resizeStage()
+    // })
+
     window.setInterval(updateFpsInterval, 250)
     emit('ready')
 })
@@ -86,8 +92,13 @@ onMounted(async () => {
 }
 
 .canvas {
-  height: 0;
+  /* height: 0; */
+  /* display: flex; */
   flex: 1 1 auto;
+  max-height: 100%;
+  /* width: 100%;
+  height: 100%; */
+  justify-content: center;
   background-color: magenta; /* Magenta for debugging; update this from core whenever bg color is set */
 }
 
