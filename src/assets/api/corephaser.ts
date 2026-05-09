@@ -95,11 +95,10 @@ function _clearKeysJustPressed(frame: number) {
 /**
  * API Internal vars
  */
-// type Key = 'Escape' | ''
-// export let allPositionables: typeof Positionable[] = []
 export let allPositionables: { _updatePosition(): void }[] = []
 let _frame: number = 0 // current render frame index
 // let _ticker: Ticker = new Ticker()
+let _forevers: Array<Action> = []
 let _repeats: Array<Repeatable> = []
 let _repeatUntils: Array<RepeatableUntil> = []
 let _afters: Array<Delayable> = []
@@ -109,34 +108,24 @@ let _everys: Array<Delayable> = []
  * User-accessible
  */
 // Idea: setScreenSize()
-// export const app: Application = new Application()
 export let game: Game
 export let scene: Scene
-
-// export const camera = new Camera()
 export let camera: Phaser.Cameras.Scene2D.Camera
 export const Timer = {
 	time: 0, // time since start, does not increment during pause
 	realTime: 0, // time since start including pause time
 	delta: 0 // time since last frame
 }
-export let mouseX = 0
-export let mouseY = 0
-export let FPS = 0
 export let paused = false
-// export const PI: number = 3.141592653589793
-// let background = new PixiSprite()
 
 let keysPressed: Array<string> = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
 export let screen: Screen = {
 	get width(): number {
 		return camera.width
-		// return app.screen.width
 	},
 	get height(): number {
 		return camera.height
-		// return app.screen.height
 	},
 	get top(): number {
 		return camera.y + this.height / 2
@@ -191,11 +180,15 @@ async function setCursor(src: string) {
 }
 
 /* Run function {fn} once every frame */
-function forever(fn: Function) {
+function forever(fn: Action) {
 	// _ticker.add((time) => {
 	// 	if (paused) return
 	// 	fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
 	// })
+	_forevers.push(() => {
+		if (paused) return
+		fn()
+	})
 }
 
 /* Run function {fn} {times} number of times */
@@ -381,6 +374,8 @@ class UserScene extends Scene {
 			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
 		})
 
+		_forevers = []
+
 		// Make sure to find a way to allow user to click the game window to remove focus from code editor
 		// Also, is the window listener good enough for key events or should I use phaser's input handling? vv
 		
@@ -391,8 +386,8 @@ class UserScene extends Scene {
 		// console.log(this.scale.parent)
 
 		// if (this.JScode) runUserCode(this.JScode)
-		const keys = ['Sprite']
-		const values = [Sprite]
+		const keys = ['Sprite', 'keyPressed', 'keyJustPressed']
+		const values = [Sprite, keyPressed, keyJustPressed]
 
 		try {
 			const fn = new Function(
@@ -428,6 +423,10 @@ class UserScene extends Scene {
 		// }
 
 		if (this.guy) this.guy.x += 0.1
+
+		for (const fn of _forevers) {
+			fn()
+		}
 	}
 }
 
