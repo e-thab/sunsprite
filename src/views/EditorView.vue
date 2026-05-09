@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage, print } from '@/assets/api/corephaser';
 import { useFullscreenStore } from '@/stores/fullscreen';
@@ -7,31 +7,32 @@ import { useFullscreenStore } from '@/stores/fullscreen';
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
-import Output from '@/components/Output.vue';
+import OutputPane from '@/components/OutputPane.vue';
 
-// const canvas = ref()
+// const canvas = ref<HTMLElement | null>()
 const editor = ref()
 const fsStore = useFullscreenStore()
-// const splitterDisplay = ref<'inline' | 'none'>('inline')
+const splitterDisplay = ref<'inline' | 'none'>('inline')
 
-// const canvasWidth = ref(44)
-// const canvasHeight = ref(80)
+const canvasWidth = ref(44)
+const canvasHeight = ref(80)
 
-// const canvasHeightBeforeCollapse = ref(80)
+const canvasHeightBeforeCollapse = ref(80)
 // let isOutputCollapsed = false
 
-// const paneSize: { [index: string]: number } = {
-//   // Column panes (left - middle - right)
-//   'explorer-pane': 12,
-//   'code-pane': 44,
-//   'right-pane': 44,
+const paneSize: { [index: string]: number } = {
+  // Column panes (left - middle - right)
+  'explorer-pane': 12,
+  'code-pane': 44,
+  'right-pane': 44,
 
-//   // Right side nested row panes (top right - bottom right)
-//   'canvas-v-pane': 80,
-//   'output-v-pane': 20
-// }
+  // Right side nested row panes (top right - bottom right)
+  'canvas-v-pane': 80,
+  'output-v-pane': 20
+}
 
 function onCanvasReady() {
+  resizeStage()
   runActiveUserCode()
 }
 
@@ -42,60 +43,62 @@ function runActiveUserCode() {
 
 async function toggleFullscreen() {
   // Toggle fullscreen state (pinia store) when pressing fullscreen button
-  // if (fsStore.toggle()) {
-  //   splitterDisplay.value = 'none'
-  //   canvasWidth.value = 100
-  //   canvasHeight.value = 100
-  // } else {
-  //   splitterDisplay.value = 'inline'
-  //   canvasWidth.value = paneSize['right-pane'] ?? 0
-  //   canvasHeight.value = paneSize['canvas-v-pane'] ?? 0
-  // }
-
-  // new Promise(resolve => setTimeout(resolve, 0)).then(() => {
-  //   // Without the await, stage doesn't resize after fullscreen
-  //   resizeStage()
-  // })
+  print('fullscreen')
+  if (fsStore.toggle()) {
+    splitterDisplay.value = 'none'
+    canvasWidth.value = 100
+    canvasHeight.value = 100
+  } else {
+    splitterDisplay.value = 'inline'
+    canvasWidth.value = paneSize['right-pane'] ?? 0
+    canvasHeight.value = paneSize['canvas-v-pane'] ?? 0
+  }
+  resizeStage()
 }
 
 type EventPane = { el: HTMLElement, size: number }
 type ResizeEvent = { prevPane: EventPane, nextPane: EventPane }
 
 const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
-  // paneSize[`${prevPane.el.id}`] = prevPane.size
-  // paneSize[`${nextPane.el.id}`] = nextPane.size
+  paneSize[`${prevPane.el.id}`] = prevPane.size
+  paneSize[`${nextPane.el.id}`] = nextPane.size
 
-  // // if (prevPane.el.id === 'canvas-v-pane') {
-  // //   // isOutputCollapsed = false
-  // //   canvasHeight.value = prevPane.size
-  // // }
-  // console.log(prevPane.el.id)
+  if (prevPane.el.id === 'canvas-v-pane') {
+    // isOutputCollapsed = false
+    canvasHeight.value = prevPane.size
+  }
+  console.log(prevPane.el.id)
 }
 
 function resizeSplitpanes(event: ResizeEvent) {
-  // needs full rework
-  // storePaneSizes(event)
+  storePaneSizes(event)
   resizeStage()
 }
 
 async function collapseOutput() {
-  // canvasHeightBeforeCollapse.value = canvasHeight.value
-  // canvasHeight.value = 100
-
-  // new Promise(resolve => setTimeout(resolve, 0)).then(() => {
-  //   // Without the await, stage doesn't resize after fullscreen
-  //   resizeStage()
-  // })
+  canvasHeightBeforeCollapse.value = canvasHeight.value
+  canvasHeight.value = 100
+  resizeStage()
 }
+
+onMounted(() => {
+  const canvas = document.getElementById('canvas-v-pane')
+  if (!canvas) return
+
+  new ResizeObserver(() => {
+    resizeStage()
+  })
+  .observe(canvas)
+})
 </script>
 
 <template>
   <splitpanes
   :push-other-panes="false"
-  @resize="resizeSplitpanes"
+  @resize="resizeStage"
   @resized="resizeSplitpanes"
   >
-  <!-- class="default-theme" -->
+
     <!-- Left side pane: File explorer -->
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" size="12">
       <!-- <span>Files</span> -->
@@ -108,34 +111,27 @@ async function collapseOutput() {
     </pane>
 
     <!-- Right side pane: Nested game/output splitpanes -->
-    <pane id="right-pane" min-size="15">
+    <pane id="right-pane" min-size="15" :size="canvasWidth">
       <splitpanes
         horizontal
         :push-other-panes="false"
-        @resize="resizeSplitpanes"
+        @resize="resizeStage"
         @resized="resizeSplitpanes"
-      >
+        >
+
         <!-- Top right pane: Game view -->
-        <pane id="canvas-v-pane" min-size="15">
-          <!-- <PixiCanvas
+        <pane id="canvas-v-pane" min-size="15" :size="canvasHeight">
+          <PhaserCanvas
             @ready="onCanvasReady"
             @run-game="runActiveUserCode"
             @fullscreen="toggleFullscreen"
-            ref="canvas"
             class="inner-pane"
-          /> -->
-          <PhaserCanvas
-            @resize="resizeSplitpanes"
-            @resized="resizeSplitpanes"
-            @run-game="onCanvasReady"
-            @fullscreen="toggleFullscreen"
-            class="inner-pane"
-          />
+            />
         </pane>
 
         <!-- Bottom left pane: Output -->
-        <pane id="output-v-pane" v-show="!fsStore.fullscreen">
-          <Output @collapse-output="collapseOutput" />
+        <pane id="output-v-pane" v-show="!fsStore.fullscreen" :size="100-canvasHeight">
+          <OutputPane @collapse-output="collapseOutput" />
         </pane>
       </splitpanes>
     </pane>
@@ -166,10 +162,8 @@ async function collapseOutput() {
   flex-shrink: 0;
   padding-left: 0.1em;
   padding-right: 0.2em;
-
   justify-content: space-between;
   align-items: center;
-
   color: var(--nord-text-bright);
   background-color: var(--nord-background-dark);
   font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
@@ -205,7 +199,7 @@ async function collapseOutput() {
 .splitpanes--vertical > .splitpanes__splitter {
   background-color: var(--nord-background-light);
   min-width: 5px;
-  /* display: v-bind(splitterDisplay); */
+  display: v-bind(splitterDisplay);
   transition: 0.15s 0.1s;
 }
 .splitpanes--vertical > .splitpanes__splitter:hover {
@@ -216,7 +210,7 @@ async function collapseOutput() {
 .splitpanes--horizontal > .splitpanes__splitter {
   background-color: var(--nord-background-light);
   min-height: 5px;
-  /* display: v-bind(splitterDisplay); */
+  display: v-bind(splitterDisplay);
   transition: 0.15s 0.1s;
 }
 .splitpanes--horizontal > .splitpanes__splitter:hover {

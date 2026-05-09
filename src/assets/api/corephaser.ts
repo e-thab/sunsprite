@@ -381,7 +381,7 @@ class UserScene extends Scene {
 			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
 		})
 
-		console.log(this.scale.parent)
+		// console.log(this.scale.parent)
 
 		// if (this.JScode) runUserCode(this.JScode)
 		const keys = ['Sprite']
@@ -407,6 +407,18 @@ class UserScene extends Scene {
 		// console.log(delta)
 		Timer.delta = delta
 		Timer.realTime = time
+
+		// const size = game.scale.parentSize
+		// if (size.width !== lastWidth || size.height !== lastHeight) {
+		// 	_resizeStage()
+		// 	lastWidth = size.width
+		// 	lastHeight = size.height
+		// }
+		// if (Math.abs(game.scale.width - size.width) >= 1 || Math.abs(game.scale.height - size.height) >= 1) {
+		// 	// doesn't seem to work
+		// 	print(`Resize: game is ${game.scale.width}x${game.scale.height}; parent is ${size.width}x${size.height}`)
+		// 	_resizeStage
+		// }
 
 		if (this.guy) this.guy.x += 0.1
 	}
@@ -460,8 +472,8 @@ export async function runUserCode(code: string): Promise<void> {
 	let config: Types.Core.GameConfig = {
 		type: AUTO,
 		scale: {
-			mode: Phaser.Scale.RESIZE
-			// mode: Phaser.Scale.NONE
+			// mode: Phaser.Scale.RESIZE
+			mode: Phaser.Scale.NONE
 		},
 		parent: 'game-container',
 		backgroundColor: '#333',
@@ -469,12 +481,16 @@ export async function runUserCode(code: string): Promise<void> {
 	}
 
 	game = new Game(config)
+	// resizeStage()
 	// game.scale.addListener('resize', () => {
 	// 	new Promise(resolve => setTimeout(resolve, 50)).then(updatePositions)
 	// })
 }
 
-const resizeDelay = 50 // milliseconds
+let lastWidth = 0
+let lastHeight = 0
+
+const resizeDelay = 5 // milliseconds
 type ResizeCall = {
 	time: number
 	active: boolean
@@ -487,31 +503,39 @@ let lastResizeCall: ResizeCall = {
 	createPromise() {}
 }
 export function resizeStage() {
-	const time = new Date().getTime()
-	if (time - lastResizeCall.time < resizeDelay) {
-		// print(`last call was ${time - lastResizeCall.time} milliseconds ago, updating`)
-		lastResizeCall.active = false
-	}
+	// const time = new Date().getTime();
+	// if (time - lastResizeCall.time < resizeDelay) {
+	// // 	// print(`last call was ${time - lastResizeCall.time} milliseconds ago, updating`)
+	// 	lastResizeCall.active = false
+	// }
 
-	lastResizeCall = {
-		createPromise() {
-			this.promise = new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => {
-				if (!this.active) {
-					// print('cancelled')
-					return
-				}
-				print('resize')
-				// Center Y may be 10-15 pixels below actual element vertical center?
-				const size = game.scale.parentSize
-				// game.scale.resize(size.width, size.height)
-				game.scale.setGameSize(size.width, size.height)
-				updatePositions()
-			})
-		},
-		active: true,
-		time
-	}
-	lastResizeCall.createPromise()
+	// (lastResizeCall = {
+	// 	createPromise() {
+	// 		this.promise = new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => {
+	// 			if (!this.active) {
+	// 				// print('cancelled')
+	// 				return
+	// 			}
+	// 			// print('resize')
+	// 			// Center Y may be 10-15 pixels below actual element vertical center?
+	// 			// const size = game.scale.parentSize
+	// 			// game.scale.resize(size.width, size.height)
+	// 			// game.scale.setGameSize(size.width, size.height)
+	// 			// updatePositions()
+	// 			_resizeStage()
+	// 		})
+	// 	},
+	// 	active: true,
+	// 	time
+	// }).createPromise()
+	new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => _resizeStage())
+	// _resizeStage()
+}
+
+function _resizeStage() {
+	const size = game.scale.parentSize
+	game.scale.setGameSize(size.width, size.height)
+	updatePositions()
 }
 
 export function setup() {
