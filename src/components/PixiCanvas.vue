@@ -71,7 +71,7 @@ onMounted(async () => {
   </div>
 </template>
 
-<style>
+<style scoped>
 .fps-number {
   color: v-bind(fpsColor)
 }

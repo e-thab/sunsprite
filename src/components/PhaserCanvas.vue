@@ -75,11 +75,11 @@ onMounted(async () => {
       <!-- Fullscreen -->
       <img @click="$emit('fullscreen')" class="img-button" :src="fsStore.icon" />
     </div>
-    <div id="game-container" ref="canvas" class="canvas"></div>
+    <div id="game-container" class="canvas"></div>
   </div>
 </template>
 
-<style>
+<style scoped>
 .fps-number {
   color: v-bind(fpsColor)
 }
@@ -92,46 +92,10 @@ onMounted(async () => {
 }
 
 .canvas {
-  /* height: 0; */
-  /* display: flex; */
-  flex: 1 1 auto;
-  max-height: 100%;
-  /* width: 100%;
-  height: 100%; */
+  flex: 1;
+  overflow: hidden;
   justify-content: center;
-  background-color: magenta; /* Magenta for debugging; update this from core whenever bg color is set */
-}
-
-.panel-wrapper {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--nord-background-dark);
-}
-
-.panel-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: var(--nord-text-bright);
-  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-  /* display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
-  justify-items: center; */
-	max-height: 24px;
-  min-height: 24px;
-  padding-left: 0.1em;
-  padding-right: 0.2em;
-}
-
-.img-button {
-  display: block;
-  height: 24px;
-  transition: 0.15s;
-  filter: brightness(0.8)
-}
-.img-button:hover {
-  /* background: radial-gradient(rgba(255, 255, 255, 0.07), transparent); */
-  filter: brightness(1);
-  cursor: pointer;
+  background-color: #353b48; /* Magenta for debugging; update this from core whenever bg color is set */
+  /* background-color: magenta;  */
 }
 </style>

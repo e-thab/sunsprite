@@ -148,6 +148,41 @@ async function collapseOutput() {
   height: 100%;
 } */
 
+.img-button {
+  display: block;
+  height: 24px;
+  transition: 0.15s;
+  filter: brightness(0.8)
+}
+.img-button:hover {
+  /* background: radial-gradient(rgba(255, 255, 255, 0.07), transparent); */
+  filter: brightness(1);
+  cursor: pointer;
+}
+
+.panel-bar {
+  display: flex;
+	height: 24px;
+  flex-shrink: 0;
+  padding-left: 0.1em;
+  padding-right: 0.2em;
+
+  justify-content: space-between;
+  align-items: center;
+
+  color: var(--nord-text-bright);
+  background-color: var(--nord-background-dark);
+  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+
+.panel-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: var(--nord-background-dark);
+}
+
 .inner-pane {
   width: 100%;
   height: 100%;
