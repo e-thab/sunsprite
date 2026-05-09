@@ -381,6 +381,13 @@ class UserScene extends Scene {
 			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
 		})
 
+		// Make sure to find a way to allow user to click the game window to remove focus from code editor
+		// Also, is the window listener good enough for key events or should I use phaser's input handling? vv
+		
+		// this.input.keyboard?.on('keydown', (event: any) => {
+		// 	print(`key press: ${event.key}`)
+		// })
+
 		// console.log(this.scale.parent)
 
 		// if (this.JScode) runUserCode(this.JScode)
@@ -438,7 +445,6 @@ export async function runUserCode(code: string): Promise<void> {
 	allPositionables = []
 	// camera.goTo(0, 0)
 	
-
 	// Switch this to an internal addInput func that can modify innerHTML
 	print('<i>Running</i>', undefined, '#626f8b')
 	
@@ -481,7 +487,6 @@ export async function runUserCode(code: string): Promise<void> {
 	}
 
 	game = new Game(config)
-	// resizeStage()
 	// game.scale.addListener('resize', () => {
 	// 	new Promise(resolve => setTimeout(resolve, 50)).then(updatePositions)
 	// })

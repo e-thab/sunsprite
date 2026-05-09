@@ -9,16 +9,13 @@ import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
 import OutputPane from '@/components/OutputPane.vue';
 
-// const canvas = ref<HTMLElement | null>()
 const editor = ref()
 const fsStore = useFullscreenStore()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
 
 const canvasWidth = ref(44)
 const canvasHeight = ref(80)
-
 const canvasHeightBeforeCollapse = ref(80)
-// let isOutputCollapsed = false
 
 const paneSize: { [index: string]: number } = {
   // Column panes (left - middle - right)
@@ -64,7 +61,6 @@ const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
   paneSize[`${nextPane.el.id}`] = nextPane.size
 
   if (prevPane.el.id === 'canvas-v-pane') {
-    // isOutputCollapsed = false
     canvasHeight.value = prevPane.size
   }
   console.log(prevPane.el.id)
@@ -94,9 +90,9 @@ onMounted(() => {
 
 <template>
   <splitpanes
-  :push-other-panes="false"
-  @resize="resizeStage"
-  @resized="resizeSplitpanes"
+    :push-other-panes="false"
+    @resize="resizeStage"
+    @resized="resizeSplitpanes"
   >
 
     <!-- Left side pane: File explorer -->
@@ -117,7 +113,7 @@ onMounted(() => {
         :push-other-panes="false"
         @resize="resizeStage"
         @resized="resizeSplitpanes"
-        >
+      >
 
         <!-- Top right pane: Game view -->
         <pane id="canvas-v-pane" min-size="15" :size="canvasHeight">
@@ -126,7 +122,7 @@ onMounted(() => {
             @run-game="runActiveUserCode"
             @fullscreen="toggleFullscreen"
             class="inner-pane"
-            />
+          />
         </pane>
 
         <!-- Bottom left pane: Output -->
