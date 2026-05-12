@@ -32,9 +32,10 @@ export function updatePositions() {
 	}
 }
 
-function _runForevers() {
+function _runForevers(delta: number) {
+	const deltaNormal = delta * 0.06
 	for (const forever of _forevers) {
-		forever()
+		forever(deltaNormal)
 	}
 }
 
@@ -122,9 +123,10 @@ export let game: Game
 export let scene: Scene
 export let camera: Phaser.Cameras.Scene2D.Camera
 export const Timer = {
-	time: 0, // time since start, does not increment during pause
+	time: 0, 	 // time since start, does not increment during pause
 	realTime: 0, // time since start including pause time
-	delta: 0 // time since last frame
+	delta: 0,	 // time since last frame normalized to 60fps (will usually be around 1)
+	deltaFull: 0 // actual (smoothed) time since last frame
 }
 export let paused = false
 
@@ -195,9 +197,9 @@ function forever(fn: Action) {
 	// 	if (paused) return
 	// 	fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
 	// })
-	_forevers.push(() => {
+	_forevers.push((delta: number) => {
 		if (paused) return
-		fn()
+		fn(delta)
 	})
 }
 
@@ -217,22 +219,12 @@ function repeat(times: number, fn: () => void) {
 		}
 	}
 }
-/* Alternate syntax: 'then' as another argument (like WoofJS) */
-// function repeat(times: number, fn: Function, then?: Function) {
-// 	_repeats.push({
-// 		count: times,
-// 		i: 0,
-// 		fn: fn,
-// 		then: then ?? undefined
-// 	})
-// }
 
 function repeatUntil(condition: Predicate, fn: Action) {
 	const repeatableUntil: RepeatableUntil = {
 		condition,
 		fn,
 		i: 0,
-		// then: undefined
 	}
 	_repeatUntils.push(repeatableUntil)
 
@@ -245,44 +237,19 @@ function repeatUntil(condition: Predicate, fn: Action) {
 
 /* Run function {fn} after {seconds} seconds have passed */
 function after(milliseconds: number, fn: Action) {
-	// _afters.push({
-	// 	duration: 0,
-	// 	milliseconds,
-	// 	fn
-	// })
-	console.log(`starting after at ${Date.now()}`)
-	print(`starting after at ${Date.now()}`)
-
-	// new Promise(
-	// 	resolve => setTimeout(
-	// 		resolve, milliseconds
-	// 	)
-	// ).then(() => {
-	// 	console.log(`starting after at ${Date.now()}`)
-	// 	print(`starting after at ${Date.now()}`)
-	// 	fn()
-	// })
-
 	scene.time.delayedCall(milliseconds, () => {
 		fn()
-		// console.log(`done at ${Date.now()}`)
-		// print(`done at ${Date.now()}`)
 	})
 }
 
 /* Run function {fn} once immediately, then every {seconds} seconds */
 function every(milliseconds: number, fn: Action) {
-	fn()
-	// _everys.push({
-	// 	duration: 0,
-	// 	milliseconds,
-	// 	fn
-	// })
 	scene.time.addEvent({
 		delay: milliseconds,
 		callback: fn,
 		loop: true
 	})
+	fn()
 }
 
 /* True every frame while button is down */
@@ -362,23 +329,9 @@ function clearOutput() {
 	}
 }
 
-// function onKeyDown(key: string, fn: Function) {
-// 	window.addEventListener('keydown', )
-// }
-
 /**
  * API utility
  */
-const api = {
-	Sprite,
-	Timer, screen, /* camera, */
-	forever, repeat, repeatUntil, after, every,
-	keyPressed, keyJustPressed, print, play, pause,
-	random, randomFloat, randomX, randomY, randomPosition,
-	deg2rad, rad2deg, sin, cos, tan, atan2, sqrt, min, max, clamp,
-	PI: Math.PI,
-}
-
 class UserScene extends Scene {
 	JScode: string
 	guy?: Phaser.GameObjects.Sprite
@@ -412,8 +365,6 @@ class UserScene extends Scene {
 		// 	if (keyJustPressed('SPACE')) print('space')
 		// })
 
-		this.guy = this.add.sprite(200, 200, 'guy')
-
 		console.log('create')
 		camera = this.cameras.main
 
@@ -436,7 +387,18 @@ class UserScene extends Scene {
 
 		// console.log(this.scale.parent)
 
-		// if (this.JScode) runUserCode(this.JScode)
+		// At the moment, moving camera doesn't actually render the new area; sprites will get sliced
+		// in half when up against the previous screen edge
+		const api = {
+			Sprite,
+			Timer, screen, camera,
+			forever, repeat, repeatUntil, after, every,
+			keyPressed, keyJustPressed, print, play, pause,
+			random, randomFloat, randomX, randomY, randomPosition,
+			deg2rad, rad2deg, sin, cos, tan, atan2, sqrt, min, max, clamp,
+			PI: Math.PI,
+		}
+
 		const keys = Object.keys(api)
 		const values = Object.values(api)
 
@@ -458,32 +420,21 @@ class UserScene extends Scene {
 	update(time: number, delta: number) {
 		// onUpdate()
 		// console.log(delta)
-		Timer.delta = delta
-		Timer.realTime = time
+		const deltaNormal = delta * 0.06
 
-		// const size = game.scale.parentSize
-		// if (size.width !== lastWidth || size.height !== lastHeight) {
-		// 	_resizeStage()
-		// 	lastWidth = size.width
-		// 	lastHeight = size.height
-		// }
-		// if (Math.abs(game.scale.width - size.width) >= 1 || Math.abs(game.scale.height - size.height) >= 1) {
-		// 	// doesn't seem to work
-		// 	print(`Resize: game is ${game.scale.width}x${game.scale.height}; parent is ${size.width}x${size.height}`)
-		// 	_resizeStage
-		// }
+		Timer.delta = deltaNormal
+		Timer.deltaFull = delta
+		Timer.realTime = time
 
 		_clearKeysJustPressed(_frame)
 		
 		if (paused) return
 		_frame++
-		_runForevers()
+		_runForevers(delta)
 		_runRepeats()
 		_runAfters(delta)
 		_runEverys(delta)
 		_runRepeatUntils()
-
-		if (this.guy) this.guy.x += 0.1
 	}
 }
 
