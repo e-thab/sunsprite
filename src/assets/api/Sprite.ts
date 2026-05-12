@@ -37,7 +37,7 @@ export default class Sprite extends GameObject {
 		// this._pixiObj = sprite
         // this._sprite = sprite
         // this.hide()
-		this.src = props?.src ?? 'boot'
+		this.src = props?.src ?? 'gator'
 
         // // Set mixin props
         this.initPositionable(props)

@@ -393,9 +393,25 @@ class UserScene extends Scene {
 		console.log('preload')
 		this.load.image('guy', 'assets/guy.png')
 		this.load.image('boot', 'assets/boot.png')
+		this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
 	}
 	
 	async create() {
+		// TEMP: testing start code
+		// const sprite = new Sprite()
+
+		// after(2000, () => print('done'))
+
+		// forever(() => {
+		// 	if (keyPressed('W')) sprite.y += 2
+		// 	if (keyPressed('A')) sprite.x -= 2
+		// 	if (keyPressed('S')) sprite.y -= 2
+		// 	if (keyPressed('D')) sprite.x += 2
+		// 	if (keyPressed('Q')) sprite.rotation -= 2
+		// 	if (keyPressed('E')) sprite.rotation += 2
+		// 	if (keyJustPressed('SPACE')) print('space')
+		// })
+
 		this.guy = this.add.sprite(200, 200, 'guy')
 
 		console.log('create')
