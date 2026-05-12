@@ -32,6 +32,12 @@ export function updatePositions() {
 	}
 }
 
+function _runForevers() {
+	for (const forever of _forevers) {
+		forever()
+	}
+}
+
 function _runRepeats() {
 	for (const repeat of _repeats) {
 		repeat.fn(repeat.i)
@@ -53,6 +59,10 @@ function _runRepeatUntils() {
 			repeatUntil.fn(repeatUntil.i)
 			repeatUntil.i += 1
 		}
+
+		if (repeatUntil.condition() && repeatUntil.then) {
+			repeatUntil.then(repeatUntil.i)
+		}
 	}
 	_repeatUntils = _repeatUntils.filter(repeatUntil => !repeatUntil.condition())
 }
@@ -60,17 +70,17 @@ function _runRepeatUntils() {
 function _runAfters(delta: number) {
 	for (const after of _afters) {
 		after.duration += delta
-		if (after.duration >= after.seconds) {
+		if (after.duration >= after.milliseconds) {
 			after.fn()
 		}
 	}
-	_afters = _afters.filter(after => after.duration < after.seconds)
+	_afters = _afters.filter(after => after.duration < after.milliseconds)
 }
 
 function _runEverys(delta: number) {
 	for (const every of _everys) {
 		every.duration += delta
-		if (every.duration >= every.seconds) {
+		if (every.duration >= every.milliseconds) {
 			every.fn()
 			every.duration = 0
 		}
@@ -234,21 +244,44 @@ function repeatUntil(condition: Predicate, fn: Action) {
 }
 
 /* Run function {fn} after {seconds} seconds have passed */
-function after(seconds: number, fn: Action) {
-	_afters.push({
-		duration: 0,
-		seconds,
-		fn
+function after(milliseconds: number, fn: Action) {
+	// _afters.push({
+	// 	duration: 0,
+	// 	milliseconds,
+	// 	fn
+	// })
+	console.log(`starting after at ${Date.now()}`)
+	print(`starting after at ${Date.now()}`)
+
+	// new Promise(
+	// 	resolve => setTimeout(
+	// 		resolve, milliseconds
+	// 	)
+	// ).then(() => {
+	// 	console.log(`starting after at ${Date.now()}`)
+	// 	print(`starting after at ${Date.now()}`)
+	// 	fn()
+	// })
+
+	scene.time.delayedCall(milliseconds, () => {
+		fn()
+		// console.log(`done at ${Date.now()}`)
+		// print(`done at ${Date.now()}`)
 	})
 }
 
 /* Run function {fn} once immediately, then every {seconds} seconds */
-function every(seconds: number, fn: Action) {
+function every(milliseconds: number, fn: Action) {
 	fn()
-	_everys.push({
-		duration: 0,
-		seconds,
-		fn
+	// _everys.push({
+	// 	duration: 0,
+	// 	milliseconds,
+	// 	fn
+	// })
+	scene.time.addEvent({
+		delay: milliseconds,
+		callback: fn,
+		loop: true
 	})
 }
 
@@ -336,12 +369,15 @@ function clearOutput() {
 /**
  * API utility
  */
-// let onCreate = () => {}
-// let onUpdate = () => {}
-
-// function addSpriteTest() {
-// 	scene.add.sprite(540, 540, 'guy')
-// }
+const api = {
+	Sprite,
+	Timer, screen, /* camera, */
+	forever, repeat, repeatUntil, after, every,
+	keyPressed, keyJustPressed, print, play, pause,
+	random, randomFloat, randomX, randomY, randomPosition,
+	deg2rad, rad2deg, sin, cos, tan, atan2, sqrt, min, max, clamp,
+	PI: Math.PI,
+}
 
 class UserScene extends Scene {
 	JScode: string
@@ -356,6 +392,7 @@ class UserScene extends Scene {
 	preload() {
 		console.log('preload')
 		this.load.image('guy', 'assets/guy.png')
+		this.load.image('boot', 'assets/boot.png')
 	}
 	
 	async create() {
@@ -366,15 +403,13 @@ class UserScene extends Scene {
 
 		Timer.time = 0
 		Timer.realTime = 0
+		_frame = 0
 
 		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-			// Looks like this positioning is relative to the second guy sprite...??
 			pointer.updateWorldPoint(camera)
 			mouseRef.value.mouseX = Math.round(pointer.x - screen.width / 2)
 			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
 		})
-
-		_forevers = []
 
 		// Make sure to find a way to allow user to click the game window to remove focus from code editor
 		// Also, is the window listener good enough for key events or should I use phaser's input handling? vv
@@ -386,8 +421,8 @@ class UserScene extends Scene {
 		// console.log(this.scale.parent)
 
 		// if (this.JScode) runUserCode(this.JScode)
-		const keys = ['Sprite', 'keyPressed', 'keyJustPressed']
-		const values = [Sprite, keyPressed, keyJustPressed]
+		const keys = Object.keys(api)
+		const values = Object.values(api)
 
 		try {
 			const fn = new Function(
@@ -422,25 +457,31 @@ class UserScene extends Scene {
 		// 	_resizeStage
 		// }
 
-		if (this.guy) this.guy.x += 0.1
+		_clearKeysJustPressed(_frame)
+		
+		if (paused) return
+		_frame++
+		_runForevers()
+		_runRepeats()
+		_runAfters(delta)
+		_runEverys(delta)
+		_runRepeatUntils()
 
-		for (const fn of _forevers) {
-			fn()
-		}
+		if (this.guy) this.guy.x += 0.1
 	}
 }
 
 // scene = new UserScene()
 
 export async function runUserCode(code: string): Promise<void> {
-	// BUG: doesn't reset bg color
 	clearOutput()
-	// clearStage()
 	play()
-	// _repeats = []
+
+	_forevers = []
+	_repeats = []
 	// _afters = []
 	// _everys = []
-	// _repeatUntils = []
+	_repeatUntils = []
 	allPositionables = []
 	// camera.goTo(0, 0)
 	
@@ -461,7 +502,6 @@ export async function runUserCode(code: string): Promise<void> {
 	// 	_runAfters(delta)
 	// 	_runEverys(delta)
 	// 	_runRepeatUntils()
-	// 	// resizeStage() // -necessary?
 	// })
 	
 	//// Phaser testing
@@ -486,9 +526,13 @@ export async function runUserCode(code: string): Promise<void> {
 	}
 
 	game = new Game(config)
-	// game.scale.addListener('resize', () => {
-	// 	new Promise(resolve => setTimeout(resolve, 50)).then(updatePositions)
-	// })
+	resizeStage()
+
+	game.canvas.onclick = () => {
+		// Remove focus from code editor when clicking on game canvas
+		const activeElement = document.activeElement as HTMLElement
+		if (activeElement?.className === 'cm-content') activeElement.blur()
+	}
 }
 
 let lastWidth = 0
@@ -589,7 +633,6 @@ export function setup() {
 
 	// Key press/release registration
 	window.addEventListener('keydown', event => {
-		// if (document.activeElement?.ariaRoleDescription === 'editor') { return }
 		// Don't register press in code editor
 		if (document.activeElement?.ariaPlaceholder) return
 
@@ -632,4 +675,4 @@ export function setup() {
 	// runUserCode(startCode)
 }
 
-export { startCode };
+export { startCode }

@@ -1,9 +1,6 @@
 /**
  * Interfaces
  */
-
-import type { TupleType } from "typescript"
-
 export type Action = (...args: any[]) => void
 export type Predicate = (...args: any[]) => boolean
 
@@ -32,7 +29,7 @@ export interface RepeatableUntil extends Omit<Repeatable, 'count'> {
 
 /* Used for after() & every() */
 export interface Delayable {
-	seconds: number
+	milliseconds: number
 	duration: number
 	fn: Action
 }

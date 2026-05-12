@@ -47,7 +47,6 @@ export function Positionable<Base extends Class>(base: Base) {
             return this._x
         }
         set x(x) {
-            console.log(`setting x to ${x}`)
             this._x = x
             this._updateX()
         }
@@ -109,7 +108,7 @@ export function Positionable<Base extends Class>(base: Base) {
 
         _updateY() { 
             // if (this._pixiObj) this._pixiObj.y = -this.y + app.screen.height / 2 + camera.y
-            if (this._pixiObj) this._pixiObj.y = this.y + screen.height / 2 + camera.y
+            if (this._pixiObj) this._pixiObj.y = -this.y + screen.height / 2 + camera.y
         }
     }
 }

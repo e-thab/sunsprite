@@ -60,7 +60,7 @@ onMounted(() => {
 		<div id="code-container" class="editor">
 			<codemirror
 			v-model="code"
-			placeholder="..."
+			placeholder="/* ... */"
 			:autofocus="true"
 			:indent-with-tab="true"
 			:tab-size="4"

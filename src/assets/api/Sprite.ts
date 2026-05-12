@@ -25,19 +25,19 @@ type SpriteProps = GameObjectProps & {
 export default class Sprite extends GameObject {
     // readonly _sprite: PixiSprite
     readonly _sprite: Phaser.GameObjects.Sprite
-    // _src?: string
+    _src?: string
 
     constructor(props?: SpriteProps) {
         super()
-        const sprite = scene.add.sprite(0, 0, 'guy')
+        const sprite = scene.add.sprite(0, 0, '')
         this._pixiObj = sprite
         this._sprite = sprite
         
         // const sprite = new PixiSprite()
-		// this._pixiObj = spriteUnchecked runtime.lastError: Could not establish connection. Receiving end does not exist.
+		// this._pixiObj = sprite
         // this._sprite = sprite
         // this.hide()
-		// this.src = props?.src ?? 'https://woofjs.com/docs/images/river-gator.png'
+		this.src = props?.src ?? 'boot'
 
         // // Set mixin props
         this.initPositionable(props)
@@ -48,7 +48,7 @@ export default class Sprite extends GameObject {
         //     height: props?.height ?? sprite.getBounds().height,
         //     scale: props?.scale ?? 1
         // })
-        // this.initRotatable(props)
+        this.initRotatable(props)
         // this.initViewable(props)
         
         // // Temp
@@ -66,14 +66,15 @@ export default class Sprite extends GameObject {
         allPositionables.push(this)
     }
     
-    // get src() {
-    //     return this._src
-    // }
-    // set src(path) {
-    //     // Not necessarily this easy. Need to make async somehow?
-    //     this._src = path
-    //     this._assignTexture()
-    // }
+    get src() {
+        return this._src
+    }
+    set src(path) {
+        // Not necessarily this easy. Need to make async somehow?
+        this._src = path
+        // this._assignTexture()
+        if (this._sprite && path) this._sprite.setTexture(path)
+    }
 
     // get anchorX() {
     //     return this._sprite.anchor.x
@@ -100,7 +101,7 @@ export default class Sprite extends GameObject {
     // }
 
     // async _assignTexture(): Promise<void> {
-	// 	if (this.src) this._sprite.texture = await Assets.load(this.src)
-	// 	this.setAnchorCenter()
+		// if (this.src) this._sprite.texture = await Assets.load(this.src)
+		// this.setAnchorCenter()
 	// }
 }
