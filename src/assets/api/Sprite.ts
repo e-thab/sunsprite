@@ -1,7 +1,7 @@
 import GameObject from "./GameObject"
 import type { GameObjectProps } from "./mixins"
 
-import { scene, allPositionables } from "./corephaser"
+import { scene, loader, allPositionables } from "./corephaser"
 import Phaser from "phaser"
 // import type { Sprite } from 'phaser'
 
@@ -29,17 +29,15 @@ export default class Sprite extends GameObject {
 
     constructor(props?: SpriteProps) {
         super()
-        const sprite = scene.add.sprite(0, 0, '')
-        this._pixiObj = sprite
-        this._sprite = sprite
-        
-        // const sprite = new PixiSprite()
-		// this._pixiObj = sprite
-        // this._sprite = sprite
-        // this.hide()
-		this.src = props?.src ?? 'gator'
+        const sprite = scene.add.sprite(0, 0, 'gator') // Phaser Sprite
+        this._refObj = sprite // Reference to Phaser object used in mixins
+        this._sprite = sprite // Reference to Phaser object used in this class (for readability)
 
-        // // Set mixin props
+        // this.hide()
+		// this.src = props?.src ?? 'gator'
+        if (props?.src) this.src = props.src
+
+        // Set mixin props
         this.initPositionable(props)
         // this.setAnchorCenter()
         // this.initSizable(props)
@@ -48,6 +46,12 @@ export default class Sprite extends GameObject {
         //     height: props?.height ?? sprite.getBounds().height,
         //     scale: props?.scale ?? 1
         // })
+        // this.initSizable({
+        //     width: props?.width ?? sprite.getBounds().width,
+        //     height: props?.height ?? sprite.getBounds().height,
+        //     scale: props?.scale ?? 1
+        // })
+        this.initSizable(props)
         this.initRotatable(props)
         // this.initViewable(props)
         
@@ -70,10 +74,22 @@ export default class Sprite extends GameObject {
         return this._src
     }
     set src(path) {
-        // Not necessarily this easy. Need to make async somehow?
+        // Need to investigate how to do this programmatically with Phaser
         this._src = path
-        // this._assignTexture()
-        if (this._sprite && path) this._sprite.setTexture(path)
+
+        // Esoteric temp load string to prevent accidentally overwriting a user-written img key
+        // Change this to just check if 'temp' already exists and start adding random chars until unique
+        // scene.load.start()
+        scene.load.image('ͼ_temp_ͽ', path)
+        scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
+            console.log('load')
+        })
+
+        // loader.start()
+        // loader.once('filecomplete', () => console.log('asdf'))
+        // loader.image('ͼ_temp_ͽ', path)
+
+        // if (this._sprite && path) this._sprite.setTexture('temp')
     }
 
     // get anchorX() {

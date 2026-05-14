@@ -30,7 +30,7 @@ type PositionableProps = {
 
 export function Positionable<Base extends Class>(base: Base) {
     return class Positionable extends base {
-        _pixiObj?: any
+        _refObj?: any
         _x: number = 0
         _y: number = 0
 
@@ -60,6 +60,7 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         get screenX() {
+            // CHECK PHASER IMPLEMENTATION
             return this.x - camera.x
         }
         set screenX(newX) {
@@ -87,8 +88,8 @@ export function Positionable<Base extends Class>(base: Base) {
 
         goToMouse() {
             // Super slow in a forever loop, look into this
-            if (this._pixiObj) this._pixiObj.x = mouseX + app.screen.width / 2
-            if (this._pixiObj) this._pixiObj.y = -mouseY + app.screen.height / 2
+            if (this._refObj) this._refObj.x = mouseX + app.screen.width / 2
+            if (this._refObj) this._refObj.y = -mouseY + app.screen.height / 2
         }
 
         goToRandom() {
@@ -101,14 +102,14 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         _updateX() {
-            // if (this._pixiObj) this._pixiObj.x = this.x + app.screen.width / 2 - camera.x
-            if (this._pixiObj) this._pixiObj.x = this.x + screen.width / 2 - camera.x
-            // if (this._pixiObj) console.log(`setting actual x to ${this.x + screen.width / 2 - camera.x}`)
+            // if (this._refObj) this._refObj.x = this.x + app.screen.width / 2 - camera.x
+            if (this._refObj) this._refObj.x = this.x + screen.width / 2 - camera.x
+            // if (this._refObj) console.log(`setting actual x to ${this.x + screen.width / 2 - camera.x}`)
         }
 
         _updateY() { 
-            // if (this._pixiObj) this._pixiObj.y = -this.y + app.screen.height / 2 + camera.y
-            if (this._pixiObj) this._pixiObj.y = -this.y + screen.height / 2 + camera.y
+            // if (this._refObj) this._refObj.y = -this.y + app.screen.height / 2 + camera.y
+            if (this._refObj) this._refObj.y = -this.y + screen.height / 2 + camera.y
         }
     }
 }
@@ -122,10 +123,11 @@ type SizableProps = {
 
 export function Sizable<Base extends Class>(base: Base) {
     return class Sizable extends base {
-        _pixiObj?: any
+        _refObj?: any
         _width?: number
         _height?: number
         _scale?: number
+        // scaleX / scaleY ?
 
         constructor(...args: any[]) {
             // What happens when both width//height and scale are provided?
@@ -136,32 +138,36 @@ export function Sizable<Base extends Class>(base: Base) {
             // Can't null-ish coalesce bc sprites set their own default width/height
             if ((props?.width !== undefined && props?.scale !== undefined) || (props?.height !== undefined && props?.scale !== undefined)) {
                 // Handle conflict between width/scale
+            } else {
+                if (props?.width !== undefined) this.width = props.width
+                if (props?.height !== undefined) this.height = props.height
+                if (props?.scale !== undefined) this.scale = props.scale
             }
-            if (props?.width !== undefined) this.width = props.width
-            if (props?.height !== undefined) this.height = props.height
-            this.scale = props?.scale ?? 1
+            // if (props?.width !== undefined) this.width = props.width
+            // if (props?.height !== undefined) this.height = props.height
+            // this.scale = props?.scale ?? 1 // Can't add this until potential conflict is handled
         }
 
         get width() {
-            if (this._pixiObj) return this._pixiObj.width
+            if (this._refObj) return this._refObj.displayWidth
             return this._width
         }
         set width(width) {
             this._width = width
-            if (this._pixiObj) this._pixiObj.width = width
+            if (this._refObj) this._refObj.displayWidth = width
         }
 
         get height() {
-            if (this._pixiObj) return this._pixiObj.height
+            if (this._refObj) return this._refObj.displayHeight
             return this._height
         }
         set height(height) {
             this._height = height
-            if (this._pixiObj) this._pixiObj.height = height
+            if (this._refObj) this._refObj.displayHeight = height
         }
 
         get scale() {
-            if (this._pixiObj) return this._pixiObj.scale.x // Assuming uniform scale for now
+            if (this._refObj) return this._refObj.scale // Assuming uniform scale for now
             return this._scale
         }
         set scale(scale) {
@@ -170,7 +176,8 @@ export function Sizable<Base extends Class>(base: Base) {
         }
 
         _updateScale() {
-            if (this._pixiObj) this._pixiObj.scale.set(this._scale)
+            // if (this._refObj) this._refObj.scale.set(this._scale)
+            if (this._refObj) this._refObj.scale = this._scale
         }
     }
 }
@@ -183,7 +190,7 @@ type RotatableProps = {
 export function Rotatable<Base extends Class>(base: Base) {
     return class Rotatable extends base {
         _rotation: number = 0
-        _pixiObj?: any
+        _refObj?: any
 
         constructor(...args: any[]) {
             super()
@@ -203,22 +210,20 @@ export function Rotatable<Base extends Class>(base: Base) {
             }
         }
 
-        // Rotation doesn't work
         get rotation() {
             return this._rotation
         }
         set rotation(angle) {
             this._rotation = angle
-            if (this._pixiObj) this._pixiObj.rotation = deg2rad(angle)
+            if (this._refObj) this._refObj.rotation = deg2rad(angle)
         }
         
-        // ...but radians does?? Why?
         get radians() {
             return deg2rad(this._rotation)
         }
         set radians(rad) {
             this._rotation = rad2deg(rad)
-            if (this._pixiObj) this._pixiObj.rotation = rad
+            if (this._refObj) this._refObj.rotation = rad
         }
     }
 }
@@ -238,7 +243,7 @@ export function Viewable<Base extends Class>(base: Base) {
         _visible: boolean = defaults.visible
         _cursor: string = defaults.cursor
         _onClick: () => void = defaults.onClick
-        _pixiObj?: any
+        _refObj?: any
 
         constructor(...args: any[]) {
             super()
@@ -257,7 +262,7 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         set alpha(alpha) {
             this._alpha = alpha
-            if (this._pixiObj) this._pixiObj.alpha = alpha / 100
+            if (this._refObj) this._refObj.alpha = alpha / 100
         }
         
         get layer() {
@@ -265,7 +270,7 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         set layer(layer) {
             this._layer = layer
-            if (this._pixiObj) this._pixiObj.zIndex = layer
+            if (this._refObj) this._refObj.zIndex = layer
         }
 
         get visible() {
@@ -274,7 +279,7 @@ export function Viewable<Base extends Class>(base: Base) {
         set visible(visible) {
             this._visible = visible
 
-            if (this._pixiObj) {
+            if (this._refObj) {
                 if (visible) {
                     this.show()
                 } else {
@@ -288,7 +293,7 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         set cursor(cursor) {
             this._cursor = cursor
-            if (this._pixiObj) this._pixiObj.cursor = cursor
+            if (this._refObj) this._refObj.cursor = cursor
         }
 
         get onClick() {
@@ -298,8 +303,8 @@ export function Viewable<Base extends Class>(base: Base) {
             // Logic to actually RE-assign onClick instead of just assigning new every time?
             // (garbage collect)
             this._onClick = onClick
-            if (this._pixiObj) {
-                this._pixiObj.on('click', () => {
+            if (this._refObj) {
+                this._refObj.on('click', () => {
                     if (!paused) this.onClick()
                 })
             }
@@ -310,11 +315,11 @@ export function Viewable<Base extends Class>(base: Base) {
         }
 
         show() {
-            if (this._pixiObj) this._pixiObj.visible = true
+            if (this._refObj) this._refObj.visible = true
         }
 
         hide() {
-            if (this._pixiObj) this._pixiObj.visible = false
+            if (this._refObj) this._refObj.visible = false
         }
     }
 }

@@ -3,12 +3,11 @@ import { atan2, cos, random, sin, sqrt, startCode, tan, deg2rad, rad2deg, clamp,
 import { AUTO, Game, Scene, type Types } from 'phaser';
 import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
 
+import Phaser from 'phaser';
 import Camera from './Camera';
 import Sprite from './Sprite';
 import Rectangle from './Rectangle';
 import Text from './Text';
-
-import Phaser from 'phaser';
 
 export const fpsRef = ref(0)
 export const mouseRef = ref({mouseX: 0, mouseY: 0})
@@ -32,10 +31,9 @@ export function updatePositions() {
 	}
 }
 
-function _runForevers(delta: number) {
-	const deltaNormal = delta * 0.06
+function _runForevers() {
 	for (const forever of _forevers) {
-		forever(deltaNormal)
+		forever(Timer.delta)
 	}
 }
 
@@ -107,6 +105,7 @@ function _clearKeysJustPressed(frame: number) {
  * API Internal vars
  */
 export let allPositionables: { _updatePosition(): void }[] = []
+export let loader: Phaser.Loader.LoaderPlugin
 let _frame: number = 0 // current render frame index
 // let _ticker: Ticker = new Ticker()
 let _forevers: Array<Action> = []
@@ -344,6 +343,9 @@ class UserScene extends Scene {
 	
 	preload() {
 		console.log('preload')
+
+		// this.load.on('filecomplete', () => console.log('loaded'))
+
 		this.load.image('guy', 'assets/guy.png')
 		this.load.image('boot', 'assets/boot.png')
 		this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
@@ -372,14 +374,17 @@ class UserScene extends Scene {
 		Timer.realTime = 0
 		_frame = 0
 
+		// loader = new Phaser.Loader.LoaderPlugin(this)
+		// loader.once('filecomplete', () => console.log('asdf'))
+		// loader.start()
+		
 		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 			pointer.updateWorldPoint(camera)
 			mouseRef.value.mouseX = Math.round(pointer.x - screen.width / 2)
 			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
 		})
 
-		// Make sure to find a way to allow user to click the game window to remove focus from code editor
-		// Also, is the window listener good enough for key events or should I use phaser's input handling? vv
+		// Is the window listener good enough for key events or should I use phaser's input handling?
 		
 		// this.input.keyboard?.on('keydown', (event: any) => {
 		// 	print(`key press: ${event.key}`)
@@ -389,6 +394,7 @@ class UserScene extends Scene {
 
 		// At the moment, moving camera doesn't actually render the new area; sprites will get sliced
 		// in half when up against the previous screen edge
+
 		const api = {
 			Sprite,
 			Timer, screen, camera,
@@ -398,10 +404,11 @@ class UserScene extends Scene {
 			deg2rad, rad2deg, sin, cos, tan, atan2, sqrt, min, max, clamp,
 			PI: Math.PI,
 		}
-
+		
 		const keys = Object.keys(api)
 		const values = Object.values(api)
-
+		
+		// Another problem post-phaser: user code errors prevent reloading of the game
 		try {
 			const fn = new Function(
 			...keys,
@@ -430,10 +437,10 @@ class UserScene extends Scene {
 		
 		if (paused) return
 		_frame++
-		_runForevers(delta)
+		_runForevers()
 		_runRepeats()
-		_runAfters(delta)
-		_runEverys(delta)
+		// _runAfters(delta)
+		// _runEverys(delta)
 		_runRepeatUntils()
 	}
 }
