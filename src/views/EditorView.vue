@@ -30,7 +30,7 @@ const paneSize: { [index: string]: number } = {
 
 function onCanvasReady() {
   resizeStage()
-  runActiveUserCode()
+  // runActiveUserCode()
 }
 
 function runActiveUserCode() {
@@ -63,7 +63,7 @@ const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
   if (prevPane.el.id === 'canvas-v-pane') {
     canvasHeight.value = prevPane.size
   }
-  console.log(prevPane.el.id)
+  // console.log(prevPane.el.id)
 }
 
 function resizeSplitpanes(event: ResizeEvent) {

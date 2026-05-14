@@ -68,20 +68,20 @@ function _runRepeatUntils() {
 
 function _runAfters(delta: number) {
 	for (const after of _afters) {
-		after.duration += delta
-		if (after.duration >= after.milliseconds) {
+		after.elapsedMS += delta
+		if (after.elapsedMS >= after.lifetimeMS) {
 			after.fn()
 		}
 	}
-	_afters = _afters.filter(after => after.duration < after.milliseconds)
+	_afters = _afters.filter(after => after.elapsedMS < after.lifetimeMS)
 }
 
 function _runEverys(delta: number) {
 	for (const every of _everys) {
-		every.duration += delta
-		if (every.duration >= every.milliseconds) {
+		every.elapsedMS += delta
+		if (every.elapsedMS >= every.lifetimeMS) {
 			every.fn()
-			every.duration = 0
+			every.elapsedMS = 0
 		}
 	}
 }
@@ -125,7 +125,7 @@ export const Timer = {
 	time: 0, 	 // time since start, does not increment during pause
 	realTime: 0, // time since start including pause time
 	delta: 0,	 // time since last frame normalized to 60fps (will usually be around 1)
-	deltaFull: 0 // actual (smoothed) time since last frame
+	deltaMs: 0 // actual (smoothed) time since last frame
 }
 export let paused = false
 
@@ -235,18 +235,31 @@ function repeatUntil(condition: Predicate, fn: Action) {
 }
 
 /* Run function {fn} after {seconds} seconds have passed */
-function after(milliseconds: number, fn: Action) {
-	scene.time.delayedCall(milliseconds, () => {
-		fn()
+function after(seconds: number, fn: Action) {
+	// const milliseconds = seconds * 1000
+	// scene.time.delayedCall(milliseconds, () => {
+	// 	fn()
+	// })
+	_afters.push({
+		elapsedMS: 0,
+		lifetimeMS: seconds * 1000,
+		fn
 	})
 }
 
 /* Run function {fn} once immediately, then every {seconds} seconds */
-function every(milliseconds: number, fn: Action) {
-	scene.time.addEvent({
-		delay: milliseconds,
-		callback: fn,
-		loop: true
+function every(seconds: number, fn: Action) {
+	// const milliseconds = seconds * 1000
+	// scene.time.addEvent({
+	// 	delay: milliseconds,
+	// 	callback: fn,
+	// 	loop: true
+	// })
+	// fn()
+	_everys.push({
+		elapsedMS: 0,
+		lifetimeMS: seconds * 1000,
+		fn
 	})
 	fn()
 }
@@ -343,9 +356,6 @@ class UserScene extends Scene {
 	
 	preload() {
 		console.log('preload')
-
-		// this.load.on('filecomplete', () => console.log('loaded'))
-
 		this.load.image('guy', 'assets/guy.png')
 		this.load.image('boot', 'assets/boot.png')
 		this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
@@ -366,6 +376,8 @@ class UserScene extends Scene {
 		// 	if (keyPressed('E')) sprite.rotation += 2
 		// 	if (keyJustPressed('SPACE')) print('space')
 		// })
+		
+		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 
 		console.log('create')
 		camera = this.cameras.main
@@ -430,17 +442,19 @@ class UserScene extends Scene {
 		const deltaNormal = delta * 0.06
 
 		Timer.delta = deltaNormal
-		Timer.deltaFull = delta
-		Timer.realTime = time
-
+		Timer.deltaMs = delta
+		Timer.realTime += delta
+		
 		_clearKeysJustPressed(_frame)
 		
 		if (paused) return
+		// Maybe switch Timer.time to track time in milliseconds (or different props for timeSec, timeMs, etc)
+		Timer.time += delta / 1000
 		_frame++
 		_runForevers()
 		_runRepeats()
-		// _runAfters(delta)
-		// _runEverys(delta)
+		_runAfters(Timer.deltaMs)
+		_runEverys(Timer.deltaMs)
 		_runRepeatUntils()
 	}
 }

@@ -29,13 +29,14 @@ export default class Sprite extends GameObject {
 
     constructor(props?: SpriteProps) {
         super()
-        const sprite = scene.add.sprite(0, 0, 'gator') // Phaser Sprite
+        const sprite = scene.add.sprite(0, 0, '__MISSING') // Phaser Sprite
         this._refObj = sprite // Reference to Phaser object used in mixins
         this._sprite = sprite // Reference to Phaser object used in this class (for readability)
-
+        
         // this.hide()
 		// this.src = props?.src ?? 'gator'
-        if (props?.src) this.src = props.src
+        // if (props?.src) this.src = props.src
+        this.src = props?.src
 
         // Set mixin props
         this.initPositionable(props)
@@ -73,23 +74,31 @@ export default class Sprite extends GameObject {
     get src() {
         return this._src
     }
-    set src(path) {
+    set src(keyOrPath) {
         // Need to investigate how to do this programmatically with Phaser
-        this._src = path
+        this._src = keyOrPath
+
+        // Undefined; use default 'missing' texture
+        if (keyOrPath === undefined) {
+            this._sprite.setTexture('__MISSING')
+            return
+        }
+
+        // If using a key, apply existing texture
+        if (scene.textures.exists(keyOrPath)) {
+            this._sprite.setTexture(keyOrPath)
+            return
+        }
+
+        // Otherwise, loading a new texture from path
 
         // Esoteric temp load string to prevent accidentally overwriting a user-written img key
         // Change this to just check if 'temp' already exists and start adding random chars until unique
-        // scene.load.start()
-        scene.load.image('ͼ_temp_ͽ', path)
         scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
-            console.log('load')
+            this._sprite.setTexture(keyOrPath)
         })
-
-        // loader.start()
-        // loader.once('filecomplete', () => console.log('asdf'))
-        // loader.image('ͼ_temp_ͽ', path)
-
-        // if (this._sprite && path) this._sprite.setTexture('temp')
+        scene.load.image(keyOrPath, keyOrPath)
+        scene.load.start()
     }
 
     // get anchorX() {

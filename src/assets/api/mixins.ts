@@ -1,8 +1,8 @@
 // Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
-import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
+// import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, randomPosition } from "./utility"
 import type { Point } from "./interfaces"
-import { screen, camera } from "./corephaser"
+import { screen, camera, Timer, /*mouseX, mouseY,*/ paused } from "./corephaser"
 
 type Class<T = {}> = new (...args: any[]) => T
 
@@ -88,8 +88,9 @@ export function Positionable<Base extends Class>(base: Base) {
 
         goToMouse() {
             // Super slow in a forever loop, look into this
-            if (this._refObj) this._refObj.x = mouseX + app.screen.width / 2
-            if (this._refObj) this._refObj.y = -mouseY + app.screen.height / 2
+            // CHECK PHASER IMPLEMENTATION
+            // if (this._refObj) this._refObj.x = mouseX + app.screen.width / 2
+            // if (this._refObj) this._refObj.y = -mouseY + app.screen.height / 2
         }
 
         goToRandom() {
