@@ -247,8 +247,13 @@ type ViewableProps = {
     onClick?(): void
 }
 
-export function Viewable<Base extends Class>(base: Base) {
+export function Viewable<Base extends Class>(base: Base) {    
     return class Viewable extends base {
+        // TODO:
+        // - tint
+        // - blend mode
+        // - effects?
+
         _alpha: number = defaults.alpha
         _layer: number = defaults.layer
         _visible: boolean = defaults.visible
@@ -276,12 +281,13 @@ export function Viewable<Base extends Class>(base: Base) {
             if (this._refObj) this._refObj.alpha = alpha / 100
         }
         
+        // Update for phaser
         get layer() {
             return this._layer
         }
         set layer(layer) {
             this._layer = layer
-            if (this._refObj) this._refObj.zIndex = layer
+            if (this._refObj) this._refObj.depth = layer
         }
 
         get visible() {
@@ -299,6 +305,7 @@ export function Viewable<Base extends Class>(base: Base) {
             }
         }
 
+        // Update for Phaser
         get cursor() {
             return this._cursor
         }
@@ -306,6 +313,7 @@ export function Viewable<Base extends Class>(base: Base) {
             this._cursor = cursor
             if (this._refObj) this._refObj.cursor = cursor
         }
+
 
         get onClick() {
             return this._onClick
@@ -315,9 +323,9 @@ export function Viewable<Base extends Class>(base: Base) {
             // (garbage collect)
             this._onClick = onClick
             if (this._refObj) {
-                this._refObj.on('click', () => {
-                    if (!paused) this.onClick()
-                })
+                this._refObj.setInteractive().on('pointerdown', (pointer: any, localX: number, localY: number, event: any) => {
+                    if (!paused) onClick()
+                });
             }
         }
 
@@ -331,6 +339,25 @@ export function Viewable<Base extends Class>(base: Base) {
 
         hide() {
             if (this._refObj) this._refObj.visible = false
+        }
+
+        sendToFrontLayer() {
+            // TODO: Send to front layer
+        }
+        
+        sendToBackLayer() {
+            // TODO: Send to back layer
+        }
+
+        // layerUp() {
+        // }
+        // layerDown() {
+        // }
+        sendToLayerAbove(other: Viewable) {
+            // TODO: Send to layer above other
+        }
+        sendToLayerBelow(other: Viewable) {
+            // TODO: Send to layer below other
         }
     }
 }
