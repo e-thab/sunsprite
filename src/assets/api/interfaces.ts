@@ -29,8 +29,8 @@ export interface RepeatableUntil extends Omit<Repeatable, 'count'> {
 
 /* Used for after() & every() */
 export interface Delayable {
-	elapsedMS: number
-	lifetimeMS: number
+	elapsedMs: number
+	lifetimeMs: number
 	fn: Action
 }
 

@@ -68,20 +68,20 @@ function _runRepeatUntils() {
 
 function _runAfters(delta: number) {
 	for (const after of _afters) {
-		after.elapsedMS += delta
-		if (after.elapsedMS >= after.lifetimeMS) {
+		after.elapsedMs += delta
+		if (after.elapsedMs >= after.lifetimeMs) {
 			after.fn()
 		}
 	}
-	_afters = _afters.filter(after => after.elapsedMS < after.lifetimeMS)
+	_afters = _afters.filter(after => after.elapsedMs < after.lifetimeMs)
 }
 
 function _runEverys(delta: number) {
 	for (const every of _everys) {
-		every.elapsedMS += delta
-		if (every.elapsedMS >= every.lifetimeMS) {
+		every.elapsedMs += delta
+		if (every.elapsedMs >= every.lifetimeMs) {
 			every.fn()
-			every.elapsedMS = 0
+			every.elapsedMs = 0
 		}
 	}
 }
@@ -125,7 +125,8 @@ export const Timer = {
 	time: 0, 	 // time since start, does not increment during pause
 	realTime: 0, // time since start including pause time
 	delta: 0,	 // time since last frame normalized to 60fps (will usually be around 1)
-	deltaMs: 0 // actual (smoothed) time since last frame
+	deltaMs: 0,  // actual (smoothed) time since last frame
+	frame: 0,    // number of frames since start
 }
 export let paused = false
 
@@ -241,8 +242,8 @@ function after(seconds: number, fn: Action) {
 	// 	fn()
 	// })
 	_afters.push({
-		elapsedMS: 0,
-		lifetimeMS: seconds * 1000,
+		elapsedMs: 0,
+		lifetimeMs: seconds * 1000,
 		fn
 	})
 }
@@ -257,8 +258,8 @@ function every(seconds: number, fn: Action) {
 	// })
 	// fn()
 	_everys.push({
-		elapsedMS: 0,
-		lifetimeMS: seconds * 1000,
+		elapsedMs: 0,
+		lifetimeMs: seconds * 1000,
 		fn
 	})
 	fn()
@@ -384,6 +385,7 @@ class UserScene extends Scene {
 
 		Timer.time = 0
 		Timer.realTime = 0
+		Timer.frame = 0
 		_frame = 0
 
 		// loader = new Phaser.Loader.LoaderPlugin(this)
@@ -449,8 +451,10 @@ class UserScene extends Scene {
 		
 		if (paused) return
 		// Maybe switch Timer.time to track time in milliseconds (or different props for timeSec, timeMs, etc)
-		Timer.time += delta / 1000
+		Timer.time += delta
 		_frame++
+		Timer.frame = _frame
+		
 		_runForevers()
 		_runRepeats()
 		_runAfters(Timer.deltaMs)
@@ -467,8 +471,8 @@ export async function runUserCode(code: string): Promise<void> {
 
 	_forevers = []
 	_repeats = []
-	// _afters = []
-	// _everys = []
+	_afters = []
+	_everys = []
 	_repeatUntils = []
 	allPositionables = []
 	// camera.goTo(0, 0)

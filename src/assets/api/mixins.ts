@@ -26,6 +26,7 @@ export const defaults: Omit<Required<GameObjectProps>, 'pixiObj'> = {
 type PositionableProps = {
     x?: number
     y?: number
+    // position: Point
 }
 
 export function Positionable<Base extends Class>(base: Base) {
@@ -59,6 +60,14 @@ export function Positionable<Base extends Class>(base: Base) {
             this._updateY()
         }
 
+        get position(): Point {
+            // test this
+            return {
+                x: this._x,
+                y: this._y
+            }
+        }
+
         get screenX() {
             // CHECK PHASER IMPLEMENTATION
             return this.x - camera.x
@@ -74,6 +83,7 @@ export function Positionable<Base extends Class>(base: Base) {
             this.y = camera.y - newY
         }
 
+        // test these
         goTo(position: Point): void
         goTo(x: number, y: number): void
         goTo(xOrPoint: number | Point, y?: number) {
@@ -331,11 +341,13 @@ export function Timeable<Base extends Class>(base: Base) {
 
         constructor(...args: any[]) {
             super()
-            this._initTime = Timer.time
+            // this._initTime = Timer.time
+            this._initTime = Date.now()
         }
 
         get age() {
-            return Timer.time - this._initTime
+            // return Timer.time - this._initTime
+            return (Date.now() - this._initTime) / 1000
         }
     }
 }

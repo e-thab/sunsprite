@@ -9,6 +9,8 @@ import Phaser from "phaser"
  * Simplified sprite class, mimics WoofJS style
  * 
  * TODO:
+ *  - flipX / flipY
+ *  - scaleX / scaleY ?
  *  - pivot / anchor ?
  *  - distanceTo
  *  - pointTowards
@@ -24,37 +26,22 @@ type SpriteProps = GameObjectProps & {
 
 export default class Sprite extends GameObject {
     // readonly _sprite: PixiSprite
-    readonly _sprite: Phaser.GameObjects.Sprite
+    protected readonly _sprite: Phaser.GameObjects.Sprite
     _src?: string
 
     constructor(props?: SpriteProps) {
         super()
         const sprite = scene.add.sprite(0, 0, '__MISSING') // Phaser Sprite
         this._refObj = sprite // Reference to Phaser object used in mixins
-        this._sprite = sprite // Reference to Phaser object used in this class (for readability)
-        
-        // this.hide()
-		// this.src = props?.src ?? 'gator'
-        // if (props?.src) this.src = props.src
-        this.src = props?.src
+        this._sprite = sprite // Reference to Phaser object used within this class (for readability)
 
+        this.src = props?.src
+        
         // Set mixin props
         this.initPositionable(props)
-        // this.setAnchorCenter()
-        // this.initSizable(props)
-        // this.initSizable({
-        //     width: props?.width ?? sprite.getBounds().width,
-        //     height: props?.height ?? sprite.getBounds().height,
-        //     scale: props?.scale ?? 1
-        // })
-        // this.initSizable({
-        //     width: props?.width ?? sprite.getBounds().width,
-        //     height: props?.height ?? sprite.getBounds().height,
-        //     scale: props?.scale ?? 1
-        // })
         this.initSizable(props)
         this.initRotatable(props)
-        // this.initViewable(props)
+        this.initViewable(props)
         
         // // Temp
         // sprite.eventMode = 'dynamic'
@@ -66,63 +53,44 @@ export default class Sprite extends GameObject {
         // // 		this.cursor = 'handOpen'
         // // 		// app.renderer.events.setCursor('handOpen')
         // // 	})
-
-        // app.stage.addChild(sprite)
         allPositionables.push(this)
+        // this.hide()
     }
     
     get src() {
         return this._src
     }
     set src(keyOrPath) {
-        // Need to investigate how to do this programmatically with Phaser
         this._src = keyOrPath
-
+        
         // Undefined; use default 'missing' texture
         if (keyOrPath === undefined) {
             this._sprite.setTexture('__MISSING')
             return
         }
-
+        
         // If using a key, apply existing texture
         if (scene.textures.exists(keyOrPath)) {
             this._sprite.setTexture(keyOrPath)
             return
         }
-
+        
         // Otherwise, loading a new texture from path
+        this._sprite.setTexture('__DEFAULT') // Temp?: Use invisible texture while loading
 
-        // Esoteric temp load string to prevent accidentally overwriting a user-written img key
-        // Change this to just check if 'temp' already exists and start adding random chars until unique
         scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
             this._sprite.setTexture(keyOrPath)
         })
         scene.load.image(keyOrPath, keyOrPath)
         scene.load.start()
+
+        // Investigate handling failed to load resource error
     }
-
-    // get anchorX() {
-    //     return this._sprite.anchor.x
-    // }
-    // set anchorX(newX) {
-    //     this._sprite.anchor.x = newX
-    // }
-
-    // get anchorY() {
-    //     return this._sprite.anchor._y
-    // }
-    // set anchorY(newY) {
-    //     this._sprite.anchor.y = newY
-    // }
 
     // Override
     // _updateScale() {
     //     this.setAnchorCenter()
     //     this._sprite.scale.set(this._scale)
-    // }
-
-    // setAnchorCenter(): void {
-    //     this._sprite.anchor.set(0.5)
     // }
 
     // async _assignTexture(): Promise<void> {
