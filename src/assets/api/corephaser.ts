@@ -105,7 +105,6 @@ function _clearKeysJustPressed(frame: number) {
  * API Internal vars
  */
 export let allPositionables: { _updatePosition(): void }[] = []
-export let loader: Phaser.Loader.LoaderPlugin
 let _frame: number = 0 // current render frame index
 // let _ticker: Ticker = new Ticker()
 let _forevers: Array<Action> = []
@@ -387,10 +386,6 @@ class UserScene extends Scene {
 		Timer.realTime = 0
 		Timer.frame = 0
 		_frame = 0
-
-		// loader = new Phaser.Loader.LoaderPlugin(this)
-		// loader.once('filecomplete', () => console.log('asdf'))
-		// loader.start()
 		
 		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 			pointer.updateWorldPoint(camera)
