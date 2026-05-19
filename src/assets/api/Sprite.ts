@@ -25,8 +25,7 @@ type SpriteProps = GameObjectProps & {
 }
 
 export default class Sprite extends GameObject {
-    // readonly _sprite: PixiSprite
-    protected readonly _sprite: Phaser.GameObjects.Sprite
+    readonly _sprite: Phaser.GameObjects.Sprite
     _src?: string
 
     constructor(props?: SpriteProps) {
@@ -42,6 +41,12 @@ export default class Sprite extends GameObject {
         this.initSizable(props)
         this.initRotatable(props)
         this.initViewable(props)
+
+        // Sprites may flicker on creation without this delay
+        if (this.visible) {
+            sprite.setVisible(false)
+            new Promise(resolve => setTimeout(resolve, 0)).then(() => sprite.setVisible(true))
+        }
         
         // // Temp
         // sprite.eventMode = 'dynamic'
@@ -54,17 +59,16 @@ export default class Sprite extends GameObject {
         // // 		// app.renderer.events.setCursor('handOpen')
         // // 	})
         allPositionables.push(this)
-        // this.hide()
     }
     
     get src() {
         return this._src
     }
-    set src(keyOrPath) {
-        this._src = keyOrPath
+    set src(keyOrPath: string | undefined | null) {
+        this._src = keyOrPath ?? undefined
         
         // Undefined; use default 'missing' texture
-        if (keyOrPath === undefined) {
+        if (keyOrPath === undefined || keyOrPath === null) {
             this._sprite.setTexture('__MISSING')
             return
         }
@@ -78,6 +82,9 @@ export default class Sprite extends GameObject {
         // Otherwise, loading a new texture from path
         this._sprite.setTexture('__DEFAULT') // Temp?: Use invisible texture while loading
 
+        // TODO: Add svg support. Should load as svg instead of image, and will need to override
+        // some scalable methods to include new scale as object size args for load.svg, i.e.:
+        // this.load.svg('pointer_c', 'cursors/pointer_c.svg', { width: 400, height: 400 })
         scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
             this._sprite.setTexture(keyOrPath)
         })

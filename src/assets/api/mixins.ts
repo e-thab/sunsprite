@@ -1,13 +1,13 @@
 // Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
 // import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, randomPosition } from "./utility"
-import type { Point } from "./interfaces"
+import type { Action, Point } from "./interfaces"
 import { screen, camera, Timer, /*mouseX, mouseY,*/ paused } from "./corephaser"
 
 type Class<T = {}> = new (...args: any[]) => T
 
 export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & ViewableProps /* ...etc. */
-export const defaults: Omit<Required<GameObjectProps>, 'pixiObj'> = {
+export const defaults: Required<GameObjectProps> = {
     x: 0,
     y: 0,
     width: 100,
@@ -22,7 +22,9 @@ export const defaults: Omit<Required<GameObjectProps>, 'pixiObj'> = {
         type: 'default'
     },
     visible: true,
-    onClick: () => {}
+    onClick: () => {},
+    onMouseEnter: () => {},
+    onMouseExit: () => {},
     // ...etc.
 }
 
@@ -251,7 +253,9 @@ type ViewableProps = {
     layer?: number
     visible?: boolean
     cursor?: Cursor
-    onClick?(): void
+    onClick?: Action
+    onMouseEnter?: Action
+    onMouseExit?: Action
 }
 
 export function Viewable<Base extends Class>(base: Base) {    
@@ -261,23 +265,28 @@ export function Viewable<Base extends Class>(base: Base) {
         // - blend mode
         // - effects?
 
+        _refObj?: any
         _alpha: number = defaults.alpha
         _layer: number = defaults.layer
         _visible: boolean = defaults.visible
         _cursor: Cursor = defaults.cursor
-        _onClick: () => void = defaults.onClick
-        _refObj?: any
+        _onClick: Action = defaults.onClick
+        _onMouseEnter: Action = defaults.onMouseEnter
+        _onMouseExit: Action = defaults.onMouseExit
 
         constructor(...args: any[]) {
             super()
         }
 
         initViewable(props?: GameObjectProps) {
-            this.alpha = props?.alpha ?? 100
-            this.layer = props?.layer ?? 0
-            this.cursor = props?.cursor ?? 'default'
-            this.visible = props?.visible ?? true
-            this.onClick = props?.onClick ?? (() => {})
+            this.alpha = props?.alpha ?? defaults.alpha
+            this.layer = props?.layer ?? defaults.layer
+            this.cursor = props?.cursor ?? defaults.cursor
+            this.visible = props?.visible ?? defaults.visible
+
+            if (props?.onClick) this.onClick = props.onClick
+            if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
+            if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
         }
 
         get alpha() {
@@ -285,7 +294,7 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         set alpha(alpha: number) {
             this._alpha = alpha
-            if (this._refObj) this._refObj.alpha = alpha / 100
+            if (this._refObj) this._refObj.setAlpha(alpha / 100)
         }
         
         // Update for phaser
@@ -294,7 +303,7 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         set layer(layer: number) {
             this._layer = layer
-            if (this._refObj) this._refObj.depth = layer
+            if (this._refObj) this._refObj.setDepth(layer)
         }
 
         get visible() {
@@ -315,40 +324,74 @@ export function Viewable<Base extends Class>(base: Base) {
         get cursor() {
             return this._cursor
         }
-        set cursor(cursor: Cursor | string) {
+        set cursor(cursor: Cursor | string | undefined | null) {
             // Cursor arg is either a string or an object that allows user to define image src as well as system fallback cursor type
             // if string: just use it as the src and set type to default
-            // TEST THIS!!!
+            
             if (!this._refObj) return
-
+            
+            let cursorObj: Cursor
             if (typeof cursor === typeof 'string') {
-                var cursorObj: Cursor = {
+                cursorObj = {
                     src: cursor as string,
                     type: 'default'
                 }
             } else {
-                var cursorObj: Cursor = {
+                cursorObj = {
                     src: (cursor as Cursor).src,
                     type: (cursor as Cursor).type ?? 'default'
                 }
             }
-
+            
             this._cursor = cursorObj
             if (!this._refObj.input) this._refObj.setInteractive()
-            this._refObj.input.cursor = 'url(cursors/${cursor}), ${}'
+
+            if (!cursor || cursorObj.src === 'default') {
+                this._refObj.input.cursor = false
+                return
+            }
+
+            // Absolutely find a better way to do this, just testing for now
+            const url = `url(cursors/${cursorObj.src})`
+            const offset = cursor === 'dot_large.png' ? '16 16' : ''
+
+            this._refObj.input.cursor = `${url} ${offset}, ${cursorObj.type}`
         }
 
         get onClick() {
             return this._onClick
         }
-        set onClick(onClick: () => void) {
+        set onClick(onClick: Action) {
             // Logic to actually RE-assign onClick instead of just assigning new every time?
             // (garbage collect)
             this._onClick = onClick
             if (this._refObj) {
                 this._refObj.setInteractive().on('pointerdown', (pointer: any, localX: number, localY: number, event: any) => {
                     if (!paused) onClick()
-                });
+                })
+            }
+        }
+
+        get onMouseEnter() {
+            return this._onMouseEnter
+        }
+        set onMouseEnter(onMouseEnter: Action) {
+            // When paused?
+            if (this._refObj) {
+                this._onMouseEnter = onMouseEnter
+                if (!this._refObj.input) this._refObj.setInteractive()
+                this._refObj.on('pointerover', onMouseEnter)
+            }
+        }
+
+        get onMouseExit() {
+            return this._onMouseExit
+        }
+        set onMouseExit(onMouseExit: Action) {
+            if (this._refObj) {
+                this._onMouseExit = onMouseExit
+                if (!this._refObj.input) this._refObj.setInteractive()
+                this._refObj.on('pointerout', onMouseExit)
             }
         }
 
@@ -391,13 +434,11 @@ export function Timeable<Base extends Class>(base: Base) {
 
         constructor(...args: any[]) {
             super()
-            // this._initTime = Timer.time
-            this._initTime = Date.now()
+            this._initTime = Timer.time
         }
 
         get age() {
-            // return Timer.time - this._initTime
-            return (Date.now() - this._initTime) / 1000
+            return (Timer.time - this._initTime) / 1000
         }
     }
 }

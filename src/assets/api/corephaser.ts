@@ -156,8 +156,8 @@ export let screen: Screen = {
 	}
 }
 
-function setBackgroundColor(color: string /*Color*/) {
-	// app.renderer.background.color = color
+function setBackgroundColor(color: string) {
+	// Web color name support?
 	camera.setBackgroundColor(color)
 }
 
@@ -382,7 +382,10 @@ class UserScene extends Scene {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
 
-		this.input.setDefaultCursor('url(cursors/pointer_c.svg), default')
+		// this.input.setDefaultCursor('url(cursors/pointer_c.cur), default')
+		this.input.setDefaultCursor('url(cursors/hand_point.cur), default')
+
+		// this.add.rectangle().setFillStyle(Phaser.Display.Color.HexStringToColor('#222').color)
 
 		// const testSprite = this.add.sprite(200, 200, 'boot')
 		// this.input.setCursor(refSprite)
@@ -413,7 +416,7 @@ class UserScene extends Scene {
 		// in half when up against the previous screen edge
 
 		const api = {
-			Sprite,
+			Sprite, Rectangle,
 			Timer, screen, camera,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,
@@ -451,6 +454,7 @@ class UserScene extends Scene {
 		Timer.realTime += delta
 		
 		_clearKeysJustPressed(_frame)
+		this.input.setPollAlways()
 		
 		if (paused) return
 		// Maybe switch Timer.time to track time in milliseconds (or different props for timeSec, timeMs, etc)

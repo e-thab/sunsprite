@@ -1,5 +1,5 @@
 import type { Point, Touchable } from "./interfaces"
-import { Sizable, Positionable, Rotatable, Viewable, Timeable } from "./mixins"
+import { Sizable, Positionable, Rotatable, Viewable, Timeable, type GameObjectProps } from "./mixins"
 
 /**
  * General type for most objects actually rendered in the game. Saves the trouble of
@@ -21,6 +21,14 @@ export default abstract class GameObject extends
     constructor() {
         // This constructor would also need to receive args and pass the props object to super
         super()
+    }
+
+    // WIP
+    initMixins(props: GameObjectProps) {
+        this.initPositionable(props)
+        this.initSizable(props)
+        this.initRotatable(props)
+        this.initViewable(props)
     }
 
     get left(): number {
