@@ -9,6 +9,7 @@ import Phaser from 'phaser'
 
 type RectangleProps = GameObjectProps & {
     color?: string
+    outlineColor?: string
 }
 
 export default class Rectangle extends GameObject {
@@ -44,6 +45,8 @@ export default class Rectangle extends GameObject {
         return this._color
     }
     set color(color: string) {
+        // May move color logic to a mixin
+        // Also need to implement support for CSS color names for phaser objects
         this._color = color
         // this._rect.fill(color)
         const phaserColor = Phaser.Display.Color.HexStringToColor(color).color

@@ -23,6 +23,7 @@ export const defaults: Required<GameObjectProps> = {
     },
     visible: true,
     onClick: () => {},
+    onRelease: () => {},
     onMouseEnter: () => {},
     onMouseExit: () => {},
     // ...etc.
@@ -254,6 +255,7 @@ type ViewableProps = {
     visible?: boolean
     cursor?: Cursor
     onClick?: Action
+    onRelease?: Action
     onMouseEnter?: Action
     onMouseExit?: Action
 }
@@ -264,6 +266,8 @@ export function Viewable<Base extends Class>(base: Base) {
         // - tint
         // - blend mode
         // - effects?
+        // - more input events (double click, rigth click, scroll, mousemove, mouseup...)
+        // - draggable
 
         _refObj?: any
         _alpha: number = defaults.alpha
@@ -271,6 +275,7 @@ export function Viewable<Base extends Class>(base: Base) {
         _visible: boolean = defaults.visible
         _cursor: Cursor = defaults.cursor
         _onClick: Action = defaults.onClick
+        _onRelease: Action = defaults.onRelease
         _onMouseEnter: Action = defaults.onMouseEnter
         _onMouseExit: Action = defaults.onMouseExit
 
@@ -285,6 +290,7 @@ export function Viewable<Base extends Class>(base: Base) {
             this.visible = props?.visible ?? defaults.visible
 
             if (props?.onClick) this.onClick = props.onClick
+            if (props?.onRelease) this.onRelease = props.onRelease
             if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
             if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
         }
@@ -364,10 +370,22 @@ export function Viewable<Base extends Class>(base: Base) {
         set onClick(onClick: Action) {
             // Logic to actually RE-assign onClick instead of just assigning new every time?
             // (garbage collect)
-            this._onClick = onClick
             if (this._refObj) {
+                this._onClick = onClick
                 this._refObj.setInteractive().on('pointerdown', (pointer: any, localX: number, localY: number, event: any) => {
                     if (!paused) onClick()
+                })
+            }
+        }
+
+        get onRelease() {
+            return this._onRelease
+        }
+        set onRelease(onRelease: Action) {
+            if (this._refObj) {
+                this._onRelease = onRelease
+                this._refObj.setInteractive().on('pointerup', (pointer: any, localX: number, localY: number, event: any) => {
+                    if (!paused) onRelease()
                 })
             }
         }
