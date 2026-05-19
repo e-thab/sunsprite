@@ -34,7 +34,7 @@ export default class Sprite extends GameObject {
         const sprite = scene.add.sprite(0, 0, '__MISSING') // Phaser Sprite
         this._refObj = sprite // Reference to Phaser object used in mixins
         this._sprite = sprite // Reference to Phaser object used within this class (for readability)
-
+        
         this.src = props?.src
         
         // Set mixin props

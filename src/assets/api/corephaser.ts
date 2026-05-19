@@ -8,6 +8,7 @@ import Camera from './Camera';
 import Sprite from './Sprite';
 import Rectangle from './Rectangle';
 import Text from './Text';
+import test from 'node:test';
 
 export const fpsRef = ref(0)
 export const mouseRef = ref({mouseX: 0, mouseY: 0})
@@ -157,6 +158,7 @@ export let screen: Screen = {
 
 function setBackgroundColor(color: string /*Color*/) {
 	// app.renderer.background.color = color
+	camera.setBackgroundColor(color)
 }
 
 async function setBackgroundImage(src: string) {
@@ -378,17 +380,23 @@ class UserScene extends Scene {
 		// })
 		
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
-
 		console.log('create')
-		camera = this.cameras.main
 
+		this.input.setDefaultCursor('url(cursors/pointer_c.svg), default')
+
+		// const testSprite = this.add.sprite(200, 200, 'boot')
+		// this.input.setCursor(refSprite)
+		// testSprite.setInteractive()
+		// testSprite.input.cursor = 'url(assets/card_back.png), default'
+
+		camera = this.cameras.main
 		Timer.time = 0
 		Timer.realTime = 0
 		Timer.frame = 0
 		_frame = 0
 		
 		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-			pointer.updateWorldPoint(camera)
+			pointer.updateWorldPoint(camera) // ..?
 			mouseRef.value.mouseX = Math.round(pointer.x - screen.width / 2)
 			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
 		})
@@ -408,7 +416,7 @@ class UserScene extends Scene {
 			Sprite,
 			Timer, screen, camera,
 			forever, repeat, repeatUntil, after, every,
-			keyPressed, keyJustPressed, print, play, pause,
+			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,
 			random, randomFloat, randomX, randomY, randomPosition,
 			deg2rad, rad2deg, sin, cos, tan, atan2, sqrt, min, max, clamp,
 			PI: Math.PI,
@@ -508,7 +516,7 @@ export async function runUserCode(code: string): Promise<void> {
 			mode: Phaser.Scale.NONE
 		},
 		parent: 'game-container',
-		backgroundColor: '#333',
+		// backgroundColor: '#333',
 		scene
 	}
 
@@ -522,49 +530,9 @@ export async function runUserCode(code: string): Promise<void> {
 	}
 }
 
-let lastWidth = 0
-let lastHeight = 0
-
 const resizeDelay = 5 // milliseconds
-type ResizeCall = {
-	time: number
-	active: boolean
-	promise?: Promise<void>
-	createPromise(): void
-}
-let lastResizeCall: ResizeCall = {
-	time: 0,
-	active: false,
-	createPromise() {}
-}
 export function resizeStage() {
-	// const time = new Date().getTime();
-	// if (time - lastResizeCall.time < resizeDelay) {
-	// // 	// print(`last call was ${time - lastResizeCall.time} milliseconds ago, updating`)
-	// 	lastResizeCall.active = false
-	// }
-
-	// (lastResizeCall = {
-	// 	createPromise() {
-	// 		this.promise = new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => {
-	// 			if (!this.active) {
-	// 				// print('cancelled')
-	// 				return
-	// 			}
-	// 			// print('resize')
-	// 			// Center Y may be 10-15 pixels below actual element vertical center?
-	// 			// const size = game.scale.parentSize
-	// 			// game.scale.resize(size.width, size.height)
-	// 			// game.scale.setGameSize(size.width, size.height)
-	// 			// updatePositions()
-	// 			_resizeStage()
-	// 		})
-	// 	},
-	// 	active: true,
-	// 	time
-	// }).createPromise()
 	new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => _resizeStage())
-	// _resizeStage()
 }
 
 function _resizeStage() {

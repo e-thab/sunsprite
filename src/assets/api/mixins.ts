@@ -17,7 +17,10 @@ export const defaults: Omit<Required<GameObjectProps>, 'pixiObj'> = {
     radians: 0,
     alpha: 100,
     layer: 0,
-    cursor: 'default',
+    cursor: {
+        src: 'default',
+        type: 'default'
+    },
     visible: true,
     onClick: () => {}
     // ...etc.
@@ -239,11 +242,15 @@ export function Rotatable<Base extends Class>(base: Base) {
     }
 }
 
+type Cursor = {
+    src: string
+    type?: string // 'default' | 'pointer' | ...
+}
 type ViewableProps = {
     alpha?: number
     layer?: number
     visible?: boolean
-    cursor?: string
+    cursor?: Cursor
     onClick?(): void
 }
 
@@ -257,7 +264,7 @@ export function Viewable<Base extends Class>(base: Base) {
         _alpha: number = defaults.alpha
         _layer: number = defaults.layer
         _visible: boolean = defaults.visible
-        _cursor: string = defaults.cursor
+        _cursor: Cursor = defaults.cursor
         _onClick: () => void = defaults.onClick
         _refObj?: any
 
@@ -276,7 +283,7 @@ export function Viewable<Base extends Class>(base: Base) {
         get alpha() {
             return this._alpha
         }
-        set alpha(alpha) {
+        set alpha(alpha: number) {
             this._alpha = alpha
             if (this._refObj) this._refObj.alpha = alpha / 100
         }
@@ -285,7 +292,7 @@ export function Viewable<Base extends Class>(base: Base) {
         get layer() {
             return this._layer
         }
-        set layer(layer) {
+        set layer(layer: number) {
             this._layer = layer
             if (this._refObj) this._refObj.depth = layer
         }
@@ -293,7 +300,7 @@ export function Viewable<Base extends Class>(base: Base) {
         get visible() {
             return this._visible
         }
-        set visible(visible) {
+        set visible(visible: boolean) {
             this._visible = visible
 
             if (this._refObj) {
@@ -305,20 +312,36 @@ export function Viewable<Base extends Class>(base: Base) {
             }
         }
 
-        // Update for Phaser
         get cursor() {
             return this._cursor
         }
-        set cursor(cursor) {
-            this._cursor = cursor
-            if (this._refObj) this._refObj.cursor = cursor
-        }
+        set cursor(cursor: Cursor | string) {
+            // Cursor arg is either a string or an object that allows user to define image src as well as system fallback cursor type
+            // if string: just use it as the src and set type to default
+            // TEST THIS!!!
+            if (!this._refObj) return
 
+            if (typeof cursor === typeof 'string') {
+                var cursorObj: Cursor = {
+                    src: cursor as string,
+                    type: 'default'
+                }
+            } else {
+                var cursorObj: Cursor = {
+                    src: (cursor as Cursor).src,
+                    type: (cursor as Cursor).type ?? 'default'
+                }
+            }
+
+            this._cursor = cursorObj
+            if (!this._refObj.input) this._refObj.setInteractive()
+            this._refObj.input.cursor = 'url(cursors/${cursor}), ${}'
+        }
 
         get onClick() {
             return this._onClick
         }
-        set onClick(onClick) {
+        set onClick(onClick: () => void) {
             // Logic to actually RE-assign onClick instead of just assigning new every time?
             // (garbage collect)
             this._onClick = onClick
