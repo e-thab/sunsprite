@@ -4,6 +4,8 @@ import { deg2rad, rad2deg, randomPosition } from "./utility"
 import type { Action, Point } from "./interfaces"
 import { screen, camera, Timer, /*mouseX, mouseY,*/ paused } from "./corephaser"
 
+import Phaser from "phaser"
+
 type Class<T = {}> = new (...args: any[]) => T
 
 export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & ViewableProps /* ...etc. */
@@ -245,19 +247,18 @@ export function Rotatable<Base extends Class>(base: Base) {
     }
 }
 
-type Cursor = {
-    src: string
-    type?: string // 'default' | 'pointer' | ...
-}
+// (pointer: any, localX: number, localY: number, event: any) -- args from pointer event callbacks
+type PointerAction = ((x: number, y: number) => void) | undefined | null
+type Cursor = { src: string, type?: string } | undefined | null
 type ViewableProps = {
     alpha?: number
     layer?: number
     visible?: boolean
     cursor?: Cursor
-    onClick?: Action
-    onRelease?: Action
-    onMouseEnter?: Action
-    onMouseExit?: Action
+    onClick?: PointerAction
+    onRelease?: PointerAction
+    onMouseEnter?: PointerAction
+    onMouseExit?: PointerAction
 }
 
 export function Viewable<Base extends Class>(base: Base) {    
@@ -266,18 +267,23 @@ export function Viewable<Base extends Class>(base: Base) {
         // - tint
         // - blend mode
         // - effects?
-        // - more input events (double click, rigth click, scroll, mousemove, mouseup...)
+        // - more input events (double click, right click, scroll, mousemove, mouseup...)
         // - draggable
 
         _refObj?: any
+        isInteractive: boolean = false
+        
+        // Required props
         _alpha: number = defaults.alpha
         _layer: number = defaults.layer
         _visible: boolean = defaults.visible
-        _cursor: Cursor = defaults.cursor
-        _onClick: Action = defaults.onClick
-        _onRelease: Action = defaults.onRelease
-        _onMouseEnter: Action = defaults.onMouseEnter
-        _onMouseExit: Action = defaults.onMouseExit
+        
+        // Optional props
+        _cursor?: Cursor
+        _onClick?: PointerAction
+        _onRelease?: PointerAction
+        _onMouseEnter?: PointerAction
+        _onMouseExit?: PointerAction
 
         constructor(...args: any[]) {
             super()
@@ -286,15 +292,56 @@ export function Viewable<Base extends Class>(base: Base) {
         initViewable(props?: GameObjectProps) {
             this.alpha = props?.alpha ?? defaults.alpha
             this.layer = props?.layer ?? defaults.layer
-            this.cursor = props?.cursor ?? defaults.cursor
             this.visible = props?.visible ?? defaults.visible
-
+            
+            if (props?.cursor) this.cursor = props.cursor
             if (props?.onClick) this.onClick = props.onClick
             if (props?.onRelease) this.onRelease = props.onRelease
             if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
             if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
         }
 
+        setInteractive() {
+            // Set's phaser object's interactive state if it isn't already
+            if (!this._refObj) return
+            
+            if (!this.isInteractive) {
+                this._refObj.setInteractive()
+                this.isInteractive = true
+            }
+        }
+
+        disableInteractive() {
+            if (!this._refObj) return
+            
+            if (this.isInteractive) {
+                this._refObj.disableInteractive()
+                this.isInteractive = false
+            }
+        }
+
+        // Internal, for pointer events
+        _addListener(inputEvent: string, callback: PointerAction) {
+            if (!this._refObj) return
+            
+            // TODO
+            // TODO
+            // TODO
+            // TODO
+            // TODO
+            // TODO
+            // Finish this; use isntead of logic inside onInput events ...
+
+            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
+                if (!paused) callback(localX, localY)
+            })
+        }
+
+        _removeListener(inputEvent: string, callback: PointerAction) {
+            if (!this._refObj) return
+            
+        }
+        
         get alpha() {
             return this._alpha
         }
@@ -330,11 +377,10 @@ export function Viewable<Base extends Class>(base: Base) {
         get cursor() {
             return this._cursor
         }
-        set cursor(cursor: Cursor | string | undefined | null) {
+        set cursor(cursor: Cursor | string) {
             // Cursor arg is either a string or an object that allows user to define image src as well as system fallback cursor type
             // if string: just use it as the src and set type to default
-            
-            if (!this._refObj) return
+            if (!this._refObj || !cursor) return
             
             let cursorObj: Cursor
             if (typeof cursor === typeof 'string') {
@@ -344,73 +390,105 @@ export function Viewable<Base extends Class>(base: Base) {
                 }
             } else {
                 cursorObj = {
-                    src: (cursor as Cursor).src,
-                    type: (cursor as Cursor).type ?? 'default'
+                    src: (cursor as Cursor)?.src ?? 'default',
+                    type: (cursor as Cursor)?.type ?? 'default'
                 }
             }
-            
-            this._cursor = cursorObj
-            if (!this._refObj.input) this._refObj.setInteractive()
-
+                        
             if (!cursor || cursorObj.src === 'default') {
+                // Disable interactive here if no input actions are defined
+                this._cursor = undefined
                 this._refObj.input.cursor = false
                 return
             }
 
+            this.setInteractive()
+            this._cursor = cursorObj
+
             // Absolutely find a better way to do this, just testing for now
             const url = `url(cursors/${cursorObj.src})`
-            const offset = cursor === 'dot_large.png' ? '16 16' : ''
-
+            const offset = cursor === 'dot_large.png' ? '16 16' : '' // manual offset only needed for non-.cur images
+            
             this._refObj.input.cursor = `${url} ${offset}, ${cursorObj.type}`
         }
 
-        get onClick() {
+        get onClick(): PointerAction {
             return this._onClick
         }
-        set onClick(onClick: Action) {
-            // Logic to actually RE-assign onClick instead of just assigning new every time?
-            // (garbage collect)
-            if (this._refObj) {
-                this._onClick = onClick
-                this._refObj.setInteractive().on('pointerdown', (pointer: any, localX: number, localY: number, event: any) => {
-                    if (!paused) onClick()
-                })
-            }
+        set onClick(onClick: PointerAction) {
+            // Using PhaserObject.off(inputEvent, fn) doesn't seem to remove specific callbacks
+            // Just removing all listeners indiscriminately before assigning new for now
+            if (!this._refObj) return
+            
+            const inputEvent = Phaser.Input.Events.POINTER_DOWN
+            if (this.onClick) this._refObj.off(inputEvent/*, this.onClick*/)
+            this._onClick = onClick
+
+            if (!onClick) return
+            this.setInteractive()
+            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
+                if (!paused) onClick(localX, localY)
+            })
         }
 
         get onRelease() {
             return this._onRelease
         }
-        set onRelease(onRelease: Action) {
-            if (this._refObj) {
-                this._onRelease = onRelease
-                this._refObj.setInteractive().on('pointerup', (pointer: any, localX: number, localY: number, event: any) => {
-                    if (!paused) onRelease()
-                })
-            }
+        set onRelease(onRelease: PointerAction) {
+            if (!this._refObj) return
+
+            const inputEvent = Phaser.Input.Events.POINTER_UP
+            if (this.onRelease) this._refObj.off(inputEvent)
+            this._onRelease = onRelease
+
+            if (!onRelease) return
+            this.setInteractive()
+            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
+                if (!paused) onRelease(localX, localY)
+            })
         }
 
         get onMouseEnter() {
             return this._onMouseEnter
         }
-        set onMouseEnter(onMouseEnter: Action) {
+        set onMouseEnter(onMouseEnter: PointerAction) {
             // When paused?
-            if (this._refObj) {
-                this._onMouseEnter = onMouseEnter
-                if (!this._refObj.input) this._refObj.setInteractive()
-                this._refObj.on('pointerover', onMouseEnter)
+            if (!this._refObj) return
+
+            const inputEvent = Phaser.Input.Events.POINTER_OVER
+            const currentCallback = this.onMouseEnter
+            this._onMouseEnter = onMouseEnter
+
+            if (!onMouseEnter) {
+                if (currentCallback) this._refObj.off(inputEvent, currentCallback)
+                return
             }
+
+            this.setInteractive()
+            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
+                if (!paused) onMouseEnter(localX, localY)
+            })
         }
 
         get onMouseExit() {
             return this._onMouseExit
         }
-        set onMouseExit(onMouseExit: Action) {
-            if (this._refObj) {
-                this._onMouseExit = onMouseExit
-                if (!this._refObj.input) this._refObj.setInteractive()
-                this._refObj.on('pointerout', onMouseExit)
+        set onMouseExit(onMouseExit: PointerAction) {
+            if (!this._refObj) return
+
+            const inputEvent = Phaser.Input.Events.POINTER_OUT
+            const currentCallback = this.onMouseExit
+            this._onMouseExit = onMouseExit
+
+            if (!onMouseExit) {
+                if (currentCallback) this._refObj.off(inputEvent, currentCallback)
+                return
             }
+            
+            this.setInteractive()
+            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
+                if (!paused) onMouseExit(localX, localY)
+            })
         }
 
         resetCursor() {
