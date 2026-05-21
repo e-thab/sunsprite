@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { runUserCode, startCode, print } from '@/assets/api/core';
+import { /*runUserCode,*/ startCode, print } from '@/assets/api/core';
+import { runUserCode } from '@/assets/api/corephaser';
 import { completions } from '@/assets/code-completion/codemirror-completions';
 import { Codemirror } from 'vue-codemirror';
 import { javascript } from '@codemirror/lang-javascript'
@@ -39,7 +40,7 @@ defineExpose({ runActiveUserCode })
 
 onMounted(() => {
 	code.value = localStorage.getItem('code') ?? startCode
-	// runActiveUserCode()
+	runActiveUserCode()
 })
 
 // TODO: 
@@ -59,7 +60,7 @@ onMounted(() => {
 		<div id="code-container" class="editor">
 			<codemirror
 			v-model="code"
-			placeholder="..."
+			placeholder="/* ... */"
 			:autofocus="true"
 			:indent-with-tab="true"
 			:tab-size="4"

@@ -1,23 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
-import { resizeStage } from '@/assets/api/core';
+import { resizeStage, print } from '@/assets/api/corephaser';
 import { useFullscreenStore } from '@/stores/fullscreen';
-import PixiCanvas from '@/components/PixiCanvas.vue'
+// import PixiCanvas from '@/components/PixiCanvas.vue'
+import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
-import Output from '@/components/Output.vue';
+import OutputPane from '@/components/OutputPane.vue';
 
-// const canvas = ref()
 const editor = ref()
 const fsStore = useFullscreenStore()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
 
 const canvasWidth = ref(44)
 const canvasHeight = ref(80)
-
 const canvasHeightBeforeCollapse = ref(80)
-// let isOutputCollapsed = false
 
 const paneSize: { [index: string]: number } = {
   // Column panes (left - middle - right)
@@ -31,7 +29,8 @@ const paneSize: { [index: string]: number } = {
 }
 
 function onCanvasReady() {
-  runActiveUserCode()
+  resizeStage()
+  // runActiveUserCode()
 }
 
 function runActiveUserCode() {
@@ -41,6 +40,7 @@ function runActiveUserCode() {
 
 async function toggleFullscreen() {
   // Toggle fullscreen state (pinia store) when pressing fullscreen button
+  print('fullscreen')
   if (fsStore.toggle()) {
     splitterDisplay.value = 'none'
     canvasWidth.value = 100
@@ -50,11 +50,7 @@ async function toggleFullscreen() {
     canvasWidth.value = paneSize['right-pane'] ?? 0
     canvasHeight.value = paneSize['canvas-v-pane'] ?? 0
   }
-
-  new Promise(resolve => setTimeout(resolve, 0)).then(() => {
-    // Without the await, stage doesn't resize after fullscreen
-    resizeStage()
-  })
+  resizeStage()
 }
 
 type EventPane = { el: HTMLElement, size: number }
@@ -65,10 +61,9 @@ const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
   paneSize[`${nextPane.el.id}`] = nextPane.size
 
   if (prevPane.el.id === 'canvas-v-pane') {
-    // isOutputCollapsed = false
     canvasHeight.value = prevPane.size
   }
-  console.log(prevPane.el.id)
+  // console.log(prevPane.el.id)
 }
 
 function resizeSplitpanes(event: ResizeEvent) {
@@ -79,21 +74,27 @@ function resizeSplitpanes(event: ResizeEvent) {
 async function collapseOutput() {
   canvasHeightBeforeCollapse.value = canvasHeight.value
   canvasHeight.value = 100
+  resizeStage()
+}
 
-  new Promise(resolve => setTimeout(resolve, 0)).then(() => {
-    // Without the await, stage doesn't resize after fullscreen
+onMounted(() => {
+  const canvas = document.getElementById('canvas-v-pane')
+  if (!canvas) return
+
+  new ResizeObserver(() => {
     resizeStage()
   })
-}
+  .observe(canvas)
+})
 </script>
 
 <template>
   <splitpanes
-  :push-other-panes="false"
-  @resize="resizeStage"
-  @resized="resizeSplitpanes"
+    :push-other-panes="false"
+    @resize="resizeStage"
+    @resized="resizeSplitpanes"
   >
-  <!-- class="default-theme" -->
+
     <!-- Left side pane: File explorer -->
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" size="12">
       <!-- <span>Files</span> -->
@@ -106,27 +107,27 @@ async function collapseOutput() {
     </pane>
 
     <!-- Right side pane: Nested game/output splitpanes -->
-    <pane id="right-pane" :size="canvasWidth" min-size="15">
+    <pane id="right-pane" min-size="15" :size="canvasWidth">
       <splitpanes
         horizontal
         :push-other-panes="false"
         @resize="resizeStage"
         @resized="resizeSplitpanes"
       >
+
         <!-- Top right pane: Game view -->
-        <pane id="canvas-v-pane" :size="canvasHeight" min-size="15">
-          <PixiCanvas
+        <pane id="canvas-v-pane" min-size="15" :size="canvasHeight">
+          <PhaserCanvas
             @ready="onCanvasReady"
             @run-game="runActiveUserCode"
             @fullscreen="toggleFullscreen"
-            ref="canvas"
             class="inner-pane"
           />
         </pane>
 
         <!-- Bottom left pane: Output -->
         <pane id="output-v-pane" v-show="!fsStore.fullscreen" :size="100-canvasHeight">
-          <Output @collapse-output="collapseOutput" />
+          <OutputPane @collapse-output="collapseOutput" />
         </pane>
       </splitpanes>
     </pane>
@@ -138,6 +139,39 @@ async function collapseOutput() {
   width: 100%;
   height: 100%;
 } */
+
+.img-button {
+  display: block;
+  height: 24px;
+  transition: 0.15s;
+  filter: brightness(0.8)
+}
+.img-button:hover {
+  /* background: radial-gradient(rgba(255, 255, 255, 0.07), transparent); */
+  filter: brightness(1);
+  cursor: pointer;
+}
+
+.panel-bar {
+  display: flex;
+	height: 24px;
+  flex-shrink: 0;
+  padding-left: 0.1em;
+  padding-right: 0.2em;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--nord-text-bright);
+  background-color: var(--nord-background-dark);
+  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+
+.panel-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: var(--nord-background-dark);
+}
 
 .inner-pane {
   width: 100%;

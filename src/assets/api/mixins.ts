@@ -1,12 +1,15 @@
 // Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
-import { allPositionables, app, camera, mouseX, mouseY, paused, print, Timer } from "./core"
+// import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, randomPosition } from "./utility"
-import type { Point } from "./interfaces"
+import type { Action, Point } from "./interfaces"
+import { screen, camera, Timer, /*mouseX, mouseY,*/ paused } from "./corephaser"
+
+import Phaser, { Input } from "phaser"
 
 type Class<T = {}> = new (...args: any[]) => T
 
 export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & ViewableProps /* ...etc. */
-export const defaults: Omit<Required<GameObjectProps>, 'pixiObj'> = {
+export const defaults: Required<GameObjectProps> = {
     x: 0,
     y: 0,
     width: 100,
@@ -16,20 +19,27 @@ export const defaults: Omit<Required<GameObjectProps>, 'pixiObj'> = {
     radians: 0,
     alpha: 100,
     layer: 0,
-    cursor: 'default',
+    cursor: {
+        src: 'default',
+        type: 'default'
+    },
     visible: true,
-    onClick: () => {}
+    onClick: () => {},
+    onRelease: () => {},
+    onMouseEnter: () => {},
+    onMouseExit: () => {},
     // ...etc.
 }
 
 type PositionableProps = {
     x?: number
     y?: number
+    // position: Point
 }
 
 export function Positionable<Base extends Class>(base: Base) {
     return class Positionable extends base {
-        _pixiObj?: any
+        _refObj?: any
         _x: number = 0
         _y: number = 0
 
@@ -42,36 +52,49 @@ export function Positionable<Base extends Class>(base: Base) {
             this.y = props?.y ?? 0
         }
 
-        get x() {
+        get x(): number {
             return this._x
         }
-        set x(x) {
+        set x(x: number) {
             this._x = x
             this._updateX()
         }
 
-        get y() {
+        get y(): number {
             return this._y
         }
-        set y(y) {
+        set y(y: number) {
             this._y = y
             this._updateY()
         }
 
-        get screenX() {
+        get position(): Point {
+            // test this
+            return {
+                x: this.x,
+                y: this.y
+            }
+        }
+
+        get screenX(): number {
+            // CHECK PHASER IMPLEMENTATION
             return this.x - camera.x
         }
-        set screenX(newX) {
+        set screenX(newX: number) {
             this.x = camera.x - newX
         }
     
-        get screenY() {
+        get screenY(): number {
             return this.y - camera.y
         }
-        set screenY(newY) {
+        set screenY(newY: number) {
             this.y = camera.y - newY
         }
 
+        // goTo overloads, can go to:
+        //  - A Point instance (any object containing x/y props)
+        //  - A point defined with 2 args
+        // Also test these
         goTo(position: Point): void
         goTo(x: number, y: number): void
         goTo(xOrPoint: number | Point, y?: number) {
@@ -85,9 +108,10 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         goToMouse() {
+            // CHECK PHASER IMPLEMENTATION
             // Super slow in a forever loop, look into this
-            if (this._pixiObj) this._pixiObj.x = mouseX + app.screen.width / 2
-            if (this._pixiObj) this._pixiObj.y = -mouseY + app.screen.height / 2
+            // if (this._refObj) this._refObj.x = mouseX + app.screen.width / 2
+            // if (this._refObj) this._refObj.y = -mouseY + app.screen.height / 2
         }
 
         goToRandom() {
@@ -100,11 +124,14 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         _updateX() {
-            if (this._pixiObj) this._pixiObj.x = this.x + app.screen.width / 2 - camera.x
+            // if (this._refObj) this._refObj.x = this.x + app.screen.width / 2 - camera.x
+            if (this._refObj) this._refObj.x = this.x + screen.width / 2 - camera.x
+            // if (this._refObj) console.log(`setting actual x to ${this.x + screen.width / 2 - camera.x}`)
         }
 
         _updateY() { 
-            if (this._pixiObj) this._pixiObj.y = -this.y + app.screen.height / 2 + camera.y
+            // if (this._refObj) this._refObj.y = -this.y + app.screen.height / 2 + camera.y
+            if (this._refObj) this._refObj.y = -this.y + screen.height / 2 + camera.y
         }
     }
 }
@@ -118,10 +145,11 @@ type SizableProps = {
 
 export function Sizable<Base extends Class>(base: Base) {
     return class Sizable extends base {
-        _pixiObj?: any
-        _width?: number
-        _height?: number
-        _scale?: number
+        _refObj?: any
+        _width: number = 0
+        _height: number = 0
+        _scale: number = 0
+        // scaleX / scaleY ?
 
         constructor(...args: any[]) {
             // What happens when both width//height and scale are provided?
@@ -132,41 +160,47 @@ export function Sizable<Base extends Class>(base: Base) {
             // Can't null-ish coalesce bc sprites set their own default width/height
             if ((props?.width !== undefined && props?.scale !== undefined) || (props?.height !== undefined && props?.scale !== undefined)) {
                 // Handle conflict between width/scale
+            } else {
+                if (props?.width !== undefined) this.width = props.width
+                if (props?.height !== undefined) this.height = props.height
+                if (props?.scale !== undefined) this.scale = props.scale
             }
-            if (props?.width !== undefined) this.width = props.width
-            if (props?.height !== undefined) this.height = props.height
-            this.scale = props?.scale ?? 1
+            // if (props?.width !== undefined) this.width = props.width
+            // if (props?.height !== undefined) this.height = props.height
+            // this.scale = props?.scale ?? 1 // Can't add this until potential conflict is handled
         }
 
-        get width() {
-            if (this._pixiObj) return this._pixiObj.width
+        get width(): number {
+            if (this._refObj) return this._refObj.displayWidth
             return this._width
         }
-        set width(width) {
+        set width(width: number) {
             this._width = width
-            if (this._pixiObj) this._pixiObj.width = width
+            if (this._refObj) this._refObj.displayWidth = width
         }
 
-        get height() {
-            if (this._pixiObj) return this._pixiObj.height
+        // A way to reset sprite size to default? Just use scale = 1?
+        get height(): number {
+            if (this._refObj) return this._refObj.displayHeight
             return this._height
         }
-        set height(height) {
+        set height(height: number) {
             this._height = height
-            if (this._pixiObj) this._pixiObj.height = height
+            if (this._refObj) this._refObj.displayHeight = height
         }
 
-        get scale() {
-            if (this._pixiObj) return this._pixiObj.scale.x // Assuming uniform scale for now
+        get scale(): number {
+            if (this._refObj) return this._refObj.scale // Assuming uniform scale for now
             return this._scale
         }
-        set scale(scale) {
+        set scale(scale: number) {
             this._scale = scale
             this._updateScale()
         }
 
         _updateScale() {
-            if (this._pixiObj) this._pixiObj.scale.set(this._scale)
+            // if (this._refObj) this._refObj.scale.set(this._scale)
+            if (this._refObj) this._refObj.scale = this._scale
         }
     }
 }
@@ -179,7 +213,7 @@ type RotatableProps = {
 export function Rotatable<Base extends Class>(base: Base) {
     return class Rotatable extends base {
         _rotation: number = 0
-        _pixiObj?: any
+        _refObj?: any
 
         constructor(...args: any[]) {
             super()
@@ -199,78 +233,105 @@ export function Rotatable<Base extends Class>(base: Base) {
             }
         }
 
-        // Rotation doesn't work
-        get rotation() {
+        get rotation(): number {
             return this._rotation
         }
-        set rotation(angle) {
+        set rotation(angle: number) {
             this._rotation = angle
-            if (this._pixiObj) this._pixiObj.rotation = deg2rad(angle)
+            if (this._refObj) this._refObj.rotation = deg2rad(angle)
         }
         
-        // ...but radians does?? Why?
-        get radians() {
+        get radians(): number {
             return deg2rad(this._rotation)
         }
-        set radians(rad) {
+        set radians(rad: number) {
             this._rotation = rad2deg(rad)
-            if (this._pixiObj) this._pixiObj.rotation = rad
+            if (this._refObj) this._refObj.rotation = rad
+        }
+
+        pointTo(other: Point) {
+            // TODO
         }
     }
 }
 
+// (pointer: any, localX: number, localY: number, event: any) -- args from pointer event callbacks
+type PointerAction = ((x: number, y: number) => void) | undefined | null
+type Cursor = { src: string, type?: string } | undefined | null
 type ViewableProps = {
     alpha?: number
     layer?: number
     visible?: boolean
-    cursor?: string
-    onClick?(): void
+    cursor?: Cursor
+    onClick?: PointerAction
+    onRelease?: PointerAction
+    onMouseEnter?: PointerAction
+    onMouseExit?: PointerAction
 }
 
-export function Viewable<Base extends Class>(base: Base) {
+export function Viewable<Base extends Class>(base: Base) {    
     return class Viewable extends base {
+        // TODO:
+        // - tint
+        // - blend mode
+        // - effects?
+        // - more input events (double click, right click, scroll, mousemove, mouseup...)
+        // - draggable
+
+        _refObj?: any
+        isInteractive: boolean = false
+        
+        // Required props
         _alpha: number = defaults.alpha
         _layer: number = defaults.layer
         _visible: boolean = defaults.visible
-        _cursor: string = defaults.cursor
-        _onClick: () => void = defaults.onClick
-        _pixiObj?: any
+        
+        // Optional props
+        _cursor?: Cursor
+        _onClick?: PointerAction
+        _onRelease?: PointerAction
+        _onMouseEnter?: PointerAction
+        _onMouseExit?: PointerAction
 
         constructor(...args: any[]) {
             super()
         }
 
         initViewable(props?: GameObjectProps) {
-            this.alpha = props?.alpha ?? 100
-            this.layer = props?.layer ?? 0
-            this.cursor = props?.cursor ?? 'default'
-            this.visible = props?.visible ?? true
-            this.onClick = props?.onClick ?? (() => {})
+            this.alpha = props?.alpha ?? defaults.alpha
+            this.layer = props?.layer ?? defaults.layer
+            this.visible = props?.visible ?? defaults.visible
+            
+            if (props?.cursor) this.cursor = props.cursor
+            if (props?.onClick) this.onClick = props.onClick
+            if (props?.onRelease) this.onRelease = props.onRelease
+            if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
+            if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
         }
-
-        get alpha() {
+        get alpha(): number {
             return this._alpha
         }
-        set alpha(alpha) {
+        set alpha(alpha: number) {
             this._alpha = alpha
-            if (this._pixiObj) this._pixiObj.alpha = alpha / 100
+            if (this._refObj) this._refObj.setAlpha(alpha / 100)
         }
         
-        get layer() {
+        // Update for phaser
+        get layer(): number {
             return this._layer
         }
-        set layer(layer) {
+        set layer(layer: number) {
             this._layer = layer
-            if (this._pixiObj) this._pixiObj.zIndex = layer
+            if (this._refObj) this._refObj.setDepth(layer)
         }
 
-        get visible() {
+        get visible(): boolean {
             return this._visible
         }
-        set visible(visible) {
+        set visible(visible: boolean) {
             this._visible = visible
 
-            if (this._pixiObj) {
+            if (this._refObj) {
                 if (visible) {
                     this.show()
                 } else {
@@ -279,38 +340,166 @@ export function Viewable<Base extends Class>(base: Base) {
             }
         }
 
-        get cursor() {
+        get cursor(): Cursor {
             return this._cursor
         }
-        set cursor(cursor) {
-            this._cursor = cursor
-            if (this._pixiObj) this._pixiObj.cursor = cursor
+        set cursor(cursor: Cursor | string) {
+            // Cursor arg is either a string or an object that allows user to define image src as well as system fallback cursor type
+            // if string: just use it as the src and set type to default
+            if (!this._refObj || !cursor) return
+            
+            let cursorObj: Cursor
+            if (typeof cursor === typeof 'string') {
+                cursorObj = {
+                    src: cursor as string,
+                    type: 'default'
+                }
+            } else {
+                cursorObj = {
+                    src: (cursor as Cursor)?.src ?? 'default',
+                    type: (cursor as Cursor)?.type ?? 'default'
+                }
+            }
+            
+            if (!cursor || cursorObj.src === 'default') {
+                // Disable interactive here if no input actions are defined
+                this._cursor = undefined
+                this._refObj.input.cursor = false
+                return
+            }
+
+            this.setInteractive()
+            this._cursor = cursorObj
+
+            // Absolutely find a better way to do this, just testing for now
+            const url = `url(cursors/${cursorObj.src})`
+            const offset = cursor === 'dot_large.png' ? '16 16' : '' // manual offset only needed for non-.cur images
+            
+            this._refObj.input.cursor = `${url} ${offset}, ${cursorObj.type}`
         }
 
-        get onClick() {
+        get onClick(): PointerAction {
             return this._onClick
         }
-        set onClick(onClick) {
-            // Logic to actually RE-assign onClick instead of just assigning new every time?
-            // (garbage collect)
+        set onClick(onClick: PointerAction) {
+            // Using PhaserObject.off(inputEvent, fn) doesn't seem to remove specific callbacks
+            // Just removing all listeners indiscriminately before assigning new for now
+            if (!this._refObj) return
+
+            this._replacePointerListener(
+                Phaser.Input.Events.POINTER_DOWN,
+                onClick
+            )
             this._onClick = onClick
-            if (this._pixiObj) {
-                this._pixiObj.on('click', () => {
-                    if (!paused) this.onClick()
-                })
-            }
+        }
+        
+        get onRelease(): PointerAction {
+            return this._onRelease
+        }
+        set onRelease(onRelease: PointerAction) {
+            if (!this._refObj) return
+
+            this._replacePointerListener(
+                Phaser.Input.Events.POINTER_UP,
+                onRelease
+            )
+            this._onRelease = onRelease
         }
 
+        get onMouseEnter(): PointerAction {
+            return this._onMouseEnter
+        }
+        set onMouseEnter(onMouseEnter: PointerAction) {
+            if (!this._refObj) return
+
+            this._replacePointerListener(
+                Phaser.Input.Events.POINTER_OVER,
+                onMouseEnter
+            )
+            this._onMouseEnter = onMouseEnter
+        }
+
+        get onMouseExit(): PointerAction {
+            return this._onMouseExit
+        }
+        set onMouseExit(onMouseExit: PointerAction) {
+            if (!this._refObj) return
+            
+            this._replacePointerListener(
+                Phaser.Input.Events.POINTER_OUT,
+                onMouseExit
+            )
+            this._onMouseExit = onMouseExit
+        }
+        
         resetCursor() {
             this.cursor = 'default'
         }
+        
+        setInteractive() {
+            // Set's phaser object's interactive state if it isn't already
+            if (!this._refObj) return
+            
+            if (!this.isInteractive) {
+                this._refObj.setInteractive()
+                this.isInteractive = true
+            }
+        }
 
+        disableInteractive() {
+            if (!this._refObj) return
+            
+            if (this.isInteractive) {
+                this._refObj.disableInteractive()
+                this.isInteractive = false
+            }
+        }
+
+        // Internal, for pointer events
+        _replacePointerListener(inputEvent: string, callback: PointerAction) {
+            if (!this._refObj) return
+            
+            // Look for a way to disable the specific listener to be replaced. Maybe if
+            // callback is a function, store a reference somewhere then retrieve here?
+            // For now, just remove all listeners
+            this._refObj.off(inputEvent)
+
+            if (!callback) return
+            this.setInteractive()
+            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
+                if (!paused) callback(localX, localY)
+            })
+        }
+
+        // _removeListener(inputEvent: string, callback: PointerAction) {
+        //     if (!this._refObj) return
+        // }
+        
         show() {
-            if (this._pixiObj) this._pixiObj.visible = true
+            if (this._refObj) this._refObj.visible = true
         }
 
         hide() {
-            if (this._pixiObj) this._pixiObj.visible = false
+            if (this._refObj) this._refObj.visible = false
+        }
+
+        sendToFrontLayer() {
+            // TODO: Send to front layer
+        }
+        
+        sendToBackLayer() {
+            // TODO: Send to back layer
+        }
+
+        // layerUp() {
+        // }
+        // layerDown() {
+        // }
+        sendToLayerAbove(other: Viewable) {
+            // TODO: Send to layer above other
+        }
+        sendToLayerBelow(other: Viewable) {
+            // TODO: Send to layer below other
         }
     }
 }
@@ -324,8 +513,9 @@ export function Timeable<Base extends Class>(base: Base) {
             this._initTime = Timer.time
         }
 
-        get age() {
-            return Timer.time - this._initTime
+        get age(): number {
+            // Returns this object's age in seconds not including pause time
+            return (Timer.time - this._initTime) / 1000
         }
     }
 }

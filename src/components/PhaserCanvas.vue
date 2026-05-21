@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { app, setup, mouseRef, fpsRef, pause, play, pausedRef, print } from '@/assets/api/core'
+// import { /*mouseRef, fpsRef,*/ /*pause, play, pausedRef, print*/ } from '@/assets/api/core'
+import { game, setup, mouseRef, resizeStage, pause, play, pausedRef, print } from '@/assets/api/corephaser'
 import { useFullscreenStore } from '@/stores/fullscreen'
+// import { AUTO, Game, Scene, type Types } from 'phaser'
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const fps = ref()
@@ -9,7 +11,8 @@ const fpsColor = ref()
 const fsStore = useFullscreenStore()
 
 function updateFpsInterval() {
-  fps.value = fpsRef.value
+  fps.value = Math.round(game.loop.actualFps)
+
   if (fps.value >= 55) {
     fpsColor.value = 'SpringGreen'
   } else if (fps.value >= 30) {
@@ -26,10 +29,15 @@ function updateFpsInterval() {
 const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
 onMounted(async () => {
-  // await setup()
-  // canvas.value?.appendChild(app.canvas)
-  // window.setInterval(updateFpsInterval, 250)
-  // emit('ready')
+    setup()
+
+    resizeStage()
+    // new Promise(resolve => setTimeout(resolve, 250)).then(() => {
+    //   resizeStage()
+    // })
+
+    window.setInterval(updateFpsInterval, 250)
+    emit('ready')
 })
 </script>
 
@@ -67,7 +75,7 @@ onMounted(async () => {
       <!-- Fullscreen -->
       <img @click="$emit('fullscreen')" class="img-button" :src="fsStore.icon" />
     </div>
-    <div id="game-container" ref="canvas" class="canvas"></div>
+    <div id="game-container" class="canvas"></div>
   </div>
 </template>
 
@@ -84,41 +92,10 @@ onMounted(async () => {
 }
 
 .canvas {
-  height: 0;
-  flex: 1 1 auto;
-  background-color: magenta; /* Magenta for debugging; update this from core whenever bg color is set */
-}
-
-.panel-wrapper {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--nord-background-dark);
-}
-
-.panel-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: var(--nord-text-bright);
-  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-  /* display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
-  justify-items: center; */
-	max-height: 24px;
-  min-height: 24px;
-  padding-left: 0.1em;
-  padding-right: 0.2em;
-}
-
-.img-button {
-  display: block;
-  height: 24px;
-  transition: 0.15s;
-  filter: brightness(0.8)
-}
-.img-button:hover {
-  /* background: radial-gradient(rgba(255, 255, 255, 0.07), transparent); */
-  filter: brightness(1);
-  cursor: pointer;
+  flex: 1;
+  overflow: hidden;
+  justify-content: center;
+  background-color: #353b48; /* Magenta for debugging; update this from core whenever bg color is set */
+  /* background-color: magenta;  */
 }
 </style>

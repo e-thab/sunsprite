@@ -1,6 +1,6 @@
 {
   "name": "pixi-testing",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -24,6 +24,7 @@
     "monaco-editor": "^0.55.1",
     "monaco-editor-vue3": "^1.0.5",
     "monaco-editor-webpack-plugin": "^7.1.1",
+    "phaser": "4.1.0",
     "pinia": "^3.0.4",
     "pixi.js": "^8.17.1",
     "primeicons": "^7.0.0",

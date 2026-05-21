@@ -147,6 +147,9 @@ export const screen: Screen = {
 	},
 	get right(): number {
 		return camera.x + this.width / 2
+	},
+	get center(): [number, number] {
+		return [app.screen.width/2, app.screen.height/2]
 	}
 }
 

@@ -1,7 +1,6 @@
 /**
  * Interfaces
  */
-
 export type Action = (...args: any[]) => void
 export type Predicate = (...args: any[]) => boolean
 
@@ -30,8 +29,8 @@ export interface RepeatableUntil extends Omit<Repeatable, 'count'> {
 
 /* Used for after() & every() */
 export interface Delayable {
-	seconds: number
-	duration: number
+	elapsedMs: number
+	lifetimeMs: number
 	fn: Action
 }
 
@@ -42,6 +41,7 @@ export interface Screen {
 	bottom: number
 	right: number
 	left: number
+	center: [number, number] // <- at some point, make this required so it can be spread '...center'
 }
 
 export interface Point {

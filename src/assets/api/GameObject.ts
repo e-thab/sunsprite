@@ -1,5 +1,5 @@
-import type { Touchable } from "./interfaces"
-import { Sizable, Positionable, Rotatable, Viewable, Timeable } from "./mixins"
+import type { Point, Touchable } from "./interfaces"
+import { Sizable, Positionable, Rotatable, Viewable, Timeable, type GameObjectProps } from "./mixins"
 
 /**
  * General type for most objects actually rendered in the game. Saves the trouble of
@@ -23,6 +23,14 @@ export default abstract class GameObject extends
         super()
     }
 
+    // WIP
+    initMixins(props: GameObjectProps) {
+        this.initPositionable(props)
+        this.initSizable(props)
+        this.initRotatable(props)
+        this.initViewable(props)
+    }
+
     get left(): number {
         return this.x - this.width / 2
     }
@@ -37,16 +45,82 @@ export default abstract class GameObject extends
         return this.y + this.height / 2
     }
     //set top(top: number)
-
+    
     get bottom(): number {
         return this.y - this.height / 2
     }
     //set bottom(bottom: number)
 
+    get topLeft(): Point {
+        return {
+            x: this.left,
+            y: this.top
+        }
+    }
+    // set topLeft(topLeft: Point)
+
+    get topCenter(): Point {
+        return {
+            x: this.x,
+            y: this.top
+        }
+    }
+    // set topCenter(topCenter: Point)
+
+    get topRight(): Point {
+        return {
+            x: this.right,
+            y: this.top
+        }
+    }
+    // set topRight(topRight: Point)
+
+    get leftCenter(): Point {
+        return {
+            x: this.left,
+            y: this.y
+        }
+    }
+    // set leftCenter(leftCenter: Point)
+
+    get rightCenter(): Point {
+        return {
+            x: this.right,
+            y: this.y
+        }
+    }
+    // set rightCenter(rightCenter: Point)
+
+    get bottomLeft(): Point {
+        return {
+            x: this.left,
+            y: this.bottom
+        }
+    }
+    // set bottomLeft(bottomLeft: Point)
+
+    get bottomCenter(): Point {
+        return {
+            x: this.x,
+            y: this.bottom
+        }
+    }
+    // set bottomCenter(bottomCenter: Point)
+    
+    get bottomRight(): Point {
+        return {
+            x: this.right,
+            y: this.bottom
+        }
+    }
+    // set bottomRight(bottomRight: Point)
+    
     touching(other: Touchable): boolean {
-        return !(this.right < other.left ||
-                 this.left > other.right ||
-                 this.top < other.bottom ||
-                 this.bottom > other.top)
+        return !(
+            this.right < other.left ||
+            this.left > other.right ||
+            this.top < other.bottom ||
+            this.bottom > other.top
+        )
     }
 }
