@@ -4,7 +4,7 @@ import { deg2rad, rad2deg, randomPosition } from "./utility"
 import type { Action, Point } from "./interfaces"
 import { screen, camera, Timer, /*mouseX, mouseY,*/ paused } from "./corephaser"
 
-import Phaser from "phaser"
+import Phaser, { Input } from "phaser"
 
 type Class<T = {}> = new (...args: any[]) => T
 
@@ -52,18 +52,18 @@ export function Positionable<Base extends Class>(base: Base) {
             this.y = props?.y ?? 0
         }
 
-        get x() {
+        get x(): number {
             return this._x
         }
-        set x(x) {
+        set x(x: number) {
             this._x = x
             this._updateX()
         }
 
-        get y() {
+        get y(): number {
             return this._y
         }
-        set y(y) {
+        set y(y: number) {
             this._y = y
             this._updateY()
         }
@@ -71,27 +71,30 @@ export function Positionable<Base extends Class>(base: Base) {
         get position(): Point {
             // test this
             return {
-                x: this._x,
-                y: this._y
+                x: this.x,
+                y: this.y
             }
         }
 
-        get screenX() {
+        get screenX(): number {
             // CHECK PHASER IMPLEMENTATION
             return this.x - camera.x
         }
-        set screenX(newX) {
+        set screenX(newX: number) {
             this.x = camera.x - newX
         }
     
-        get screenY() {
+        get screenY(): number {
             return this.y - camera.y
         }
-        set screenY(newY) {
+        set screenY(newY: number) {
             this.y = camera.y - newY
         }
 
-        // test these
+        // goTo overloads, can go to:
+        //  - A Point instance (any object containing x/y props)
+        //  - A point defined with 2 args
+        // Also test these
         goTo(position: Point): void
         goTo(x: number, y: number): void
         goTo(xOrPoint: number | Point, y?: number) {
@@ -105,8 +108,8 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         goToMouse() {
-            // Super slow in a forever loop, look into this
             // CHECK PHASER IMPLEMENTATION
+            // Super slow in a forever loop, look into this
             // if (this._refObj) this._refObj.x = mouseX + app.screen.width / 2
             // if (this._refObj) this._refObj.y = -mouseY + app.screen.height / 2
         }
@@ -143,9 +146,9 @@ type SizableProps = {
 export function Sizable<Base extends Class>(base: Base) {
     return class Sizable extends base {
         _refObj?: any
-        _width?: number
-        _height?: number
-        _scale?: number
+        _width: number = 0
+        _height: number = 0
+        _scale: number = 0
         // scaleX / scaleY ?
 
         constructor(...args: any[]) {
@@ -167,29 +170,30 @@ export function Sizable<Base extends Class>(base: Base) {
             // this.scale = props?.scale ?? 1 // Can't add this until potential conflict is handled
         }
 
-        get width() {
+        get width(): number {
             if (this._refObj) return this._refObj.displayWidth
             return this._width
         }
-        set width(width) {
+        set width(width: number) {
             this._width = width
             if (this._refObj) this._refObj.displayWidth = width
         }
 
-        get height() {
+        // A way to reset sprite size to default? Just use scale = 1?
+        get height(): number {
             if (this._refObj) return this._refObj.displayHeight
             return this._height
         }
-        set height(height) {
+        set height(height: number) {
             this._height = height
             if (this._refObj) this._refObj.displayHeight = height
         }
 
-        get scale() {
+        get scale(): number {
             if (this._refObj) return this._refObj.scale // Assuming uniform scale for now
             return this._scale
         }
-        set scale(scale) {
+        set scale(scale: number) {
             this._scale = scale
             this._updateScale()
         }
@@ -229,20 +233,24 @@ export function Rotatable<Base extends Class>(base: Base) {
             }
         }
 
-        get rotation() {
+        get rotation(): number {
             return this._rotation
         }
-        set rotation(angle) {
+        set rotation(angle: number) {
             this._rotation = angle
             if (this._refObj) this._refObj.rotation = deg2rad(angle)
         }
         
-        get radians() {
+        get radians(): number {
             return deg2rad(this._rotation)
         }
-        set radians(rad) {
+        set radians(rad: number) {
             this._rotation = rad2deg(rad)
             if (this._refObj) this._refObj.rotation = rad
+        }
+
+        pointTo(other: Point) {
+            // TODO
         }
     }
 }
@@ -300,49 +308,7 @@ export function Viewable<Base extends Class>(base: Base) {
             if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
             if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
         }
-
-        setInteractive() {
-            // Set's phaser object's interactive state if it isn't already
-            if (!this._refObj) return
-            
-            if (!this.isInteractive) {
-                this._refObj.setInteractive()
-                this.isInteractive = true
-            }
-        }
-
-        disableInteractive() {
-            if (!this._refObj) return
-            
-            if (this.isInteractive) {
-                this._refObj.disableInteractive()
-                this.isInteractive = false
-            }
-        }
-
-        // Internal, for pointer events
-        _addListener(inputEvent: string, callback: PointerAction) {
-            if (!this._refObj) return
-            
-            // TODO
-            // TODO
-            // TODO
-            // TODO
-            // TODO
-            // TODO
-            // Finish this; use isntead of logic inside onInput events ...
-
-            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
-                if (!paused) callback(localX, localY)
-            })
-        }
-
-        _removeListener(inputEvent: string, callback: PointerAction) {
-            if (!this._refObj) return
-            
-        }
-        
-        get alpha() {
+        get alpha(): number {
             return this._alpha
         }
         set alpha(alpha: number) {
@@ -351,7 +317,7 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         
         // Update for phaser
-        get layer() {
+        get layer(): number {
             return this._layer
         }
         set layer(layer: number) {
@@ -359,7 +325,7 @@ export function Viewable<Base extends Class>(base: Base) {
             if (this._refObj) this._refObj.setDepth(layer)
         }
 
-        get visible() {
+        get visible(): boolean {
             return this._visible
         }
         set visible(visible: boolean) {
@@ -374,7 +340,7 @@ export function Viewable<Base extends Class>(base: Base) {
             }
         }
 
-        get cursor() {
+        get cursor(): Cursor {
             return this._cursor
         }
         set cursor(cursor: Cursor | string) {
@@ -394,7 +360,7 @@ export function Viewable<Base extends Class>(base: Base) {
                     type: (cursor as Cursor)?.type ?? 'default'
                 }
             }
-                        
+            
             if (!cursor || cursorObj.src === 'default') {
                 // Disable interactive here if no input actions are defined
                 this._cursor = undefined
@@ -419,82 +385,96 @@ export function Viewable<Base extends Class>(base: Base) {
             // Using PhaserObject.off(inputEvent, fn) doesn't seem to remove specific callbacks
             // Just removing all listeners indiscriminately before assigning new for now
             if (!this._refObj) return
-            
-            const inputEvent = Phaser.Input.Events.POINTER_DOWN
-            if (this.onClick) this._refObj.off(inputEvent/*, this.onClick*/)
+
+            this._replacePointerListener(
+                Phaser.Input.Events.POINTER_DOWN,
+                onClick
+            )
             this._onClick = onClick
-
-            if (!onClick) return
-            this.setInteractive()
-            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
-                if (!paused) onClick(localX, localY)
-            })
         }
-
-        get onRelease() {
+        
+        get onRelease(): PointerAction {
             return this._onRelease
         }
         set onRelease(onRelease: PointerAction) {
             if (!this._refObj) return
 
-            const inputEvent = Phaser.Input.Events.POINTER_UP
-            if (this.onRelease) this._refObj.off(inputEvent)
+            this._replacePointerListener(
+                Phaser.Input.Events.POINTER_UP,
+                onRelease
+            )
             this._onRelease = onRelease
-
-            if (!onRelease) return
-            this.setInteractive()
-            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
-                if (!paused) onRelease(localX, localY)
-            })
         }
 
-        get onMouseEnter() {
+        get onMouseEnter(): PointerAction {
             return this._onMouseEnter
         }
         set onMouseEnter(onMouseEnter: PointerAction) {
-            // When paused?
             if (!this._refObj) return
 
-            const inputEvent = Phaser.Input.Events.POINTER_OVER
-            const currentCallback = this.onMouseEnter
+            this._replacePointerListener(
+                Phaser.Input.Events.POINTER_OVER,
+                onMouseEnter
+            )
             this._onMouseEnter = onMouseEnter
-
-            if (!onMouseEnter) {
-                if (currentCallback) this._refObj.off(inputEvent, currentCallback)
-                return
-            }
-
-            this.setInteractive()
-            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
-                if (!paused) onMouseEnter(localX, localY)
-            })
         }
 
-        get onMouseExit() {
+        get onMouseExit(): PointerAction {
             return this._onMouseExit
         }
         set onMouseExit(onMouseExit: PointerAction) {
             if (!this._refObj) return
-
-            const inputEvent = Phaser.Input.Events.POINTER_OUT
-            const currentCallback = this.onMouseExit
-            this._onMouseExit = onMouseExit
-
-            if (!onMouseExit) {
-                if (currentCallback) this._refObj.off(inputEvent, currentCallback)
-                return
-            }
             
-            this.setInteractive()
-            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
-                if (!paused) onMouseExit(localX, localY)
-            })
+            this._replacePointerListener(
+                Phaser.Input.Events.POINTER_OUT,
+                onMouseExit
+            )
+            this._onMouseExit = onMouseExit
         }
-
+        
         resetCursor() {
             this.cursor = 'default'
         }
+        
+        setInteractive() {
+            // Set's phaser object's interactive state if it isn't already
+            if (!this._refObj) return
+            
+            if (!this.isInteractive) {
+                this._refObj.setInteractive()
+                this.isInteractive = true
+            }
+        }
 
+        disableInteractive() {
+            if (!this._refObj) return
+            
+            if (this.isInteractive) {
+                this._refObj.disableInteractive()
+                this.isInteractive = false
+            }
+        }
+
+        // Internal, for pointer events
+        _replacePointerListener(inputEvent: string, callback: PointerAction) {
+            if (!this._refObj) return
+            
+            // Look for a way to disable the specific listener to be replaced. Maybe if
+            // callback is a function, store a reference somewhere then retrieve here?
+            // For now, just remove all listeners
+            this._refObj.off(inputEvent)
+
+            if (!callback) return
+            this.setInteractive()
+            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
+                if (!paused) callback(localX, localY)
+            })
+        }
+
+        // _removeListener(inputEvent: string, callback: PointerAction) {
+        //     if (!this._refObj) return
+        // }
+        
         show() {
             if (this._refObj) this._refObj.visible = true
         }
@@ -533,7 +513,8 @@ export function Timeable<Base extends Class>(base: Base) {
             this._initTime = Timer.time
         }
 
-        get age() {
+        get age(): number {
+            // Returns this object's age in seconds not including pause time
             return (Timer.time - this._initTime) / 1000
         }
     }
