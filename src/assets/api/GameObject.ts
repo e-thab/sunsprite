@@ -23,6 +23,9 @@ export default abstract class GameObject extends
         super()
     }
 
+    // NEW FEATURE
+    // NEW FEATURE
+
     // WIP
     initMixins(props: GameObjectProps) {
         this.initPositionable(props)
