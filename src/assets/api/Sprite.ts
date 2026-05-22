@@ -37,27 +37,10 @@ export default class Sprite extends GameObject {
         this.src = props?.src
         
         // Set mixin props
-        this.initPositionable(props)
-        this.initSizable(props)
-        this.initRotatable(props)
-        this.initViewable(props)
-
-        // Sprites may flicker on creation without this delay
-        if (this.visible) {
-            sprite.setVisible(false)
-            new Promise(resolve => setTimeout(resolve, 0)).then(() => sprite.setVisible(true))
-        }
+        this.initMixins(props)
+        // Rectangles may flicker on creation without this delay
+        this.queueVisible()
         
-        // // Temp
-        // sprite.eventMode = 'dynamic'
-        // // 	sprite.on('mousedown', () => {
-        // // 		this.cursor = 'handClosed'
-        // // 		// app.renderer.events.setCursor('handClosed')
-        // // 	})
-        // // 	sprite.on('mouseup', () => {
-        // // 		this.cursor = 'handOpen'
-        // // 		// app.renderer.events.setCursor('handOpen')
-        // // 	})
         allPositionables.push(this)
     }
     

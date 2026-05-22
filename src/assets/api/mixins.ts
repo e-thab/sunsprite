@@ -308,6 +308,17 @@ export function Viewable<Base extends Class>(base: Base) {
             if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
             if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
         }
+
+        queueVisible() {
+            // Visible objects may flicker on create without this delay
+            if (!this._refObj) return
+
+            if (this.visible) {
+                this._refObj.setVisible(false)
+                new Promise(resolve => setTimeout(resolve, 0)).then(() => this._refObj.setVisible(true))
+            }
+        }
+
         get alpha(): number {
             return this._alpha
         }

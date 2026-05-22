@@ -28,21 +28,10 @@ export default class Rectangle extends GameObject {
         this._color = props?.color ?? '#fff'
         this.color = this._color
 
-        // TEMP
-        // this._rect.on('pointerover', () => this.color = '#f00')
-        // this._rect.on('pointerout', () => this.color = '#fff')
-
         // Set mixin props
-        this.initPositionable(props)
-        this.initSizable(props)
-        this.initRotatable(props)
-        this.initViewable(props)
-
+        this.initMixins(props)
         // Rectangles may flicker on creation without this delay
-        if (this.visible) {
-            rect.setVisible(false)
-            new Promise(resolve => setTimeout(resolve, 0)).then(() => rect.setVisible(true))
-        }
+        this.queueVisible()
         
         allPositionables.push(this)
 	}

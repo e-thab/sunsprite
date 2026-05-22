@@ -24,7 +24,7 @@ export default abstract class GameObject extends
     }
     
     // WIP
-    initMixins(props: GameObjectProps) {
+    initMixins(props?: GameObjectProps) {
         this.initPositionable(props)
         this.initSizable(props)
         this.initRotatable(props)
