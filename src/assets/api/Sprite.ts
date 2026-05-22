@@ -20,9 +20,6 @@ import Phaser from "phaser"
  * 	- animation
 */
 
-// THIS IS MY NEW
-// FEATURE
-
 type SpriteProps = GameObjectProps & {
     src?: string
 }

@@ -37,6 +37,12 @@ export default class Rectangle extends GameObject {
         this.initSizable(props)
         this.initRotatable(props)
         this.initViewable(props)
+
+        // Rectangles may flicker on creation without this delay
+        if (this.visible) {
+            rect.setVisible(false)
+            new Promise(resolve => setTimeout(resolve, 0)).then(() => rect.setVisible(true))
+        }
         
         allPositionables.push(this)
 	}

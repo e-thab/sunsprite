@@ -22,10 +22,7 @@ export default abstract class GameObject extends
         // This constructor would also need to receive args and pass the props object to super
         super()
     }
-
-    // NEW FEATURE
-    // NEW FEATURE
-
+    
     // WIP
     initMixins(props: GameObjectProps) {
         this.initPositionable(props)
