@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 // import { /*mouseRef, fpsRef,*/ /*pause, play, pausedRef, print*/ } from '@/assets/api/core'
-import { game, setup, mouseRef, resizeStage, pause, play, pausedRef, print } from '@/assets/api/corephaser'
+import { game, setup, mouseRef, resizeStage, pause, play, pausedRef, print } from '@/assets/api/core'
 import { useFullscreenStore } from '@/stores/fullscreen'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 

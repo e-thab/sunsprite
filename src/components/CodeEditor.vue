@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { /*runUserCode,*/ startCode, print } from '@/assets/api/core';
-import { runUserCode } from '@/assets/api/corephaser';
+import { runUserCode } from '@/assets/api/core';
 import { completions } from '@/assets/code-completion/codemirror-completions';
 import { Codemirror } from 'vue-codemirror';
 import { javascript } from '@codemirror/lang-javascript'

@@ -2,34 +2,34 @@
 // import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, randomPosition } from "./utility"
 import type { Action, Point } from "./interfaces"
-import { screen, camera, Timer, /*mouseX, mouseY,*/ paused } from "./corephaser"
+import { screen, camera, timer, /*mouseX, mouseY,*/ paused } from "./core"
 
 import Phaser, { Input } from "phaser"
 
 type Class<T = {}> = new (...args: any[]) => T
 
-export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & ViewableProps /* ...etc. */
-export const defaults: Required<GameObjectProps> = {
-    x: 0,
-    y: 0,
-    width: 100,
-    height: 100,
-    scale: 1,
-    rotation: 0,
-    radians: 0,
-    alpha: 100,
-    layer: 0,
-    cursor: {
-        src: 'default',
-        type: 'default'
-    },
-    visible: true,
-    onClick: () => {},
-    onRelease: () => {},
-    onMouseEnter: () => {},
-    onMouseExit: () => {},
-    // ...etc.
-}
+export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps /* ...etc. */
+// export const defaults: Required<GameObjectProps> = {
+//     x: 0,
+//     y: 0,
+//     width: 100,
+//     height: 100,
+//     scale: 1,
+//     rotation: 0,
+//     radians: 0,
+//     alpha: 100,
+//     layer: 0,
+//     cursor: {
+//         src: 'default',
+//         type: 'default'
+//     },
+//     visible: true,
+//     onClick: () => {},
+//     onRelease: () => {},
+//     onMouseEnter: () => {},
+//     onMouseExit: () => {},
+//     // ...etc.
+// }
 
 type PositionableProps = {
     x?: number
@@ -255,18 +255,10 @@ export function Rotatable<Base extends Class>(base: Base) {
     }
 }
 
-// (pointer: any, localX: number, localY: number, event: any) -- args from pointer event callbacks
-type PointerAction = ((x: number, y: number) => void) | undefined | null
-type Cursor = { src: string, type?: string } | undefined | null
 type ViewableProps = {
     alpha?: number
     layer?: number
     visible?: boolean
-    cursor?: Cursor
-    onClick?: PointerAction
-    onRelease?: PointerAction
-    onMouseEnter?: PointerAction
-    onMouseExit?: PointerAction
 }
 
 export function Viewable<Base extends Class>(base: Base) {    
@@ -275,38 +267,20 @@ export function Viewable<Base extends Class>(base: Base) {
         // - tint
         // - blend mode
         // - effects?
-        // - more input events (double click, right click, scroll, mousemove, mouseup...)
-        // - draggable
 
         _refObj?: any
-        isInteractive: boolean = false
-        
-        // Required props
-        _alpha: number = defaults.alpha
-        _layer: number = defaults.layer
-        _visible: boolean = defaults.visible
-        
-        // Optional props
-        _cursor?: Cursor
-        _onClick?: PointerAction
-        _onRelease?: PointerAction
-        _onMouseEnter?: PointerAction
-        _onMouseExit?: PointerAction
+        _alpha: number = 100
+        _layer: number = 0
+        _visible: boolean = true
 
         constructor(...args: any[]) {
             super()
         }
 
         initViewable(props?: GameObjectProps) {
-            this.alpha = props?.alpha ?? defaults.alpha
-            this.layer = props?.layer ?? defaults.layer
-            this.visible = props?.visible ?? defaults.visible
-            
-            if (props?.cursor) this.cursor = props.cursor
-            if (props?.onClick) this.onClick = props.onClick
-            if (props?.onRelease) this.onRelease = props.onRelease
-            if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
-            if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
+            if (props?.alpha) this.alpha = props.alpha
+            if (props?.layer) this.layer = props.layer
+            if (props?.visible) this.visible = props.visible
         }
 
         queueVisible() {
@@ -350,6 +324,95 @@ export function Viewable<Base extends Class>(base: Base) {
                 }
             }
         }
+        
+        show() {
+            if (this._refObj) this._refObj.visible = true
+        }
+
+        hide() {
+            if (this._refObj) this._refObj.visible = false
+        }
+
+        sendToFrontLayer() {
+            // TODO: Send to front layer
+        }
+        
+        sendToBackLayer() {
+            // TODO: Send to back layer
+        }
+
+        // layerUp() {
+        // }
+        // layerDown() {
+        // }
+        sendToLayerAbove(other: Viewable) {
+            // TODO: Send to layer above other
+        }
+        sendToLayerBelow(other: Viewable) {
+            // TODO: Send to layer below other
+        }
+    }
+}
+
+// (pointer: any, localX: number, localY: number, event: any) -- args from pointer event callbacks
+type PointerAction = ((x: number, y: number) => void) | undefined | null
+
+type Cursor = {
+    src: string,
+    type?: string // type is actually the fallback 
+} | undefined | null
+
+type InteractableProps = {
+    draggable?: boolean
+    cursor?: Cursor
+    onClick?: PointerAction
+    onRelease?: PointerAction
+    onMouseEnter?: PointerAction
+    onMouseExit?: PointerAction
+    onDrag?: PointerAction
+    onDragStart?: PointerAction
+    onDragEnd?: PointerAction
+}
+
+export function Interactable<Base extends Class>(base: Base) {
+    return class Interactable extends base {
+        // TODO:
+        // - more input events (double click, right click, scroll, mousemove, mouseup...)
+        // - drag events
+        // - drag cursor
+
+        _refObj?: any
+        _cursor?: Cursor
+
+        _onClick?: PointerAction
+        _onRelease?: PointerAction
+        _onMouseEnter?: PointerAction
+        _onMouseExit?: PointerAction
+
+        _onDrag?: PointerAction
+        _onDragStart?: PointerAction
+        _onDragEnd?: PointerAction
+        
+        _draggable: boolean = false
+        isInteractive: boolean = false
+        
+        constructor(...args: any[]) {
+            super()
+        }
+
+        initInteractable(props?: GameObjectProps) {
+            if (props?.draggable) this.draggable = props.draggable
+            if (props?.cursor) this.cursor = props.cursor
+
+            if (props?.onClick) this.onClick = props.onClick
+            if (props?.onRelease) this.onRelease = props.onRelease
+            if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
+            if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
+
+            if (props?.onDrag) this.onDrag = props.onDrag
+            if (props?.onDragStart) this.onDragStart = props.onDragStart
+            if (props?.onDragEnd) this.onDragEnd = props.onDragEnd
+        }
 
         get cursor(): Cursor {
             return this._cursor
@@ -373,7 +436,7 @@ export function Viewable<Base extends Class>(base: Base) {
             }
             
             if (!cursor || cursorObj.src === 'default') {
-                // Disable interactive here if no input actions are defined
+                // Disable interactive here if no input actions are defined?
                 this._cursor = undefined
                 this._refObj.input.cursor = false
                 return
@@ -442,6 +505,59 @@ export function Viewable<Base extends Class>(base: Base) {
             )
             this._onMouseExit = onMouseExit
         }
+
+        get onDrag(): PointerAction {
+            return this._onDrag
+        }
+        set onDrag(onDrag: PointerAction) {
+            if (!this._refObj) return
+
+            this._replacePointerListener(
+                Phaser.Input.Events.DRAG,
+                onDrag
+            )
+            this._onDrag = onDrag
+        }
+
+        get onDragStart(): PointerAction {
+            return this._onDragStart
+        }
+        set onDragStart(onDragStart: PointerAction) {
+            if (!this._refObj) return
+
+            this._replacePointerListener(
+                Phaser.Input.Events.DRAG_START,
+                onDragStart
+            )
+            this._onDragStart = onDragStart
+        }
+
+        get onDragEnd(): PointerAction {
+            return this._onDragStart
+        }
+        set onDragEnd(onDragEnd: PointerAction) {
+            if (!this._refObj) return
+
+            this._replacePointerListener(
+                Phaser.Input.Events.DRAG_END,
+                onDragEnd
+            )
+            this._onDragEnd = onDragEnd
+        }
+
+
+        get draggable(): boolean {
+            return this._draggable
+        }
+        set draggable(draggable: boolean) {
+            if (!this._refObj) return
+            if (draggable === this._draggable) return
+
+            this._draggable = draggable
+            // if (!draggable && !this.isInteractive) {
+                this.setInteractive()
+            // }
+        }
         
         resetCursor() {
             this.cursor = 'default'
@@ -452,7 +568,11 @@ export function Viewable<Base extends Class>(base: Base) {
             if (!this._refObj) return
             
             if (!this.isInteractive) {
-                this._refObj.setInteractive()
+                if (this._draggable) {
+                    this._refObj.setInteractive({draggable: true})
+                } else {
+                    this._refObj.setInteractive()
+                }
                 this.isInteractive = true
             }
         }
@@ -485,33 +605,6 @@ export function Viewable<Base extends Class>(base: Base) {
         // _removeListener(inputEvent: string, callback: PointerAction) {
         //     if (!this._refObj) return
         // }
-        
-        show() {
-            if (this._refObj) this._refObj.visible = true
-        }
-
-        hide() {
-            if (this._refObj) this._refObj.visible = false
-        }
-
-        sendToFrontLayer() {
-            // TODO: Send to front layer
-        }
-        
-        sendToBackLayer() {
-            // TODO: Send to back layer
-        }
-
-        // layerUp() {
-        // }
-        // layerDown() {
-        // }
-        sendToLayerAbove(other: Viewable) {
-            // TODO: Send to layer above other
-        }
-        sendToLayerBelow(other: Viewable) {
-            // TODO: Send to layer below other
-        }
     }
 }
 
@@ -521,12 +614,12 @@ export function Timeable<Base extends Class>(base: Base) {
 
         constructor(...args: any[]) {
             super()
-            this._initTime = Timer.time
+            this._initTime = timer.time
         }
 
         get age(): number {
             // Returns this object's age in seconds not including pause time
-            return (Timer.time - this._initTime) / 1000
+            return (timer.time - this._initTime) / 1000
         }
     }
 }

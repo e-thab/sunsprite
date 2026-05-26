@@ -1,5 +1,5 @@
 import { Positionable } from "./mixins"
-import { updateSpritePositions } from "./core"
+import { updatePositions } from "./core"
 
 export default class Camera extends Positionable(class {}) {
     zoom: number
@@ -10,11 +10,11 @@ export default class Camera extends Positionable(class {}) {
     }
 
     _updateX() {
-        updateSpritePositions()
+        updatePositions()
     }
 
     _updateY() {
-        updateSpritePositions()
+        updatePositions()
     }
 }
 

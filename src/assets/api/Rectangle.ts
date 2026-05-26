@@ -1,6 +1,6 @@
 import GameObject from "./GameObject"
 import type { GameObjectProps } from "./mixins"
-import { allPositionables, game, scene } from "./corephaser"
+import { allPositionables, game, scene } from "./core"
 import Phaser from 'phaser'
 
 /**

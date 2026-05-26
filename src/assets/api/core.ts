@@ -1,17 +1,13 @@
 import { ref } from 'vue';
-import { Application, Color, Graphics, Ticker, Sprite as PixiSprite, Assets } from 'pixi.js';
-import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
 import { atan2, cos, random, sin, sqrt, startCode, tan, deg2rad, rad2deg, clamp, max, min, randomX, randomY, randomPosition, randomFloat } from './utility';
+import { AUTO, Game, Scene, type Types } from 'phaser';
+import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
 
-import Camera from './Camera';
+import Phaser from 'phaser';
 import Sprite from './Sprite';
 import Rectangle from './Rectangle';
-import Text from './Text';
-
-export function resizeStage() {
-	app.resize()
-	updateSpritePositions()
-}
+// import Camera from './Camera';  --  needs phaser attention
+// import Text from './Text';
 
 export const fpsRef = ref(0)
 export const mouseRef = ref({mouseX: 0, mouseY: 0})
@@ -29,9 +25,15 @@ export function play() {
 /**
  * API internal methods
  */
-export function updateSpritePositions() {
+export function updatePositions() {
 	for (const positionable of allPositionables) {
 		positionable._updatePosition()
+	}
+}
+
+function _runForevers() {
+	for (const forever of _forevers) {
+		forever(timer.delta)
 	}
 }
 
@@ -56,26 +58,30 @@ function _runRepeatUntils() {
 			repeatUntil.fn(repeatUntil.i)
 			repeatUntil.i += 1
 		}
+
+		if (repeatUntil.condition() && repeatUntil.then) {
+			repeatUntil.then(repeatUntil.i)
+		}
 	}
 	_repeatUntils = _repeatUntils.filter(repeatUntil => !repeatUntil.condition())
 }
 
 function _runAfters(delta: number) {
 	for (const after of _afters) {
-		after.duration += delta
-		if (after.duration >= after.seconds) {
+		after.elapsedMs += delta
+		if (after.elapsedMs >= after.lifetimeMs) {
 			after.fn()
 		}
 	}
-	_afters = _afters.filter(after => after.duration < after.seconds)
+	_afters = _afters.filter(after => after.elapsedMs < after.lifetimeMs)
 }
 
 function _runEverys(delta: number) {
 	for (const every of _everys) {
-		every.duration += delta
-		if (every.duration >= every.seconds) {
+		every.elapsedMs += delta
+		if (every.elapsedMs >= every.lifetimeMs) {
 			every.fn()
-			every.duration = 0
+			every.elapsedMs = 0
 		}
 	}
 }
@@ -88,21 +94,20 @@ function _clearKeysJustPressed(frame: number) {
 	}
 }
 
-function _resetTicker() {
-	_ticker.destroy()
-	_ticker = new Ticker()
-	_ticker.start()
-	_frame = 0
-}
+// function _resetTicker() {
+// 	_ticker.destroy()
+// 	_ticker = new Ticker()
+// 	_ticker.start()
+// 	_frame = 0
+// }
 
 /**
  * API Internal vars
  */
-// type Key = 'Escape' | ''
-// export let allPositionables: typeof Positionable[] = []
 export let allPositionables: { _updatePosition(): void }[] = []
 let _frame: number = 0 // current render frame index
-let _ticker: Ticker = new Ticker()
+// let _ticker: Ticker = new Ticker()
+let _forevers: Array<Action> = []
 let _repeats: Array<Repeatable> = []
 let _repeatUntils: Array<RepeatableUntil> = []
 let _afters: Array<Delayable> = []
@@ -111,30 +116,31 @@ let _everys: Array<Delayable> = []
 /**
  * User-accessible
  */
-// Idea: setScreenSize()
-export const app: Application = new Application()
-export const camera: Camera = new Camera()
-
-export const Timer = {
-	time: 0, // time since start, does not increment during pause
-	realTime: 0, // time since start including pause time
-	delta: 0 // time since last frame
+// Idea: setScreenSize() ?
+export let game: Game
+export let scene: Scene
+export let camera: Phaser.Cameras.Scene2D.Camera
+export const mouse = {
+	x: 0,
+	y: 0
 }
-export let mouseX: number = 0
-export let mouseY: number = 0
-export let FPS: number = 0
-export let paused: boolean = false
-// export const PI: number = 3.141592653589793
-let background = new PixiSprite()
+export const timer = {
+	time: 0, 	 // time since start, does not increment during pause
+	realTime: 0, // time since start including pause time
+	delta: 0,	 // time since last frame normalized to 60fps (will usually be around 1)
+	deltaMs: 0,  // actual (smoothed) time since last frame
+	frame: 0,    // number of frames since start
+}
+export let paused = false
 
 let keysPressed: Array<string> = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
-export const screen: Screen = {
+export let screen: Screen = {
 	get width(): number {
-		return app.screen.width
+		return camera.width
 	},
 	get height(): number {
-		return app.screen.height
+		return camera.height
 	},
 	get top(): number {
 		return camera.y + this.height / 2
@@ -149,32 +155,33 @@ export const screen: Screen = {
 		return camera.x + this.width / 2
 	},
 	get center(): [number, number] {
-		return [app.screen.width/2, app.screen.height/2]
+		return [this.width / 2, this.height / 2]
 	}
 }
 
-function setBackgroundColor(color: Color) {
-	app.renderer.background.color = color
+function setBackgroundColor(color: string) {
+	// Web color name support?
+	camera.setBackgroundColor(color)
 }
 
 async function setBackgroundImage(src: string) {
-	// if (background) {
-	// 	app.stage.removeChild(background)
+	// // if (background) {
+	// // 	app.stage.removeChild(background)
+	// // }
+	// background.texture = await Assets.load(src)
+	// background.anchor.set(0.5)
+	// background.x = app.screen.width / 2
+	// background.y = app.screen.height / 2
+
+	// // Missing a condition? Test narrow images
+	// if (app.screen.width > app.screen.height) {
+	// 	background.width = app.screen.width
+	// } else {
+	// 	background.height = app.screen.height
 	// }
-	background.texture = await Assets.load(src)
-	background.anchor.set(0.5)
-	background.x = app.screen.width / 2
-	background.y = app.screen.height / 2
 
-	// Missing a condition? Test narrow images
-	if (app.screen.width > app.screen.height) {
-		background.width = app.screen.width
-	} else {
-		background.height = app.screen.height
-	}
-
-	background.zIndex = -Infinity
-	app.stage.addChild(background)
+	// background.zIndex = -Infinity
+	// app.stage.addChild(background)
 }
 
 function clearBackgroundImage() {
@@ -189,10 +196,14 @@ async function setCursor(src: string) {
 }
 
 /* Run function {fn} once every frame */
-function forever(fn: Function) {
-	_ticker.add((time) => {
+function forever(fn: Action) {
+	// _ticker.add((time) => {
+	// 	if (paused) return
+	// 	fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
+	// })
+	_forevers.push((delta: number) => {
 		if (paused) return
-		fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
+		fn(delta)
 	})
 }
 
@@ -212,22 +223,12 @@ function repeat(times: number, fn: () => void) {
 		}
 	}
 }
-/* Alternate syntax: 'then' as another argument (like WoofJS) */
-// function repeat(times: number, fn: Function, then?: Function) {
-// 	_repeats.push({
-// 		count: times,
-// 		i: 0,
-// 		fn: fn,
-// 		then: then ?? undefined
-// 	})
-// }
 
 function repeatUntil(condition: Predicate, fn: Action) {
 	const repeatableUntil: RepeatableUntil = {
 		condition,
 		fn,
 		i: 0,
-		// then: undefined
 	}
 	_repeatUntils.push(repeatableUntil)
 
@@ -240,21 +241,32 @@ function repeatUntil(condition: Predicate, fn: Action) {
 
 /* Run function {fn} after {seconds} seconds have passed */
 function after(seconds: number, fn: Action) {
+	// const milliseconds = seconds * 1000
+	// scene.time.delayedCall(milliseconds, () => {
+	// 	fn()
+	// })
 	_afters.push({
-		duration: 0,
-		seconds,
+		elapsedMs: 0,
+		lifetimeMs: seconds * 1000,
 		fn
 	})
 }
 
 /* Run function {fn} once immediately, then every {seconds} seconds */
 function every(seconds: number, fn: Action) {
-	fn()
+	// const milliseconds = seconds * 1000
+	// scene.time.addEvent({
+	// 	delay: milliseconds,
+	// 	callback: fn,
+	// 	loop: true
+	// })
+	// fn()
 	_everys.push({
-		duration: 0,
-		seconds,
+		elapsedMs: 0,
+		lifetimeMs: seconds * 1000,
 		fn
 	})
+	fn()
 }
 
 /* True every frame while button is down */
@@ -268,7 +280,7 @@ function keyJustPressed(key: string): boolean {
 }
 
 function clearStage() {
-	app.stage.removeChildren()
+	// app.stage.removeChildren()
 }
 
 export function warn() {
@@ -334,88 +346,235 @@ function clearOutput() {
 	}
 }
 
-// function onKeyDown(key: string, fn: Function) {
-// 	window.addEventListener('keydown', )
-// }
-
 /**
  * API utility
  */
+class UserScene extends Scene {
+	JScode: string
+	guy?: Phaser.GameObjects.Sprite
+
+	constructor(JScode: string) {
+		super('main')
+		this.JScode = JScode
+		scene = this
+	}
+	
+	preload() {
+		console.log('preload')
+		this.load.image('guy', 'assets/guy.png')
+		this.load.image('boot', 'assets/boot.png')
+		this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
+	}
+	
+	async create() {
+		// TEMP: testing start code
+		// const sprite = new Sprite()
+
+		// after(2000, () => print('done'))
+
+		// forever(() => {
+		// 	if (keyPressed('W')) sprite.y += 2
+		// 	if (keyPressed('A')) sprite.x -= 2
+		// 	if (keyPressed('S')) sprite.y -= 2
+		// 	if (keyPressed('D')) sprite.x += 2
+		// 	if (keyPressed('Q')) sprite.rotation -= 2
+		// 	if (keyPressed('E')) sprite.rotation += 2
+		// 	if (keyJustPressed('SPACE')) print('space')
+		// })
+		
+		// !! PROBLEM: every and after don't honor pause state when using delayed call method
+		console.log('create')
+		
+		// this.input.setDefaultCursor('url(cursors/pointer_c.cur), default')
+		this.input.setDefaultCursor('url(cursors/hand_point.cur), default')
+		
+		// this.add.rectangle().setFillStyle(Phaser.Display.Color.HexStringToColor('#222').color)
+		
+		// const testSprite = this.add.sprite(200, 200, 'boot')
+		// this.input.setCursor(refSprite)
+		// testSprite.setInteractive()
+		// testSprite.input.cursor = 'url(assets/card_back.png), default'
+
+		camera = this.cameras.main
+		timer.time = 0
+		timer.realTime = 0
+		timer.frame = 0
+		_frame = 0
+		
+		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+			pointer.updateWorldPoint(camera) // ..?
+			mouse.x = pointer.x
+			mouse.y = pointer.y
+			mouseRef.value.mouseX = Math.round(pointer.x - screen.width / 2)
+			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
+		})
+
+		type PositionableObject = Phaser.GameObjects.GameObject & { x: number, y: number }
+		this.input.on('drag', (pointer: Phaser.Input.Pointer, gameObject: PositionableObject, dragX: number, dragY: number) => {
+			// This needs work; circumvents api game object position setters so that the object
+			// visually moves but props don't update
+			gameObject.x = dragX;
+			gameObject.y = dragY;
+		});
+		
+		// Is the window listener good enough for key events or should I use phaser's input handling?
+		
+		// this.input.keyboard?.on('keydown', (event: any) => {
+		// 	print(`key press: ${event.key}`)
+		// })
+
+		// console.log(this.scale.parent)
+
+		// At the moment, moving camera doesn't actually render the new area; sprites will get sliced
+		// in half when up against the previous screen edge
+
+		const api = {
+			Sprite, Rectangle,
+			timer, screen, camera, mouse,
+			forever, repeat, repeatUntil, after, every,
+			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,
+			random, randomFloat, randomX, randomY, randomPosition,
+			deg2rad, rad2deg, sin, cos, tan, atan2, sqrt, min, max, clamp,
+			PI: Math.PI,
+		}
+		
+		const keys = Object.keys(api)
+		const values = Object.values(api)
+		
+		// Another problem post-phaser: user code errors prevent reloading of the game
+		try {
+			const fn = new Function(
+			...keys,
+			`
+			return (async () => {
+				${this.JScode}
+			})()
+			`
+			)
+			await fn(...values)
+		} catch (err) {
+			console.error('User code error:', err)
+		}
+	}
+	
+	update(time: number, delta: number) {
+		// onUpdate()
+		// console.log(delta)
+		const deltaNormal = delta * 0.06
+
+		timer.delta = deltaNormal
+		timer.deltaMs = delta
+		timer.realTime += delta
+		
+		_clearKeysJustPressed(_frame)
+		this.input.setPollAlways()
+		
+		if (paused) return
+		// Maybe switch Timer.time to track time in milliseconds (or different props for timeSec, timeMs, etc)
+		timer.time += delta
+		timer.frame = _frame++
+		
+		_runForevers()
+		_runRepeats()
+		_runAfters(timer.deltaMs)
+		_runEverys(timer.deltaMs)
+		_runRepeatUntils()
+	}
+}
+
+// scene = new UserScene()
+
 export async function runUserCode(code: string): Promise<void> {
-	// BUG: doesn't reset bg color
-	// const keys = Object.keys(api)
-    // const values = Object.values(api)
 	clearOutput()
-	clearStage()
 	play()
+
+	_forevers = []
 	_repeats = []
 	_afters = []
 	_everys = []
 	_repeatUntils = []
 	allPositionables = []
-	camera.goTo(0, 0)
-	Timer.time = 0
-	Timer.realTime = 0
-
+	// camera.goTo(0, 0)
+	
 	// Switch this to an internal addInput func that can modify innerHTML
 	print('<i>Running</i>', undefined, '#626f8b')
 	
-	_resetTicker()
-	_ticker.add(time => {
-		const delta = time.deltaMS / 1000
-		Timer.delta = delta
-		Timer.realTime += delta
-		fpsRef.value = Math.round(app.ticker.FPS)
-		FPS = app.ticker.FPS
-		_clearKeysJustPressed(_frame)
-		// whilePaused loops? or a flag to be able to run standard loops through pause?
-		
-		if (paused) return // Can pause from loops, but obviously not unpause. Would a workaround be useful?
-		Timer.time += delta
-		_frame++
-		_runRepeats()
-		_runAfters(delta)
-		_runEverys(delta)
-		_runRepeatUntils()
-		// resizeStage() // -necessary?
-	})
+	//// Pixi stuff
 
-	const keys = [ 'randomFloat', 'deg2rad', 'rad2deg', 'app',  'PI', 'sin', 'cos', 'tan', 'atan2', 'sqrt', 'random', 'Timer', 'screen', 'camera', 'Sprite', 'Rectangle', 'Text', 'setBackgroundColor', 'setCursor', 'forever', 'repeat', 'repeatUntil', 'after', 'every', 'clearStage', 'keyPressed', 'keyJustPressed', 'print', 'pause', 'play', 'paused', 'min', 'max', 'clamp', 'randomX', 'randomY', 'randomPosition', 'setBackgroundImage' ]
-	const values = [randomFloat,   deg2rad,   rad2deg,   app, Math.PI, sin,   cos,   tan,   atan2,   sqrt,   random,   Timer,   screen,   camera,   Sprite,   Rectangle,   Text,   setBackgroundColor,   setCursor,   forever,   repeat,   repeatUntil,   after,   every,   clearStage,   keyPressed,   keyJustPressed,   print,   pause,   play,   paused,   min,   max,   clamp,   randomX,   randomY,   randomPosition,   setBackgroundImage ]
+	// 	fpsRef.value = Math.round(app.ticker.FPS)
+	// 	FPS = app.ticker.FPS
+	// 	_clearKeysJustPressed(_frame)
+	// 	// whilePaused loops? or a flag to be able to run standard loops through pause?
+		
+	// 	if (paused) return // Can pause from loops, but obviously not unpause. Would a workaround be useful?
+	// 	Timer.time += delta
+	// 	_frame++
+	// 	_runRepeats()
+	// 	_runAfters(delta)
+	// 	_runEverys(delta)
+	// 	_runRepeatUntils()
+	// })
 	
-	try {
-		const fn = new Function(
-		...keys,
-		`
-		return (async () => {
-			${code}
-		})()
-		`
-		)
-		await fn(...values)
-	} catch (err) {
-		console.error('User code error:', err)
+	//// Phaser testing
+	// _resetTimeline()
+	// 	timeline = game.add.timeline({
+	// 	at: 0
+	// })
+
+	if (game) game.destroy(true)
+
+	scene = new UserScene(code)
+
+	let config: Types.Core.GameConfig = {
+		type: AUTO,
+		scale: {
+			// mode: Phaser.Scale.RESIZE
+			mode: Phaser.Scale.NONE
+		},
+		parent: 'game-container',
+		// backgroundColor: '#333',
+		scene
+	}
+
+	game = new Game(config)
+	resizeStage()
+
+	game.canvas.onclick = () => {
+		// Remove focus from code editor when clicking on game canvas
+		const activeElement = document.activeElement as HTMLElement
+		if (activeElement?.className === 'cm-content') activeElement.blur()
 	}
 }
 
-export async function setup(): Promise<void> {
-	const gameContainer = document.querySelector('#game-container') as HTMLElement
+const resizeDelay = 5 // milliseconds
+export function resizeStage() {
+	new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => _resizeStage())
+}
 
-	await app.init({
-		background: '#222',
-		resizeTo: gameContainer, // Dynamically update this on resize
-		antialias: true,
-		autoDensity: true,
-  	})
+function _resizeStage() {
+	const size = game.scale.parentSize
+	game.scale.setGameSize(size.width, size.height)
+	updatePositions()
+}
 
-	const eventSystem = app.renderer.events
-	eventSystem.cursorStyles.default = "url('src/assets/images/ui-cursors/small/pointer_c.png') 5 5, auto"
-	eventSystem.cursorStyles.handOpen = "url('src/assets/images/ui-cursors/small/hand_open.png') 15 10, auto"
-	eventSystem.cursorStyles.handClosed = "url('src/assets/images/ui-cursors/small/hand_closed.png') 10 10, auto"
-	eventSystem.cursorStyles.handPoint = "url('src/assets/images/ui-cursors/small/hand_point.png') 10 4, auto"
-	eventSystem.cursorStyles.question = "url('src/assets/images/ui-cursors/small/mark_question_pointer_b.png') 7 4, auto"
-	eventSystem.cursorStyles.cross = "url('src/assets/images/ui-cursors/small/cross_large.png') 16 16, auto"
-	eventSystem.cursorStyles.dot = "url('src/assets/images/ui-cursors/small/dot_large.png') 16 16, auto"
+export function setup() {
+	// const gameContainer = document.querySelector('#game-container') as HTMLElement
+
+	// await app.init({
+	// 	background: '#222',
+	// 	resizeTo: gameContainer, // Dynamically update this on resize
+	// 	antialias: true,
+	// 	autoDensity: true,
+  	// })
+
+	// const eventSystem = app.renderer.events
+	// eventSystem.cursorStyles.default = "url('src/assets/images/ui-cursors/small/pointer_c.png') 5 5, auto"
+	// eventSystem.cursorStyles.handOpen = "url('src/assets/images/ui-cursors/small/hand_open.png') 15 10, auto"
+	// eventSystem.cursorStyles.handClosed = "url('src/assets/images/ui-cursors/small/hand_closed.png') 10 10, auto"
+	// eventSystem.cursorStyles.handPoint = "url('src/assets/images/ui-cursors/small/hand_point.png') 10 4, auto"
+	// eventSystem.cursorStyles.question = "url('src/assets/images/ui-cursors/small/mark_question_pointer_b.png') 7 4, auto"
+	// eventSystem.cursorStyles.cross = "url('src/assets/images/ui-cursors/small/cross_large.png') 16 16, auto"
+	// eventSystem.cursorStyles.dot = "url('src/assets/images/ui-cursors/small/dot_large.png') 16 16, auto"
 	// const eventSystem = app.renderer.events;
 	// eventSystem.cursorStyles.default = () => { defaultIcon };
 	// eventSystem.setCursor('default');
@@ -445,7 +604,7 @@ export async function setup(): Promise<void> {
 
 	// Key press/release registration
 	window.addEventListener('keydown', event => {
-		// if (document.activeElement?.ariaRoleDescription === 'editor') { return }
+		// Don't register press in code editor
 		if (document.activeElement?.ariaPlaceholder) return
 
 		const key = apiKeyCode(event.key)
@@ -471,20 +630,20 @@ export async function setup(): Promise<void> {
 		// Prevent window losing focus from interrupting key registration
 		keysPressed = []
 	})
-	window.addEventListener('resize', async () => {
-		new Promise(resolve => setTimeout(resolve, 100)).then(() => {
-			// resizeStage()
-			updateSpritePositions()
-		})
-	})
+	// window.addEventListener('resize', async () => {
+	// 	new Promise(resolve => setTimeout(resolve, 100)).then(() => {
+	// 		// resizeStage()
+	// 		updatePositions()
+	// 	})
+	// })
 
-	app.stage.eventMode = 'dynamic'
-	app.stage.on('globalmousemove', event => {
-		mouseX = Math.round(event.globalX - app.screen.width / 2)
-		mouseY = Math.round(app.screen.height / 2 - event.globalY)
-		mouseRef.value = { mouseX, mouseY }
-	})
+	// app.stage.eventMode = 'dynamic'
+	// app.stage.on('globalmousemove', event => {
+	// 	mouseX = Math.round(event.globalX - app.screen.width / 2)
+	// 	mouseY = Math.round(app.screen.height / 2 - event.globalY)
+	// 	mouseRef.value = { mouseX, mouseY }
+	// })
 	// runUserCode(startCode)
 }
 
-export { startCode };
+export { startCode }

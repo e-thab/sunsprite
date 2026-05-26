@@ -1,7 +1,7 @@
 import { Text as PixiText } from "pixi.js";
 import GameObject from "./GameObject";
 import type { GameObjectProps } from "./mixins";
-import { allPositionables, app } from "./core";
+import { allPositionables } from "./core";
 
 /**
  * Text class
@@ -39,7 +39,7 @@ export default class Text extends GameObject {
         this.initRotatable(props)
         this.initViewable(props)
 
-        app.stage.addChild(text)
+        // app.stage.addChild(text)
         allPositionables.push(this)
     }
 

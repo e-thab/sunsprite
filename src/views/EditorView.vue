@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
-import { resizeStage, print } from '@/assets/api/corephaser';
+import { resizeStage, print } from '@/assets/api/core';
 import { useFullscreenStore } from '@/stores/fullscreen';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
