@@ -1,7 +1,7 @@
 import { ref } from 'vue';
-import { atan2, cos, random, sin, sqrt, startCode, tan, deg2rad, rad2deg, clamp, max, min, randomX, randomY, randomPosition, randomFloat } from './utility';
+import { atan2, cos, random, sin, startCode, tan, deg2rad, rad2deg, clamp, randomX, randomY, randomPosition, randomFloat } from './utility';
 import { AUTO, Game, Scene, type Types } from 'phaser';
-import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
+import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, Point } from './interfaces';
 
 import Phaser from 'phaser';
 import Sprite from './Sprite';
@@ -91,6 +91,13 @@ function _clearKeysJustPressed(frame: number) {
 		if (keysJustPressed.get(key) !== frame) {
 			keysJustPressed.set(key, undefined)
 		}
+	}
+}
+
+export function getGamePoint(point: Point): Point {
+	return {
+		x: point.x - screen.right,
+		y: -point.y + screen.top
 	}
 }
 
@@ -403,19 +410,19 @@ class UserScene extends Scene {
 		
 		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 			pointer.updateWorldPoint(camera) // ..?
-			mouse.x = pointer.x
-			mouse.y = pointer.y
+			mouse.x = pointer.x - screen.width / 2
+			mouse.y = screen.height / 2 - pointer.y 
 			mouseRef.value.mouseX = Math.round(pointer.x - screen.width / 2)
 			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
 		})
 
-		type PositionableObject = Phaser.GameObjects.GameObject & { x: number, y: number }
-		this.input.on('drag', (pointer: Phaser.Input.Pointer, gameObject: PositionableObject, dragX: number, dragY: number) => {
-			// This needs work; circumvents api game object position setters so that the object
-			// visually moves but props don't update
-			gameObject.x = dragX;
-			gameObject.y = dragY;
-		});
+		// type PositionableObject = Phaser.GameObjects.GameObject & { x: number, y: number }
+		// this.input.on('drag', (pointer: Phaser.Input.Pointer, gameObject: PositionableObject, dragX: number, dragY: number) => {
+		// 	// This needs work; circumvents api game object position setters so that the object
+		// 	// visually moves but props don't update
+		// 	gameObject.x = dragX;
+		// 	gameObject.y = dragY;
+		// });
 		
 		// Is the window listener good enough for key events or should I use phaser's input handling?
 		
@@ -434,7 +441,13 @@ class UserScene extends Scene {
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,
 			random, randomFloat, randomX, randomY, randomPosition,
-			deg2rad, rad2deg, sin, cos, tan, atan2, sqrt, min, max, clamp,
+			deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
+			sqrt: Math.sqrt,
+			min: Math.min,
+			max: Math.max,
+			floor: Math.floor,
+			ceil: Math.ceil,
+			round: Math.round,
 			PI: Math.PI,
 		}
 		

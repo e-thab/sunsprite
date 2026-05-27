@@ -2,7 +2,7 @@
 // import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, randomPosition } from "./utility"
 import type { Action, Point } from "./interfaces"
-import { screen, camera, timer, /*mouseX, mouseY,*/ paused } from "./core"
+import { screen, camera, timer, /*mouseX, mouseY,*/ paused, getGamePoint } from "./core"
 
 import Phaser, { Input } from "phaser"
 
@@ -283,7 +283,7 @@ export function Viewable<Base extends Class>(base: Base) {
             if (props?.visible) this.visible = props.visible
         }
 
-        queueVisible() {
+        queueShow() {
             // Visible objects may flicker on create without this delay
             if (!this._refObj) return
 
@@ -409,7 +409,15 @@ export function Interactable<Base extends Class>(base: Base) {
             if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
             if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
 
-            if (props?.onDrag) this.onDrag = props.onDrag
+            if (props?.onDrag) {
+                this.onDrag = props.onDrag
+            } else if (this._refObj) {
+                this.onDrag = (x: number, y: number) => {
+                    this._refObj.x = x + screen.right
+                    this._refObj.y = -y + screen.top
+                }
+            }
+
             if (props?.onDragStart) this.onDragStart = props.onDragStart
             if (props?.onDragEnd) this.onDragEnd = props.onDragEnd
         }
@@ -598,7 +606,12 @@ export function Interactable<Base extends Class>(base: Base) {
             if (!callback) return
             this.setInteractive()
             this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
-                if (!paused) callback(localX, localY)
+                if (paused) return
+                const eventPoint = getGamePoint({
+                    x: localX,
+                    y: localY
+                })
+                callback(eventPoint.x, eventPoint.y)
             })
         }
 

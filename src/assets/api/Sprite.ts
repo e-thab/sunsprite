@@ -30,6 +30,7 @@ export default class Sprite extends GameObject {
 
     constructor(props?: SpriteProps) {
         super()
+
         const sprite = scene.add.sprite(0, 0, '__MISSING') // Phaser Sprite
         this._refObj = sprite // Reference to Phaser object used in mixins
         this._sprite = sprite // Reference to Phaser object used within this class (for readability)
@@ -38,8 +39,9 @@ export default class Sprite extends GameObject {
         
         // Set mixin props
         this.initMixins(props)
+        
         // Rectangles may flicker on creation without this delay
-        this.queueVisible()
+        this.queueShow()
         
         allPositionables.push(this)
     }

@@ -71,17 +71,25 @@ export function atan2(y: number, x: number, unit: string = 'degrees'): number {
     }
 }
 
-export function sqrt(x: number): number {
-    return Math.sqrt(x)
-}
+// export function sqrt(n: number): number {
+//     return Math.sqrt(n)
+// }
 
-export function min(...args: number[]): number {
-    return Math.min(...args)
-}
+// export function min(...args: number[]): number {
+//     return Math.min(...args)
+// }
 
-export function max(...args: number[]): number {
-    return Math.max(...args)
-}
+// export function max(...args: number[]): number {
+//     return Math.max(...args)
+// }
+
+// export function floor(n: number): number {
+//     return Math.floor(n)
+// }
+
+// export function round(n: number): number {
+//     return Math.round(n)
+// }
 
 export function clamp(value: number, min: number, max: number): number {
     if (value < min) {
