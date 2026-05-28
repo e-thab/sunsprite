@@ -6,8 +6,10 @@ import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action,
 import Phaser from 'phaser';
 import Sprite from './Sprite';
 import Rectangle from './Rectangle';
-// import Camera from './Camera';  --  needs phaser attention
+import Label from './Label';
+import Line from './Line';
 // import Text from './Text';
+// import Camera from './Camera';  --  needs phaser attention
 
 export const fpsRef = ref(0)
 export const mouseRef = ref({mouseX: 0, mouseY: 0})
@@ -392,8 +394,8 @@ class UserScene extends Scene {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
 		
-		// this.input.setDefaultCursor('url(cursors/pointer_c.cur), default')
-		this.input.setDefaultCursor('url(cursors/hand_point.cur), default')
+		this.input.setDefaultCursor('url(cursors/pointer_c.cur), default')
+		// this.input.setDefaultCursor('url(cursors/hand_point.cur), default')
 		
 		// this.add.rectangle().setFillStyle(Phaser.Display.Color.HexStringToColor('#222').color)
 		
@@ -436,7 +438,7 @@ class UserScene extends Scene {
 		// in half when up against the previous screen edge
 
 		const api = {
-			Sprite, Rectangle,
+			Sprite, Rectangle, Label, Line,
 			timer, screen, camera, mouse,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,

@@ -31,7 +31,7 @@ export type GameObjectProps = PositionableProps & SizableProps & RotatableProps 
 //     // ...etc.
 // }
 
-type PositionableProps = {
+export type PositionableProps = {
     x?: number
     y?: number
     // position: Point
@@ -137,7 +137,7 @@ export function Positionable<Base extends Class>(base: Base) {
 }
 
 
-type SizableProps = {
+export type SizableProps = {
     width?: number
     height?: number
     scale?: number // - still needs testing
@@ -205,7 +205,7 @@ export function Sizable<Base extends Class>(base: Base) {
     }
 }
 
-type RotatableProps = {
+export type RotatableProps = {
     rotation?: number
     radians?: number
 }
@@ -255,7 +255,7 @@ export function Rotatable<Base extends Class>(base: Base) {
     }
 }
 
-type ViewableProps = {
+export type ViewableProps = {
     alpha?: number
     layer?: number
     visible?: boolean
@@ -362,7 +362,7 @@ type Cursor = {
     type?: string // type is actually the fallback 
 } | undefined | null
 
-type InteractableProps = {
+export type InteractableProps = {
     draggable?: boolean
     cursor?: Cursor
     onClick?: PointerAction
