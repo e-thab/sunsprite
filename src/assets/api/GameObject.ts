@@ -31,6 +31,17 @@ export default abstract class GameObject extends
         this.initRotatable(props)
         this.initInteractable(props)
         this.initViewable(props)
+
+        if (props?.onDrag) {
+            this.onDrag = props.onDrag
+        } else if (this._refObj) {
+            this.onDrag = (x: number, y: number) => {
+                // this._refObj.x = x + screen.right
+                // this._refObj.y = -y + screen.top
+                this.x = x
+                this.y = y
+            }
+        }
     }
 
     get left(): number {

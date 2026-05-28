@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { atan2, cos, random, sin, startCode, tan, deg2rad, rad2deg, clamp, randomX, randomY, randomPosition, randomFloat } from './utility';
 import { AUTO, Game, Scene, type Types } from 'phaser';
-import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, Point } from './interfaces';
+import { type Repeatable, type Delayable, Point, type Screen, type RepeatableUntil, type Predicate, type Action, Vector2, Mouse } from './interfaces';
 
 import Phaser from 'phaser';
 import Sprite from './Sprite';
@@ -129,10 +129,7 @@ let _everys: Array<Delayable> = []
 export let game: Game
 export let scene: Scene
 export let camera: Phaser.Cameras.Scene2D.Camera
-export const mouse = {
-	x: 0,
-	y: 0
-}
+export const mouse = new Mouse()
 export const timer = {
 	time: 0, 	 // time since start, does not increment during pause
 	realTime: 0, // time since start including pause time
@@ -414,8 +411,8 @@ class UserScene extends Scene {
 			pointer.updateWorldPoint(camera) // ..?
 			mouse.x = pointer.x - screen.width / 2
 			mouse.y = screen.height / 2 - pointer.y 
-			mouseRef.value.mouseX = Math.round(pointer.x - screen.width / 2)
-			mouseRef.value.mouseY = Math.round(screen.height / 2 - pointer.y)
+			mouseRef.value.mouseX = Math.round(mouse.x)
+			mouseRef.value.mouseY = Math.round(mouse.y)
 		})
 
 		// type PositionableObject = Phaser.GameObjects.GameObject & { x: number, y: number }
@@ -438,7 +435,7 @@ class UserScene extends Scene {
 		// in half when up against the previous screen edge
 
 		const api = {
-			Sprite, Rectangle, Label, Line,
+			Sprite, Rectangle, Label, Line, Vector2, Point,
 			timer, screen, camera, mouse,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,

@@ -1,5 +1,3 @@
-// TODO: everything
-//
 // Calculate distance from a line only on the axis perpendicular to it.
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
@@ -9,8 +7,8 @@ import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps 
 
 type LineProps = RotatableProps & ViewableProps & {
     /* ... */
-    start?: Point
-    end?: Point
+    pointA?: Point
+    pointB?: Point
     color?: string
     thickness?: number
 }
@@ -24,8 +22,8 @@ export default class Line extends
 
     readonly _line: Phaser.GameObjects.Line
 
-    _start: Point
-    _end: Point
+    _pointA: Point
+    _pointB: Point
 
     constructor(props?: LineProps) {
         super()
@@ -37,44 +35,47 @@ export default class Line extends
         this.initRotatable(props)
         this.initViewable(props)
 
-        this._start = { x: 0, y: 0 }
-        this._end = { x: 100, y: 100 }
+        this._pointA = { x: 0, y: 0 }
+        this._pointB = { x: 100, y: 100 }
 
-        if (props?.start) this.start = props.start
-        if (props?.end) this.end = props.end
+        if (props?.pointA) this.pointA = props.pointA
+        if (props?.pointB) this.pointB = props.pointB
 
         this._updatePoints()
+
+        // Should probably push to a list of lines in core like positionables do,
+        // end points don't update when screen size changes / camera moves etc.
 
         // this.queueShow()
     }
     
-    get start(): Point {
-        return this._start
+    get pointA(): Point {
+        return this._pointA
     }
-    set start(start: Point) {
+    set pointA(pointA: Point) {
         // const startPoint = getGamePoint(start)
         // this._line.setTo(startPoint.x, startPoint.y)
-        this._start = start
+        this._pointA = pointA
         this._updatePoints()
     }
 
-    get end(): Point {
-        return this._end
+    get pointB(): Point {
+        return this._pointB
     }
-    set end(end: Point) {
+    set pointB(pointB: Point) {
         // const endPoint = getGamePoint(end)
         // const startPoint = getGamePoint(this._start)
         // this._line.setTo(startPoint.x, startPoint.y, endPoint.x, endPoint.y)
-        this._end = end
+        this._pointB = pointB
         this._updatePoints()
     }
 
     _updatePoints() {
         this._line.setTo(
-            this.start.x + screen.right,
-            -this.start.y + screen.top,
-            this.end.x + screen.right,
-            -this.end.y + screen.top
+            this.pointA.x + screen.right,
+            -this.pointA.y + screen.top,
+            this.pointB.x + screen.right,
+            -this.pointB.y + screen.top
         )
     }
 }

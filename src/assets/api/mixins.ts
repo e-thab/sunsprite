@@ -69,11 +69,23 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         get position(): Point {
-            // test this
             return {
                 x: this.x,
                 y: this.y
             }
+        }
+        set position(pos: Point) {
+            this._x = pos.x
+            this._y = pos.y
+            this._updatePosition()
+        }
+
+        // Alias for position: pos
+        get pos(): Point {
+            return this.position
+        }
+        set pos(pos: Point) {
+            this.position = pos
         }
 
         get screenX(): number {
@@ -409,14 +421,14 @@ export function Interactable<Base extends Class>(base: Base) {
             if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
             if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
 
-            if (props?.onDrag) {
-                this.onDrag = props.onDrag
-            } else if (this._refObj) {
-                this.onDrag = (x: number, y: number) => {
-                    this._refObj.x = x + screen.right
-                    this._refObj.y = -y + screen.top
-                }
-            }
+            if (props?.onDrag) this.onDrag = props.onDrag
+            // Now handled in GameObject
+            // else if (this._refObj) {
+            //     this.onDrag = (x: number, y: number) => {
+            //         // this._refObj.x = x + screen.right
+            //         // this._refObj.y = -y + screen.top
+            //     }
+            // }
 
             if (props?.onDragStart) this.onDragStart = props.onDragStart
             if (props?.onDragEnd) this.onDragEnd = props.onDragEnd
