@@ -105,11 +105,19 @@ export class Vector2 {
 		}
 	}
 
-	static ZERO() {
+	get length(): number {
+		return Math.sqrt(this.x ** 2 + this.y ** 2)
+	}
+
+	// normalize() {
+
+	// }
+
+	static get ZERO(): Vector2 {
 		return new Vector2(0, 0)
 	}
 
-	static ONE() {
+	static get ONE(): Vector2 {
 		return new Vector2(1, 1)
 	}
 }

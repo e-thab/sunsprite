@@ -8,6 +8,8 @@ import Sprite from './Sprite';
 import Rectangle from './Rectangle';
 import Label from './Label';
 import Line from './Line';
+import HLine from './HLine';
+import VLine from './VLine';
 // import Text from './Text';
 // import Camera from './Camera';  --  needs phaser attention
 
@@ -165,7 +167,7 @@ export let screen: Screen = {
 	}
 }
 
-function setBackgroundColor(color: string) {
+export function setBackgroundColor(color: string) {
 	// Web color name support?
 	camera.setBackgroundColor(color)
 }
@@ -202,7 +204,7 @@ async function setCursor(src: string) {
 }
 
 /* Run function {fn} once every frame */
-function forever(fn: Action) {
+export function forever(fn: Action) {
 	// _ticker.add((time) => {
 	// 	if (paused) return
 	// 	fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
@@ -214,7 +216,7 @@ function forever(fn: Action) {
 }
 
 /* Run function {fn} {times} number of times */
-function repeat(times: number, fn: () => void) {
+export function repeat(times: number, fn: () => void) {
 	const repeatable: Repeatable = {
 		count: times,
 		i: 0,
@@ -230,7 +232,7 @@ function repeat(times: number, fn: () => void) {
 	}
 }
 
-function repeatUntil(condition: Predicate, fn: Action) {
+export function repeatUntil(condition: Predicate, fn: Action) {
 	const repeatableUntil: RepeatableUntil = {
 		condition,
 		fn,
@@ -246,7 +248,7 @@ function repeatUntil(condition: Predicate, fn: Action) {
 }
 
 /* Run function {fn} after {seconds} seconds have passed */
-function after(seconds: number, fn: Action) {
+export function after(seconds: number, fn: Action) {
 	// const milliseconds = seconds * 1000
 	// scene.time.delayedCall(milliseconds, () => {
 	// 	fn()
@@ -259,7 +261,7 @@ function after(seconds: number, fn: Action) {
 }
 
 /* Run function {fn} once immediately, then every {seconds} seconds */
-function every(seconds: number, fn: Action) {
+export function every(seconds: number, fn: Action) {
 	// const milliseconds = seconds * 1000
 	// scene.time.addEvent({
 	// 	delay: milliseconds,
@@ -276,12 +278,12 @@ function every(seconds: number, fn: Action) {
 }
 
 /* True every frame while button is down */
-function keyPressed(key: string): boolean {
+export function keyPressed(key: string): boolean {
 	return keysPressed.includes(key.toLowerCase())
 }
 
 /* True only during the frame after key press */
-function keyJustPressed(key: string): boolean {
+export function keyJustPressed(key: string): boolean {
 	return keysJustPressed.get(key.toLowerCase()) !== undefined
 }
 
@@ -434,8 +436,10 @@ class UserScene extends Scene {
 		// At the moment, moving camera doesn't actually render the new area; sprites will get sliced
 		// in half when up against the previous screen edge
 
+		// I would like to move the API definition into its own file, but it relies on object instances
+		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Label, Line, Vector2, Point,
+			Sprite, Rectangle, Label, Line, HLine, VLine, Vector2, Point,
 			timer, screen, camera, mouse,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,

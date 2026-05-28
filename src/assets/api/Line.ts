@@ -70,6 +70,12 @@ export default class Line extends
         this._updatePoints()
     }
 
+    setPoints(pointA: Point, pointB: Point) {
+        this._pointA = pointA
+        this._pointB = pointB
+        this._updatePoints()
+    }
+
     _updatePoints() {
         this._line.setTo(
             this.pointA.x + screen.right,
