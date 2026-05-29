@@ -1,10 +1,10 @@
 // Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
 // import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, randomPosition } from "./utility"
-import type { Action, Point } from "./interfaces"
+import { getPoint, type Action, type ParamPoint, type Point } from "./interfaces"
 import { screen, camera, timer, /*mouseX, mouseY,*/ paused, getGamePoint } from "./core"
 
-import Phaser, { Input } from "phaser"
+import Phaser from "phaser"
 
 type Class<T = {}> = new (...args: any[]) => T
 
@@ -34,7 +34,8 @@ export type GameObjectProps = PositionableProps & SizableProps & RotatableProps 
 export type PositionableProps = {
     x?: number
     y?: number
-    // position: PointParam  -- !!TODO
+    pos?: ParamPoint
+    position?: ParamPoint
 }
 
 export function Positionable<Base extends Class>(base: Base) {
@@ -48,8 +49,14 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         initPositionable(props?: GameObjectProps) {
+            // Warn when setting:
+            // pos & position
+            // pos & (x | y)
+            // position & (x | y)
             this.x = props?.x ?? 0
             this.y = props?.y ?? 0
+            if (props?.position) this.position = props.position
+            if (props?.pos) this.pos = props.pos
         }
 
         get x(): number {
@@ -74,7 +81,8 @@ export function Positionable<Base extends Class>(base: Base) {
                 y: this.y
             }
         }
-        set position(pos: Point) {
+        set position(pos: ParamPoint) {
+            pos = getPoint(pos)
             this._x = pos.x
             this._y = pos.y
             this._updatePosition()
@@ -84,7 +92,7 @@ export function Positionable<Base extends Class>(base: Base) {
         get pos(): Point {
             return this.position
         }
-        set pos(pos: Point) {
+        set pos(pos: ParamPoint) {
             this.position = pos
         }
 
@@ -281,7 +289,7 @@ export function Viewable<Base extends Class>(base: Base) {
         // - effects?
 
         _refObj?: any
-        _alpha: number = 100
+        _alpha: number = /*~100~*/ 1
         _layer: number = 0
         _visible: boolean = true
 
@@ -290,7 +298,7 @@ export function Viewable<Base extends Class>(base: Base) {
         }
 
         initViewable(props?: GameObjectProps) {
-            if (props?.alpha) this.alpha = props.alpha
+            if (props?.alpha != null) this.alpha = props.alpha
             if (props?.layer) this.layer = props.layer
             if (props?.visible) this.visible = props.visible
         }
@@ -310,7 +318,9 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         set alpha(alpha: number) {
             this._alpha = alpha
-            if (this._refObj) this._refObj.setAlpha(alpha / 100)
+            // Dividing by 100 to make the alpha range 0-100 causes weird problems for some objects
+            // if (this._refObj) this._refObj.setAlpha(alpha / 100)
+            if (this._refObj) this._refObj.setAlpha(alpha)
         }
         
         // Update for phaser
