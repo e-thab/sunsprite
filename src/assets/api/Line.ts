@@ -2,7 +2,7 @@
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
 import { scene, screen } from "./core";
-import { getPoint, type Point, type PointParam } from "./interfaces";
+import { getPoint, type Point, type ParamPoint } from "./interfaces";
 import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins";
 
 type LineProps = RotatableProps & ViewableProps & {
@@ -49,10 +49,10 @@ export default class Line extends
         // this.queueShow()
     }
     
-    get pointA(): PointParam {
+    get pointA(): ParamPoint {
         return this._pointA
     }
-    set pointA(pointA: PointParam) {
+    set pointA(pointA: ParamPoint) {
         // const startPoint = getGamePoint(start)
         // this._line.setTo(startPoint.x, startPoint.y)
         this._pointA = getPoint(pointA)
@@ -62,7 +62,7 @@ export default class Line extends
     get pointB(): Point {
         return this._pointB
     }
-    set pointB(pointB: PointParam) {
+    set pointB(pointB: ParamPoint) {
         // const endPoint = getGamePoint(end)
         // const startPoint = getGamePoint(this._start)
         // this._line.setTo(startPoint.x, startPoint.y, endPoint.x, endPoint.y)
@@ -70,7 +70,7 @@ export default class Line extends
         this._updatePoints()
     }
 
-    setPoints(pointA: PointParam, pointB: PointParam) {
+    setPoints(pointA: ParamPoint, pointB: ParamPoint) {
         this._pointA = getPoint(pointA)
         this._pointB = getPoint(pointB)
         this._updatePoints()

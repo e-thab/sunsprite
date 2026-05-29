@@ -76,8 +76,8 @@ export class Mouse {
 // }
 
 export type Point = { x: number, y: number }
-type ArrayPoint = [number, number]
-export type PointParam = Point | ArrayPoint
+export type ArrayPoint = [number, number]
+export type ParamPoint = Point | ArrayPoint
 
 function isPointObject(obj: any): obj is Point {
 	return obj && typeof obj.x === 'number' && typeof obj.y === 'number'
@@ -87,26 +87,22 @@ function isArrayPoint(obj: any): obj is ArrayPoint {
 }
 
 // Point factory
-// I'd like to use overloads here so that calling getPoint with only one number arg is recognized
-// as a type error, but it seems to just introduce an odd new error elsewhere... look into it? maybe?
-// For now, just disable overloads:
-// export function getPoint(x: number, y: number): Point
-// export function getPoint(pointObject: Point): Point
-// export function getPoint(pointArray: ArrayPoint): Point
-export function getPoint(xArg: number | Point | ArrayPoint, y?: number): Point {
-	if (isPointObject(xArg)) {
-		return xArg
+export function getPoint(x: number, y: number): Point
+export function getPoint(point: ParamPoint): Point
+export function getPoint(xOrPoint: number | ParamPoint, y?: number): Point {
+	if (isPointObject(xOrPoint)) {
+		return xOrPoint
 	}
 
-	if (isArrayPoint(xArg)) {
+	if (isArrayPoint(xOrPoint)) {
 		return {
-			x: xArg[0],
-			y: xArg[1]
+			x: xOrPoint[0],
+			y: xOrPoint[1]
 		}
 	}
 	
-	if (y != null && typeof xArg === 'number' && typeof y === 'number') {
-		return { x: xArg, y }
+	if (y != null && typeof xOrPoint === 'number' && typeof y === 'number') {
+		return { x: xOrPoint, y }
 	}
 
 	// Bad params. Error here
