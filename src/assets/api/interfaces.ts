@@ -62,27 +62,55 @@ export class Mouse {
 }
 
 // export type Point = { x: number, y: number }
-export class Point {
-	x: number
-	y: number
+// export class Point {
+// 	x: number
+// 	y: number
 
-	constructor(x: number, y: number) {
-		this.x = x
-		this.y = y
-	}
-}
+// 	constructor(x: number, y: number) {
+// 		this.x = x
+// 		this.y = y
+// 	}
+// }
 // export function At(x: number, y: number) {
 // 	return { x, y }
 // }
 
-// type ObjectPoint = { x: number, y: number }
-// type ArrayPoint = [number, number]
-// function isArrayPoint(obj: any): obj is ArrayPoint {
-// 	return obj && obj.length === 2 && typeof obj[0] === 'number' && typeof obj[1] === 'number'
-// }
+export type Point = { x: number, y: number }
+type ArrayPoint = [number, number]
+export type PointParam = Point | ArrayPoint
 
-function isObjectPoint(obj: any): obj is Point {
+function isPointObject(obj: any): obj is Point {
 	return obj && typeof obj.x === 'number' && typeof obj.y === 'number'
+}
+function isArrayPoint(obj: any): obj is ArrayPoint {
+	return obj && obj.length === 2 && typeof obj[0] === 'number' && typeof obj[1] === 'number'
+}
+
+// Point factory
+// I'd like to use overloads here so that calling getPoint with only one number arg is recognized
+// as a type error, but it seems to just introduce an odd new error elsewhere... look into it? maybe?
+// For now, just disable overloads:
+// export function getPoint(x: number, y: number): Point
+// export function getPoint(pointObject: Point): Point
+// export function getPoint(pointArray: ArrayPoint): Point
+export function getPoint(xArg: number | Point | ArrayPoint, y?: number): Point {
+	if (isPointObject(xArg)) {
+		return xArg
+	}
+
+	if (isArrayPoint(xArg)) {
+		return {
+			x: xArg[0],
+			y: xArg[1]
+		}
+	}
+	
+	if (y != null && typeof xArg === 'number' && typeof y === 'number') {
+		return { x: xArg, y }
+	}
+
+	// Bad params. Error here
+	return { x: NaN, y: NaN }
 }
 
 export class Vector2 {
@@ -92,7 +120,7 @@ export class Vector2 {
 	constructor(x: number, y: number)  // Vector2(25, 50)
 	constructor(xyObject: Point)  // Vector2({ x: 25, y: 50 })
 	constructor(xOrPoint: number | Point, y?: number) {
-		if (isObjectPoint(xOrPoint)) {
+		if (isPointObject(xOrPoint)) {
 			this.x = xOrPoint.x
 			this.y = xOrPoint.y
 		}

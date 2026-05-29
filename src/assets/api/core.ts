@@ -1,7 +1,9 @@
 import { ref } from 'vue';
 import { atan2, cos, random, sin, startCode, tan, deg2rad, rad2deg, clamp, randomX, randomY, randomPosition, randomFloat } from './utility';
 import { AUTO, Game, Scene, type Types } from 'phaser';
-import { type Repeatable, type Delayable, Point, type Screen, type RepeatableUntil, type Predicate, type Action, Vector2, Mouse } from './interfaces';
+
+import type { Repeatable, Delayable, Point, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
+import { Vector2, Mouse } from './interfaces';
 
 import Phaser from 'phaser';
 import Sprite from './Sprite';
@@ -439,7 +441,7 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Label, Line, HLine, VLine, Vector2, Point,
+			Sprite, Rectangle, Label, Line, HLine, VLine, Vector2, /*Point,*/
 			timer, screen, camera, mouse,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,

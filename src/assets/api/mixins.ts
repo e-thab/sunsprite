@@ -34,7 +34,7 @@ export type GameObjectProps = PositionableProps & SizableProps & RotatableProps 
 export type PositionableProps = {
     x?: number
     y?: number
-    // position: Point
+    // position: PointParam  -- !!TODO
 }
 
 export function Positionable<Base extends Class>(base: Base) {

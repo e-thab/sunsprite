@@ -1,5 +1,5 @@
+import type { Point } from "./interfaces"
 import { screen } from "./core"
-import { Point } from "./interfaces"
 import Line from "./Line"
 
 type HLineProps = {

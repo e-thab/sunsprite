@@ -2,7 +2,7 @@
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
 import { scene, screen } from "./core";
-import type { Point } from "./interfaces";
+import { getPoint, type Point, type PointParam } from "./interfaces";
 import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins";
 
 type LineProps = RotatableProps & ViewableProps & {
@@ -49,39 +49,39 @@ export default class Line extends
         // this.queueShow()
     }
     
-    get pointA(): Point {
+    get pointA(): PointParam {
         return this._pointA
     }
-    set pointA(pointA: Point) {
+    set pointA(pointA: PointParam) {
         // const startPoint = getGamePoint(start)
         // this._line.setTo(startPoint.x, startPoint.y)
-        this._pointA = pointA
+        this._pointA = getPoint(pointA)
         this._updatePoints()
     }
 
     get pointB(): Point {
         return this._pointB
     }
-    set pointB(pointB: Point) {
+    set pointB(pointB: PointParam) {
         // const endPoint = getGamePoint(end)
         // const startPoint = getGamePoint(this._start)
         // this._line.setTo(startPoint.x, startPoint.y, endPoint.x, endPoint.y)
-        this._pointB = pointB
+        this._pointB = getPoint(pointB)
         this._updatePoints()
     }
 
-    setPoints(pointA: Point, pointB: Point) {
-        this._pointA = pointA
-        this._pointB = pointB
+    setPoints(pointA: PointParam, pointB: PointParam) {
+        this._pointA = getPoint(pointA)
+        this._pointB = getPoint(pointB)
         this._updatePoints()
     }
 
     _updatePoints() {
         this._line.setTo(
-            this.pointA.x + screen.right,
-            -this.pointA.y + screen.top,
-            this.pointB.x + screen.right,
-            -this.pointB.y + screen.top
+            this._pointA.x + screen.right,
+            -this._pointA.y + screen.top,
+            this._pointB.x + screen.right,
+            -this._pointB.y + screen.top
         )
     }
 }
