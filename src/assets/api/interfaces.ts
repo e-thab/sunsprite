@@ -61,14 +61,21 @@ export class Mouse {
 	}
 }
 
-// export type Point = { x: number, y: number }
-export class Point {
-	x: number
-	y: number
+// move to Point.ts
+export abstract class Point {
+	x: number = NaN
+	y: number = NaN
 
-	constructor(x: number, y: number) {
-		this.x = x
-		this.y = y
+	constructor(xOrPoint: number | AnyPoint, y?: number) {
+		if (isAnyPoint(xOrPoint)) {
+			this.x = Point.from(xOrPoint).x
+			this.y = Point.from(xOrPoint).y
+		}
+		
+		if (y != null && typeof xOrPoint === 'number' && typeof y === 'number') {
+			this.x = xOrPoint,
+			this.y = y
+		}
 	}
 
 	// Point object factory; returns a point-like { x, y } object
@@ -100,6 +107,7 @@ export class Point {
 		return { x: NaN, y: NaN }
 	}
 }
+
 export type ObjectPoint = { x: number, y: number }
 export type ArrayPoint = [number, number]
 export type AnyPoint = Point | ObjectPoint | ArrayPoint
@@ -110,24 +118,23 @@ function isObjectPoint(obj: any): obj is ObjectPoint {
 function isArrayPoint(obj: any): obj is ArrayPoint {
 	return obj && obj.length === 2 && typeof obj[0] === 'number' && typeof obj[1] === 'number'
 }
+function isAnyPoint(obj: any): obj is AnyPoint {
+	return obj && isObjectPoint(obj) && isArrayPoint(obj)
+}
 
 export class Vector2 {
 	x: number = 0
 	y: number = 0
 
-	constructor(x: number, y: number)  // Vector2(25, 50)
-	constructor(xyObject: Point)  // Vector2({ x: 25, y: 50 })
-	constructor(xOrPoint: number | Point, y?: number) {
-		if (isObjectPoint(xOrPoint)) {
-			this.x = xOrPoint.x
-			this.y = xOrPoint.y
+	constructor(xOrPoint: number | AnyPoint, y?: number) {
+		if (isAnyPoint(xOrPoint)) {
+			this.x = Point.from(xOrPoint).x
+			this.y = Point.from(xOrPoint).y
 		}
-		else if (typeof xOrPoint === 'number' && y != null) {
-			this.x = xOrPoint
+		
+		if (y != null && typeof xOrPoint === 'number' && typeof y === 'number') {
+			this.x = xOrPoint,
 			this.y = y
-		}
-		else {
-			// warn? err?
 		}
 	}
 
