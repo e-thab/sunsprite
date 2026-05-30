@@ -1,7 +1,8 @@
 // Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
 // import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, randomPosition } from "./utility"
-import { Point, type AnyPoint } from "./interfaces"
+// import { Point, type AnyPoint } from "./interfaces"
+import { Point, type AnyPoint } from "./Point"
 import { screen, camera, timer, /*mouseX, mouseY,*/ paused, getGamePoint } from "./core"
 
 import Phaser from "phaser"

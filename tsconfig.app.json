@@ -17,6 +17,8 @@
     // Path mapping for cleaner imports.
     "paths": {
       "@/*": ["./src/*"],
+
+      "@api/*": ["./src/assets/api/*"],
       
       // Nuxt
       "#build/ui/*": [

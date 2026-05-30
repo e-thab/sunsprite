@@ -1,4 +1,3 @@
-import type { Point } from "./interfaces"
 import { screen } from "./core"
 import { Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "./Line"

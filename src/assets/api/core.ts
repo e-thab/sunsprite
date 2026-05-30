@@ -1,11 +1,13 @@
 import { ref } from 'vue';
-import { atan2, cos, random, sin, startCode, tan, deg2rad, rad2deg, clamp, randomX, randomY, randomPosition, randomFloat, randomBool } from './utility';
+
 import { AUTO, Game, Scene, type Types } from 'phaser';
-
-import type { Repeatable, Delayable, Point, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
-import { Vector2, Mouse } from './interfaces';
-
 import Phaser from 'phaser';
+
+import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
+import { Mouse } from './interfaces'
+import { atan2, cos, random, sin, startCode, tan, deg2rad, rad2deg, clamp, randomX, randomY, randomPosition, randomFloat, randomBool } from './utility';
+import { Point, Vector2, type AnyPoint } from './Point'
+
 import Sprite from './Sprite';
 import Rectangle from './Rectangle';
 import Label from './Label';

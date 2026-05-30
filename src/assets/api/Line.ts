@@ -2,7 +2,7 @@
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
 import { scene, screen } from "./core";
-import { Point, type AnyPoint } from "./interfaces";
+import { Point, type AnyPoint } from "./Point";
 import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins";
 import Phaser from "phaser";
 

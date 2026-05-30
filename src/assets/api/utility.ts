@@ -1,5 +1,5 @@
 import { screen } from "./core"
-import type { Point } from "./interfaces";
+import { Point } from "./Point";
 
 /* Get a random int, min & max inclusive */
 export function random(min: number, max: number): number {
