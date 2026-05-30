@@ -62,51 +62,53 @@ export class Mouse {
 }
 
 // export type Point = { x: number, y: number }
-// export class Point {
-// 	x: number
-// 	y: number
+export class Point {
+	x: number
+	y: number
 
-// 	constructor(x: number, y: number) {
-// 		this.x = x
-// 		this.y = y
-// 	}
-// }
-// export function At(x: number, y: number) {
-// 	return { x, y }
-// }
+	constructor(x: number, y: number) {
+		this.x = x
+		this.y = y
+	}
 
-export type Point = { x: number, y: number }
+	// Point object factory; returns a point-like { x, y } object
+	static from(x: number, y: number): Point
+	static from(point: AnyPoint): Point
+	static from(xOrPoint: number | AnyPoint, y?: number): Point {
+		if (isObjectPoint(xOrPoint)) {
+			return {
+				x: xOrPoint.x,
+				y: xOrPoint.y
+			}
+		}
+
+		if (isArrayPoint(xOrPoint)) {
+			return {
+				x: xOrPoint[0],
+				y: xOrPoint[1]
+			}
+		}
+		
+		if (y != null && typeof xOrPoint === 'number' && typeof y === 'number') {
+			return {
+				x: xOrPoint,
+				y
+			}
+		}
+
+		// Bad params. Error here
+		return { x: NaN, y: NaN }
+	}
+}
+export type ObjectPoint = { x: number, y: number }
 export type ArrayPoint = [number, number]
-export type ParamPoint = Point | ArrayPoint
+export type AnyPoint = Point | ObjectPoint | ArrayPoint
 
-function isPointObject(obj: any): obj is Point {
+function isObjectPoint(obj: any): obj is ObjectPoint {
 	return obj && typeof obj.x === 'number' && typeof obj.y === 'number'
 }
 function isArrayPoint(obj: any): obj is ArrayPoint {
 	return obj && obj.length === 2 && typeof obj[0] === 'number' && typeof obj[1] === 'number'
-}
-
-// Point factory
-export function getPoint(x: number, y: number): Point
-export function getPoint(point: ParamPoint): Point
-export function getPoint(xOrPoint: number | ParamPoint, y?: number): Point {
-	if (isPointObject(xOrPoint)) {
-		return xOrPoint
-	}
-
-	if (isArrayPoint(xOrPoint)) {
-		return {
-			x: xOrPoint[0],
-			y: xOrPoint[1]
-		}
-	}
-	
-	if (y != null && typeof xOrPoint === 'number' && typeof y === 'number') {
-		return { x: xOrPoint, y }
-	}
-
-	// Bad params. Error here
-	return { x: NaN, y: NaN }
 }
 
 export class Vector2 {
@@ -116,7 +118,7 @@ export class Vector2 {
 	constructor(x: number, y: number)  // Vector2(25, 50)
 	constructor(xyObject: Point)  // Vector2({ x: 25, y: 50 })
 	constructor(xOrPoint: number | Point, y?: number) {
-		if (isPointObject(xOrPoint)) {
+		if (isObjectPoint(xOrPoint)) {
 			this.x = xOrPoint.x
 			this.y = xOrPoint.y
 		}

@@ -1,7 +1,7 @@
 // Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
 // import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, randomPosition } from "./utility"
-import { getPoint, type Action, type ParamPoint, type Point } from "./interfaces"
+import { Point, type AnyPoint } from "./interfaces"
 import { screen, camera, timer, /*mouseX, mouseY,*/ paused, getGamePoint } from "./core"
 
 import Phaser from "phaser"
@@ -34,8 +34,8 @@ export type GameObjectProps = PositionableProps & SizableProps & RotatableProps 
 export type PositionableProps = {
     x?: number
     y?: number
-    pos?: ParamPoint
-    position?: ParamPoint
+    pos?: AnyPoint
+    position?: AnyPoint
 }
 
 export function Positionable<Base extends Class>(base: Base) {
@@ -81,8 +81,8 @@ export function Positionable<Base extends Class>(base: Base) {
                 y: this.y
             }
         }
-        set position(pos: ParamPoint) {
-            pos = getPoint(pos)
+        set position(pos: AnyPoint) {
+            pos = Point.from(pos)
             this._x = pos.x
             this._y = pos.y
             this._updatePosition()
@@ -92,7 +92,7 @@ export function Positionable<Base extends Class>(base: Base) {
         get pos(): Point {
             return this.position
         }
-        set pos(pos: ParamPoint) {
+        set pos(pos: AnyPoint) {
             this.position = pos
         }
 
@@ -289,7 +289,7 @@ export function Viewable<Base extends Class>(base: Base) {
         // - effects?
 
         _refObj?: any
-        _alpha: number = /*~100~*/ 1
+        _alpha: number = 1
         _layer: number = 0
         _visible: boolean = true
 
@@ -318,8 +318,6 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         set alpha(alpha: number) {
             this._alpha = alpha
-            // Dividing by 100 to make the alpha range 0-100 causes weird problems for some objects
-            // if (this._refObj) this._refObj.setAlpha(alpha / 100)
             if (this._refObj) this._refObj.setAlpha(alpha)
         }
         

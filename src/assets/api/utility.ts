@@ -3,13 +3,18 @@ import type { Point } from "./interfaces";
 
 /* Get a random int, min & max inclusive */
 export function random(min: number, max: number): number {
-    const minCeiled = Math.ceil(min);
-    const maxFloored = Math.floor(max);
-    return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
+    const minCeiled = Math.ceil(min)
+    const maxFloored = Math.floor(max)
+    return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled)
 }
 
 export function randomFloat(min: number, max: number): number {
     return Math.random() * (max - min) + min;
+}
+
+export function randomBool(): boolean {
+    if (Math.random() >= 0.5) return true
+    return false
 }
 
 export function randomX(): number {

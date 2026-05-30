@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { atan2, cos, random, sin, startCode, tan, deg2rad, rad2deg, clamp, randomX, randomY, randomPosition, randomFloat } from './utility';
+import { atan2, cos, random, sin, startCode, tan, deg2rad, rad2deg, clamp, randomX, randomY, randomPosition, randomFloat, randomBool } from './utility';
 import { AUTO, Game, Scene, type Types } from 'phaser';
 
 import type { Repeatable, Delayable, Point, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
@@ -445,7 +445,7 @@ class UserScene extends Scene {
 			timer, screen, camera, mouse,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,
-			random, randomFloat, randomX, randomY, randomPosition,
+			random, randomFloat, randomBool, randomX, randomY, randomPosition,
 			deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
