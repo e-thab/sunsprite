@@ -398,9 +398,9 @@ export type InteractableProps = {
 export function Interactable<Base extends Class>(base: Base) {
     return class Interactable extends base {
         // TODO:
-        // - more input events (double click, right click, scroll, mousemove, mouseup...)
-        // - drag events
+        // - more input events (double click, right click, scroll, mousemove...)
         // - drag cursor
+        // - look into context menu interrupting, i.e. right click while dragging doesn't end drag (should it? should i just disable canvas context menu)
 
         _refObj?: any
         _cursor?: Cursor
@@ -431,14 +431,6 @@ export function Interactable<Base extends Class>(base: Base) {
             if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
 
             if (props?.onDrag) this.onDrag = props.onDrag
-            // Now handled in GameObject
-            // else if (this._refObj) {
-            //     this.onDrag = (x: number, y: number) => {
-            //         // this._refObj.x = x + screen.right
-            //         // this._refObj.y = -y + screen.top
-            //     }
-            // }
-
             if (props?.onDragStart) this.onDragStart = props.onDragStart
             if (props?.onDragEnd) this.onDragEnd = props.onDragEnd
         }

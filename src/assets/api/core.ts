@@ -14,7 +14,6 @@ import Label from './Label';
 import Line from './Line';
 import HLine from './HLine';
 import VLine from './VLine';
-// import Text from './Text';
 // import Camera from './Camera';  --  needs phaser attention
 
 export const fpsRef = ref(0)
