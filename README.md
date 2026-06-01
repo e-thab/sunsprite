@@ -1,6 +1,6 @@
 # Sunsprite
 
-https://e-thab.github.io/sunsprite/
+https://sunsprite.dev/
 
 A super simple, browser-based game engine for JavaScript beginners. Built with Vue 3.
 
