@@ -19,6 +19,7 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  base: '/sunsprite/'
   // optimizeDeps: {
   //   include: [
   //     `${prefix}/language/json/json.worker`,
