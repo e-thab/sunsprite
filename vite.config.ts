@@ -8,25 +8,27 @@ import ui from '@nuxt/ui/vite'
 // const prefix = `monaco-editor/esm/vs`
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    vue(),
-    vueDevTools(),
-    ui()
-  ],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+export default defineConfig(({ command }) => {
+  return {
+    plugins: [
+      vue(),
+      vueDevTools(),
+      ui()
+    ],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url))
+      },
     },
-  },
-  base: '/sunsprite/'
-  // optimizeDeps: {
-  //   include: [
-  //     `${prefix}/language/json/json.worker`,
-  //     `${prefix}/language/css/css.worker`,
-  //     `${prefix}/language/html/html.worker`,
-  //     `${prefix}/language/typescript/ts.worker`,
-  //     `${prefix}/editor/editor.worker`
-  //   ]
-  // }
+    base: command === 'serve' ? '/' : '/sunsprite/'
+    // optimizeDeps: {
+    //   include: [
+    //     `${prefix}/language/json/json.worker`,
+    //     `${prefix}/language/css/css.worker`,
+    //     `${prefix}/language/html/html.worker`,
+    //     `${prefix}/language/typescript/ts.worker`,
+    //     `${prefix}/editor/editor.worker`
+    //   ]
+    // }
+  }
 })
