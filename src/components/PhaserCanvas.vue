@@ -72,8 +72,11 @@ onMounted(async () => {
       <!-- Settings -->
       <img @click="print('settings')" class="img-button" src="@/assets/images/game-icons/gear.png" />
 
-      <!-- Fullscreen -->
-      <img @click="$emit('fullscreen')" class="img-button" :src="fsStore.icon" />
+      <!-- Fullscreen (maximize) -->
+      <img v-show="!fsStore.fullscreen" @click="$emit('fullscreen' /*'maximize'*/)" class="img-button" src="@/assets/images/game-icons/larger.png" />
+
+      <!-- Fullscreen (minimize) -->
+      <img v-show="fsStore.fullscreen" @click="$emit('fullscreen' /*'minimize'*/)" class="img-button" src="@/assets/images/game-icons/smaller.png" />
     </div>
     <div id="game-container" class="canvas"></div>
   </div>
