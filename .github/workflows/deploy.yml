@@ -46,6 +46,7 @@ jobs:
         with:
           # Upload dist folder
           path: './dist'
+          cache: pnpm
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
