@@ -53,7 +53,7 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           # Upload dist folder
-          path: './dist'
+          path: '/dist'
           cache: pnpm
           
       - name: Deploy to GitHub Pages
