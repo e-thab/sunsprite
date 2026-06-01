@@ -13,8 +13,9 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
         return fullscreen.value
     }
 
-    const largerIcon = '@/assets/images/game-icons/larger.png'
-    const smallerIcon = '@/assets/images/game-icons/smaller.png'
+    // Why can't I use @ as an alias for src here?
+    const largerIcon = 'src/assets/images/game-icons/larger.png'
+    const smallerIcon = 'src/assets/images/game-icons/smaller.png'
 
     const icon = computed(() => {
         return fullscreen.value ? smallerIcon : largerIcon
