@@ -13,8 +13,8 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
         return fullscreen.value
     }
 
-    const largerIcon = '/src/assets/images/game-icons/larger.png'
-    const smallerIcon = '/src/assets/images/game-icons/smaller.png'
+    const largerIcon = '@/src/assets/images/game-icons/larger.png'
+    const smallerIcon = '@/src/assets/images/game-icons/smaller.png'
 
     const icon = computed(() => {
         return fullscreen.value ? smallerIcon : largerIcon
