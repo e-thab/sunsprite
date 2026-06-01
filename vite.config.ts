@@ -20,7 +20,7 @@ export default defineConfig(({ command }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url))
       },
     },
-    // base: command === 'serve' ? '/' : '/sunsprite/'
+    base: '/',
     // optimizeDeps: {
     //   include: [
     //     `${prefix}/language/json/json.worker`,
@@ -29,6 +29,6 @@ export default defineConfig(({ command }) => {
     //     `${prefix}/language/typescript/ts.worker`,
     //     `${prefix}/editor/editor.worker`
     //   ]
-    // }
+    // },
   }
 })
