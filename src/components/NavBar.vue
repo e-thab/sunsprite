@@ -9,9 +9,9 @@ const fsStore = useFullscreenStore()
         <!-- <span>Header</span> -->
         <!-- <span>Span two</span> -->
         <!-- <span>Span three</span> -->
-        <img @click="print('home')" class="img-button" src="/src/assets/images/game-icons/home.png" />
-        <img @click="print('logo')" class="img-button" id="logo" src="/src/assets/sun.svg" />
-        <img @click="print('account')" class="img-button" src="/src/assets/images/game-icons/multiplayer.png" />
+        <img class="img-button" @click="print('home')" title="Home" src="/src/assets/images/game-icons/home.png" />
+        <img class="img-button" @click="print('logo')" id="logo" title="Sunsprite" src="/src/assets/sun.svg" />
+        <img class="img-button" @click="print('profile')" title="Profile" src="/src/assets/images/game-icons/multiplayer.png" />
     </div>
 </template>
 

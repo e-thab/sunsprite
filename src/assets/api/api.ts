@@ -1,5 +1,5 @@
 import { camera, screen, timer, mouse, forever, repeat, repeatUntil, after, every, keyPressed, keyJustPressed, print, play, pause, setBackgroundColor } from "./core";
-import { random, randomFloat, randomX, randomY, randomPosition, deg2rad, rad2deg, sin, cos, tan, atan2, clamp } from "./utility";
+import { random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp } from "./utility";
 import { Point, Vector2 } from "./Point";
 
 import Sprite from "./Sprite"
@@ -15,8 +15,7 @@ const api = {
     timer, screen, camera, mouse,
     forever, repeat, repeatUntil, after, every,
     keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,
-    random, randomFloat, randomX, randomY, randomPosition,
-    deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
+    random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
     sqrt: Math.sqrt,
     min: Math.min,
     max: Math.max,

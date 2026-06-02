@@ -53,21 +53,21 @@ onMounted(() => {
 	<div class="panel-wrapper">
 		<div class="panel-bar">
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
-			<img @click="saveCurrentCode" class="img-button" src="/src/assets/images/game-icons/save.png" />
-			<img @click="resetCode" class="img-button" src="/src/assets/images/game-icons/previous.png" />
+			<img class="img-button" @click="saveCurrentCode" title="Save" src="/src/assets/images/game-icons/save.png" />
+			<img class="img-button" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" />
 			<div style="width: 50em;"></div>
 		</div>
 		<div id="code-container" class="editor">
 			<codemirror
-			v-model="code"
-			placeholder="/* ... */"
-			:autofocus="true"
-			:indent-with-tab="true"
-			:tab-size="4"
-			:extensions="extensions"
-			:style="{
-				maxHeight: '100%',
-			}"
+				v-model="code"
+				placeholder="/* ... */"
+				:indent-with-tab="true"
+				:tab-size="4"
+				:extensions="extensions"
+				:autofocus="true"
+				:style="{
+					maxHeight: '100%'
+				}"
 			/>
 			<!-- @change="saveCurrentCode($event)" -->
 		</div>

@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 
 import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
 import { Mouse } from './interfaces'
-import { atan2, cos, random, sin, startCode, tan, deg2rad, rad2deg, clamp, randomX, randomY, randomPosition, randomFloat, randomBool } from './utility';
+import { atan2, cos, random, sin, startCode, tan, deg2rad, rad2deg, clamp } from './utility';
 import { Point, Vector2, type AnyPoint } from './Point'
 
 import Sprite from './Sprite';
@@ -446,8 +446,7 @@ class UserScene extends Scene {
 			timer, screen, camera, mouse,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,
-			random, randomFloat, randomBool, randomX, randomY, randomPosition,
-			deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
+			random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
 			max: Math.max,

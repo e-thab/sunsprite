@@ -1,39 +1,69 @@
 import { screen } from "./core"
 import { Point } from "./Point";
 
-/* Get a random int, min & max inclusive */
-export function random(min: number, max: number): number {
-    const minCeiled = Math.ceil(min)
-    const maxFloored = Math.floor(max)
-    return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled)
-}
 
-export function randomFloat(min: number, max: number): number {
-    return Math.random() * (max - min) + min;
-}
+export const random = {
+    // Get a random int, min & max inclusive
+    range(min: number, max: number): number {
+        const minCeiled = Math.ceil(min)
+        const maxFloored = Math.floor(max)
+        return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled)
+    },
 
-export function randomBool(): boolean {
-    if (Math.random() >= 0.5) return true
-    return false
-}
+    // TODO: exclusive range?
 
-export function randomX(): number {
-    return random(screen.left, screen.right)
-}
+    // Random float in a given range (TODO: test -clusivity) 
+    float(min: number, max: number): number {
+        return Math.random() * (max - min) + min;
+    },
 
-export function randomY(): number {
-    return random(screen.top, screen.bottom)
-}
+    // Random bool, 50% chance
+    coinFlip(): boolean {
+        return Math.random() >= 0.5
+    },
 
-export function randomPosition(): Point {
-    return {
-        x: randomX(),
-        y: randomY()
-    }
-}
+    // Random dice roll
+    roll(sides: number): number {
+        return this.range(1, sides)
+    },
 
-export function randomColor() {
-    // TODO
+    // TODO: Random color
+    // color(): string {
+
+    // },
+
+    // Random rotation in radians
+    radians(): number {
+        return this.float(0, 2 * Math.PI)
+    },
+
+    // Random rotation in degrees
+    degrees(): number {
+        return this.range(1, 360)
+    },
+
+    // Random position inside screen
+    position(): Point {
+        return {
+            x: this.x(),
+            y: this.y()
+        }
+    },
+
+    // Alias for random.position()
+    pos(): Point {
+        return this.position()
+    },
+
+    // Random x coordinate inside screen
+    x(): number {
+        return this.range(screen.left, screen.right)
+    },
+    
+    // Random y coordinate inside screen
+    y(): number {
+        return this.range(screen.bottom, screen.top)
+    },
 }
 
 export function deg2rad(deg: number): number {

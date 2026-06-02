@@ -45,21 +45,21 @@ onMounted(async () => {
   <div class="panel-wrapper">
     <div class="panel-bar">
       <!-- Play -->
-      <img v-show="pausedRef" @click="play" class="img-button" src="@/assets/images/game-icons/right.png" />
+      <img v-show="pausedRef" @click="play" class="img-button" title="Play" src="@/assets/images/game-icons/right.png" />
 
       <!-- Pause -->
-      <img v-show="!pausedRef" @click="pause" class="img-button" src="@/assets/images/game-icons/pause.png" />
+      <img v-show="!pausedRef" @click="pause" class="img-button" title="Pause" src="@/assets/images/game-icons/pause.png" />
 
       <!-- Restart / Run code -->
-      <img @click="$emit('runGame')" class="img-button" src="@/assets/images/game-icons/return.png" />
+      <img @click="$emit('runGame')" class="img-button" title="Restart" src="@/assets/images/game-icons/return.png" />
       
       <!-- Screenshot -->
-      <img @click="print('screenshot')" class="img-button" src="@/assets/images/game-icons/export.png" />
+      <!-- <img @click="print('screenshot')" class="img-button" title="Screenshot" src="@/assets/images/game-icons/export.png" /> -->
       
       <!-- mouseX/Y -->
       <div class="coords">
-        <span style="font-size: 12px;">mouseX: {{ mouseRef.mouseX }}</span>
-        <span style="font-size: 12px;">mouseY: {{ mouseRef.mouseY }}</span>
+        <span style="font-size: 12px;">mouse X: {{ mouseRef.mouseX }}</span>
+        <span style="font-size: 12px;">mouse Y: {{ mouseRef.mouseY }}</span>
       </div>
       
       <!-- FPS indicator -->
@@ -67,16 +67,16 @@ onMounted(async () => {
       
       <!-- Sound -->
       <!-- Icon should change based on volume -->
-      <img @click="print('sound')" class="img-button" src="@/assets/images/game-icons/audioOn.png" />
+      <img @click="print('sound')" class="img-button" title="Volume" src="@/assets/images/game-icons/audioOn.png" />
       
       <!-- Settings -->
-      <img @click="print('settings')" class="img-button" src="@/assets/images/game-icons/gear.png" />
+      <img @click="print('settings')" class="img-button" title="Settings" src="@/assets/images/game-icons/gear.png" />
 
       <!-- Fullscreen (maximize) -->
-      <img v-show="!fsStore.fullscreen" @click="$emit('fullscreen' /*'maximize'*/)" class="img-button" src="@/assets/images/game-icons/larger.png" />
+      <img v-show="!fsStore.fullscreen" @click="$emit('fullscreen')" class="img-button" title="Fullscreen" src="@/assets/images/game-icons/larger.png" />
 
       <!-- Fullscreen (minimize) -->
-      <img v-show="fsStore.fullscreen" @click="$emit('fullscreen' /*'minimize'*/)" class="img-button" src="@/assets/images/game-icons/smaller.png" />
+      <img v-show="fsStore.fullscreen" @click="$emit('fullscreen')" class="img-button" title="Shrink" src="@/assets/images/game-icons/smaller.png" />
     </div>
     <div id="game-container" class="canvas"></div>
   </div>
