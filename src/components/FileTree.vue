@@ -83,6 +83,7 @@ const items = ref<TreeItem[]>([
       },
     ]
   },
+
   {
     label: 'Sounds',
     defaultExpanded: true,
@@ -93,14 +94,50 @@ const items = ref<TreeItem[]>([
       },
     ]
   },
+
   {
     label: 'Scripts',
     defaultExpanded: true,
     children: [
+      // {
+      //   label: 'main.ts',
+      //   icon: 'catppuccin:typescript'
+      // },
       {
-        label: 'main.ts',
-        icon: 'catppuccin:typescript'
-      }
+        label: 'sprites.js',
+        icon: 'catppuccin:javascript',
+        onSelect: (event) => {
+          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+        }
+      },
+      {
+        label: 'rectangles.js',
+        icon: 'catppuccin:javascript',
+        onSelect: (event) => {
+          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+        }
+      },
+      {
+        label: 'lines.js',
+        icon: 'catppuccin:javascript',
+        onSelect: (event) => {
+          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+        }
+      },
+      {
+        label: 'labels.js',
+        icon: 'catppuccin:javascript',
+        onSelect: (event) => {
+          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+        }
+      },
+      {
+        label: 'main.js',
+        icon: 'catppuccin:javascript',
+        onSelect: (event) => {
+          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+        }
+      },
     ]
   },
   // {
@@ -145,6 +182,10 @@ const items = ref<TreeItem[]>([
   //   icon: 'catppuccin:nuxt'
   // },
 ])
+
+const emit = defineEmits<{
+  selectScript: [name: string]
+}>()
 </script>
 
 <template>

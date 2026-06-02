@@ -2,12 +2,14 @@
 import { onMounted, ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage, print } from '@/assets/api/core';
+import { getExampleCode } from '@/assets/api/examples';
 import { useFullscreenStore } from '@/stores/fullscreen';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
 import OutputPane from '@/components/OutputPane.vue';
+
 
 const editor = ref()
 const fsStore = useFullscreenStore()
@@ -77,6 +79,11 @@ async function collapseOutput() {
   resizeStage()
 }
 
+function selectScript(name: string) {
+  print(`Opening ${name}`)
+  print(getExampleCode(name))
+}
+
 onMounted(() => {
   const canvas = document.getElementById('canvas-v-pane')
   if (!canvas) return
@@ -98,7 +105,7 @@ onMounted(() => {
     <!-- Left side pane: File explorer -->
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" size="12">
       <!-- <span>Files</span> -->
-      <FileTree />
+      <FileTree @select-script="selectScript" />
     </pane>
 
     <!-- Center pane: Code editor -->

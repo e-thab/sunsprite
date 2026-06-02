@@ -1,3 +1,22 @@
+export function getExampleCode(fileName: string): string {
+    if (fileName === 'main.js') {
+        return '' // localstorage script
+    }
+
+    const code = exampleCode[fileName]
+    return code ?? ''
+}
+
+const exampleCode: { [key: string]: string } = {
+    'sprites.js': '// This is sprites.js',
+    'rectangles.js': '// This is rectangles.js',
+    'lines.js': '// This is lines.js',
+    'labels.js': '// This is labels.js'
+}
+
+
+
+// from examples.js:
 /* Star Catcher
 setBackgroundImage('https://woofjs.com/docs/images/galaxy.jpg')
 
