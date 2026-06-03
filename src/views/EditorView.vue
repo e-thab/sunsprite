@@ -79,9 +79,10 @@ async function collapseOutput() {
   resizeStage()
 }
 
-function selectScript(name: string) {
-  print(`Opening ${name}`)
-  print(getExampleCode(name))
+function loadScript(fileName: string) {
+  print(`Opening ${fileName}`)
+  // print(getExampleCode(name))
+  editor.value.setCode(getExampleCode(fileName))
 }
 
 onMounted(() => {
@@ -105,7 +106,7 @@ onMounted(() => {
     <!-- Left side pane: File explorer -->
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" size="12">
       <!-- <span>Files</span> -->
-      <FileTree @select-script="selectScript" />
+      <FileTree @select-script="loadScript" />
     </pane>
 
     <!-- Center pane: Code editor -->

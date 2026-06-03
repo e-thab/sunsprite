@@ -10,12 +10,17 @@ export const random = {
         return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled)
     },
 
-    // TODO: exclusive range?
+    // TODO: exclusive int range?
 
-    // Random float in a given range (TODO: test -clusivity) 
+    // Random float in a given range, min inclusive / max exclusive
     float(min: number, max: number): number {
         return Math.random() * (max - min) + min;
     },
+
+    // // Random alphanumeric string of length len: is this idea any good?
+    // string(len: number): string {
+
+    // },
 
     // Random bool, 50% chance
     coinFlip(): boolean {
@@ -31,6 +36,16 @@ export const random = {
     // color(): string {
 
     // },
+
+    // TODO: Shuffle an array
+    // shuffle(arr: any[]): void {
+
+    // },
+
+    // Pick a random item from array
+    choice(arr: any[]): any {
+        return arr[this.range(0, arr.length - 1)]
+    },
 
     // Random rotation in radians
     radians(): number {

@@ -11,6 +11,9 @@ import { oneDark } from '@codemirror/theme-one-dark'
 
 const code = ref(startCode)
 const js = javascript()
+const isSaved = ref(true)
+
+let lastSavedAt = ''
 
 const extensions = [
 	js,
@@ -22,25 +25,46 @@ const extensions = [
 	nord,
 ]
 
+function setCode(newCode: string) {
+	code.value = newCode
+}
+
 function resetCode() {
 	if (!confirm('Reset editor code to default?')) return
 	code.value = startCode
-	localStorage.setItem('code', startCode)
 }
 
 function saveCurrentCode() {
+	lastSavedAt = new Date().toLocaleTimeString()
 	localStorage.setItem('code', code.value)
+	updateSaveMsg()
 }
 
 function runActiveUserCode() {
-  runUserCode(code.value)
+	runUserCode(code.value)
 }
 
-defineExpose({ runActiveUserCode })
+function updateSaveMsg(checkCode?: string) {
+	const saveElement = document.getElementById('save-msg')
+	if (!saveElement) return
+
+	const currentCode = checkCode ?? code.value
+	const savedCode = localStorage.getItem('code')
+
+	isSaved.value = currentCode === savedCode
+	if (isSaved.value) {
+		saveElement.innerText = `Saved ${lastSavedAt}`
+	} else {
+		saveElement.innerText = `Saved`
+	}
+}
+
+defineExpose({ runActiveUserCode, setCode })
 
 onMounted(() => {
 	code.value = localStorage.getItem('code') ?? startCode
 	runActiveUserCode()
+	updateSaveMsg()
 })
 
 // TODO: 
@@ -53,9 +77,9 @@ onMounted(() => {
 	<div class="panel-wrapper">
 		<div class="panel-bar">
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
-			<img class="img-button" @click="saveCurrentCode" title="Save" src="/src/assets/images/game-icons/save.png" />
-			<img class="img-button" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" />
-			<div style="width: 50em;"></div>
+			<span v-show="isSaved" id="save-msg"></span>
+			<img v-show="!isSaved" class="img-button" style="margin-left: 10px;" @click="saveCurrentCode" title="Save" src="/src/assets/images/game-icons/save.png" />
+			<!-- <img class="img-button" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" /> -->
 		</div>
 		<div id="code-container" class="editor">
 			<codemirror
@@ -67,9 +91,9 @@ onMounted(() => {
 				:autofocus="true"
 				:style="{
 					maxHeight: '100%'
-				}"
+				}",
+				@change="updateSaveMsg"
 			/>
-			<!-- @change="saveCurrentCode($event)" -->
 		</div>
 	</div>
 </template>
@@ -91,6 +115,12 @@ onMounted(() => {
 .run-button {
 	height: 100%;
 	width: 50px;
+}
+
+#save-msg {
+	flex: 1 1 auto;
+	padding-left: 10px;
+	color: var(--nord-text-dim);
 }
 
 /* .save-info {

@@ -184,7 +184,7 @@ const items = ref<TreeItem[]>([
 ])
 
 const emit = defineEmits<{
-  selectScript: [name: string]
+  selectScript: [fileName: string]
 }>()
 </script>
 

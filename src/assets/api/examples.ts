@@ -1,6 +1,7 @@
 export function getExampleCode(fileName: string): string {
     if (fileName === 'main.js') {
-        return '' // localstorage script
+        const localCode = localStorage.getItem('code')
+        return localCode ?? '/* ... */'
     }
 
     const code = exampleCode[fileName]
@@ -8,10 +9,17 @@ export function getExampleCode(fileName: string): string {
 }
 
 const exampleCode: { [key: string]: string } = {
-    'sprites.js': '// This is sprites.js',
-    'rectangles.js': '// This is rectangles.js',
-    'lines.js': '// This is lines.js',
-    'labels.js': '// This is labels.js'
+    'sprites.js': `// This is sprites.js
+    `,
+
+    'rectangles.js': `// This is rectangles.js
+    `,
+
+    'lines.js': `// This is lines.js
+    `,
+
+    'labels.js': `// This is labels.js
+    `,
 }
 
 

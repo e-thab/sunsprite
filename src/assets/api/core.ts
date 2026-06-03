@@ -446,7 +446,7 @@ class UserScene extends Scene {
 			timer, screen, camera, mouse,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,
-			random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
+			Random: random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
 			max: Math.max,
