@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { /*runUserCode,*/ startCode, print } from '@/assets/api/core';
 import { runUserCode } from '@/assets/api/core';
 import { completions } from '@/assets/code-completion/codemirror-completions';
@@ -11,7 +11,40 @@ import { oneDark } from '@codemirror/theme-one-dark'
 
 const code = ref(startCode)
 const js = javascript()
+
 const isSaved = ref(true)
+const saveColor = computed(() => {
+	const rootStyles = window.getComputedStyle(document.documentElement)
+	const nordTextBright = rootStyles.getPropertyValue('--nord-text-bright').trim()
+	const nordTextDim = rootStyles.getPropertyValue('--nord-text-dim').trim()
+
+	return isSaved.value ? nordTextDim : nordTextBright
+})
+const saveCursor = computed(() => {
+	return isSaved.value ? 'default' : 'pointer'
+})
+
+const saveBtnFilter = computed(() => {
+	return isSaved.value ? 'brightness(0.3) sepia(1) saturate(0.8) hue-rotate(180deg)' : 'brightness(0.8) sepia(0) saturate(0.8) hue-rotate(180deg)'
+})
+const saveBtnHoverFilter = computed(() => {
+	return isSaved.value ? 'brightness(0.3) sepia(1) saturate(0.8) hue-rotate(180deg)' : 'brightness(1) sepia(0) saturate(0.8) hue-rotate(180deg)'
+})
+
+const saveMsgFilter = computed(() => {
+	return isSaved.value ? '' : 'brightness(0.8)'
+})
+const saveMsgHoverFilter = computed(() => {
+	return isSaved.value ? '' : 'brightness(1)'
+})
+
+// const saveVisibility = computed(() => {
+// 	if (isSaved.value && lastSavedAt === '') {
+// 		return 'hidden'
+// 	} else {
+// 		return 'visible'
+// 	}
+// })
 
 let lastSavedAt = ''
 
@@ -35,6 +68,7 @@ function resetCode() {
 }
 
 function saveCurrentCode() {
+	if (isSaved.value) return
 	lastSavedAt = new Date().toLocaleTimeString()
 	localStorage.setItem('code', code.value)
 	updateSaveMsg()
@@ -53,9 +87,13 @@ function updateSaveMsg(checkCode?: string) {
 
 	isSaved.value = currentCode === savedCode
 	if (isSaved.value) {
-		saveElement.innerText = `Saved ${lastSavedAt}`
+		if (lastSavedAt) {
+			saveElement.innerText = `Saved ${lastSavedAt}`
+		} else {
+			saveElement.innerText = 'Unchanged'
+		}
 	} else {
-		saveElement.innerText = `Saved`
+		saveElement.innerText = 'Save'
 	}
 }
 
@@ -77,8 +115,8 @@ onMounted(() => {
 	<div class="panel-wrapper">
 		<div class="panel-bar">
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
-			<span v-show="isSaved" id="save-msg"></span>
-			<img v-show="!isSaved" class="img-button" style="margin-left: 10px;" @click="saveCurrentCode" title="Save" src="/src/assets/images/game-icons/save.png" />
+			<img id="save-btn" class="img-button" style="margin-left: 10px;" @click="saveCurrentCode" title="Save" src="/src/assets/images/game-icons/save.png" />
+			<span id="save-msg" @click="saveCurrentCode"></span>
 			<!-- <img class="img-button" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" /> -->
 		</div>
 		<div id="code-container" class="editor">
@@ -120,7 +158,25 @@ onMounted(() => {
 #save-msg {
 	flex: 1 1 auto;
 	padding-left: 10px;
-	color: var(--nord-text-dim);
+	color: v-bind(saveColor);
+	filter: v-bind(saveMsgFilter);
+	transition: color 0.25s ease-in;
+	cursor: v-bind(saveCursor);
+}
+#save-msg:hover {
+	filter: v-bind(saveMsgHoverFilter);
+}
+
+#save-btn {
+	filter: v-bind(saveBtnFilter);
+	transition: all 0.25s ease-in;
+	cursor: v-bind(saveCursor);
+	/* filter: saturate(1); */
+	/* filter: hue-rotate(180deg); */
+	/* filter: brightness(0.4) */
+}
+#save-btn:hover {
+	filter: v-bind(saveBtnHoverFilter)
 }
 
 /* .save-info {
