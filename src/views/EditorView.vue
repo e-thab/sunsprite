@@ -2,8 +2,9 @@
 import { onMounted, ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage, print } from '@/assets/api/core';
-import { getExampleCode } from '@/assets/api/examples';
+import { getLocalCode } from '@/assets/api/storage';
 import { useFullscreenStore } from '@/stores/fullscreen';
+import { useFilesStore } from '@/stores/files';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
@@ -13,6 +14,7 @@ import OutputPane from '@/components/OutputPane.vue';
 
 const editor = ref()
 const fsStore = useFullscreenStore()
+const fileStore = useFilesStore()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
 
 const canvasWidth = ref(44)
@@ -81,8 +83,11 @@ async function collapseOutput() {
 
 function loadScript(fileName: string) {
   print(`Opening ${fileName}`)
-  // print(getExampleCode(name))
-  editor.value.setCode(getExampleCode(fileName))
+  localStorage.setItem(fileStore.activeFileName, editor.value.getCode())
+  fileStore.activate(fileName)
+  editor.value.setCode(getLocalCode(fileName))
+  // editor.value.updateFileName(fileName)
+  editor.value.updateSaveMsg()
 }
 
 onMounted(() => {

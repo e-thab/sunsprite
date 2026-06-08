@@ -186,6 +186,14 @@ const items = ref<TreeItem[]>([
 const emit = defineEmits<{
   selectScript: [fileName: string]
 }>()
+
+const selected = ref({
+  label: 'main.js',
+  icon: 'catppuccin:javascript',
+  onSelect: (event: any) => {
+    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+  }
+})
 </script>
 
 <template>
@@ -207,7 +215,7 @@ const emit = defineEmits<{
             <div>Files</div>
         </div>
         <div class="file-tree">
-            <UTree :items="items" class="file-tree" />
+            <UTree v-model="selected" :items="items" class="file-tree" />
         </div>
     </div>
 </template>

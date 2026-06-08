@@ -8,9 +8,11 @@ import { javascript } from '@codemirror/lang-javascript'
 import { wordHover } from '@/assets/code-completion/codemirror-completions'
 import { nord } from '@fsegurai/codemirror-theme-nord'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { useFilesStore } from '@/stores/files';
 
 const code = ref(startCode)
 const js = javascript()
+const fileStore = useFilesStore()
 
 const isSaved = ref(true)
 const saveColor = computed(() => {
@@ -58,6 +60,10 @@ const extensions = [
 	nord,
 ]
 
+function getCode(): string {
+	return code.value
+}
+
 function setCode(newCode: string) {
 	code.value = newCode
 }
@@ -70,8 +76,8 @@ function resetCode() {
 function saveCurrentCode() {
 	if (isSaved.value) return
 	lastSavedAt = new Date().toLocaleTimeString()
-	localStorage.setItem('code', code.value)
-	updateSaveMsg()
+	localStorage.setItem(fileStore.activeFileName, code.value)
+	updateSaveMsg(code.value)
 }
 
 function runActiveUserCode() {
@@ -79,11 +85,12 @@ function runActiveUserCode() {
 }
 
 function updateSaveMsg(checkCode?: string) {
+	// Message needs to update based on file being opened, right now lastSavedAt is the same for all files. Create a map or use file store or something
 	const saveElement = document.getElementById('save-msg')
 	if (!saveElement) return
 
 	const currentCode = checkCode ?? code.value
-	const savedCode = localStorage.getItem('code')
+	const savedCode = localStorage.getItem(fileStore.activeFileName)
 
 	isSaved.value = currentCode === savedCode
 	if (isSaved.value) {
@@ -97,10 +104,18 @@ function updateSaveMsg(checkCode?: string) {
 	}
 }
 
-defineExpose({ runActiveUserCode, setCode })
+// function updateFileName(fileName: string) {
+// 	const fileNameElement = document.getElementById('file-name')
+// 	if (!fileNameElement) return
+
+// 	fileNameElement.innerText = fileName
+// }
+
+defineExpose({ runActiveUserCode, setCode, getCode, updateSaveMsg })
 
 onMounted(() => {
-	code.value = localStorage.getItem('code') ?? startCode
+	fileStore.activate('main.js')
+	code.value = localStorage.getItem('main.js') ?? startCode
 	runActiveUserCode()
 	updateSaveMsg()
 })
@@ -117,7 +132,8 @@ onMounted(() => {
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
 			<img id="save-btn" class="img-button" style="margin-left: 10px;" @click="saveCurrentCode" title="Save" src="/src/assets/images/game-icons/save.png" />
 			<span id="save-msg" @click="saveCurrentCode"></span>
-			<!-- <img class="img-button" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" /> -->
+			<span id="file-name" style="flex:auto 1 1;">{{ fileStore.activeFileName }}</span>
+			<img class="img-button" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" />
 		</div>
 		<div id="code-container" class="editor">
 			<codemirror

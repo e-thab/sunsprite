@@ -1,11 +1,17 @@
+
 export function getExampleCode(fileName: string): string {
     if (fileName === 'main.js') {
         const localCode = localStorage.getItem('code')
         return localCode ?? '/* ... */'
     }
-
+    
     const code = exampleCode[fileName]
     return code ?? ''
+}
+
+export function getLocalCode(fileName: string): string {
+    const localCode = localStorage.getItem(fileName)
+    return localCode ?? exampleCode[fileName] ?? ''
 }
 
 const exampleCode: { [key: string]: string } = {
