@@ -151,7 +151,7 @@ export function clamp(value: number, min: number, max: number): number {
     }
 }
 
-export const startCode = `setBackgroundColor('#00bd7e')
+const startCode = `setBackgroundColor('#00bd7e')
 
 function bunnySpiral() {
     const growSpeed = 50

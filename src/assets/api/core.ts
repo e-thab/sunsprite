@@ -3,9 +3,9 @@ import { ref } from 'vue';
 import { AUTO, Game, Scene, type Types } from 'phaser';
 import Phaser from 'phaser';
 
-import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action } from './interfaces';
+import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction } from './interfaces';
 import { Mouse } from './interfaces'
-import { atan2, cos, random, sin, startCode, tan, deg2rad, rad2deg, clamp } from './utility';
+import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility';
 import { Point, Vector2, type AnyPoint } from './Point'
 
 import Sprite from './Sprite';
@@ -121,11 +121,15 @@ export function getGamePoint(point: Point): Point {
 export let allPositionables: { _updatePosition(): void }[] = []
 let _frame: number = 0 // current render frame index
 // let _ticker: Ticker = new Ticker()
-let _forevers: Array<Action> = []
-let _repeats: Array<Repeatable> = []
-let _repeatUntils: Array<RepeatableUntil> = []
-let _afters: Array<Delayable> = []
-let _everys: Array<Delayable> = []
+let _forevers: Action[] = []
+let _repeats: Repeatable[] = []
+let _repeatUntils: RepeatableUntil[] = []
+let _afters: Delayable[] = []
+let _everys: Delayable[] = []
+
+let _onKeyPresses: KeyAction
+let _onKeyReleases: KeyAction
+let _onKeyHolds: KeyAction
 
 /**
  * User-accessible
@@ -165,8 +169,14 @@ export let screen: Screen = {
 	get right(): number {
 		return camera.x + this.width / 2
 	},
-	get center(): [number, number] {
-		return [this.width / 2, this.height / 2]
+	// get center(): [number, number] {
+	// 	return [this.width / 2, this.height / 2]
+	// }
+	get center(): Point {
+		return {
+			x: this.width / 2,
+			y: this.height / 2
+		}
 	}
 }
 
@@ -288,6 +298,34 @@ export function keyPressed(key: string): boolean {
 /* True only during the frame after key press */
 export function keyJustPressed(key: string): boolean {
 	return keysJustPressed.get(key.toLowerCase()) !== undefined
+}
+
+/* Allows cleaner input key mapping */
+export function onKeyPress(actions: KeyAction) {
+	for (const inputKey of Object.keys(actions)) {
+		const actionKey = inputKey as keyof typeof actions
+		if (!actions[actionKey]) return
+
+		forever(() => {
+			// TS throwing a fit, but it's taken care of on line 307. look into this
+			if (keyJustPressed(inputKey)) actions[actionKey]()
+		})
+	}
+}
+
+// export function onKeyRelease(actions: KeyAction) {
+
+// }
+
+export function onKeyHold(actions: KeyAction) {
+	for (const inputKey of Object.keys(actions)) {
+		const actionKey = inputKey as keyof typeof actions
+		if (!actions[actionKey]) return
+
+		forever(() => {
+			if (keyPressed(inputKey)) actions[actionKey]()
+		})
+	}
 }
 
 function clearStage() {
@@ -445,7 +483,8 @@ class UserScene extends Scene {
 			Sprite, Rectangle, Label, Line, HLine, VLine, Vector2, /*Point,*/
 			timer, screen, camera, mouse,
 			forever, repeat, repeatUntil, after, every,
-			keyPressed, keyJustPressed, print, play, pause, setBackgroundColor,
+			keyPressed, keyJustPressed, onKeyPress, onKeyHold,
+			print, play, pause, setBackgroundColor,
 			Random: random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -663,5 +702,3 @@ export function setup() {
 	// })
 	// runUserCode(startCode)
 }
-
-export { startCode }

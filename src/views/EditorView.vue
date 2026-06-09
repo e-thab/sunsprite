@@ -11,9 +11,7 @@ import FileTree from '@/components/FileTree.vue';
 import OutputPane from '@/components/OutputPane.vue';
 import { getExampleCode } from '@/assets/api/examples';
 
-
 const editor = ref()
-const fileTree = ref()
 const fsStore = useFullscreenStore()
 const fileStore = useFileStore()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
@@ -83,7 +81,6 @@ async function collapseOutput() {
 }
 
 function loadScript(fileName: string) {
-  print(`Opening ${fileName}`)
   // First, save active file 
   fileStore.saveCode(fileStore.activeFileName, editor.value.getCode())
   fileStore.activate(fileName)
@@ -91,7 +88,6 @@ function loadScript(fileName: string) {
   // Then open requested
   editor.value.setCode(fileStore.getLocalCode(fileName) ?? getExampleCode(fileName))
   editor.value.updateSaveMsg()
-  fileTree.value.updateUnsavedStars()
 }
 
 onMounted(() => {

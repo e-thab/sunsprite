@@ -39,15 +39,18 @@ export const useFileStore = defineStore('files', () => {
     }
 
     function getTimeSaved(fileName: string): string | undefined {
-        console.log(getSaveData(fileName)?.saveTime)
         return getSaveData(fileName)?.saveTime
     }
+
+    // function getTimeSinceSaved(fileName: string): string | undefined {
+    //     const saveData = getSaveData(fileName)?.saveTime
+    // }
 
     function saveCode(fileName: string, content: string) {
         const saveTime = new Date().toLocaleTimeString()
         const saveData: codeSaveData = { fileName, content, saveTime }
 
-        if (fileName.charAt(-1) === '*') fileName = fileName.slice(0, -1)
+        // if (fileName.charAt(-1) === '*') fileName = fileName.slice(0, -1)
         if (getLocalCode(fileName) === content) return
         if (fileName === 'main.js') activeFileIsSaved.value = true
 

@@ -204,34 +204,6 @@ const selected = ref({
   //   }
   // }
 })
-
-function updateUnsavedStars(rootItemArray: TreeItem[] = items.value) {
-  if (!items.value) return
-  
-  let activeFileItem: TreeItem | undefined
-  
-  for (const item of rootItemArray) {
-    if (item.children) {
-      updateUnsavedStars(item.children)
-    } else if (item.label === fileStore.activeFileName) {
-      console.log(1)
-      activeFileItem = item
-      break
-    }
-  }
-
-  if (!activeFileItem) return
-  if (!fileStore.activeFileIsSaved) {
-    console.log('testing')
-    activeFileItem.label = activeFileItem.label?.concat('*')
-  }
-}
-
-onMounted(() => {
-  updateUnsavedStars()
-})
-
-defineExpose({ updateUnsavedStars })
 </script>
 
 <template>

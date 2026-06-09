@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { /*runUserCode,*/ startCode, print } from '@/assets/api/core';
+import { /*runUserCode,*/ print } from '@/assets/api/core';
 import { runUserCode } from '@/assets/api/core';
 import { completions } from '@/assets/code-completion/codemirror-completions';
 import { Codemirror } from 'vue-codemirror';
@@ -11,7 +11,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { useFileStore } from '@/stores/fileStore';
 import { getExampleCode } from '@/assets/api/examples';
 
-const code = ref(startCode)
+const code = ref('')
 const js = javascript()
 const fileStore = useFileStore()
 
@@ -99,7 +99,7 @@ defineExpose({ runActiveUserCode, setCode, getCode, updateSaveMsg })
 
 onMounted(() => {
 	fileStore.activate('main.js')
-	code.value = fileStore.getLocalCode('main.js') ?? startCode
+	code.value = fileStore.getLocalCode('main.js') ?? getExampleCode()
 	runActiveUserCode()
 	updateSaveMsg()
 })
@@ -149,6 +149,10 @@ onMounted(() => {
 	grid-template-columns: 1fr 1fr 1fr;
 	justify-items: center;
 	/* border-bottom: 20px; */
+}
+
+#file-name {
+	color: var(--nord-text-bright);
 }
 
 .run-button {
