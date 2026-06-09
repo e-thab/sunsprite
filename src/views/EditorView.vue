@@ -13,6 +13,7 @@ import { getExampleCode } from '@/assets/api/examples';
 
 
 const editor = ref()
+const fileTree = ref()
 const fsStore = useFullscreenStore()
 const fileStore = useFileStore()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
@@ -90,6 +91,7 @@ function loadScript(fileName: string) {
   // Then open requested
   editor.value.setCode(fileStore.getLocalCode(fileName) ?? getExampleCode(fileName))
   editor.value.updateSaveMsg()
+  fileTree.value.updateUnsavedStars()
 }
 
 onMounted(() => {
@@ -113,7 +115,7 @@ onMounted(() => {
     <!-- Left side pane: File explorer -->
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" size="12">
       <!-- <span>Files</span> -->
-      <FileTree @select-script="loadScript" />
+      <FileTree ref="fileTree" @select-script="loadScript" />
     </pane>
 
     <!-- Center pane: Code editor -->

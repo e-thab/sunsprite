@@ -15,30 +15,30 @@ const code = ref(startCode)
 const js = javascript()
 const fileStore = useFileStore()
 
-const isSaved = ref(true)
+// const isSaved = ref(true)
 const saveColor = computed(() => {
 	const rootStyles = window.getComputedStyle(document.documentElement)
 	const nordTextBright = rootStyles.getPropertyValue('--nord-text-bright').trim()
 	const nordTextDim = rootStyles.getPropertyValue('--nord-text-dim').trim()
 
-	return isSaved.value ? nordTextDim : nordTextBright
+	return fileStore.activeFileIsSaved ? nordTextDim : nordTextBright
 })
 const saveCursor = computed(() => {
-	return isSaved.value ? 'default' : 'pointer'
+	return fileStore.activeFileIsSaved ? 'default' : 'pointer'
 })
 
 const saveBtnFilter = computed(() => {
-	return isSaved.value ? 'brightness(0.3) sepia(1) saturate(0.8) hue-rotate(180deg)' : 'brightness(0.8) sepia(0) saturate(0.8) hue-rotate(180deg)'
+	return fileStore.activeFileIsSaved ? 'brightness(0.3) sepia(1) saturate(0.8) hue-rotate(180deg)' : 'brightness(0.8) sepia(0) saturate(0.8) hue-rotate(180deg)'
 })
 const saveBtnHoverFilter = computed(() => {
-	return isSaved.value ? 'brightness(0.3) sepia(1) saturate(0.8) hue-rotate(180deg)' : 'brightness(1) sepia(0) saturate(0.8) hue-rotate(180deg)'
+	return fileStore.activeFileIsSaved ? 'brightness(0.3) sepia(1) saturate(0.8) hue-rotate(180deg)' : 'brightness(1) sepia(0) saturate(0.8) hue-rotate(180deg)'
 })
 
 const saveMsgFilter = computed(() => {
-	return isSaved.value ? '' : 'brightness(0.8)'
+	return fileStore.activeFileIsSaved ? '' : 'brightness(0.8)'
 })
 const saveMsgHoverFilter = computed(() => {
-	return isSaved.value ? '' : 'brightness(1)'
+	return fileStore.activeFileIsSaved ? '' : 'brightness(1)'
 })
 
 const extensions = [
@@ -66,7 +66,7 @@ function resetCode() {
 }
 
 function saveCurrentCode() {
-	if (isSaved.value) return
+	if (fileStore.activeFileIsSaved) return
 	fileStore.saveCode(fileStore.activeFileName, code.value)
 	updateSaveMsg(code.value)
 }
@@ -83,8 +83,8 @@ function updateSaveMsg(checkCode?: string) {
 	const currentCode = checkCode ?? code.value
 	const savedCode = fileStore.getLocalCode(activeFile)
 
-	isSaved.value = currentCode === savedCode
-	if (isSaved.value) {
+	fileStore.activeFileIsSaved = currentCode === savedCode
+	if (fileStore.activeFileIsSaved) {
 		if (fileStore.savedThisSession(activeFile)) {
 			saveElement.innerText = `Saved ${fileStore.getTimeSaved(activeFile)}`
 		} else {
@@ -113,11 +113,13 @@ onMounted(() => {
 <template>
 	<div class="panel-wrapper">
 		<div id="editor-bar">
+			<div style="display: inline-flex; justify-self: start; padding-left: 10px;">
+				<img id="save-btn" class="img-button" @click="saveCurrentCode" title="Save" src="/src/assets/images/game-icons/save.png" />
+				<div id="save-msg" @click="saveCurrentCode"></div>
+			</div>
+			<div id="file-name">{{ fileStore.activeFileName }}</div>
+			<img class="img-button"  style="justify-self: end; padding-right: 10px;" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" />
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
-			<img id="save-btn" class="img-button" style="margin-left: 10px;" @click="saveCurrentCode" title="Save" src="/src/assets/images/game-icons/save.png" />
-			<div id="save-msg" @click="saveCurrentCode"></div>
-			<div id="file-name" style="margin-left: auto;">{{ fileStore.activeFileName }}</div>
-			<img class="img-button" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" />
 		</div>
 		<div id="code-container" class="editor">
 			<codemirror
@@ -143,12 +145,10 @@ onMounted(() => {
 }
 
 #editor-bar {
-	display: flex;
-	/* grid-template-columns: auto auto auto auto; */
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr;
+	justify-items: center;
 	/* border-bottom: 20px; */
-}
-#editor-bar div {
-	flex: 1 1 auto;
 }
 
 .run-button {
@@ -157,7 +157,7 @@ onMounted(() => {
 }
 
 #save-msg {
-	flex: 1 1 auto;
+	/* flex: 1 1 auto; */
 	padding-left: 10px;
 	color: v-bind(saveColor);
 	filter: v-bind(saveMsgFilter);

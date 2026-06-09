@@ -9,16 +9,20 @@ type codeSaveData = {
 
 export const useFileStore = defineStore('files', () => {
     const activeFileName = ref('main.js')
+    const activeFileIsSaved = ref(true)
     const filesSavedThisSession = ref<string[]>([])
 
-    function activate(fileName: string) {
-        activeFileName.value = fileName
-
+    function clear() {
+        // Debugging
         // localStorage.removeItem('main.js')
         // localStorage.removeItem('sprites.js')
         // localStorage.removeItem('rectangles.js')
         // localStorage.removeItem('lines.js')
         // localStorage.removeItem('labels.js')
+    }
+
+    function activate(fileName: string) {
+        activeFileName.value = fileName
     }
 
     function savedThisSession(fileName: string): boolean {
@@ -42,11 +46,14 @@ export const useFileStore = defineStore('files', () => {
     function saveCode(fileName: string, content: string) {
         const saveTime = new Date().toLocaleTimeString()
         const saveData: codeSaveData = { fileName, content, saveTime }
+
+        if (fileName.charAt(-1) === '*') fileName = fileName.slice(0, -1)
         if (getLocalCode(fileName) === content) return
+        if (fileName === 'main.js') activeFileIsSaved.value = true
 
         localStorage.setItem(fileName, JSON.stringify(saveData))
         if (!savedThisSession(fileName)) filesSavedThisSession.value.push(fileName)
     }
 
-    return { activeFileName, activate, savedThisSession, getLocalCode, getTimeSaved, saveCode }
+    return { activeFileName, activeFileIsSaved, activate, savedThisSession, getLocalCode, getTimeSaved, saveCode }
 })

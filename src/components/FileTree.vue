@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 // import VueTreeDnd from 'vue-tree-dnd';
 // import TreeItemRenderer from './TreeItemRenderer.vue';
 
@@ -64,6 +64,9 @@ import { ref } from 'vue'
 // },
 // ])
 import type { TreeItem } from '@nuxt/ui'
+import { useFileStore } from '@/stores/fileStore'
+
+const fileStore = useFileStore()
 
 // https://icones.js.org/collection/tabler
 // https://icones.js.org/collection/catppuccin
@@ -193,7 +196,42 @@ const selected = ref({
   onSelect: (event: any) => {
     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
   }
+  // onSelect: (event: any) => {
+  //   if (event.target) {
+  //     const innerText = (event.target as HTMLElement).innerText
+  //     const withoutStar = innerText.charAt(-1) === '*' ? innerText.slice(0, -1) : innerText
+  //     emit('selectScript', withoutStar)
+  //   }
+  // }
 })
+
+function updateUnsavedStars(rootItemArray: TreeItem[] = items.value) {
+  if (!items.value) return
+  
+  let activeFileItem: TreeItem | undefined
+  
+  for (const item of rootItemArray) {
+    if (item.children) {
+      updateUnsavedStars(item.children)
+    } else if (item.label === fileStore.activeFileName) {
+      console.log(1)
+      activeFileItem = item
+      break
+    }
+  }
+
+  if (!activeFileItem) return
+  if (!fileStore.activeFileIsSaved) {
+    console.log('testing')
+    activeFileItem.label = activeFileItem.label?.concat('*')
+  }
+}
+
+onMounted(() => {
+  updateUnsavedStars()
+})
+
+defineExpose({ updateUnsavedStars })
 </script>
 
 <template>
