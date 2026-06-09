@@ -1,20 +1,13 @@
+type exampleFileName = 'main.js' | 'sprites.js' | 'rectangles.js' | 'lines.js' | 'labels.js'
 
-export function getExampleCode(fileName: string): string {
-    if (fileName === 'main.js') {
-        const localCode = localStorage.getItem('code')
-        return localCode ?? '/* ... */'
-    }
-    
-    const code = exampleCode[fileName]
-    return code ?? ''
-}
-
-export function getLocalCode(fileName: string): string {
-    const localCode = localStorage.getItem(fileName)
-    return localCode ?? exampleCode[fileName] ?? ''
+export function getExampleCode(fileName: exampleFileName): string {
+    return exampleCode[fileName] ?? `/* Example code not found for ${fileName} */`
 }
 
 const exampleCode: { [key: string]: string } = {
+    'main.js': `// This is main.js
+    `,
+
     'sprites.js': `// This is sprites.js
     `,
 

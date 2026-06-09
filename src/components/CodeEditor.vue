@@ -8,11 +8,11 @@ import { javascript } from '@codemirror/lang-javascript'
 import { wordHover } from '@/assets/code-completion/codemirror-completions'
 import { nord } from '@fsegurai/codemirror-theme-nord'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { useFilesStore } from '@/stores/files';
+import { useFileStore } from '@/stores/fileStore';
 
 const code = ref(startCode)
 const js = javascript()
-const fileStore = useFilesStore()
+const fileStore = useFileStore()
 
 const isSaved = ref(true)
 const saveColor = computed(() => {
@@ -40,16 +40,6 @@ const saveMsgHoverFilter = computed(() => {
 	return isSaved.value ? '' : 'brightness(1)'
 })
 
-// const saveVisibility = computed(() => {
-// 	if (isSaved.value && lastSavedAt === '') {
-// 		return 'hidden'
-// 	} else {
-// 		return 'visible'
-// 	}
-// })
-
-let lastSavedAt = ''
-
 const extensions = [
 	js,
     js.language.data.of({
@@ -75,8 +65,7 @@ function resetCode() {
 
 function saveCurrentCode() {
 	if (isSaved.value) return
-	lastSavedAt = new Date().toLocaleTimeString()
-	localStorage.setItem(fileStore.activeFileName, code.value)
+	fileStore.saveCode(fileStore.activeFileName, code.value)
 	updateSaveMsg(code.value)
 }
 
@@ -85,17 +74,17 @@ function runActiveUserCode() {
 }
 
 function updateSaveMsg(checkCode?: string) {
-	// Message needs to update based on file being opened, right now lastSavedAt is the same for all files. Create a map or use file store or something
 	const saveElement = document.getElementById('save-msg')
 	if (!saveElement) return
 
+	const activeFile = fileStore.activeFileName
 	const currentCode = checkCode ?? code.value
-	const savedCode = localStorage.getItem(fileStore.activeFileName)
+	const savedCode = fileStore.getLocalCode(activeFile)
 
 	isSaved.value = currentCode === savedCode
 	if (isSaved.value) {
-		if (lastSavedAt) {
-			saveElement.innerText = `Saved ${lastSavedAt}`
+		if (fileStore.savedThisSession(activeFile)) {
+			saveElement.innerText = `Saved ${fileStore.getTimeSaved(activeFile)}`
 		} else {
 			saveElement.innerText = 'Unchanged'
 		}
@@ -104,18 +93,11 @@ function updateSaveMsg(checkCode?: string) {
 	}
 }
 
-// function updateFileName(fileName: string) {
-// 	const fileNameElement = document.getElementById('file-name')
-// 	if (!fileNameElement) return
-
-// 	fileNameElement.innerText = fileName
-// }
-
 defineExpose({ runActiveUserCode, setCode, getCode, updateSaveMsg })
 
 onMounted(() => {
 	fileStore.activate('main.js')
-	code.value = localStorage.getItem('main.js') ?? startCode
+	code.value = fileStore.getLocalCode('main.js') ?? startCode
 	runActiveUserCode()
 	updateSaveMsg()
 })
