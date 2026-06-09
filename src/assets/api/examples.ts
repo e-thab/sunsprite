@@ -1,6 +1,6 @@
 type exampleFileName = 'main.js' | 'sprites.js' | 'rectangles.js' | 'lines.js' | 'labels.js'
 
-export function getExampleCode(fileName: exampleFileName): string {
+export function getExampleCode(fileName: string): string {
     return exampleCode[fileName] ?? `/* Example code not found for ${fileName} */`
 }
 

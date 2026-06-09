@@ -9,6 +9,7 @@ import { wordHover } from '@/assets/code-completion/codemirror-completions'
 import { nord } from '@fsegurai/codemirror-theme-nord'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { useFileStore } from '@/stores/fileStore';
+import { getExampleCode } from '@/assets/api/examples';
 
 const code = ref(startCode)
 const js = javascript()
@@ -60,7 +61,8 @@ function setCode(newCode: string) {
 
 function resetCode() {
 	if (!confirm('Reset editor code to default?')) return
-	code.value = startCode
+	code.value = getExampleCode(fileStore.activeFileName)
+	updateSaveMsg()
 }
 
 function saveCurrentCode() {
@@ -110,11 +112,11 @@ onMounted(() => {
 
 <template>
 	<div class="panel-wrapper">
-		<div class="panel-bar">
+		<div id="editor-bar">
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
 			<img id="save-btn" class="img-button" style="margin-left: 10px;" @click="saveCurrentCode" title="Save" src="/src/assets/images/game-icons/save.png" />
-			<span id="save-msg" @click="saveCurrentCode"></span>
-			<span id="file-name" style="flex:auto 1 1;">{{ fileStore.activeFileName }}</span>
+			<div id="save-msg" @click="saveCurrentCode"></div>
+			<div id="file-name" style="margin-left: auto;">{{ fileStore.activeFileName }}</div>
 			<img class="img-button" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" />
 		</div>
 		<div id="code-container" class="editor">
@@ -140,12 +142,13 @@ onMounted(() => {
 	overflow: auto;
 }
 
-.editor-bar {
-	/* display: flex;
-	justify-content: space-evenly;
-	background-color: var(--nord-background-dark);
-	min-height: 24px; */
-	border-bottom: 20px;
+#editor-bar {
+	display: flex;
+	/* grid-template-columns: auto auto auto auto; */
+	/* border-bottom: 20px; */
+}
+#editor-bar div {
+	flex: 1 1 auto;
 }
 
 .run-button {

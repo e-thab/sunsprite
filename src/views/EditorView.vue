@@ -9,6 +9,7 @@ import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
 import OutputPane from '@/components/OutputPane.vue';
+import { getExampleCode } from '@/assets/api/examples';
 
 
 const editor = ref()
@@ -87,7 +88,7 @@ function loadScript(fileName: string) {
   fileStore.activate(fileName)
 
   // Then open requested
-  editor.value.setCode(fileStore.getLocalCode(fileName))
+  editor.value.setCode(fileStore.getLocalCode(fileName) ?? getExampleCode(fileName))
   editor.value.updateSaveMsg()
 }
 

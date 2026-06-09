@@ -13,6 +13,12 @@ export const useFileStore = defineStore('files', () => {
 
     function activate(fileName: string) {
         activeFileName.value = fileName
+
+        // localStorage.removeItem('main.js')
+        // localStorage.removeItem('sprites.js')
+        // localStorage.removeItem('rectangles.js')
+        // localStorage.removeItem('lines.js')
+        // localStorage.removeItem('labels.js')
     }
 
     function savedThisSession(fileName: string): boolean {
@@ -29,6 +35,7 @@ export const useFileStore = defineStore('files', () => {
     }
 
     function getTimeSaved(fileName: string): string | undefined {
+        console.log(getSaveData(fileName)?.saveTime)
         return getSaveData(fileName)?.saveTime
     }
 
