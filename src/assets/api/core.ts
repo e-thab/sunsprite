@@ -101,6 +101,14 @@ function _clearKeysJustPressed(frame: number) {
 	}
 }
 
+function _clearKeysJustReleased(frame: number) {
+	for (const key of keysJustReleased.keys()) {
+		if (keysJustReleased.get(key) !== frame) {
+			keysJustReleased.set(key, undefined)
+		}
+	}
+}
+
 export function getGamePoint(point: Point): Point {
 	return {
 		x: point.x - screen.right,
@@ -150,6 +158,7 @@ export let paused = false
 
 let keysPressed: Array<string> = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
+let keysJustReleased: Map<string, number | undefined> = new Map()
 export let screen: Screen = {
 	get width(): number {
 		return camera.width
@@ -300,29 +309,51 @@ export function keyJustPressed(key: string): boolean {
 	return keysJustPressed.get(key.toLowerCase()) !== undefined
 }
 
-/* Allows cleaner input key mapping */
+/* True only during the frame after key release */
+export function keyJustReleased(key: string): boolean {
+	return keysJustReleased.get(key.toLowerCase()) !== undefined
+}
+
+// TODO: Add maps for onKey actions so that setting to null/undefined
+// removes the behavior and reassigning overwrites instead of adding.
+// Move to update loop rather than just adding new forevers. Also make
+// sure press checks come before hold checks
+
+/* Allows cleaner input key mapping for pressed key behavior */
 export function onKeyPress(actions: KeyAction) {
 	for (const inputKey of Object.keys(actions)) {
 		const actionKey = inputKey as keyof typeof actions
-		if (!actions[actionKey]) return
+		if (actions[actionKey] == null) return
 
 		forever(() => {
-			// TS throwing a fit, but it's taken care of on line 307. look into this
+			// TS throwing a fit, but it's taken care of 3 lines before this (undefined check). look into this
+			//@ts-expect-error
 			if (keyJustPressed(inputKey)) actions[actionKey]()
 		})
 	}
 }
 
-// export function onKeyRelease(actions: KeyAction) {
+/* Allows cleaner input key mapping for released key behavior */
+export function onKeyRelease(actions: KeyAction) {
+	for (const inputKey of Object.keys(actions)) {
+		const actionKey = inputKey as keyof typeof actions
+		if (actions[actionKey] == null) return
 
-// }
+		forever(() => {
+			// @ts-expect-error
+			if (keyJustReleased(inputKey)) actions[actionKey]()
+		})
+	}
+}
 
+/* Allows cleaner input key mapping for held key behavior */
 export function onKeyHold(actions: KeyAction) {
 	for (const inputKey of Object.keys(actions)) {
 		const actionKey = inputKey as keyof typeof actions
-		if (!actions[actionKey]) return
+		if (actions[actionKey] == null) return
 
 		forever(() => {
+			// @ts-expect-error
 			if (keyPressed(inputKey)) actions[actionKey]()
 		})
 	}
@@ -483,7 +514,7 @@ class UserScene extends Scene {
 			Sprite, Rectangle, Label, Line, HLine, VLine, Vector2, /*Point,*/
 			timer, screen, camera, mouse,
 			forever, repeat, repeatUntil, after, every,
-			keyPressed, keyJustPressed, onKeyPress, onKeyHold,
+			keyPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease,
 			print, play, pause, setBackgroundColor,
 			Random: random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
@@ -524,6 +555,7 @@ class UserScene extends Scene {
 		timer.realTime += delta
 		
 		_clearKeysJustPressed(_frame)
+		_clearKeysJustReleased(_frame)
 		this.input.setPollAlways()
 		
 		if (paused) return
@@ -665,6 +697,8 @@ export function setup() {
 		if (document.activeElement?.ariaPlaceholder) return
 
 		const key = apiKeyCode(event.key)
+
+		// Add key to keysJustPressed map
 		if (key && !keysPressed.includes(key) && !event.repeat) {
 			keysPressed.push(key)
 			keysJustPressed.set(key, _frame)
@@ -675,9 +709,14 @@ export function setup() {
 		if (document.activeElement?.ariaPlaceholder) return
 
 		const key = apiKeyCode(event.key)
+
+		// Remove key from keysPressed array
 		if (key && keysPressed.includes(key)) {
 			keysPressed.splice(keysPressed.indexOf(key), 1)
 		}
+
+		// Add key to keysJustReleased map
+		if (key) keysJustReleased.set(key, _frame)
 	})
 	window.addEventListener('contextmenu', event => {
 		// Prevent opening the context menu from interrupting key registration
