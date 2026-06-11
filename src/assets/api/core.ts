@@ -30,6 +30,22 @@ export function play() {
 }
 
 /**
+ * API Internal vars
+ */
+export let allPositionables: { _updatePosition(): void }[] = []
+let _frame: number = 0 // current render frame index
+// let _ticker: Ticker = new Ticker()
+let _forevers: Action[] = []
+let _repeats: Repeatable[] = []
+let _repeatUntils: RepeatableUntil[] = []
+let _afters: Delayable[] = []
+let _everys: Delayable[] = []
+
+let _keyPressActions: Map<string, Action | undefined> = new Map()
+let _keyReleaseActions: Map<string, Action | undefined> = new Map()
+let _keyHoldActions: Map<string, Action | undefined> = new Map()
+
+/**
  * API internal methods
  */
 export function updatePositions() {
@@ -65,10 +81,6 @@ function _runRepeatUntils() {
 			repeatUntil.fn(repeatUntil.i)
 			repeatUntil.i += 1
 		}
-
-		if (repeatUntil.condition() && repeatUntil.then) {
-			repeatUntil.then(repeatUntil.i)
-		}
 	}
 	_repeatUntils = _repeatUntils.filter(repeatUntil => !repeatUntil.condition())
 }
@@ -93,6 +105,20 @@ function _runEverys(delta: number) {
 	}
 }
 
+function _runOnKeyActions() {
+	for (const [key, action] of _keyPressActions) {
+		if (action && keyJustPressed(key)) action()
+	}
+
+	for (const [key, action] of _keyHoldActions) {
+		if (action && keyPressed(key)) action()
+	}
+
+	for (const [key, action] of _keyReleaseActions) {
+		if (action && keyJustReleased(key)) action()
+	}
+}
+
 function _clearKeysJustPressed(frame: number) {
 	for (const key of keysJustPressed.keys()) {
 		if (keysJustPressed.get(key) !== frame) {
@@ -109,6 +135,13 @@ function _clearKeysJustReleased(frame: number) {
 	}
 }
 
+function _releaseAllKeys() {
+	for (const key of keysPressed) {
+		keysJustReleased.set(key, _frame)
+	}
+	keysPressed = []
+}
+
 export function getGamePoint(point: Point): Point {
 	return {
 		x: point.x - screen.right,
@@ -122,22 +155,6 @@ export function getGamePoint(point: Point): Point {
 // 	_ticker.start()
 // 	_frame = 0
 // }
-
-/**
- * API Internal vars
- */
-export let allPositionables: { _updatePosition(): void }[] = []
-let _frame: number = 0 // current render frame index
-// let _ticker: Ticker = new Ticker()
-let _forevers: Action[] = []
-let _repeats: Repeatable[] = []
-let _repeatUntils: RepeatableUntil[] = []
-let _afters: Delayable[] = []
-let _everys: Delayable[] = []
-
-let _onKeyPresses: KeyAction
-let _onKeyReleases: KeyAction
-let _onKeyHolds: KeyAction
 
 /**
  * User-accessible
@@ -159,6 +176,7 @@ export let paused = false
 let keysPressed: Array<string> = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
 let keysJustReleased: Map<string, number | undefined> = new Map()
+
 export let screen: Screen = {
 	get width(): number {
 		return camera.width
@@ -321,41 +339,25 @@ export function keyJustReleased(key: string): boolean {
 
 /* Allows cleaner input key mapping for pressed key behavior */
 export function onKeyPress(actions: KeyAction) {
-	for (const inputKey of Object.keys(actions)) {
+	for (const [inputKey, action] of Object.entries(actions)) {
 		const actionKey = inputKey as keyof typeof actions
-		if (actions[actionKey] == null) return
-
-		forever(() => {
-			// TS throwing a fit, but it's taken care of 3 lines before this (undefined check). look into this
-			//@ts-expect-error
-			if (keyJustPressed(inputKey)) actions[actionKey]()
-		})
+		_keyPressActions.set(actionKey, action)
 	}
 }
 
 /* Allows cleaner input key mapping for released key behavior */
 export function onKeyRelease(actions: KeyAction) {
-	for (const inputKey of Object.keys(actions)) {
+	for (const [inputKey, action] of Object.entries(actions)) {
 		const actionKey = inputKey as keyof typeof actions
-		if (actions[actionKey] == null) return
-
-		forever(() => {
-			// @ts-expect-error
-			if (keyJustReleased(inputKey)) actions[actionKey]()
-		})
+		_keyReleaseActions.set(actionKey, action)
 	}
 }
 
 /* Allows cleaner input key mapping for held key behavior */
 export function onKeyHold(actions: KeyAction) {
-	for (const inputKey of Object.keys(actions)) {
+	for (const [inputKey, action] of Object.entries(actions)) {
 		const actionKey = inputKey as keyof typeof actions
-		if (actions[actionKey] == null) return
-
-		forever(() => {
-			// @ts-expect-error
-			if (keyPressed(inputKey)) actions[actionKey]()
-		})
+		_keyHoldActions.set(actionKey, action)
 	}
 }
 
@@ -465,7 +467,7 @@ class UserScene extends Scene {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
 		
-		this.input.setDefaultCursor('url(cursors/pointer_c.cur), default')
+		this.input.setDefaultCursor('url(cursors/default.cur), default')
 		// this.input.setDefaultCursor('url(cursors/hand_point.cur), default')
 		
 		// this.add.rectangle().setFillStyle(Phaser.Display.Color.HexStringToColor('#222').color)
@@ -480,6 +482,8 @@ class UserScene extends Scene {
 		timer.realTime = 0
 		timer.frame = 0
 		_frame = 0
+
+		this.input.setPollAlways()
 		
 		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 			pointer.updateWorldPoint(camera) // ..?
@@ -512,7 +516,7 @@ class UserScene extends Scene {
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
 			Sprite, Rectangle, Label, Line, HLine, VLine, Vector2, /*Point,*/
-			timer, screen, camera, mouse,
+			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease,
 			print, play, pause, setBackgroundColor,
@@ -529,7 +533,7 @@ class UserScene extends Scene {
 		const keys = Object.keys(api)
 		const values = Object.values(api)
 		
-		// Another problem post-phaser: user code errors prevent reloading of the game
+		// Another problem post-phaser: user code errors prevent reloading of the game sometimes?
 		try {
 			const fn = new Function(
 			...keys,
@@ -540,7 +544,8 @@ class UserScene extends Scene {
 			`
 			)
 			await fn(...values)
-		} catch (err) {
+		} catch (err: any) {
+			print(err.toString())
 			console.error('User code error:', err)
 		}
 	}
@@ -556,13 +561,13 @@ class UserScene extends Scene {
 		
 		_clearKeysJustPressed(_frame)
 		_clearKeysJustReleased(_frame)
-		this.input.setPollAlways()
 		
 		if (paused) return
 		// Maybe switch Timer.time to track time in milliseconds (or different props for timeSec, timeMs, etc)
 		timer.time += delta
 		timer.frame = _frame++
 		
+		_runOnKeyActions()
 		_runForevers()
 		_runRepeats()
 		_runAfters(timer.deltaMs)
@@ -710,21 +715,22 @@ export function setup() {
 
 		const key = apiKeyCode(event.key)
 
-		// Remove key from keysPressed array
+		// Add key to justReleased map and remove from pressed array
 		if (key && keysPressed.includes(key)) {
+			// Only add to map if it was being pressed. This prevents potential extra release events
+			// if releasing key after window regains focus
+			keysJustReleased.set(key, _frame)
+			// Remove key from keysPressed array
 			keysPressed.splice(keysPressed.indexOf(key), 1)
 		}
-
-		// Add key to keysJustReleased map
-		if (key) keysJustReleased.set(key, _frame)
 	})
 	window.addEventListener('contextmenu', event => {
 		// Prevent opening the context menu from interrupting key registration
-		keysPressed = []
+		_releaseAllKeys()
 	})
 	window.addEventListener('blur', event => {
 		// Prevent window losing focus from interrupting key registration
-		keysPressed = []
+		_releaseAllKeys()
 	})
 	// window.addEventListener('resize', async () => {
 	// 	new Promise(resolve => setTimeout(resolve, 100)).then(() => {

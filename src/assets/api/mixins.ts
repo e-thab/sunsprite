@@ -566,7 +566,6 @@ export function Interactable<Base extends Class>(base: Base) {
             this._onDragEnd = onDragEnd
         }
 
-
         get draggable(): boolean {
             return this._draggable
         }

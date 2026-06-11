@@ -60,7 +60,7 @@ function setCode(newCode: string) {
 }
 
 function resetCode() {
-	if (!confirm('Reset editor code to default?')) return
+	if (!confirm(`Reset ${fileStore.activeFileName} to default?`)) return
 	code.value = getExampleCode(fileStore.activeFileName)
 	updateSaveMsg()
 }

@@ -1,26 +1,56 @@
-type exampleFileName = 'main.js' | 'sprites.js' | 'rectangles.js' | 'lines.js' | 'labels.js'
+// type exampleFileName = 'main.js' | 'sprites.js' | 'rectangles.js' | 'lines.js' | 'labels.js'
+
+
+const mainJs = `// This is main.js`
+const spritesJs = '// This is sprites.js'
+const rectanglesJs = '// This is rectangles.js'
+const linesJs = '// This is lines.js'
+const labelsJs = '// This is labels.js'
+
+const rectSpiralJs = `setBackgroundColor('#00bd7e')
+const growSpeed = 40
+const moveSpeed = 1
+const rotSpeed = 1
+const colors = [
+    '#f72585',
+    '#7209b7',
+    '#3a0ca3',
+    '#f3a712',
+    '#d6f8d6',
+]
+let lastColor = ''
+let r = random(0, 4)
+// let i = 0
+
+every(0.1, () => {
+    while (colors[r] === lastColor) r = random(0, 4)
+    
+    const rect = new Rectangle({
+        color: colors[r]
+    })
+    lastColor = colors[r]
+    // rect._rect.zIndex = i++
+
+    forever(delta => {
+        rect.x = cos(sqrt(rect.age * 16) * moveSpeed, 'radians') * rect.age / 4 * growSpeed
+        rect.y = sin(sqrt(rect.age * 16) * moveSpeed, 'radians') * rect.age / 4 * growSpeed
+        rect.rotation += sqrt(rect.age / 4) * rotSpeed / 2
+        rect.scale = sqrt(rect.age / 12)
+    })
+})`
+
+const exampleCode: { [key: string]: string } = {
+    'main.js': mainJs,
+    'sprites.js': spritesJs,
+    'rectangles.js': rectanglesJs,
+    'lines.js': linesJs,
+    'labels.js': labelsJs,
+    'rectSpiral.js': rectSpiralJs
+}
 
 export function getExampleCode(fileName: string = 'main.js'): string {
     return exampleCode[fileName] ?? `/* Example code not found for ${fileName} */`
 }
-
-const exampleCode: { [key: string]: string } = {
-    'main.js': `// This is main.js
-    `,
-
-    'sprites.js': `// This is sprites.js
-    `,
-
-    'rectangles.js': `// This is rectangles.js
-    `,
-
-    'lines.js': `// This is lines.js
-    `,
-
-    'labels.js': `// This is labels.js
-    `,
-}
-
 
 
 // from examples.js:

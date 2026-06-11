@@ -71,32 +71,44 @@ const fileStore = useFileStore()
 // https://icones.js.org/collection/tabler
 // https://icones.js.org/collection/catppuccin
 
-const items = ref<TreeItem[]>([
-  {
-    label: 'Images',
-    defaultExpanded: true,
-    children: [
-      {
-        label: 'image.png',
-        icon: 'catppuccin:image'
-      },
-      {
-        label: 'icon.svg',
-        icon: 'catppuccin:svg'
-      },
-    ]
-  },
+// icon: 'catppuccin:image'
+// icon: 'catppuccin:svg'
 
-  {
-    label: 'Sounds',
-    defaultExpanded: true,
-    children: [
-      {
-        label: 'sound.wav',
-        icon: 'catppuccin:audio'
-      },
-    ]
-  },
+const items = ref<TreeItem[]>([
+  // {
+  //   label: 'Images',
+  //   defaultExpanded: true,
+  //   children: [
+  //     {
+  //       label: 'Animals',
+  //       defaultExpanded: false,
+  //       children: [
+  //         {
+  //           label: 'elephant.png',
+  //           icon: '/images/elephant.png'
+  //         }
+  //       ]
+  //     },
+  //     {
+  //       label: 'Cards',
+  //       defaultExpanded: false,
+  //       children: [
+  //         {}
+  //       ]
+  //     },
+  //   ]
+  // },
+
+  // {
+  //   label: 'Sounds',
+  //   defaultExpanded: true,
+  //   children: [
+  //     {
+  //       label: 'sound.wav',
+  //       icon: 'catppuccin:audio'
+  //     },
+  //   ]
+  // },
 
   {
     label: 'Scripts',
@@ -107,33 +119,47 @@ const items = ref<TreeItem[]>([
       //   icon: 'catppuccin:typescript'
       // },
       {
-        label: 'sprites.js',
-        icon: 'catppuccin:javascript',
-        onSelect: (event) => {
-          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-        }
+        label: 'Examples',
+        defaultExpanded: true,
+        children: [
+          {
+            label: 'labels.js',
+            icon: 'catppuccin:javascript',
+            onSelect: (event) => {
+              if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+            }
+          },
+          {
+            label: 'lines.js',
+            icon: 'catppuccin:javascript',
+            onSelect: (event) => {
+              if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+            }
+          },
+          {
+            label: 'rectangles.js',
+            icon: 'catppuccin:javascript',
+            onSelect: (event) => {
+              if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+            }
+          },
+          {
+            label: 'rectSpiral.js',
+            icon: 'catppuccin:javascript',
+            onSelect: (event) => {
+              if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+            }
+          },
+          {
+            label: 'sprites.js',
+            icon: 'catppuccin:javascript',
+            onSelect: (event) => {
+              if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+            }
+          },
+        ]
       },
-      {
-        label: 'rectangles.js',
-        icon: 'catppuccin:javascript',
-        onSelect: (event) => {
-          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-        }
-      },
-      {
-        label: 'lines.js',
-        icon: 'catppuccin:javascript',
-        onSelect: (event) => {
-          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-        }
-      },
-      {
-        label: 'labels.js',
-        icon: 'catppuccin:javascript',
-        onSelect: (event) => {
-          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-        }
-      },
+
       {
         label: 'main.js',
         icon: 'catppuccin:javascript',
