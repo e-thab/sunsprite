@@ -19,11 +19,11 @@ const colors = [
     '#d6f8d6',
 ]
 let lastColor = ''
-let r = random(0, 4)
+let r = Random.range(0, 4)
 // let i = 0
 
 every(0.1, () => {
-    while (colors[r] === lastColor) r = random(0, 4)
+    while (colors[r] === lastColor) r = Random.range(0, 4)
     
     const rect = new Rectangle({
         color: colors[r]

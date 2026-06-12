@@ -482,7 +482,7 @@ class UserScene extends Scene {
 		timer.realTime = 0
 		timer.frame = 0
 		_frame = 0
-
+		
 		this.input.setPollAlways()
 		
 		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
@@ -492,6 +492,26 @@ class UserScene extends Scene {
 			mouseRef.value.mouseX = Math.round(mouse.x)
 			mouseRef.value.mouseY = Math.round(mouse.y)
 		})
+
+		// TODO
+		// this.input.on('pointerdown', (event: any) => {
+		// 	print('down')
+		// })
+
+		// TODO
+		// this.input.on('pointermove', (event: any) => {
+		// 	print('move')
+		// })
+
+		// TODO
+		// this.input.on('pointerup', (event: any) => {
+		// 	print('up')
+		// })
+
+		// TODO...?
+		// this.input.on(Phaser.Input.Events.POINTER_OUT, (event: any) => {
+		// 	print('out')
+		// })
 
 		// type PositionableObject = Phaser.GameObjects.GameObject & { x: number, y: number }
 		// this.input.on('drag', (pointer: Phaser.Input.Pointer, gameObject: PositionableObject, dragX: number, dragY: number) => {
