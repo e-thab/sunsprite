@@ -38,13 +38,26 @@ export type PositionableProps = {
     pos?: AnyPoint
     position?: AnyPoint
 }
+export const PositionableApi = [
+    // Props
+    'x: number',
+    'y: number',
+    'pos: { x: number, y: number }',
+    'position: { x: number, y: number }',
+
+    // Methods
+    'goTo(x: number, y: number): void',
+    'goTo(position: Point): void',
+    'goToRandom(): void',
+
+].join('\n')
 
 export function Positionable<Base extends Class>(base: Base) {
     return class Positionable extends base {
         _refObj?: any
         _x: number = 0
         _y: number = 0
-
+        
         constructor(...args: any[]) {
             super()
         }
@@ -163,6 +176,15 @@ export type SizableProps = {
     height?: number
     scale?: number // - still needs testing
 }
+export const SizableApi = [
+    // Props
+    'width: number',
+    'height: number',
+    'scale: number',
+
+    // Methods
+    // ...
+].join('\n')
 
 export function Sizable<Base extends Class>(base: Base) {
     return class Sizable extends base {
@@ -230,6 +252,14 @@ export type RotatableProps = {
     rotation?: number
     radians?: number
 }
+export const RotatableApi = [
+    // Props
+    'rotation: number',
+    'radians: number'
+
+    // Methods
+    // ...
+].join('\n')
 
 export function Rotatable<Base extends Class>(base: Base) {
     return class Rotatable extends base {
@@ -281,6 +311,16 @@ export type ViewableProps = {
     layer?: number
     visible?: boolean
 }
+export const ViewableApi = [
+    // Props
+    'alpha: number',
+    'layer: number',
+    'visible: boolean',
+
+    // Methods
+    'show(): void',
+    'hide(): void',
+].join('\n')
 
 export function Viewable<Base extends Class>(base: Base) {    
     return class Viewable extends base {
@@ -383,6 +423,8 @@ type Cursor = {
     type?: string // type is actually the fallback 
 } | undefined | null
 
+const cursorApiString = '{  }'
+
 export type InteractableProps = {
     draggable?: boolean
     cursor?: Cursor
@@ -394,6 +436,23 @@ export type InteractableProps = {
     onDragStart?: PointerAction
     onDragEnd?: PointerAction
 }
+export const InteractableApi = [
+    // Props
+    'draggable: boolean',
+    'cursor: { src: string, type?: string | undefined } | undefined',
+
+    'onClick: ((x: number, y: number) => void) | undefined',
+    'onRelease: ((x: number, y: number) => void) | undefined',
+    'onMouseEnter: ((x: number, y: number) => void) | undefined',
+    'onMouseExit: ((x: number, y: number) => void) | undefined',
+
+    'onDrag: ((x: number, y: number) => void) | undefined',
+    'onDragStart: ((x: number, y: number) => void) | undefined',
+    'onDragEnd: ((x: number, y: number) => void) | undefined',
+
+    // Methods
+    'resetCursor(): void',
+].join('\n')
 
 export function Interactable<Base extends Class>(base: Base) {
     return class Interactable extends base {
@@ -648,3 +707,19 @@ export function Timeable<Base extends Class>(base: Base) {
         }
     }
 }
+export const TimeableApi = [
+    // Props
+    'age: number',
+
+    // Methods
+    // ...
+].join('\n')
+
+export const GameObjectApi = [
+    PositionableApi,
+    SizableApi,
+    RotatableApi,
+    ViewableApi,
+    InteractableApi,
+    TimeableApi
+].join('\n')

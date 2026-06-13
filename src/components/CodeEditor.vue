@@ -1,20 +1,31 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, handleError } from 'vue';
+import { computed, onMounted, ref, handleError } from 'vue'
 
-import { useFileStore } from '@/stores/fileStore';
-import { runUserCode } from '@/assets/api/core';
-import { getExampleCode } from '@/assets/api/examples';
+import { useFileStore } from '@/stores/fileStore'
+import { runUserCode } from '@/assets/api/core'
+import { getExampleCode } from '@/assets/api/examples'
 
-import { Codemirror } from 'vue-codemirror';
-import { javascript } from '@codemirror/lang-javascript'
-import { completions } from '@/assets/code-completion/codemirror-completions';
-import { wordHover } from '@/assets/code-completion/codemirror-completions'
+// CodeMirror
+// import { Codemirror } from 'vue-codemirror'
+// import { javascript } from '@codemirror/lang-javascript'
+// import { completions } from '@/assets/code-completion/codemirror-completions'
+// import { wordHover } from '@/assets/code-completion/codemirror-completions'
 
-import { nord } from '@fsegurai/codemirror-theme-nord'
-import { oneDark } from '@codemirror/theme-one-dark'
+// import { nord } from '@fsegurai/codemirror-theme-nord'
+// import { oneDark } from '@codemirror/theme-one-dark'
+// const js = javascript()
 
 // Monaco
-import { CodeEditor, useCodeEditor, type EditorOptions } from 'monaco-editor-vue3';
+// TODO:
+//	- Theme
+//	- Add commentary next to prop/method suggestions?
+//	- Completions for formatting forever/repeat/etc., not just suggestions
+//	- Look into disabling wordBasedSuggestions when accessing object properties (just check
+//	  if previous char is a dot?)
+//	- Move completion setup/logic into its own file
+//	- Hover tips, explanation of classes/libs
+import { CodeEditor, useCodeEditor, type EditorOptions } from 'monaco-editor-vue3'
+import * as monaco from 'monaco-editor'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
@@ -27,19 +38,60 @@ const editorOptions: EditorOptions = {
   automaticLayout: true
 }
 
-function handleMount(editor: any) {
-	// Type this param ^; should be IStandaloneCodeEditor... how to import?
-	console.log(editor)
+function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
+	// console.log(editor)
 }
 
-function handleErr(editor: any) {
-	console.log(editor)
+function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
+	// console.log(editor)
 }
+
+// Example API
+import { rectangleApi } from '@/assets/api/api'
+const myFrameworkLib = `
+    /**
+     * Initializes the custom framework application instance.
+     * @param config Configuration options for initialization.
+     */
+    function init(config: { debug: boolean; token: string }): void;
+	
+    /**
+     * Fetch records from the framework's internal storage.
+     */
+    function fetchData(table: string): Promise<any[]>;
+    
+    const version: string;
+
+	${rectangleApi}
+`
+const apiUri = 'ts:api.d.ts'
+
+// Include API definitions as a completion lib
+monaco.typescript.javascriptDefaults.setExtraLibs([
+  {
+    content: myFrameworkLib,
+    filePath: apiUri // A virtual URI for the definitions
+  }
+])
+
+// Set validation options
+monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
+	noSemanticValidation: false,
+	noSyntaxValidation: false
+})
+
+// Disable DOM-based JS default completion suggestions
+const compilerOptions = monaco.typescript.javascriptDefaults.getCompilerOptions()
+monaco.typescript.javascriptDefaults.setCompilerOptions({
+	...compilerOptions,
+	noLib: true
+})
+
+// monaco.editor.createModel(myFrameworkLib, 'javascript', monaco.Uri.parse(apiUri))
 
 ////////////////////////////////////////////
 
 const code = ref('')
-const js = javascript()
 const fileStore = useFileStore()
 
 // const isSaved = ref(true)
@@ -143,11 +195,6 @@ onMounted(() => {
 		}
 	}
 
-	// monaco.editor.create(document.getElementById('container'), {
-	//   value: "function hello() {\n\talert('Hello world!');\n}",
-	//   language: 'javascript'
-	// })
-
 	fileStore.activate('main.js')
 	code.value = fileStore.getLocalCode('main.js') ?? getExampleCode()
 	runActiveUserCode()
@@ -155,9 +202,11 @@ onMounted(() => {
 })
 
 // TODO: 
-// 	- Save info element next to save button (last save time, changed, color-coding)
 //	- Visual indicator of save state (is saved/edited) / progress / completion
 //	- Visual indicator that the game already running is not using the edited code (coloring the game reset button?)
+
+// TO FIX:
+//	- Editor bar gets very cramped at small widths, text overlaps, button shrinks instead of disappearing
 </script>
 
 <template>
@@ -189,10 +238,10 @@ onMounted(() => {
 				language="javascript"
 				theme="vs-dark"
 				:options="editorOptions"
-				@error="handleErr"
 				@editorDidMount="handleMount"
-				/>
-				<!-- @mount="handleMount" -->
+				@change="updateSaveMsg"
+				@error="handleErr"
+			/>
 		</div>
 	</div>
 </template>

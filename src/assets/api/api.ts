@@ -25,3 +25,11 @@
 //     PI: Math.PI,
 // }
 // export default api
+import { PositionableApi, SizableApi, RotatableApi, ViewableApi, InteractableApi, TimeableApi, GameObjectApi } from "./mixins"
+
+export const rectangleApi = `
+class Rectangle {
+    ${GameObjectApi}
+    color: string
+}
+`

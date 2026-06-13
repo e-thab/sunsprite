@@ -85,6 +85,7 @@ function generateKeyArray() {
 }
 // generateKeyArray()
 
+// TODO: Check that all these keys actually register inputs, esp. shift-keys i.e. @, $, etc.
 const keys = [
 	'\`', '~', '1', '!', '2', '@', '3', '#', '4', '$', '5', '%', '6', '^', '7', '&', '8', '*', '9', '(', '0', ')', '-', '_', 
 	'=', '+', 'Q', 'q', 'W', 'w', 'E', 'e', 'R', 'r', 'T', 't', 'Y', 'y', 'U', 'u', 'I', 'i', 'O', 'o', 'P', 'p', '[', '{', ']', 
@@ -93,17 +94,11 @@ const keys = [
 	'Down', 'down', 'DOWN', 'Left', 'left', 'LEFT', 'Right', 'right', 'RIGHT', 'Shift', 'shift', 'SHIFT', 'Ctrl', 'ctrl', 'CTRL', 
 	'Alt', 'alt', 'ALT', 'Tab', 'tab', 'TAB', 'Esc', 'esc', 'ESC', 'Enter', 'enter', 'ENTER'
 ] as const
+
 type InputKey = typeof keys[number]
 
 export type KeyAction = {
 	[key in InputKey]?: Action
-}
-
-const t: KeyAction = {
-	A: () => {},
-	a: () => {},
-	B: () => {},
-	s: () => {}
 }
 
 export class Mouse {
