@@ -656,7 +656,12 @@ export async function runUserCode(code: string): Promise<void> {
 	game.canvas.onclick = () => {
 		// Remove focus from code editor when clicking on game canvas
 		const activeElement = document.activeElement as HTMLElement
-		if (activeElement?.className === 'cm-content') activeElement.blur()
+		
+		// CodeMirror
+		// if (activeElement?.className === 'cm-content') activeElement.blur()
+
+		// Monaco
+		if (activeElement?.className === 'native-edit-context') activeElement.blur()
 	}
 }
 
@@ -719,7 +724,12 @@ export function setup() {
 	// Key press/release registration
 	window.addEventListener('keydown', event => {
 		// Don't register press in code editor
-		if (document.activeElement?.ariaPlaceholder) return
+
+		// CodeMirror
+		// if (document.activeElement?.ariaPlaceholder) return
+
+		// Monaco
+		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
 
 		const key = apiKeyCode(event.key)
 
@@ -730,8 +740,11 @@ export function setup() {
 		}
 	})
 	window.addEventListener('keyup', event => {
-		// if (document.activeElement?.ariaRoleDescription === 'editor') { return }
-		if (document.activeElement?.ariaPlaceholder) return
+		// CodeMirror
+		// if (document.activeElement?.ariaPlaceholder) return
+
+		// Monaco
+		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
 
 		const key = apiKeyCode(event.key)
 

@@ -1,15 +1,42 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { /*runUserCode,*/ print } from '@/assets/api/core';
+import { computed, onMounted, ref, handleError } from 'vue';
+
+import { useFileStore } from '@/stores/fileStore';
 import { runUserCode } from '@/assets/api/core';
-import { completions } from '@/assets/code-completion/codemirror-completions';
+import { getExampleCode } from '@/assets/api/examples';
+
 import { Codemirror } from 'vue-codemirror';
 import { javascript } from '@codemirror/lang-javascript'
+import { completions } from '@/assets/code-completion/codemirror-completions';
 import { wordHover } from '@/assets/code-completion/codemirror-completions'
+
 import { nord } from '@fsegurai/codemirror-theme-nord'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { useFileStore } from '@/stores/fileStore';
-import { getExampleCode } from '@/assets/api/examples';
+
+// Monaco
+import { CodeEditor, useCodeEditor, type EditorOptions } from 'monaco-editor-vue3';
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
+import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
+import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
+import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
+import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
+
+const editorOptions: EditorOptions = {
+  fontSize: 14,
+  minimap: { enabled: false },
+  automaticLayout: true
+}
+
+function handleMount(editor: any) {
+	// Type this param ^; should be IStandaloneCodeEditor... how to import?
+	console.log(editor)
+}
+
+function handleErr(editor: any) {
+	console.log(editor)
+}
+
+////////////////////////////////////////////
 
 const code = ref('')
 const js = javascript()
@@ -41,15 +68,15 @@ const saveMsgHoverFilter = computed(() => {
 	return fileStore.activeFileIsSaved ? '' : 'brightness(1)'
 })
 
-const extensions = [
-	js,
-    js.language.data.of({
-		autocomplete: completions
-    }),
-	wordHover,
-    // oneDark,
-	nord,
-]
+// const extensions = [
+// 	js,
+//     js.language.data.of({
+// 		autocomplete: completions
+//     }),
+// 	wordHover,
+//     // oneDark,
+// 	nord,
+// ]
 
 function getCode(): string {
 	return code.value
@@ -98,6 +125,29 @@ function updateSaveMsg(checkCode?: string) {
 defineExpose({ runActiveUserCode, setCode, getCode, updateSaveMsg })
 
 onMounted(() => {
+	self.MonacoEnvironment = {
+		getWorker(_, label) {
+			if (label === 'json') {
+				return new jsonWorker()
+			}
+			if (label === 'css' || label === 'scss' || label === 'less') {
+				return new cssWorker()
+			}
+			if (label === 'html' || label === 'handlebars' || label === 'razor') {
+				return new htmlWorker()
+			}
+			if (label === 'typescript' || label === 'javascript') {
+				return new tsWorker()
+			}
+			return new editorWorker()
+		}
+	}
+
+	// monaco.editor.create(document.getElementById('container'), {
+	//   value: "function hello() {\n\talert('Hello world!');\n}",
+	//   language: 'javascript'
+	// })
+
 	fileStore.activate('main.js')
 	code.value = fileStore.getLocalCode('main.js') ?? getExampleCode()
 	runActiveUserCode()
@@ -122,7 +172,7 @@ onMounted(() => {
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
 		</div>
 		<div id="code-container" class="editor">
-			<codemirror
+			<!-- <codemirror
 				v-model="code"
 				placeholder="/* ... */"
 				:indent-with-tab="true"
@@ -133,7 +183,16 @@ onMounted(() => {
 					maxHeight: '100%'
 				}",
 				@change="updateSaveMsg"
-			/>
+			/> -->
+			<CodeEditor
+				v-model:value="code"
+				language="javascript"
+				theme="vs-dark"
+				:options="editorOptions"
+				@error="handleErr"
+				@editorDidMount="handleMount"
+				/>
+				<!-- @mount="handleMount" -->
 		</div>
 	</div>
 </template>
