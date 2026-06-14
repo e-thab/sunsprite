@@ -9,6 +9,10 @@
   font-weight: normal;
 } */
 
+.monaco-editor .suggest-widget {
+  width: 250px !important;
+}
+
 .ͼo .cm-scroller::-webkit-scrollbar-corner {
   background-color: #252a33;
 }

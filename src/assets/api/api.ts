@@ -28,6 +28,9 @@
 import { PositionableApi, SizableApi, RotatableApi, ViewableApi, InteractableApi, TimeableApi, GameObjectApi } from "./mixins"
 
 export const rectangleApi = `
+/**
+ * The rect class test.
+ */
 class Rectangle {
     ${GameObjectApi}
     color: string

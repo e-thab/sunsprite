@@ -115,12 +115,12 @@ onMounted(() => {
     </pane>
 
     <!-- Center pane: Code editor -->
-    <pane id="code-pane" v-show="!fsStore.fullscreen" size="44" min-size="15">
+    <pane id="code-pane" v-show="!fsStore.fullscreen" size="44">
       <CodeEditor ref="editor" class="inner-pane"/>
     </pane>
 
     <!-- Right side pane: Nested game/output splitpanes -->
-    <pane id="right-pane" min-size="15" :size="canvasWidth">
+    <pane id="right-pane":size="canvasWidth">
       <splitpanes
         horizontal
         :push-other-panes="false"
@@ -129,7 +129,7 @@ onMounted(() => {
       >
 
         <!-- Top right pane: Game view -->
-        <pane id="canvas-v-pane" min-size="15" :size="canvasHeight">
+        <pane id="canvas-v-pane":size="canvasHeight">
           <PhaserCanvas
             @ready="onCanvasReady"
             @run-game="runActiveUserCode"
