@@ -40,44 +40,44 @@ export type PositionableProps = {
 }
 export const PositionableApi = [
     // Props
-    '/**',
-    ' * The horizontal position in the world.',
-    ' */',
-    'x: number',
+    `/**
+     * Horizontal position in the world.
+     */
+    x: number`,
 
-    '/**',
-    ' * The vertical position in the world.',
-    ' */',
-    'y: number',
+    `/**
+     * Vertical position in the world.
+     */
+    y: number`,
 
-    '/**',
-    ' * The position in the world.',
-    ' */',
-    'position: { x: number, y: number }',
+    `/**
+     * Position in the world.
+     */
+    position: { x: number, y: number }`,
 
-    '/**',
-    ' * The position in the world (alias of position).',
-    ' */',
-    'pos: { x: number, y: number }',
+    `/**
+     * Position in the world (alias of position).
+     */
+    pos: { x: number, y: number }`,
 
     // Methods
-    '/**',
-    ' * Set the world position.',
-    ' * @param x The horizontal world position.',
-    ' * @param y The vertical world position.',
-    ' */',
-    'goTo(x: number, y: number): void',
+    `/**
+     * Set world position.
+     * @param x New horizontal world position.
+     * @param y New vertical world position.
+     */
+    goTo(x: number, y: number): void`,
 
-    '/**',
-    ' * Set the world position.',
-    ' * @param position The new world position.',
-    ' */',
-    'goTo(position: Point): void',
+    `/**
+     * Set world position.
+     * @param position New world position.
+     */
+    goTo(position: Point): void`,
 
-    '/**',
-    ' * Set the position to a random point within the current visible screen area.',
-    ' */',
-    'goToRandom(): void',
+    `/**
+     * Set position to a random point within the current visible screen area.
+     */
+    goToRandom(): void`,
 
 ].join('\n')
 
@@ -207,20 +207,20 @@ export type SizableProps = {
 }
 export const SizableApi = [
     // Props
-    '/**',
-    ' * The horizontal size in pixels.',
-    ' */',
-    'width: number',
+    `/**
+     * Horizontal size in pixels.
+     */
+    width: number`,
 
-    '/**',
-    ' * The vertical size in pixels.',
-    ' */',
-    'height: number',
+    `/**
+     * Vertical size in pixels.
+     */
+    height: number`,
 
-    '/**',
-    ' * Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it.',
-    ' */',
-    'scale: number',
+    `/**
+     * Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it.
+     */
+    scale: number`,
 
     // Methods
     // ...
@@ -281,6 +281,8 @@ export function Sizable<Base extends Class>(base: Base) {
             this._updateScale()
         }
 
+        // TODO: fitInside(?): XI setSize logic, fit this shape within another shape, preserving aspect
+
         _updateScale() {
             // if (this._refObj) this._refObj.scale.set(this._scale)
             if (this._refObj) this._refObj.scale = this._scale
@@ -294,8 +296,15 @@ export type RotatableProps = {
 }
 export const RotatableApi = [
     // Props
-    'rotation: number',
-    'radians: number'
+    `/**
+     * Rotation angle in degrees.
+     */
+    rotation: number`,
+
+    `/**
+     * Rotation angle in radians.
+     */
+    radians: number`
 
     // Methods
     // ...
