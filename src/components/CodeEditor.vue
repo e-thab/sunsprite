@@ -38,6 +38,19 @@ const editorOptions: EditorOptions = {
   automaticLayout: true
 }
 
+// Theme TODO
+// monaco.editor.defineTheme('nord', {
+//     base: 'vs-dark',
+//     inherit: true,
+//     rules: [
+//       {
+// 		token: 
+// 	  }
+//     ],
+//     colors: {}
+//     });
+// monaco.editor.setTheme('default')
+
 function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	// console.log(editor)
 }
