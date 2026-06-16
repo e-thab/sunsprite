@@ -160,14 +160,14 @@ function setBackgroundColor(color: string) {}
  * Primary game loop; runs every frame.
  * @param func The function to run each frame.
  */
-function forever(func: () => void) {}
+function forever(func: (delta: number) => void) {}
 
 /**
  * Runs a specified number of times alongside the game loop (1 iteration per frame).
  * @param times The number of times to repeat.
  * @param func The function to be repeated.
  */
-function repeat(times: number, func: () => void): {
+function repeat(times: number, func: (i: number) => void): {
     /**
      * The function to run once when the repeat ends.
      */
@@ -179,7 +179,7 @@ function repeat(times: number, func: () => void): {
  * @param condition The predicate condition to check.
  * @param func The function to be repeated.
  */
-function repeatUntil(condition: () => boolean, func: () => void): {
+function repeatUntil(condition: () => boolean, func: (i: number) => void): {
     /**
      * The function to run once when the repeat ends.
      */
