@@ -177,7 +177,7 @@ let keysPressed: Array<string> = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
 let keysJustReleased: Map<string, number | undefined> = new Map()
 
-export let screen: Screen = {
+export const screen: Screen = {
 	get width(): number {
 		return camera.width
 	},
@@ -256,7 +256,7 @@ export function forever(fn: Action) {
 }
 
 /* Run function {fn} {times} number of times */
-export function repeat(times: number, fn: () => void) {
+export function repeat(times: number, fn: Action) {
 	const repeatable: Repeatable = {
 		count: times,
 		i: 0,

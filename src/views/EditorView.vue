@@ -153,6 +153,10 @@ onMounted(() => {
   height: 100%;
 } */
 
+#code-pane {
+  overflow: visible;
+}
+
 .img-button {
   display: block;
   height: 24px;

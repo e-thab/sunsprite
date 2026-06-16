@@ -362,9 +362,20 @@ export type ViewableProps = {
 }
 export const ViewableApi = [
     // Props
-    'alpha: number',
-    'layer: number',
-    'visible: boolean',
+    `/**
+     * Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque).
+     */
+    alpha: number`,
+
+    `/**
+     * Rotation angle in degrees.
+     */
+    layer: number`,
+
+    `/**
+     * Rotation angle in degrees.
+     */
+    visible: boolean`,
 
     // Methods
     'show(): void',

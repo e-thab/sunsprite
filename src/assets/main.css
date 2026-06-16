@@ -9,12 +9,32 @@
   font-weight: normal;
 } */
 
-.monaco-editor .suggest-widget {
+/* .monaco-editor .suggest-widget {
   width: 250px !important;
-}
+} */
 
-.ͼo .cm-scroller::-webkit-scrollbar-corner {
+/* .ͼo .cm-scroller::-webkit-scrollbar-corner {
   background-color: #252a33;
+} */
+
+/* 
+  Fix monaco hover tooltips flickering on ctrl+f menu
+  via https://github.com/PostHog/posthog/pull/56025
+*/
+body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
+  pointer-events: none !important;
+
+  &,
+  .hover-row,
+  .hover-contents,
+  .action-container,
+  .actions-container {
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    gap: 6px !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+  }
 }
 
 a,

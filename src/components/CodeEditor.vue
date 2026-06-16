@@ -35,7 +35,7 @@ import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 const editorOptions: EditorOptions = {
   fontSize: 14,
   minimap: { enabled: false },
-  automaticLayout: true
+  automaticLayout: true,
 }
 
 // Theme TODO
@@ -43,27 +43,18 @@ monaco.editor.defineTheme('nord', {
     base: 'vs-dark',
     inherit: true,
     rules: [],
-    // colors: {
-	// 	[editorBackground]: '#FFFFFE',
-	// 	[editorForeground]: '#000000',
-	// 	[editorInactiveSelection]: '#E5EBF1',
-	// 	[editorIndentGuides]: '#D3D3D3',
-	// 	[editorSelectionHighlight]: '#ADD6FF4D'
-	// }
 	colors: {
 		'editor.background': '#2e3440',
-		// 'editor.foreground': '#ff00ff',
-
-		// 'editor.inactiveSelectionBackground': '#ff00ff',
-		// 'widget.shadow': '#ff00ff', // ?
-		// 'focusBorder': '#ff00ff' // ?
-		// 'contrastBorder': '#ff00ff' // ?
-		// 'contrastActiveBorder': '#ff00ff', // ?
-		// 'dropdown.border': '#ff00ff', // ?
-		'scrollbar.shadow': '#00000044',
-
 		'editor.lineHighlightBackground': '#ffffff08',
+		'editorLineNumber.foreground': '#d8dee944',
+		'editorLineNumber.activeForeground': '#d8dee9',
+		'editorWidget.background': '#252a33',
+		'dropdown.background': '#252a33',
+		'scrollbar.shadow': '#00000044',
+		
 		// 'editor.lineHighlightBorder': '#ffffff08',
+		// 'editor.foreground': '#ff00ff',
+		// 'editor.inactiveSelectionBackground': '#ff00ff',
 	}
 });
 
@@ -77,7 +68,7 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 }
 
 // Example API
-import { rectangleApi } from '@/assets/api/api'
+import { coreApi, rectangleApi } from '@/assets/api/api'
 const myFrameworkLib = `
     /**
      * Initializes the custom framework application instance.
@@ -91,15 +82,25 @@ const myFrameworkLib = `
     function fetchData(table: string): Promise<any[]>;
     
     const version: string;
+`
 
+const apiLib = `
+	${coreApi}
 	${rectangleApi}
 `
 const apiUri = 'ts:api.d.ts'
 
 // Include API definitions as a completion lib
+// monaco.typescript.typescriptDefaults.setExtraLibs([
+//   {
+//     content: apiLib,
+//     filePath: apiUri // A virtual URI for the definitions
+//   }
+// ])
+
 monaco.typescript.javascriptDefaults.setExtraLibs([
   {
-    content: myFrameworkLib,
+    content: apiLib,
     filePath: apiUri // A virtual URI for the definitions
   }
 ])
@@ -266,7 +267,7 @@ onMounted(() => {
 			<CodeEditor
 				v-model:value="code"
 				language="javascript"
-				theme="vs-dark"
+				theme="nord"
 				:options="editorOptions"
 				@editorDidMount="handleMount"
 				@change="updateSaveMsg"
@@ -279,7 +280,7 @@ onMounted(() => {
 <style scoped>
 .editor {
 	flex: 1 1 auto;
-	overflow: auto;
+	overflow: visible;
 }
 
 #editor-bar {
