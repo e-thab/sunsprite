@@ -5,8 +5,8 @@ import { Point } from "./Point";
 export const random = {
     // Get a random int, min & max inclusive
     range(min: number, max: number): number {
-        const minCeiled = Math.ceil(min)
-        const maxFloored = Math.floor(max)
+        const minCeiled = Math.ceil(Math.min(min, max))
+        const maxFloored = Math.floor(Math.max(min, max))
         return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled)
     },
 
@@ -14,7 +14,9 @@ export const random = {
 
     // Random float in a given range, min inclusive / max exclusive
     float(min: number, max: number): number {
-        return Math.random() * (max - min) + min;
+        const realMin = Math.min(min, max)
+        const realMax = Math.max(min, max)
+        return Math.random() * (realMax - realMin) + realMin;
     },
 
     // // Random alphanumeric string of length len: is this idea any good?

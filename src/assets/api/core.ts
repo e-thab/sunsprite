@@ -173,7 +173,7 @@ export const timer = {
 }
 export let paused = false
 
-let keysPressed: Array<string> = []
+let keysPressed: string[] = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
 let keysJustReleased: Map<string, number | undefined> = new Map()
 
@@ -370,8 +370,9 @@ export function warn() {
 }
 
 export function print(msg: string, bgColor: string | undefined = undefined, textColor: string | undefined = undefined) {
-	// TODO: count repeated messages instead of showing them all (chrome console style)
+	// TODO: allow other msg types
 	// TODO: allow arbitrary number of msg args
+	// TODO: count repeated messages instead of showing them all (chrome console style)
     console.log(msg)
 
 	function withLeadingZeroes(num: number, length: number) {

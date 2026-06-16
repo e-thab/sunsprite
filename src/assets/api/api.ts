@@ -42,6 +42,10 @@ import { PositionableApi, SizableApi, RotatableApi, ViewableApi, InteractableApi
 //     y: number
 // }
 
+// /**
+//  * True when the game is paused.
+//  */
+// let paused: boolean
 
 // /**
 //  * @typedef {Object} Point
@@ -148,7 +152,7 @@ const Timer = {
 /**
  * An array of all keys currently pressed.
  */
-let keysPressed: Array<string>
+let keysPressed: string[]
 
 /**
  * Set the background color.
@@ -160,18 +164,29 @@ function setBackgroundColor(color: string) {}
  * Primary game loop; runs every frame.
  * @param func The function to run each frame.
  */
-function forever(func: (delta: number) => void) {}
+function forever(func:
+    /**
+     * @param delta Time since the previous frame.
+     */
+    (delta: number) => void
+) {}
 
 /**
  * Runs a specified number of times alongside the game loop (1 iteration per frame).
  * @param times The number of times to repeat.
  * @param func The function to be repeated.
  */
-function repeat(times: number, func: (i: number) => void): {
+function repeat(times: number, func:
+        /** @param i The current iteration (times repeated so far). */
+        (i: number) => void
+    ): {
     /**
      * The function to run once when the repeat ends.
      */
-    then(afterFunc: () => void): void
+    then(afterFunc:
+        /** @param i The current iteration (times repeated so far). */
+        (i: number) => void
+    ): void
 } {}
 
 /**
@@ -179,11 +194,17 @@ function repeat(times: number, func: (i: number) => void): {
  * @param condition The predicate condition to check.
  * @param func The function to be repeated.
  */
-function repeatUntil(condition: () => boolean, func: (i: number) => void): {
+function repeatUntil(condition: () => boolean, func:
+        /** @param i The current iteration (times repeated so far). */
+        (i: number) => void
+    ): {
     /**
      * The function to run once when the repeat ends.
      */
-    then(afterFunc: () => void): void
+    then(afterFunc: 
+        /** @param i The current iteration (times repeated so far). */
+        (i: number) => void
+    ): void
 } {}
 
 /**
@@ -201,27 +222,96 @@ function after(seconds: number, func: () => void) {}
 function every(seconds: number, func: () => void) {}
 
 /**
- * Returns if the specified key is currently pressed. Will repeatedly be true when the key is held.
+ * Returns true if the specified key is currently pressed. Will repeatedly be true while the key is held.
  * @param key The key to check.
  */
 function keyPressed(key: string): boolean {}
 
 /**
- * Returns if the specified key is pressed, AND this is the first frame that it's being held. Will only run once when a key starts being held.
+ * Returns true if the specified key is pressed, AND this is the first frame that it's being held. Will only be true once when a key starts being held.
  * @param key The key to check.
  */
 function keyJustPressed(key: string): boolean {}
 
 /**
- * Returns if the specified key is no longer pressed, AND this is the first frame after release. Will only run once when a key stops being held.
+ * Returns true if the specified key is no longer pressed, AND this is the first frame after release. Will only be true once when a key stops being held.
  * @param key The key to check.
  */
 function keyJustReleased(key: string): boolean {}
+
+/**
+ * Register input actions to run once each time a key is pressed.
+ * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
+ */
+function onKeyPress(actions: object) {}
+
+/**
+ * Register input actions to run once each time a key is released.
+ * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
+ */
+function onKeyRelease(actions: object) {}
+
+/**
+ * Register input actions to run repeatedly while a key is held.
+ * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
+ */
+function onKeyHold(actions: object) {}
+
+/**
+ * Display a message in the output panel.
+ * @param msg The message to display.
+ */
+function print(msg: string) {}
+
+/**
+ * Pause engine processing. Must be manually un-paused using the UI button for now.
+ */
+function pause() {}
+
+/**
+ * Resume engine processing. There is currently no practical way to use this function since it can't be processed while paused. (WIP)
+ */
+function play() {}
+
+/**
+ * Clear all messages from the output panel.
+ */
+function clearOutput() {}
 `
-// /**
-//  * True when the game is paused.
-//  */
-// let paused: boolean
+
+export const utilityApi = `
+/**
+ * A collection of functions useful for generating random values.
+ */
+const Random = {
+    /**
+     * Get a random integer, min and max inclusive. If min > max, they're automatically swapped for you.
+     * @param min The low end of the range.
+     * @param max The high end of the range.
+     */
+    range(min: number, max: number): number {},
+
+    float(min: number, max: number): number {},
+
+    coinFlip(): boolean {},
+
+    roll(sides: number): number {},
+
+    choice(array: any[]): any {},
+
+    radians(): number {},
+
+    degrees(): number {},
+
+    position(): { x: 0, y: 0 },
+    
+    pos(): { x: 0, y: 0 },
+
+    x(): number,
+
+    y(): number,
+}
+`
 
 export const rectangleApi = `
 /**
