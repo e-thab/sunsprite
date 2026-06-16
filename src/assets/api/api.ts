@@ -430,12 +430,11 @@ function ceil(num: number): number
  * @param num A number.
  */
 function round(num: number): number
-
-/**
- * The ratio of the circumference of a circle to its diameter.
- */
-const PI = ${Math.PI}
 `
+// /**
+//  * The ratio of the circumference of a circle to its diameter.
+//  */
+// const PI = ${Math.PI}
 
 const rectangleApi = `
 /**
@@ -447,14 +446,19 @@ class Rectangle {
     color: string
 }`
 
+// TODO: type constructor objects
 const spriteApi = `
 /**
  * The Sprite class.
+ * @param {string} args Test
  */
 class Sprite {
-    ${GameObjectApi}
+    constructor(args?)
+
     /** A URL path to the sprite's image. */
     src: string
+    
+    ${GameObjectApi}
 }`
 
 const lineApi = `
@@ -511,6 +515,6 @@ export const apiLib = `
 	${coreApi}
 	${utilityApi}
 	${rectangleApi}
-    ${spriteApi}
     ${lineApi}
+    ${spriteApi}
 `

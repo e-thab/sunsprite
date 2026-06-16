@@ -38,6 +38,10 @@ const editorOptions: EditorOptions = {
   automaticLayout: true,
 }
 
+// declare module 'monaco-editor-vue3' {
+// 	const foo = 5;
+// }
+
 // Theme TODO
 monaco.editor.defineTheme('nord', {
     base: 'vs-dark',
@@ -61,6 +65,12 @@ monaco.editor.defineTheme('nord', {
 function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	monaco.editor.setTheme('nord')
 	// console.log(editor)
+	// const model = monaco.editor.createModel(
+	// 	code.value,
+	// 	'javascript',
+	// 	monaco.Uri.parse('file:///')
+	// )
+	// editor.setModel()
 }
 
 function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
@@ -69,20 +79,6 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 
 // Example API
 import { apiLib } from '@/assets/api/api'
-const myFrameworkLib = `
-    /**
-     * Initializes the custom framework application instance.
-     * @param config Configuration options for initialization.
-     */
-    function init(config: { debug: boolean; token: string }): void;
-	
-    /**
-     * Fetch records from the framework's internal storage.
-     */
-    function fetchData(table: string): Promise<any[]>;
-    
-    const version: string;
-`
 const apiUri = 'ts:api.d.ts'
 
 // Include API definitions as a completion lib
@@ -100,17 +96,27 @@ monaco.typescript.javascriptDefaults.setExtraLibs([
   }
 ])
 
+// Testing imports for intellisense libs
+// import Sprite from '@/assets/api/Sprite'
+// monaco.typescript.javascriptDefaults.addExtraLib(
+// 	`declare module '@test/sprite' { ${Sprite} }`,
+// 	'file:///api-whatev'
+// )
+
 // Set validation options
 monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
 	noSemanticValidation: false,
-	noSyntaxValidation: false
+	noSyntaxValidation: false,
 })
 
 // Disable DOM-based JS default completion suggestions
 const compilerOptions = monaco.typescript.javascriptDefaults.getCompilerOptions()
 monaco.typescript.javascriptDefaults.setCompilerOptions({
 	...compilerOptions,
-	noLib: true
+	noLib: true,
+	allowJs: true,
+	checkJs: true,
+	// target: monaco.typescript.ScriptTarget.Latest
 })
 
 // monaco.editor.createModel(myFrameworkLib, 'javascript', monaco.Uri.parse(apiUri))

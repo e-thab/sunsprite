@@ -161,6 +161,14 @@ const items = ref<TreeItem[]>([
       },
 
       {
+        label: 'temp.js',
+        icon: 'catppuccin:javascript',
+        onSelect: (event) => {
+          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+        }
+      },
+
+      {
         label: 'main.js',
         icon: 'catppuccin:javascript',
         onSelect: (event) => {
