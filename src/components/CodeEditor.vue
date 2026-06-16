@@ -62,8 +62,8 @@ monaco.editor.defineTheme('nord', {
 		// 'dropdown.border': '#ff00ff', // ?
 		'scrollbar.shadow': '#00000044',
 
-		// 'editor.lineHighlightBackground': '#ff00ff',
-		'editor.lineHighlightBorder': '#fffffe08',
+		'editor.lineHighlightBackground': '#ffffff08',
+		// 'editor.lineHighlightBorder': '#ffffff08',
 	}
 });
 
