@@ -56,7 +56,7 @@ export const random = {
 
     // Random rotation in degrees
     degrees(): number {
-        return this.range(1, 360)
+        return this.range(0, 359)
     },
 
     // Random position inside screen
@@ -115,6 +115,7 @@ export function tan(angle: number, unit: string = 'degrees'): number {
     }
 }
 
+// TODO: decompose or rework this into a simpler to understand function like angleTo()
 export function atan2(y: number, x: number, unit: string = 'degrees'): number {
     if (unit === 'radians') {
         return Math.atan2(y, x)
@@ -144,10 +145,13 @@ export function atan2(y: number, x: number, unit: string = 'degrees'): number {
 // }
 
 export function clamp(value: number, min: number, max: number): number {
-    if (value < min) {
-        return min
-    } else if (value > max) {
-        return max
+    const realMin = Math.min(min, max)
+    const realMax = Math.max(min, max)
+    
+    if (value < realMin) {
+        return realMin
+    } else if (value > realMax) {
+        return realMax
     } else {
         return value
     }

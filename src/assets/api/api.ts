@@ -53,7 +53,7 @@ import { PositionableApi, SizableApi, RotatableApi, ViewableApi, InteractableApi
 //  * @property {number} y - Vertical position.
 //  */
 
-export const coreApi = `
+const coreApi = `
 /**
  * User mouse reference.
  */
@@ -279,46 +279,238 @@ function play() {}
 function clearOutput() {}
 `
 
-export const utilityApi = `
+const utilityApi = `
 /**
  * A collection of functions useful for generating random values.
  */
 const Random = {
     /**
-     * Get a random integer, min and max inclusive. If min > max, they're automatically swapped for you.
+     * Returns a random integer in a given range, min and max inclusive. If min > max, they're automatically swapped for you.
      * @param min The low end of the range.
      * @param max The high end of the range.
      */
-    range(min: number, max: number): number {},
+    range(min: number, max: number): number,
 
-    float(min: number, max: number): number {},
+    /**
+     * Returns a random float in a given range, min inclusive / max exclusive. If min > max, they're automatically swapped for you.
+     * @param min The low end of the range.
+     * @param max The high end of the range.
+     */
+    float(min: number, max: number): number,
 
-    coinFlip(): boolean {},
+    /**
+     * Returns a random boolean, 50/50 chance for true/false.
+     */
+    coinFlip(): boolean,
 
-    roll(sides: number): number {},
+    /**
+     * Returns the result of rolling a die with a given number of sides.
+     * @param sides The number of sides on the die.
+     */
+    roll(sides: number): number,
 
-    choice(array: any[]): any {},
+    /**
+     * Returns a random item from a given array.
+     * @param array The array to choose an element from.
+     */
+    choice(array: any[]): any,
 
-    radians(): number {},
+    /**
+     * Returns a random rotation in radians as a float/decimal value. Range: [0, 2*pi)
+     */
+    radians(): number,
 
-    degrees(): number {},
+    /**
+     * Returns a random rotation in degrees as an integer. Range: [0, 359]
+     */
+    degrees(): number,
 
+    /**
+     * Returns a random position within the screen.
+     */
     position(): { x: 0, y: 0 },
     
+    /**
+     * Returns a random position within the screen. (alias for position)
+     */
     pos(): { x: 0, y: 0 },
 
+    /**
+     * Returns a random x position within the screen.
+     */
     x(): number,
 
+    /**
+     * Returns a random y position within the screen.
+     */
     y(): number,
 }
+
+/**
+ * Returns an angle converted from degrees to radians.
+ * @param deg The angle in degrees.
+ */
+function deg2rad(deg: number): number
+
+/**
+ * Returns an angle converted from radians to degrees.
+ * @param rad The angle in radians.
+ */
+function rad2deg(rad: number): number
+
+/**
+ * Returns the sine of a number.
+ * @param angle The angle.
+ * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
+ */
+function sin(angle: number, unit?: string): number
+
+/**
+ * Returns the cosine of a number.
+ * @param angle An angle.
+ * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
+ */
+function cos(angle: number, unit?: string): number
+
+/**
+ * Returns the tangent of a number.
+ * @param angle An angle.
+ * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
+ */
+function tan(angle: number, unit?: string): number
+
+/**
+ * Returns the angle between the X axis and the line going through both the origin and the given point.
+ * @param y The y position of the given point.
+ * @param x The x position of the given point.
+ * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
+ */
+function atan2(y: number, x: number, unit?: string): number
+
+/**
+ * Returns a number constrained to a given range. If num <= min, returns min. If num >= max, returns max. If min > max, they're automatically swapped for you.
+ * @param num A number.
+ * @param min The low end of the constraint range.
+ * @param max The high end of the constraint range.
+ */
+function clamp(num: number, min: number, max: number): number
+
+/**
+ * Returns the square root of a number.
+ * @param num A number.
+ */
+function sqrt(num: number): number
+
+/**
+ * Returns the minimum of any number of arguments.
+ * @param nums Any number of values.
+ */
+function min(...nums: number[]): number
+
+/**
+ * Returns the maximum of any number of arguments.
+ * @param nums Any number of values.
+ */
+function max(...nums: number[]): number
+
+/**
+ * Returns a number rounded down to the nearest integer.
+ * @param num A number.
+ */
+function floor(num: number): number
+
+/**
+ * Returns a number rounded up to the nearest integer.
+ * @param num A number.
+ */
+function ceil(num: number): number
+
+/**
+ * Returns a number rounded to the nearest integer. When num has a decimal portion of exactly 0.5, it is rounded up even when negative. e.g. (1.5  ->  2.0) and (-1.5  ->  -1.0)
+ * @param num A number.
+ */
+function round(num: number): number
+
+/**
+ * The ratio of the circumference of a circle to its diameter.
+ */
+const PI = ${Math.PI}
 `
 
-export const rectangleApi = `
+const rectangleApi = `
 /**
  * The Rectangle class.
  */
 class Rectangle {
     ${GameObjectApi}
+    /** The fill color. */
     color: string
-}
+}`
+
+const spriteApi = `
+/**
+ * The Sprite class.
+ */
+class Sprite {
+    ${GameObjectApi}
+    /** A URL path to the sprite's image. */
+    src: string
+}`
+
+const lineApi = `
+/**
+ * A straight line from point A to point B.
+ */
+class Line {
+    ${RotatableApi}
+    ${TimeableApi}
+    ${ViewableApi}
+    pointA: { x: number, y: number }
+    pointB: { x: number, y: number }
+    color: string
+    thickness: number
+}`
+
+const vLineApi = `
+/**
+ * 
+ */
+class VLine {
+    TODO
+}`
+
+const hLineApi = `
+/**
+ * 
+ */
+class HLine {
+    TODO
+}`
+
+const labelApi = `
+/**
+ * 
+ */
+class Label {
+    TODO
+}`
+
+const vectorApi = `
+/**
+ * 
+ */
+class Vector2 {
+    TODO
+}`
+
+// TODO: Find a way to offer intellisense when creating arg objects. e.g.
+// new Sprite({
+//      . <- when cursor is here, suggest possible properties. @constructor jsdoc?
+// })
+export const apiLib = `
+	${coreApi}
+	${utilityApi}
+	${rectangleApi}
+    ${spriteApi}
+    ${lineApi}
 `

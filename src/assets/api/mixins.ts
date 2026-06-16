@@ -40,24 +40,16 @@ export type PositionableProps = {
 }
 export const PositionableApi = [
     // Props
-    `/**
-     * Horizontal position in the world.
-     */
+    `/** Horizontal position in the world. */
     x: number`,
 
-    `/**
-     * Vertical position in the world.
-     */
+    `/** Vertical position in the world. */
     y: number`,
 
-    `/**
-     * Position in the world.
-     */
+    `/** Position in the world. */
     position: { x: number, y: number }`,
 
-    `/**
-     * Position in the world (alias of position).
-     */
+    `/** Position in the world (alias of position). */
     pos: { x: number, y: number }`,
 
     // Methods
@@ -74,9 +66,7 @@ export const PositionableApi = [
      */
     goTo(position: Point): void`,
 
-    `/**
-     * Set position to a random point within the current visible screen area.
-     */
+    `/** Set position to a random point within the current visible screen area. */
     goToRandom(): void`,
 
 ].join('\n')
@@ -207,19 +197,13 @@ export type SizableProps = {
 }
 export const SizableApi = [
     // Props
-    `/**
-     * Horizontal size in pixels.
-     */
+    `/** Horizontal size in pixels. */
     width: number`,
 
-    `/**
-     * Vertical size in pixels.
-     */
+    `/** Vertical size in pixels. */
     height: number`,
 
-    `/**
-     * Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it.
-     */
+    `/** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
     scale: number`,
 
     // Methods
@@ -296,14 +280,10 @@ export type RotatableProps = {
 }
 export const RotatableApi = [
     // Props
-    `/**
-     * Rotation angle in degrees.
-     */
+    `/** Rotation angle in degrees. */
     rotation: number`,
 
-    `/**
-     * Rotation angle in radians.
-     */
+    `/** Rotation angle in radians. */
     radians: number`
 
     // Methods
@@ -362,24 +342,21 @@ export type ViewableProps = {
 }
 export const ViewableApi = [
     // Props
-    `/**
-     * Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque).
-     */
+    `/** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
     alpha: number`,
 
-    `/**
-     * Rotation angle in degrees.
-     */
+    `/** The render order. Objects with higher layer values will show in front of objects with lower values. */
     layer: number`,
 
-    `/**
-     * Rotation angle in degrees.
-     */
+    `/** Whether this object is currently visible. */
     visible: boolean`,
 
     // Methods
-    'show(): void',
-    'hide(): void',
+    `/** Show this object. */
+    show(): void`,
+
+    `/** Hide this object. */
+    hide(): void`,
 ].join('\n')
 
 export function Viewable<Base extends Class>(base: Base) {    
@@ -483,7 +460,7 @@ type Cursor = {
     type?: string // type is actually the fallback 
 } | undefined | null
 
-const cursorApiString = '{  }'
+// const cursorApiString = '{  }'
 
 export type InteractableProps = {
     draggable?: boolean
@@ -498,20 +475,99 @@ export type InteractableProps = {
 }
 export const InteractableApi = [
     // Props
-    'draggable: boolean',
-    'cursor: { src: string, type?: string | undefined } | undefined',
+    `/** Whether this object can be dragged with the mouse. */
+    draggable: boolean`,
 
-    'onClick: ((x: number, y: number) => void) | undefined',
-    'onRelease: ((x: number, y: number) => void) | undefined',
-    'onMouseEnter: ((x: number, y: number) => void) | undefined',
-    'onMouseExit: ((x: number, y: number) => void) | undefined',
+    `/** The cursor shown when the mouse is over this object. */
+    cursor: { src: string, type?: string | undefined } | undefined`,
 
-    'onDrag: ((x: number, y: number) => void) | undefined',
-    'onDragStart: ((x: number, y: number) => void) | undefined',
-    'onDragEnd: ((x: number, y: number) => void) | undefined',
+    `/**
+     * Register a function to run when clicking this object.
+     * @param func The function to run.
+     */
+    onClick(func?:
+        /**
+         * @param x The x position of the mouse during the click.
+         * @param y The y position of the mouse during the click.
+         */
+        (x: number, y: number) => void
+    ): void`,
+
+    `/**
+     * Register a function to run when releasing a click on this object.
+     * @param func The function to run.
+     */
+    onRelease(func?:
+        /**
+         * @param x The x position of the mouse during the release.
+         * @param y The y position of the mouse during the release.
+         */
+        (x: number, y: number) => void
+    ): void`,
+
+    `/**
+     * Register a function to run when the mouse first starts overlapping this object.
+     * @param func The function to run.
+     */
+    onMouseEnter(func?:
+        /**
+         * @param x The x position of the mouse as it enters.
+         * @param y The y position of the mouse as it enters.
+         */
+        (x: number, y: number) => void
+    ): void`,
+
+    `/**
+     * Register a function to run when the mouse first stops overlapping this object.
+     * @param func The function to run.
+     */
+    onMouseExit(func?:
+        /**
+         * @param x The x position of the mouse as it exits.
+         * @param y The y position of the mouse as it exits.
+         */
+        (x: number, y: number) => void
+    ): void`,
+
+    `/**
+     * Register a function to run repeatedly while this object is being dragged.
+     * @param func The function to run.
+     */
+    onDrag(func?:
+        /**
+         * @param x The x position of the mouse.
+         * @param y The y position of the mouse.
+         */
+        (x: number, y: number) => void
+    ): void`,
+
+    `/**
+     * Register a function to run when this object first starts being dragged.
+     * @param func The function to run.
+     */
+    onDragStart(func?:
+        /**
+         * @param x The x position of the mouse.
+         * @param y The y position of the mouse.
+         */
+        (x: number, y: number) => void
+    ): void`,
+
+    `/**
+     * Register a function to run when this object first stops being dragged.
+     * @param func The function to run.
+     */
+    onDragEnd(func?:
+        /**
+         * @param x The x position of the mouse.
+         * @param y The y position of the mouse.
+         */
+        (x: number, y: number) => void
+    ): void`,
 
     // Methods
-    'resetCursor(): void',
+    `/** Set this object's hover cursor back to the default pointer. */
+    resetCursor(): void`,
 ].join('\n')
 
 export function Interactable<Base extends Class>(base: Base) {
@@ -769,7 +825,8 @@ export function Timeable<Base extends Class>(base: Base) {
 }
 export const TimeableApi = [
     // Props
-    'age: number',
+    `/** How long this object has existed in seconds. */
+    age: number`,
 
     // Methods
     // ...

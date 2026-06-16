@@ -68,7 +68,7 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 }
 
 // Example API
-import { coreApi, rectangleApi, utilityApi } from '@/assets/api/api'
+import { apiLib } from '@/assets/api/api'
 const myFrameworkLib = `
     /**
      * Initializes the custom framework application instance.
@@ -82,12 +82,6 @@ const myFrameworkLib = `
     function fetchData(table: string): Promise<any[]>;
     
     const version: string;
-`
-
-const apiLib = `
-	${coreApi}
-	${utilityApi}
-	${rectangleApi}
 `
 const apiUri = 'ts:api.d.ts'
 
