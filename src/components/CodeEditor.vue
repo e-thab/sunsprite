@@ -39,19 +39,36 @@ const editorOptions: EditorOptions = {
 }
 
 // Theme TODO
-// monaco.editor.defineTheme('nord', {
-//     base: 'vs-dark',
-//     inherit: true,
-//     rules: [
-//       {
-// 		token: 
-// 	  }
-//     ],
-//     colors: {}
-//     });
-// monaco.editor.setTheme('default')
+monaco.editor.defineTheme('nord', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [],
+    // colors: {
+	// 	[editorBackground]: '#FFFFFE',
+	// 	[editorForeground]: '#000000',
+	// 	[editorInactiveSelection]: '#E5EBF1',
+	// 	[editorIndentGuides]: '#D3D3D3',
+	// 	[editorSelectionHighlight]: '#ADD6FF4D'
+	// }
+	colors: {
+		'editor.background': '#2e3440',
+		// 'editor.foreground': '#ff00ff',
+
+		// 'editor.inactiveSelectionBackground': '#ff00ff',
+		// 'widget.shadow': '#ff00ff', // ?
+		// 'focusBorder': '#ff00ff' // ?
+		// 'contrastBorder': '#ff00ff' // ?
+		// 'contrastActiveBorder': '#ff00ff', // ?
+		// 'dropdown.border': '#ff00ff', // ?
+		'scrollbar.shadow': '#00000044',
+
+		// 'editor.lineHighlightBackground': '#ff00ff',
+		'editor.lineHighlightBorder': '#fffffe08',
+	}
+});
 
 function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
+	monaco.editor.setTheme('nord')
 	// console.log(editor)
 }
 
