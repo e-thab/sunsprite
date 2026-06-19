@@ -3,7 +3,7 @@
 import { deg2rad, rad2deg, random } from "./utility"
 // import { Point, type AnyPoint } from "./interfaces"
 import { Point, type AnyPoint } from "./Point"
-import { screen, camera, timer, /*mouseX, mouseY,*/ paused, getGamePoint } from "./core"
+import { screen, camera, timer, paused, getGamePoint } from "./core"
 
 import Phaser from "phaser"
 
@@ -31,6 +31,38 @@ export type GameObjectProps = PositionableProps & SizableProps & RotatableProps 
 //     onMouseExit: () => {},
 //     // ...etc.
 // }
+const propDescription: Record<keyof GameObjectProps, string> = {
+    // Positionable
+    x: `Horizontal position in the world.`,
+    y: `Vertical position in the world.`,
+    pos: `Position in the world.`,
+    position: `Position in the world (alias of position).`,
+
+    // Sizable
+    width: `Horizontal size in pixels.`,
+    height: `Vertical size in pixels.`,
+    scale: `Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it.`,
+
+    // Rotatable
+    rotation: `Rotation angle in degrees.`,
+    radians: `Rotation angle in radians.`,
+
+    // Viewable
+    alpha: `Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque).`,
+    layer: `The render order. Objects with higher layer values will show in front of objects with lower values.`,
+    visible: `Whether this object is currently visible.`,
+
+    // Interactable
+    draggable: `Whether this object can be dragged with the mouse.`,
+    cursor: `The cursor shown when the mouse is over this object.`,
+    onClick: `Register a function to run when clicking this object.`,
+    onRelease: `Register a function to run when releasing a click on this object.`,
+    onMouseEnter: `Register a function to run when the mouse first starts overlapping this object.`,
+    onMouseExit: `Register a function to run when the mouse first stops overlapping this object.`,
+    onDrag: `Register a function to run repeatedly while this object is being dragged.`,
+    onDragStart: `Register a function to run when this object first starts being dragged.`,
+    onDragEnd: `Register a function to run when this object first stops being dragged.`,
+}
 
 export type PositionableProps = {
     x?: number
@@ -38,19 +70,33 @@ export type PositionableProps = {
     pos?: AnyPoint
     position?: AnyPoint
 }
-export const PositionableApi = [
+export const positionablePropsTypeDef = `
+type PositionableProps = {
+    /** ${propDescription.x} */
+    x?: number
+
+    /** ${propDescription.y} */
+    y?: number
+
+    /** ${propDescription.pos} */
+    pos?: AnyPoint
+
+    /** ${propDescription.position} */
+    position?: AnyPoint
+}`
+export const positionableApi = [
     // Props
-    `/** Horizontal position in the world. */
+    `/** ${propDescription.x} */
     x: number`,
 
-    `/** Vertical position in the world. */
+    `/** ${propDescription.y} */
     y: number`,
 
-    `/** Position in the world. */
-    position: { x: number, y: number }`,
-
-    `/** Position in the world (alias of position). */
+    `/** ${propDescription.pos} */
     pos: { x: number, y: number }`,
+
+    `/** ${propDescription.position} */
+    position: { x: number, y: number }`,
 
     // Methods
     `/**
@@ -195,15 +241,26 @@ export type SizableProps = {
     height?: number
     scale?: number // - still needs testing
 }
-export const SizableApi = [
+export const sizablePropsTypeDef = `
+type SizableProps = {
+    /** ${propDescription.width} */
+    width?: number
+
+    /** ${propDescription.height} */
+    height?: number
+
+    /** ${propDescription.scale} */
+    scale?: number
+}`
+export const sizableApi = [
     // Props
-    `/** Horizontal size in pixels. */
+    `/** ${propDescription.width} */
     width: number`,
 
-    `/** Vertical size in pixels. */
+    `/** ${propDescription.height} */
     height: number`,
 
-    `/** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
+    `/** ${propDescription.scale} */
     scale: number`,
 
     // Methods
@@ -278,12 +335,20 @@ export type RotatableProps = {
     rotation?: number
     radians?: number
 }
-export const RotatableApi = [
+export const rotatablePropsTypeDef = `
+type RotatableProps = {
+    /** ${propDescription.rotation} */
+    rotation?: number
+
+    /** ${propDescription.radians} */
+    radians?: number
+}`
+export const rotatableApi = [
     // Props
-    `/** Rotation angle in degrees. */
+    `/** ${propDescription.rotation} */
     rotation: number`,
 
-    `/** Rotation angle in radians. */
+    `/** ${propDescription.radians} */
     radians: number`
 
     // Methods
@@ -340,15 +405,26 @@ export type ViewableProps = {
     layer?: number
     visible?: boolean
 }
-export const ViewableApi = [
+export const viewablePropsTypeDef = `
+type ViewableProps = {
+    /** ${propDescription.alpha} */
+    alpha?: number
+
+    /** ${propDescription.layer} */
+    layer?: number
+
+    /** ${propDescription.visible} */
+    visible?: boolean
+}`
+export const viewableApi = [
     // Props
-    `/** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
+    `/** ${propDescription.alpha} */
     alpha: number`,
 
-    `/** The render order. Objects with higher layer values will show in front of objects with lower values. */
+    `/** ${propDescription.layer} */
     layer: number`,
 
-    `/** Whether this object is currently visible. */
+    `/** ${propDescription.visible} */
     visible: boolean`,
 
     // Methods
@@ -455,9 +531,19 @@ export function Viewable<Base extends Class>(base: Base) {
 // (pointer: any, localX: number, localY: number, event: any) -- args from pointer event callbacks
 type PointerAction = ((x: number, y: number) => void) | undefined | null
 
+enum CursorType {
+    AUTO = 'auto',
+    DEFAULT = 'default',
+    NONE = 'none',
+    CONTEXT_MENU = 'context-menu',
+    HELP = 'help',
+    POINTER = 'pointer',
+    // ETC = 'etc',
+}
+
 type Cursor = {
     src: string,
-    type?: string // type is actually the fallback 
+    type?: CursorType | 'auto' | 'default' | 'none' | 'context-menu' | 'help' | 'pointer' | 'progress' | 'wait' | 'cell' | 'crosshair' | 'text' | 'vertical-text' | 'copy' | 'move' | 'no-drop' | 'not-allowed' | 'grab' | 'grabbing' | 'all-scroll' | 'col-resize' | 'row-resize' | 'n-resize' | 'e-resize' | 's-resize' | 'w-resize' | 'ne-resize' | 'nw-resize' | 'se-resize' | 'sw-resize' | 'ew-resize' | 'ns-resize' // ...TODO
 } | undefined | null
 
 // const cursorApiString = '{  }'
@@ -473,97 +559,85 @@ export type InteractableProps = {
     onDragStart?: PointerAction
     onDragEnd?: PointerAction
 }
-export const InteractableApi = [
+export const interactablePropsTypeDef = `
+type PointerAction = (
+    /**
+     * @param x The x position of the mouse during the click.
+     * @param y The y position of the mouse during the click.
+     */
+    (x: number, y: number) => void
+) | undefined | null
+
+enum CursorType {
+    AUTO = 'auto',
+    DEFAULT = 'default',
+    NONE = 'none',
+    CONTEXT_MENU = 'context-menu',
+    HELP = 'help',
+    POINTER = 'pointer',
+    ETC = 'etc',
+}
+type Cursor = {
+    src: string,
+    type?: CursorType | 'auto' | 'default' | 'none' | 'context-menu' | 'help' | 'pointer' | 'progress' | 'wait' | 'cell' | 'crosshair' | 'text' | 'vertical-text' | 'copy' | 'move' | 'no-drop' | 'not-allowed' | 'grab' | 'grabbing' | 'all-scroll' | 'col-resize' | 'row-resize' | 'n-resize' | 'e-resize' | 's-resize' | 'w-resize' | 'ne-resize' | 'nw-resize' | 'se-resize' | 'sw-resize' | 'ew-resize' | 'ns-resize' // ...TODO
+} | undefined | null
+
+type InteractableProps = {
+    /** ${propDescription.draggable} */
+    draggable?: boolean
+
+    /** ${propDescription.cursor} */
+    cursor?: Cursor
+    
+    /** ${propDescription.onClick} */
+    onClick?: PointerAction
+
+    /** ${propDescription.onRelease} */
+    onRelease?: PointerAction
+
+    /** ${propDescription.onMouseEnter} */
+    onMouseEnter?: PointerAction
+
+    /** ${propDescription.onMouseExit} */
+    onMouseExit?: PointerAction
+
+    /** ${propDescription.onDrag} */
+    onDrag?: PointerAction
+
+    /** ${propDescription.onDragStart} */
+    onDragStart?: PointerAction
+
+    /** ${propDescription.onDragEnd} */
+    onDragEnd?: PointerAction
+}`
+export const interactableApi = [
     // Props
-    `/** Whether this object can be dragged with the mouse. */
+    `/** ${propDescription.draggable} */
     draggable: boolean`,
 
-    `/** The cursor shown when the mouse is over this object. */
-    cursor: { src: string, type?: string | undefined } | undefined`,
+    `/** ${propDescription.cursor} */
+    cursor: Cursor`,
 
-    `/**
-     * Register a function to run when clicking this object.
-     * @param func The function to run.
-     */
-    onClick(func?:
-        /**
-         * @param x The x position of the mouse during the click.
-         * @param y The y position of the mouse during the click.
-         */
-        (x: number, y: number) => void
-    ): void`,
+    `/** ${propDescription.onClick} */
+    onClick: PointerAction`,
 
-    `/**
-     * Register a function to run when releasing a click on this object.
-     * @param func The function to run.
-     */
-    onRelease(func?:
-        /**
-         * @param x The x position of the mouse during the release.
-         * @param y The y position of the mouse during the release.
-         */
-        (x: number, y: number) => void
-    ): void`,
+    `/** ${propDescription.onRelease} */
+    onRelease: PointerAction`,
 
-    `/**
-     * Register a function to run when the mouse first starts overlapping this object.
-     * @param func The function to run.
-     */
-    onMouseEnter(func?:
-        /**
-         * @param x The x position of the mouse as it enters.
-         * @param y The y position of the mouse as it enters.
-         */
-        (x: number, y: number) => void
-    ): void`,
+    `/** ${propDescription.onMouseEnter} */
+    onMouseEnter: PointerAction`,
 
-    `/**
-     * Register a function to run when the mouse first stops overlapping this object.
-     * @param func The function to run.
-     */
-    onMouseExit(func?:
-        /**
-         * @param x The x position of the mouse as it exits.
-         * @param y The y position of the mouse as it exits.
-         */
-        (x: number, y: number) => void
-    ): void`,
+    `/** ${propDescription.onMouseExit} */
+    onMouseExit: PointerAction`,
 
-    `/**
-     * Register a function to run repeatedly while this object is being dragged.
-     * @param func The function to run.
-     */
-    onDrag(func?:
-        /**
-         * @param x The x position of the mouse.
-         * @param y The y position of the mouse.
-         */
-        (x: number, y: number) => void
-    ): void`,
+    `/** ${propDescription.onDrag} */
+    onDrag: PointerAction`,
 
-    `/**
-     * Register a function to run when this object first starts being dragged.
-     * @param func The function to run.
-     */
-    onDragStart(func?:
-        /**
-         * @param x The x position of the mouse.
-         * @param y The y position of the mouse.
-         */
-        (x: number, y: number) => void
-    ): void`,
+    `/** ${propDescription.onDragStart} */
+    onDragStart: PointerAction`,
 
-    `/**
-     * Register a function to run when this object first stops being dragged.
-     * @param func The function to run.
-     */
-    onDragEnd(func?:
-        /**
-         * @param x The x position of the mouse.
-         * @param y The y position of the mouse.
-         */
-        (x: number, y: number) => void
-    ): void`,
+    `/** ${propDescription.onDragEnd} */
+    onDragEnd: PointerAction`,
 
     // Methods
     `/** Set this object's hover cursor back to the default pointer. */
@@ -622,12 +696,12 @@ export function Interactable<Base extends Class>(base: Base) {
             if (typeof cursor === typeof 'string') {
                 cursorObj = {
                     src: cursor as string,
-                    type: 'default'
+                    type: CursorType.DEFAULT
                 }
             } else {
                 cursorObj = {
                     src: (cursor as Cursor)?.src ?? 'default',
-                    type: (cursor as Cursor)?.type ?? 'default'
+                    type: (cursor as Cursor)?.type ?? CursorType.DEFAULT
                 }
             }
             
@@ -823,7 +897,7 @@ export function Timeable<Base extends Class>(base: Base) {
         }
     }
 }
-export const TimeableApi = [
+export const timeableApi = [
     // Props
     `/** How long this object has existed in seconds. */
     age: number`,
@@ -832,11 +906,20 @@ export const TimeableApi = [
     // ...
 ].join('\n')
 
-export const GameObjectApi = [
-    PositionableApi,
-    SizableApi,
-    RotatableApi,
-    ViewableApi,
-    InteractableApi,
-    TimeableApi
+export const gameObjectApi = [
+    positionableApi,
+    sizableApi,
+    rotatableApi,
+    viewableApi,
+    interactableApi,
+    timeableApi
 ].join('\n')
+
+export const gameObjectPropsTypeDef = [
+    positionablePropsTypeDef,
+    sizablePropsTypeDef,
+    rotatablePropsTypeDef,
+    viewablePropsTypeDef,
+    interactablePropsTypeDef,
+    `type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps`
+]

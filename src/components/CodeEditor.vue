@@ -79,22 +79,14 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 
 // Example API
 import { apiLib } from '@/assets/api/api'
-const apiUri = 'ts:api.d.ts'
+const apiUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
 
-// Include API definitions as a completion lib
 // monaco.typescript.typescriptDefaults.setExtraLibs([
 //   {
 //     content: apiLib,
 //     filePath: apiUri // A virtual URI for the definitions
 //   }
 // ])
-
-monaco.typescript.javascriptDefaults.setExtraLibs([
-  {
-    content: apiLib,
-    filePath: apiUri // A virtual URI for the definitions
-  }
-])
 
 // Testing imports for intellisense libs
 // import Sprite from '@/assets/api/Sprite'
@@ -113,13 +105,21 @@ monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
 const compilerOptions = monaco.typescript.javascriptDefaults.getCompilerOptions()
 monaco.typescript.javascriptDefaults.setCompilerOptions({
 	...compilerOptions,
-	noLib: true,
+	// noLib: true,
+	lib: ['es2022'],
 	allowJs: true,
 	checkJs: true,
-	// target: monaco.typescript.ScriptTarget.Latest
+	target: monaco.typescript.ScriptTarget.ES2020
 })
 
-// monaco.editor.createModel(myFrameworkLib, 'javascript', monaco.Uri.parse(apiUri))
+// Include API definitions as a completion lib
+monaco.typescript.javascriptDefaults.addExtraLib(apiLib, apiUri)
+// monaco.typescript.javascriptDefaults.setExtraLibs([
+//   {
+//     content: apiLib,
+//     filePath: apiUri, // A virtual URI for the definitions,
+//   }
+// ])
 
 ////////////////////////////////////////////
 

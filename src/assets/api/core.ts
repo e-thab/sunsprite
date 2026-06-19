@@ -165,11 +165,11 @@ export let scene: Scene
 export let camera: Phaser.Cameras.Scene2D.Camera
 export const mouse = new Mouse()
 export const timer = {
-	time: 0, 	 // time since start, does not increment during pause
-	realTime: 0, // time since start including pause time
-	delta: 0,	 // time since last frame normalized to 60fps (will usually be around 1)
-	deltaMs: 0,  // actual (smoothed) time since last frame
-	frame: 0,    // number of frames since start
+	time: 0, 	  // time since start, does not increment during pause
+	totalTime: 0, // time since start including pause time
+	delta: 0,	  // time since last frame normalized to 60fps (will usually be around 1)
+	deltaMs: 0,   // actual (smoothed) time since last frame
+	frame: 0,     // number of frames since start
 }
 export let paused = false
 
@@ -480,7 +480,7 @@ class UserScene extends Scene {
 
 		camera = this.cameras.main
 		timer.time = 0
-		timer.realTime = 0
+		timer.totalTime = 0
 		timer.frame = 0
 		_frame = 0
 		
@@ -578,7 +578,7 @@ class UserScene extends Scene {
 
 		timer.delta = deltaNormal
 		timer.deltaMs = delta
-		timer.realTime += delta
+		timer.totalTime += delta
 		
 		_clearKeysJustPressed(_frame)
 		_clearKeysJustReleased(_frame)

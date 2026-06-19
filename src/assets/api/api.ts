@@ -25,7 +25,7 @@
 //     PI: Math.PI,
 // }
 // export default api
-import { PositionableApi, SizableApi, RotatableApi, ViewableApi, InteractableApi, TimeableApi, GameObjectApi } from "./mixins"
+import { positionableApi, sizableApi, rotatableApi, viewableApi, interactableApi, timeableApi, gameObjectApi, gameObjectPropsTypeDef, positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef } from "./mixins"
 
 // /**
 //  * Defines a point as a coordinate pair { x, y }.
@@ -52,152 +52,160 @@ import { PositionableApi, SizableApi, RotatableApi, ViewableApi, InteractableApi
 //  * @property {number} x - Horizontal position.
 //  * @property {number} y - Vertical position.
 //  */
+export const apiLib = [
+// Types
+`
+${positionablePropsTypeDef}
+${sizablePropsTypeDef}
+${rotatablePropsTypeDef}
+${viewablePropsTypeDef}
+${interactablePropsTypeDef}
+${gameObjectPropsTypeDef}
+declare type Point = { x: number, y: number }
+`,
 
-const coreApi = `
+// Core
+`
 /**
  * User mouse reference.
  */
-const Mouse = {
+declare const Mouse: {
     /**
      * Vertical position of the user's cursor.
      */
-    x: 0
+    x: number
 
     /**
      * Horizontal position of the user's cursor.
      */
-    y: 0
+    y: number
 
     /**
      * Position of the user's cursor as a Point.
      */
-    position: { x: 0, y: 0 }
+    position: Point
 
     /**
      * Position of the user's cursor as a Point. (alias for position)
      */
-    pos: { x: 0, y: 0 }
+    pos: Point
 }
 
 /**
  * Game screen reference.
  */
-const Screen = {
+const Screen: {
     /**
      * Current width of the game screen.
      */
-    width: 0
+    width: number
 
     /**
      * Current height of the game screen.
      */
-    height: 0
+    height: number
 
     /**
      * Y coordinate of the top edge of the screen.
      */
-    top: 0
+    top: number
 
     /**
      * Y coordinate of the bottom edge of the screen.
      */
-    bottom: 0
+    bottom: number
 
     /**
      * X coordinate of the left edge of the screen.
      */
-    left: 0
+    left: number
 
     /**
      * X coordinate of the right edge of the screen.
      */
-    right: 0
+    right: number
 
     /**
      * Point at the center of the screen.
      */
-    center: { x: 0, y: 0 }
+    center: Point
 }
 
 /**
  * Timer singleton.
  */
-const Timer = {
+const Timer: {
     /**
      * Time since start, does not increment during pause.
      */
-    time: 0
+    time: number
 
     /**
      * Time since start, including pause time.
      */
-    realTime: 0
+    totalTime: number
 
     /**
      * Normalized time since last frame. When running at 60 FPS, this will be around 1.0.
      */
-    delta: 0
+    delta: number
 
     /**
      * Time since last frame in milliseconds.
      */
-    deltaMs: 0
+    deltaMs: number
 
     /**
      * Frames since game start, does not increment during pause.
      */
-    frame: 0
+    frame: number
 }
 
 /**
  * An array of all keys currently pressed.
  */
-let keysPressed: string[]
+declare const keysPressed: string[]
 
 /**
  * Set the background color.
  * @param color Color to fill the background with.
  */
-function setBackgroundColor(color: string) {}
+declare function setBackgroundColor(color: string): void
 
 /**
  * Primary game loop; runs every frame.
  * @param func The function to run each frame.
  */
-function forever(func:
-    /**
-     * @param delta Time since the previous frame.
-     */
+declare function forever(func:
+    /** @param delta Time since the previous frame. */
     (delta: number) => void
-) {}
+): void
 
 /**
  * Runs a specified number of times alongside the game loop (1 iteration per frame).
  * @param times The number of times to repeat.
  * @param func The function to be repeated.
  */
-function repeat(times: number, func:
-        /** @param i The current iteration (times repeated so far). */
-        (i: number) => void
-    ): {
-    /**
-     * The function to run once when the repeat ends.
-     */
+declare function repeat(times: number, func:
+    /** @param i The current iteration (times repeated so far). */
+    (i: number) => void
+): {
+    /** The function to run once when the repeat ends. */
     then(afterFunc:
         /** @param i The current iteration (times repeated so far). */
         (i: number) => void
     ): void
-} {}
+}: void
 
 /**
  * Runs until the specified condition is true. Runs alongside the game loop (1 iteration per frame).
  * @param condition The predicate condition to check.
  * @param func The function to be repeated.
  */
-function repeatUntil(condition: () => boolean, func:
-        /** @param i The current iteration (times repeated so far). */
-        (i: number) => void
-    ): {
+declare function repeatUntil(condition: () => boolean, func:
+    /** @param i The current iteration (times repeated so far). */
+    (i: number) => void
+): {
     /**
      * The function to run once when the repeat ends.
      */
@@ -205,85 +213,85 @@ function repeatUntil(condition: () => boolean, func:
         /** @param i The current iteration (times repeated so far). */
         (i: number) => void
     ): void
-} {}
+}: void
 
 /**
  * Runs once after a specified number of seconds have passed.
  * @param seconds The number of seconds to wait before running.
  * @param func The function to run.
  */
-function after(seconds: number, func: () => void) {}
+declare function after(seconds: number, func: () => void): void
 
 /**
  * Runs once immediately, then repeatedly at a specified time interval.
  * @param seconds The number of seconds to wait before running each time.
  * @param func The function to run.
  */
-function every(seconds: number, func: () => void) {}
+declare function every(seconds: number, func: () => void): void
 
 /**
  * Returns true if the specified key is currently pressed. Will repeatedly be true while the key is held.
  * @param key The key to check.
  */
-function keyPressed(key: string): boolean {}
+declare function keyPressed(key: string): boolean
 
-/**
+/*
  * Returns true if the specified key is pressed, AND this is the first frame that it's being held. Will only be true once when a key starts being held.
  * @param key The key to check.
  */
-function keyJustPressed(key: string): boolean {}
+declare function keyJustPressed(key: string): boolean
 
 /**
  * Returns true if the specified key is no longer pressed, AND this is the first frame after release. Will only be true once when a key stops being held.
  * @param key The key to check.
  */
-function keyJustReleased(key: string): boolean {}
+declare function keyJustReleased(key: string): boolean
 
 /**
  * Register input actions to run once each time a key is pressed.
  * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
  */
-function onKeyPress(actions: object) {}
+declare function onKeyPress(actions: object): void
 
 /**
  * Register input actions to run once each time a key is released.
  * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
  */
-function onKeyRelease(actions: object) {}
+declare function onKeyRelease(actions: object): void
 
 /**
  * Register input actions to run repeatedly while a key is held.
  * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
  */
-function onKeyHold(actions: object) {}
+declare function onKeyHold(actions: object): void
 
 /**
  * Display a message in the output panel.
  * @param msg The message to display.
  */
-function print(msg: string) {}
+declare function print(msg: string): void
 
 /**
  * Pause engine processing. Must be manually un-paused using the UI button for now.
  */
-function pause() {}
+declare function pause(): void
 
 /**
  * Resume engine processing. There is currently no practical way to use this function since it can't be processed while paused. (WIP)
  */
-function play() {}
+declare function play(): void
 
 /**
  * Clear all messages from the output panel.
  */
-function clearOutput() {}
-`
+declare function clearOutput(): void`,
 
-const utilityApi = `
+// Utilities
+`
 /**
  * A collection of functions useful for generating random values.
  */
-const Random = {
+declare const Random: {
     /**
      * Returns a random integer in a given range, min and max inclusive. If min > max, they're automatically swapped for you.
      * @param min The low end of the range.
@@ -328,12 +336,12 @@ const Random = {
     /**
      * Returns a random position within the screen.
      */
-    position(): { x: 0, y: 0 },
+    position(): Point,
     
     /**
      * Returns a random position within the screen. (alias for position)
      */
-    pos(): { x: 0, y: 0 },
+    pos(): Point,
 
     /**
      * Returns a random x position within the screen.
@@ -350,34 +358,34 @@ const Random = {
  * Returns an angle converted from degrees to radians.
  * @param deg The angle in degrees.
  */
-function deg2rad(deg: number): number
+declare function deg2rad(deg: number): number
 
 /**
  * Returns an angle converted from radians to degrees.
  * @param rad The angle in radians.
  */
-function rad2deg(rad: number): number
+declare function rad2deg(rad: number): number
 
 /**
  * Returns the sine of a number.
  * @param angle The angle.
  * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
  */
-function sin(angle: number, unit?: string): number
+declare function sin(angle: number, unit?: string): number
 
 /**
  * Returns the cosine of a number.
  * @param angle An angle.
  * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
  */
-function cos(angle: number, unit?: string): number
+declare function cos(angle: number, unit?: string): number
 
 /**
  * Returns the tangent of a number.
  * @param angle An angle.
  * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
  */
-function tan(angle: number, unit?: string): number
+declare function tan(angle: number, unit?: string): number
 
 /**
  * Returns the angle between the X axis and the line going through both the origin and the given point.
@@ -385,7 +393,7 @@ function tan(angle: number, unit?: string): number
  * @param x The x position of the given point.
  * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
  */
-function atan2(y: number, x: number, unit?: string): number
+declare function atan2(y: number, x: number, unit?: string): number
 
 /**
  * Returns a number constrained to a given range. If num <= min, returns min. If num >= max, returns max. If min > max, they're automatically swapped for you.
@@ -393,128 +401,170 @@ function atan2(y: number, x: number, unit?: string): number
  * @param min The low end of the constraint range.
  * @param max The high end of the constraint range.
  */
-function clamp(num: number, min: number, max: number): number
+declare function clamp(num: number, min: number, max: number): number
 
 /**
  * Returns the square root of a number.
  * @param num A number.
  */
-function sqrt(num: number): number
+declare function sqrt(num: number): number
 
 /**
  * Returns the minimum of any number of arguments.
  * @param nums Any number of values.
  */
-function min(...nums: number[]): number
+declare function min(...nums: number[]): number
 
 /**
  * Returns the maximum of any number of arguments.
  * @param nums Any number of values.
  */
-function max(...nums: number[]): number
+declare function max(...nums: number[]): number
 
 /**
  * Returns a number rounded down to the nearest integer.
  * @param num A number.
  */
-function floor(num: number): number
+declare function floor(num: number): number
 
 /**
  * Returns a number rounded up to the nearest integer.
  * @param num A number.
  */
-function ceil(num: number): number
+declare function ceil(num: number): number
 
 /**
  * Returns a number rounded to the nearest integer. When num has a decimal portion of exactly 0.5, it is rounded up even when negative. e.g. (1.5  ->  2.0) and (-1.5  ->  -1.0)
  * @param num A number.
  */
-function round(num: number): number
+declare function round(num: number): number
+
+/**
+ * The ratio of the circumference of a circle to its diameter.
+ */
+declare const PI = ${Math.PI}`,
+
+// Sprite
+// TODO: include default values
 `
-// /**
-//  * The ratio of the circumference of a circle to its diameter.
-//  */
-// const PI = ${Math.PI}
+declare type SpriteProps = GameObjectProps & {
+    /** A URL path to the sprite's image. */
+    src?: string
+}
 
-const rectangleApi = `
-/**
- * The Rectangle class.
- */
-class Rectangle {
-    ${GameObjectApi}
-    /** The fill color. */
-    color: string
-}`
-
-// TODO: type constructor objects
-const spriteApi = `
-/**
- * The Sprite class.
- * @param {string} args Test
- */
-class Sprite {
-    constructor(args?)
+declare class Sprite {
+    /**
+     * The Sprite class. TODO: describe
+     * @param options TODO: describe
+     */
+    constructor(options?: SpriteProps)
+    
+    ${gameObjectApi}
 
     /** A URL path to the sprite's image. */
     src: string
-    
-    ${GameObjectApi}
-}`
+}`,
 
-const lineApi = `
-/**
- * A straight line from point A to point B.
- */
-class Line {
-    ${RotatableApi}
-    ${TimeableApi}
-    ${ViewableApi}
-    pointA: { x: number, y: number }
-    pointB: { x: number, y: number }
+// Rectangle
+`
+declare type RectangleProps = GameObjectProps & {
+    /** The fill color. */
+    color?: string
+}
+
+declare class Rectangle {
+    /**
+     * The Rectangle class. TODO: describe
+     * @param options TODO: describe
+     */
+    constructor(options?: RectangleProps)
+
+    ${gameObjectApi}
+    /** The fill color. */
     color: string
-    thickness: number
-}`
+}`,
 
-const vLineApi = `
-/**
+// Line
+`declare type LineProps = RotatableProps & ViewableProps & {
+    /** Position of end point A. */
+    pointA?: Point
+
+    /** Position of end point B. */
+    pointB?: Point
+
+    /** The color of the line. */
+    color?: string
+
+    /** The thickness of the line. (Default = 2) */
+    thickness?: number
+}
+
+declare class Line {
+    /**
+     * A straight line from point A to point B.
+     * @param options TODO: describe
+     */
+    constructor(options?: LineProps)
+
+    ${rotatableApi}
+    ${timeableApi}
+    ${viewableApi}
+
+    /** Position of end point A. */
+    pointA: Point
+
+    /** Position of end point B. */
+    pointB: Point
+
+    /** The color of the line. */
+    color: string
+
+    /** The thickness of the line. */
+    thickness: number
+}`,
+
+// VLine
+`/**
  * 
  */
 class VLine {
     TODO
-}`
+}`,
 
-const hLineApi = `
-/**
+// HLine
+`/**
  * 
  */
 class HLine {
     TODO
 }`
+,
 
-const labelApi = `
-/**
+// Label
+`/**
  * 
  */
 class Label {
     TODO
-}`
+}`,
 
-const vectorApi = `
-/**
+// Vector2
+`/**
  * 
  */
 class Vector2 {
     TODO
-}`
+}`,
+].join('\n')
 
 // TODO: Find a way to offer intellisense when creating arg objects. e.g.
 // new Sprite({
 //      . <- when cursor is here, suggest possible properties. @constructor jsdoc?
 // })
-export const apiLib = `
-	${coreApi}
-	${utilityApi}
-	${rectangleApi}
-    ${lineApi}
-    ${spriteApi}
-`
+// export const apiLib = `
+// 	${coreApi}
+// 	${utilityApi}
+// 	${rectangleApi}
+//     ${lineApi}
+//     ${spriteApi}
+// `

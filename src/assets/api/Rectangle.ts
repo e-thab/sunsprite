@@ -9,7 +9,7 @@ import Phaser from 'phaser'
 
 type RectangleProps = GameObjectProps & {
     color?: string
-    outlineColor?: string
+    // outlineColor?: string
 }
 
 export default class Rectangle extends GameObject {
