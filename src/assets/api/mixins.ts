@@ -587,7 +587,7 @@ type InteractableProps = {
     draggable?: boolean
 
     /** ${propDescription.cursor} */
-    cursor?: Cursor
+    cursor?: Cursor | string
     
     /** ${propDescription.onClick} */
     onClick?: PointerAction
