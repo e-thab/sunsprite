@@ -9,10 +9,9 @@ export type Point = { x: number, y: number }
 export type ArrayPoint = [number, number]
 
 /**
- * Interpretable as a point, either a Point directly or an [x, y] array
+ * Type to be provided when users provide points as arguments/setter values, either a Point directly or an [x, y] array
  */
-export type PointArg = Point | [number, number]
-
+export type PointArg = Point | ArrayPoint
 
 function isPoint(obj: any): obj is Point {
 	return obj && typeof obj.x === 'number' && typeof obj.y === 'number'
@@ -26,7 +25,7 @@ function isPointArg(obj: any): obj is PointArg {
 
 /**
  * Used to create point objects from args
- */
+*/
 export abstract class PointFactory {
 	x: number = NaN
 	y: number = NaN

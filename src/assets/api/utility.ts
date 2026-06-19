@@ -1,7 +1,6 @@
 import { screen } from "./core"
 import type { Point } from "./Point";
 
-
 export const random = {
     // Get a random int, min & max inclusive
     range(min: number, max: number): number {

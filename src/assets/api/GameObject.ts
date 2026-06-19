@@ -33,9 +33,13 @@ export default abstract class GameObject extends
         this.initInteractable(props)
         this.initViewable(props)
 
-        if (props?.onDrag) {
-            this.onDrag = props.onDrag
-        } else if (this._refObj) {
+        // if (props?.onDrag) {
+        //     this.onDrag = props.onDrag
+        // } else
+        
+        // TODO: test this; originally had the if/else above connected, don't
+        // remember why but it seems redundant since it already does that in the mixin
+        if (this._refObj && !props?.onDrag) {
             this.onDrag = (x: number, y: number) => {
                 // this._refObj.x = x + screen.right
                 // this._refObj.y = -y + screen.top
