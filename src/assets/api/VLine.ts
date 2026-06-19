@@ -1,8 +1,8 @@
 import { screen } from "./core"
-import { Timeable, Viewable } from "./mixins"
+import { Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "./Line"
 
-type VLineProps = {
+type VLineProps = ViewableProps & {
     x?: number
     color?: string
     thickness?: number

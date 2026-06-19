@@ -61,7 +61,7 @@ ${rotatablePropsTypeDef}
 ${viewablePropsTypeDef}
 ${interactablePropsTypeDef}
 ${gameObjectPropsTypeDef}
-declare type Point = { x: number, y: number }
+declare type Point = { x: number, y: number } | [number, number]
 `,
 
 // Core
@@ -480,6 +480,7 @@ declare class Rectangle {
     constructor(options?: RectangleProps)
 
     ${gameObjectApi}
+
     /** The fill color. */
     color: string
 }`,
@@ -524,28 +525,97 @@ declare class Line {
 }`,
 
 // VLine
-`/**
- * 
- */
+`declare type VLineProps = ViewableProps & {
+    /** The horizontal position of the line. */
+    x?: number
+
+    /** The color of the line */
+    color?: string
+
+    /** The thickness of the line. */
+    thickness?: number
+}
+
 class VLine {
-    TODO
+    /**
+     * A straight, infinitely long vertical line.
+     * @param options TODO: describe
+     */
+    constructor(options?: VLineProps)
+
+    ${viewableApi}
+
+    /** The horizontal position of the line. */
+    x: number
+
+    /** The color of the line */
+    color: string
+
+    /** The thickness of the line. */
+    thickness: number
 }`,
 
 // HLine
-`/**
- * 
- */
-class HLine {
-    TODO
+`declare type HLineProps = ViewableProps & {
+    /** The vertical position of the line. */
+    y?: number
+
+    /** The color of the line */
+    color?: string
+
+    /** The thickness of the line. */
+    thickness?: number
+}
+
+class VLine {
+    /**
+     * A straight, infinitely long horizontal line.
+     * @param options TODO: describe
+     */
+    constructor(options?: VLineProps)
+
+    ${viewableApi}
+
+    /** The vertical position of the line. */
+    y: number
+
+    /** The color of the line */
+    color: string
+
+    /** The thickness of the line. */
+    thickness: number
 }`
 ,
 
 // Label
-`/**
- * 
- */
+`declare type LabelProps = GameObjectProps & {
+    /** Text content of the label. */
+    text?: string
+
+    /** Font size. */
+    size?: number
+
+    /** Font family. */
+    font?: string
+}
+
 class Label {
-    TODO
+    /**
+     * An object that displays text. TODO: describe (better)
+     * @param options TODO: describe
+     */
+    constructor(options?: LabelProps)
+
+    ${gameObjectApi}
+
+    /** Text content of the label. */
+    text: string
+
+    /** Font size. */
+    size: number
+
+    /** Font family. */
+    font: string
 }`,
 
 // Vector2

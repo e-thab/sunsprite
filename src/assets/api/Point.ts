@@ -1,11 +1,40 @@
-export abstract class Point {
+/**
+ * Point object with { x, y }
+ */
+export type Point = { x: number, y: number }
+
+/**
+ * Point-interpretable array of the form [x, y]
+ */
+export type ArrayPoint = [number, number]
+
+/**
+ * Interpretable as a point, either a Point directly or an [x, y] array
+ */
+export type PointArg = Point | [number, number]
+
+
+function isPoint(obj: any): obj is Point {
+	return obj && typeof obj.x === 'number' && typeof obj.y === 'number'
+}
+function isArrayPoint(obj: any): obj is ArrayPoint {
+	return obj && obj.length === 2 && typeof obj[0] === 'number' && typeof obj[1] === 'number'
+}
+function isPointArg(obj: any): obj is PointArg {
+	return obj && isPoint(obj) && isArrayPoint(obj)
+}
+
+/**
+ * Used to create point objects from args
+ */
+export abstract class PointFactory {
 	x: number = NaN
 	y: number = NaN
 
-	constructor(xOrPoint: number | AnyPoint, y?: number) {
-		if (isAnyPoint(xOrPoint)) {
-			this.x = Point.from(xOrPoint).x
-			this.y = Point.from(xOrPoint).y
+	constructor(xOrPoint: number | PointArg, y?: number) {
+		if (isPointArg(xOrPoint)) {
+			this.x = PointFactory.from(xOrPoint).x
+			this.y = PointFactory.from(xOrPoint).y
 		}
 		
 		if (y != null && typeof xOrPoint === 'number' && typeof y === 'number') {
@@ -16,9 +45,9 @@ export abstract class Point {
 
 	// Point object factory; returns a point-like { x, y } object
 	static from(x: number, y: number): Point
-	static from(point: AnyPoint): Point
-	static from(xOrPoint: number | AnyPoint, y?: number): Point {
-		if (isObjectPoint(xOrPoint)) {
+	static from(point: PointArg): Point
+	static from(xOrPoint: number | PointArg, y?: number): Point {
+		if (isPoint(xOrPoint)) {
 			return {
 				x: xOrPoint.x,
 				y: xOrPoint.y
@@ -44,30 +73,15 @@ export abstract class Point {
 	}
 }
 
-export type ObjectPoint = { x: number, y: number }
-export type ArrayPoint = [number, number]
-export type AnyPoint = Point | ObjectPoint | ArrayPoint
-
-function isObjectPoint(obj: any): obj is ObjectPoint {
-	return obj && typeof obj.x === 'number' && typeof obj.y === 'number'
-}
-function isArrayPoint(obj: any): obj is ArrayPoint {
-	return obj && obj.length === 2 && typeof obj[0] === 'number' && typeof obj[1] === 'number'
-}
-function isAnyPoint(obj: any): obj is AnyPoint {
-	return obj && isObjectPoint(obj) && isArrayPoint(obj)
-}
-
-
 // WIP...
 export class Vector2 {
 	x: number = 0
 	y: number = 0
 
-	constructor(xOrPoint: number | AnyPoint, y?: number) {
-		if (isAnyPoint(xOrPoint)) {
-			this.x = Point.from(xOrPoint).x
-			this.y = Point.from(xOrPoint).y
+	constructor(xOrPoint: number | PointArg, y?: number) {
+		if (isPointArg(xOrPoint)) {
+			this.x = PointFactory.from(xOrPoint).x
+			this.y = PointFactory.from(xOrPoint).y
 		}
 		
 		if (y != null && typeof xOrPoint === 'number' && typeof y === 'number') {

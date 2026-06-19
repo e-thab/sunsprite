@@ -4,7 +4,7 @@ import GameObject from "./GameObject"
 import Phaser from "phaser"
 
 type LabelProps = GameObjectProps & {
-    text?: string,
+    text?: string
     size?: number
     font?: string
     /* ... */
