@@ -2,7 +2,7 @@
 // import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, random } from "./utility"
 // import { Point, type AnyPoint } from "./interfaces"
-import { Point, type AnyPoint } from "./Point"
+import { PointFactory, type Point, type PointArg } from "./Point"
 import { screen, camera, timer, paused, getGamePoint } from "./core"
 
 import Phaser from "phaser"
@@ -67,8 +67,8 @@ const propDescription: Record<keyof GameObjectProps, string> = {
 export type PositionableProps = {
     x?: number
     y?: number
-    pos?: AnyPoint
-    position?: AnyPoint
+    pos?: PointArg
+    position?: PointArg
 }
 export const positionablePropsTypeDef = `
 type PositionableProps = {
@@ -160,8 +160,8 @@ export function Positionable<Base extends Class>(base: Base) {
                 y: this.y
             }
         }
-        set position(pos: AnyPoint) {
-            pos = Point.from(pos)
+        set position(pos: PointArg) {
+            pos = PointFactory.from(pos)
             this._x = pos.x
             this._y = pos.y
             this._updatePosition()
@@ -171,7 +171,7 @@ export function Positionable<Base extends Class>(base: Base) {
         get pos(): Point {
             return this.position
         }
-        set pos(pos: AnyPoint) {
+        set pos(pos: PointArg) {
             this.position = pos
         }
 

@@ -1,5 +1,5 @@
 import { screen } from "./core"
-import { Point } from "./Point";
+import type { Point } from "./Point";
 
 
 export const random = {

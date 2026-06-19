@@ -6,7 +6,7 @@ import Phaser from 'phaser';
 import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction } from './interfaces';
 import { Mouse } from './interfaces'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility';
-import { Point, Vector2, type AnyPoint } from './Point'
+import { type Point, type PointArg, Vector2 } from './Point'
 
 import Sprite from './Sprite';
 import Rectangle from './Rectangle';
