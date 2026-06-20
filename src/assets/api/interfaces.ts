@@ -5,6 +5,7 @@ import type { Point } from "./Point"
  */
 export type Action = (...args: any[]) => void
 export type Predicate = (...args: any[]) => boolean
+export type Returnable<T> = T | (() => T)
 
 export interface Touchable {
 	left: number

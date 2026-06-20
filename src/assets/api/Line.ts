@@ -1,15 +1,16 @@
 // Calculate distance from a line only on the axis perpendicular to it.
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
-import { scene, screen } from "./core";
+import type { Returnable } from "./interfaces";
+import { _clearPropUpdater, _registerPropUpdater, forever, print, repeatUntil, scene, screen } from "./core";
 import { PointFactory, type Point, type PointArg } from "./Point";
 import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins";
 import Phaser from "phaser";
 
 type LineProps = RotatableProps & ViewableProps & {
     /* ... */
-    pointA?: Point
-    pointB?: Point
+    pointA?: Returnable<PointArg>
+    pointB?: Returnable<PointArg>
     color?: string
     thickness?: number // weight?
 }
@@ -27,6 +28,11 @@ export default class Line extends
     _pointB: Point
     _color: string = '#fff'
     _thickness: number = 2 // Line thickness 1 seems to visually reduce the alpha, look into this
+
+    // ID is the same for all objects bc time created is always the same. TODO: Fix
+    _id: string = Date.now().toString()
+    _updatingPointA: boolean = false
+    _updatingPointB: boolean = false
 
     constructor(props?: LineProps) {
         super()
@@ -59,20 +65,40 @@ export default class Line extends
     get pointA(): Point {
         return this._pointA
     }
-    set pointA(pointA: PointArg) {
-        // const startPoint = getGamePoint(start)
-        // this._line.setTo(startPoint.x, startPoint.y)
+    set pointA(pointA: Returnable<PointArg>) {
+        // TODO
+        // Working usage of Returnable as a forever shorthand, but I need to add a way to
+        // address/remove specific registered forevers in order to re-assign props before
+        // adding this functionality to other object props. Maybe instead of just using
+        // forever here, add like a registerPropUpdater(id: string) function to core that
+        // handles mapping, replacing, and running so that objects themselves don't need
+        // much extra code
+        if (typeof pointA === 'function') {
+            forever(() => {
+                this._pointA = PointFactory.from(pointA())
+                this._updatePoints()
+            })
+            return
+        }
         this._pointA = PointFactory.from(pointA)
         this._updatePoints()
     }
-
+    
     get pointB(): Point {
         return this._pointB
     }
-    set pointB(pointB: PointArg) {
-        // const endPoint = getGamePoint(end)
-        // const startPoint = getGamePoint(this._start)
-        // this._line.setTo(startPoint.x, startPoint.y, endPoint.x, endPoint.y)
+    set pointB(pointB: Returnable<PointArg>) {
+        // Template for how 
+        const propId = this._id + 'pointB'
+
+        if (typeof pointB === 'function') {
+            _registerPropUpdater(propId, () => {
+                this._pointB = PointFactory.from(pointB())
+                this._updatePoints()
+            })
+            return
+        }
+        _clearPropUpdater(propId)
         this._pointB = PointFactory.from(pointB)
         this._updatePoints()
     }
@@ -113,10 +139,10 @@ export default class Line extends
 
     _updatePoints() {
         this._line.setTo(
-            this._pointA.x + screen.right,
-            -this._pointA.y + screen.top,
-            this._pointB.x + screen.right,
-            -this._pointB.y + screen.top
+            this.pointA.x + screen.right,
+            -this.pointA.y + screen.top,
+            this.pointB.x + screen.right,
+            -this.pointB.y + screen.top
         )
     }
 }

@@ -119,7 +119,24 @@ function _runOnKeyActions() {
 	}
 }
 
+const _propUpdaters: Map<string, (() => any)> = new Map()
+
+export function _clearPropUpdater(id: string) {
+	_propUpdaters.delete(id)
+}
+
+export function _registerPropUpdater(id: string, updater: (() => any)) {
+	_propUpdaters.set(id, updater)
+}
+
+function _runPropUpdaters() {
+	for (const [, updater] of _propUpdaters) {
+		updater()
+	}
+}
+
 function _clearKeysJustPressed(frame: number) {
+	// TODO: Just use map.clear() ..?
 	for (const key of keysJustPressed.keys()) {
 		if (keysJustPressed.get(key) !== frame) {
 			keysJustPressed.set(key, undefined)
@@ -128,6 +145,7 @@ function _clearKeysJustPressed(frame: number) {
 }
 
 function _clearKeysJustReleased(frame: number) {
+	// TODO: Just use map.clear() ..?
 	for (const key of keysJustReleased.keys()) {
 		if (keysJustReleased.get(key) !== frame) {
 			keysJustReleased.set(key, undefined)
@@ -483,16 +501,18 @@ class UserScene extends Scene {
 		timer.totalTime = 0
 		timer.frame = 0
 		_frame = 0
+
+		_propUpdaters.clear()
 		
 		this.input.setPollAlways()
 		
-		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-			pointer.updateWorldPoint(camera) // ..?
-			mouse.x = pointer.x - screen.width / 2
-			mouse.y = screen.height / 2 - pointer.y 
-			mouseRef.value.mouseX = Math.round(mouse.x)
-			mouseRef.value.mouseY = Math.round(mouse.y)
-		})
+		// this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+		// 	pointer.updateWorldPoint(camera) // ..?
+		// 	mouse.x = pointer.x - screen.width / 2
+		// 	mouse.y = screen.height / 2 - pointer.y 
+		// 	mouseRef.value.mouseX = Math.round(mouse.x)
+		// 	mouseRef.value.mouseY = Math.round(mouse.y)
+		// })
 
 		// TODO
 		// this.input.on('pointerdown', (event: any) => {
@@ -582,6 +602,11 @@ class UserScene extends Scene {
 		
 		_clearKeysJustPressed(_frame)
 		_clearKeysJustReleased(_frame)
+
+		mouse.x = this.input.activePointer.x - screen.width / 2
+		mouse.y = screen.height / 2 - this.input.activePointer.y 
+		mouseRef.value.mouseX = Math.round(mouse.x)
+		mouseRef.value.mouseY = Math.round(mouse.y)
 		
 		if (paused) return
 		// Maybe switch Timer.time to track time in milliseconds (or different props for timeSec, timeMs, etc)
@@ -594,6 +619,8 @@ class UserScene extends Scene {
 		_runAfters(timer.deltaMs)
 		_runEverys(timer.deltaMs)
 		_runRepeatUntils()
+
+		_runPropUpdaters()
 	}
 }
 

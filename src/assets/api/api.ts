@@ -62,6 +62,10 @@ ${viewablePropsTypeDef}
 ${interactablePropsTypeDef}
 ${gameObjectPropsTypeDef}
 declare type Point = { x: number, y: number } | [number, number]
+
+declare type Action = (...args: any[]) => void
+declare type Predicate = (...args: any[]) => boolean
+declare type Returnable<T> = T | (() => T)
 `,
 
 // Core
@@ -488,10 +492,10 @@ declare class Rectangle {
 // Line
 `declare type LineProps = RotatableProps & ViewableProps & {
     /** Position of end point A. */
-    pointA?: Point
+    pointA?: Returnable<Point>
 
     /** Position of end point B. */
-    pointB?: Point
+    pointB?: Returnable<Point>
 
     /** The color of the line. */
     color?: string
