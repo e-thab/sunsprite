@@ -34,6 +34,8 @@ export function play() {
  */
 export let allPositionables: { _updatePosition(): void }[] = []
 let _frame: number = 0 // current render frame index
+let _nextObjectId: number = 0
+let _mouseOverCanvas: boolean = false
 // let _ticker: Ticker = new Ticker()
 let _forevers: Action[] = []
 let _repeats: Repeatable[] = []
@@ -48,6 +50,10 @@ let _keyHoldActions: Map<string, Action | undefined> = new Map()
 /**
  * API internal methods
  */
+export function getNextObjectId(): string {
+	return (_nextObjectId++).toString()
+}
+
 export function updatePositions() {
 	for (const positionable of allPositionables) {
 		positionable._updatePosition()
@@ -486,25 +492,18 @@ class UserScene extends Scene {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
 		
+		// Set poll always to allow cursors to change when pointer isn't moving
+		this.input.setPollAlways()
 		this.input.setDefaultCursor('url(cursors/default.cur), default')
-		// this.input.setDefaultCursor('url(cursors/hand_point.cur), default')
-		
-		// this.add.rectangle().setFillStyle(Phaser.Display.Color.HexStringToColor('#222').color)
-		
-		// const testSprite = this.add.sprite(200, 200, 'boot')
-		// this.input.setCursor(refSprite)
-		// testSprite.setInteractive()
-		// testSprite.input.cursor = 'url(assets/card_back.png), default'
 
 		camera = this.cameras.main
 		timer.time = 0
 		timer.totalTime = 0
 		timer.frame = 0
 		_frame = 0
+		_nextObjectId = 0
 
 		_propUpdaters.clear()
-		
-		this.input.setPollAlways()
 		
 		// this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 		// 	pointer.updateWorldPoint(camera) // ..?
@@ -513,6 +512,14 @@ class UserScene extends Scene {
 		// 	mouseRef.value.mouseX = Math.round(mouse.x)
 		// 	mouseRef.value.mouseY = Math.round(mouse.y)
 		// })
+
+		this.input.on(Phaser.Input.Events.GAME_OUT, (pointer: Phaser.Input.Pointer) => {
+			_mouseOverCanvas = false
+		})
+
+		this.input.on(Phaser.Input.Events.GAME_OVER, (pointer: Phaser.Input.Pointer) => {
+			_mouseOverCanvas = true
+		})
 
 		// TODO
 		// this.input.on('pointerdown', (event: any) => {
@@ -603,10 +610,13 @@ class UserScene extends Scene {
 		_clearKeysJustPressed(_frame)
 		_clearKeysJustReleased(_frame)
 
-		mouse.x = this.input.activePointer.x - screen.width / 2
-		mouse.y = screen.height / 2 - this.input.activePointer.y 
-		mouseRef.value.mouseX = Math.round(mouse.x)
-		mouseRef.value.mouseY = Math.round(mouse.y)
+		// Only update mouse pos while mouse is over canvas, otherwise clicking code editor updates
+		if (_mouseOverCanvas) {
+			mouse.x = clamp(this.input.activePointer.x - screen.width / 2, screen.left, screen.right)
+			mouse.y = clamp(screen.height / 2 - this.input.activePointer.y, screen.bottom, screen.top)
+			mouseRef.value.mouseX = Math.round(mouse.x)
+			mouseRef.value.mouseY = Math.round(mouse.y)
+		}
 		
 		if (paused) return
 		// Maybe switch Timer.time to track time in milliseconds (or different props for timeSec, timeMs, etc)

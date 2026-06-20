@@ -2,7 +2,7 @@
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
 import type { Returnable } from "./interfaces";
-import { _clearPropUpdater, _registerPropUpdater, forever, print, repeatUntil, scene, screen } from "./core";
+import { _clearPropUpdater, _registerPropUpdater, forever, getNextObjectId, print, repeatUntil, scene, screen } from "./core";
 import { PointFactory, type Point, type PointArg } from "./Point";
 import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins";
 import Phaser from "phaser";
@@ -30,9 +30,9 @@ export default class Line extends
     _thickness: number = 2 // Line thickness 1 seems to visually reduce the alpha, look into this
 
     // ID is the same for all objects bc time created is always the same. TODO: Fix
-    _id: string = Date.now().toString()
-    _updatingPointA: boolean = false
-    _updatingPointB: boolean = false
+    _id: string = getNextObjectId()
+    // _updatingPointA: boolean = false
+    // _updatingPointB: boolean = false
 
     constructor(props?: LineProps) {
         super()
@@ -66,20 +66,19 @@ export default class Line extends
         return this._pointA
     }
     set pointA(pointA: Returnable<PointArg>) {
-        // TODO
-        // Working usage of Returnable as a forever shorthand, but I need to add a way to
-        // address/remove specific registered forevers in order to re-assign props before
-        // adding this functionality to other object props. Maybe instead of just using
-        // forever here, add like a registerPropUpdater(id: string) function to core that
-        // handles mapping, replacing, and running so that objects themselves don't need
-        // much extra code
+        // To make these returnable setters work, each object and property needs a unique
+        // ID, built with an incrementing integer from core for the object and just a
+        // string for the property name.
+        const propId = this._id + 'pointA'
+
         if (typeof pointA === 'function') {
-            forever(() => {
+            _registerPropUpdater(propId, () => {
                 this._pointA = PointFactory.from(pointA())
                 this._updatePoints()
             })
             return
         }
+        _clearPropUpdater(propId)
         this._pointA = PointFactory.from(pointA)
         this._updatePoints()
     }

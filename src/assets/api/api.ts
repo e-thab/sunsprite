@@ -61,7 +61,9 @@ ${rotatablePropsTypeDef}
 ${viewablePropsTypeDef}
 ${interactablePropsTypeDef}
 ${gameObjectPropsTypeDef}
-declare type Point = { x: number, y: number } | [number, number]
+declare type Point = { x: number, y: number }
+declare type ArrayPoint = [number, number]
+declare type PointArg = Point | ArrayPoint
 
 declare type Action = (...args: any[]) => void
 declare type Predicate = (...args: any[]) => boolean
@@ -490,12 +492,16 @@ declare class Rectangle {
 }`,
 
 // Line
+// TODO: figure out why monaco doesn't like Returnable<PointArg> for plain point
+// setters. Using [x, y] to define a point in the props object is no problem, but
+// when just doing something like line.pointA = [x, y] it raises an error along
+// the lines of 'number[] not assignable to [number, number] (Target requires 2 element(s) but source may have fewer)'
 `declare type LineProps = RotatableProps & ViewableProps & {
     /** Position of end point A. */
-    pointA?: Returnable<Point>
+    pointA?: Returnable<PointArg>
 
     /** Position of end point B. */
-    pointB?: Returnable<Point>
+    pointB?: Returnable<PointArg>
 
     /** The color of the line. */
     color?: string
@@ -516,10 +522,12 @@ declare class Line {
     ${viewableApi}
 
     /** Position of end point A. */
-    pointA: Point
+    get pointA(): Point
+    set pointA(pointA: [number, number]): void
 
     /** Position of end point B. */
-    pointB: Point
+    get pointB(): Point
+    set pointB(pointB: Returnable<PointArg>): void
 
     /** The color of the line. */
     color: string
@@ -571,12 +579,12 @@ class VLine {
     thickness?: number
 }
 
-class VLine {
+class HLine {
     /**
      * A straight, infinitely long horizontal line.
      * @param options TODO: describe
      */
-    constructor(options?: VLineProps)
+    constructor(options?: HLineProps)
 
     ${viewableApi}
 
