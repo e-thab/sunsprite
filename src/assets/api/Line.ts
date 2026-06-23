@@ -3,7 +3,7 @@
 
 import type { Returnable } from "./interfaces";
 import { _clearPropUpdater, _registerPropUpdater, forever, getNextObjectId, print, repeatUntil, scene, screen } from "./core";
-import { PointFactory, type Point, type PointArg } from "./Point";
+import { pointFrom, type Point, type PointArg } from "./Point";
 import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins";
 import Phaser from "phaser";
 
@@ -73,13 +73,13 @@ export default class Line extends
 
         if (typeof pointA === 'function') {
             _registerPropUpdater(propId, () => {
-                this._pointA = PointFactory.from(pointA())
+                this._pointA = pointFrom(pointA())
                 this._updatePoints()
             })
             return
         }
         _clearPropUpdater(propId)
-        this._pointA = PointFactory.from(pointA)
+        this._pointA = pointFrom(pointA)
         this._updatePoints()
     }
     
@@ -92,13 +92,13 @@ export default class Line extends
 
         if (typeof pointB === 'function') {
             _registerPropUpdater(propId, () => {
-                this._pointB = PointFactory.from(pointB())
+                this._pointB = pointFrom(pointB())
                 this._updatePoints()
             })
             return
         }
         _clearPropUpdater(propId)
-        this._pointB = PointFactory.from(pointB)
+        this._pointB = pointFrom(pointB)
         this._updatePoints()
     }
 
@@ -131,8 +131,8 @@ export default class Line extends
     }
 
     setPoints(pointA: PointArg, pointB: PointArg) {
-        this._pointA = PointFactory.from(pointA)
-        this._pointB = PointFactory.from(pointB)
+        this._pointA = pointFrom(pointA)
+        this._pointB = pointFrom(pointB)
         this._updatePoints()
     }
 

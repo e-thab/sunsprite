@@ -38,10 +38,6 @@ const editorOptions: EditorOptions = {
   automaticLayout: true,
 }
 
-// declare module 'monaco-editor-vue3' {
-// 	const foo = 5;
-// }
-
 // Theme TODO
 monaco.editor.defineTheme('nord', {
     base: 'vs-dark',
@@ -64,13 +60,22 @@ monaco.editor.defineTheme('nord', {
 
 function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	monaco.editor.setTheme('nord')
-	// console.log(editor)
-	// const model = monaco.editor.createModel(
-	// 	code.value,
-	// 	'javascript',
-	// 	monaco.Uri.parse('file:///')
-	// )
-	// editor.setModel()
+	
+	// TODO: Look into setting up CodeLens, maybe for running specific sections of the code..?
+
+	// Add the API lib as a model, this allows peeking definitions, but still needs work.
+	// Useful for seeing type definitions but functions have no body.
+	// Also, 'go to definiton' still doesn't work bc there's no visible area for the API lib model.
+	monaco.editor.createModel(
+		apiLib,
+		'typescript',
+		monaco.Uri.parse(apiUri)
+	)
+
+	editor.updateOptions({
+		codeLens: false,
+		definitionLinkOpensInPeek: true
+	})
 }
 
 function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
@@ -109,10 +114,10 @@ monaco.typescript.javascriptDefaults.setCompilerOptions({
 	lib: ['es2022'],
 	allowJs: true,
 	checkJs: true,
-	target: monaco.typescript.ScriptTarget.ES2020
+	target: monaco.typescript.ScriptTarget.ES2020,
+	strictNullChecks: true
 })
 
-// Include API definitions as a completion lib
 monaco.typescript.javascriptDefaults.addExtraLib(apiLib, apiUri)
 // monaco.typescript.javascriptDefaults.setExtraLibs([
 //   {

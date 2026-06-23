@@ -54,6 +54,9 @@ import { positionableApi, sizableApi, rotatableApi, viewableApi, interactableApi
 //  */
 export const apiLib = [
 // Types
+
+// PointArgs include union w/ number[] in setter params because 
+// JS array literals are inferred as <type>[], not [type, type, ...]
 `
 ${positionablePropsTypeDef}
 ${sizablePropsTypeDef}
@@ -61,12 +64,28 @@ ${rotatablePropsTypeDef}
 ${viewablePropsTypeDef}
 ${interactablePropsTypeDef}
 ${gameObjectPropsTypeDef}
-declare type Point = { x: number, y: number }
+
+/** Point def */
+declare type Point = {
+    /** x def */
+    x: number,
+
+    /** y def */
+    y: number
+}
+
+declare function foo(p: Point)
+
+/** ArrayPoint def */
 declare type ArrayPoint = [number, number]
+
+/** PointArg def */
 declare type PointArg = Point | ArrayPoint
 
 declare type Action = (...args: any[]) => void
 declare type Predicate = (...args: any[]) => boolean
+
+/** Returnable def */
 declare type Returnable<T> = T | (() => T)
 `,
 
@@ -196,12 +215,15 @@ declare function repeat(times: number, func:
     /** @param i The current iteration (times repeated so far). */
     (i: number) => void
 ): {
-    /** The function to run once when the repeat ends. */
+    /**
+     * Register a function to run when the repeat ends.
+     * @param afterFunc The function.
+     */
     then(afterFunc:
         /** @param i The current iteration (times repeated so far). */
         (i: number) => void
     ): void
-}: void
+}
 
 /**
  * Runs until the specified condition is true. Runs alongside the game loop (1 iteration per frame).
@@ -213,13 +235,14 @@ declare function repeatUntil(condition: () => boolean, func:
     (i: number) => void
 ): {
     /**
-     * The function to run once when the repeat ends.
+     * Register a function to run when the repeat ends.
+     * @param afterFunc The function.
      */
     then(afterFunc: 
         /** @param i The current iteration (times repeated so far). */
         (i: number) => void
     ): void
-}: void
+}
 
 /**
  * Runs once after a specified number of seconds have passed.
@@ -523,11 +546,11 @@ declare class Line {
 
     /** Position of end point A. */
     get pointA(): Point
-    set pointA(pointA: [number, number]): void
+    set pointA(pointA: Returnable<PointArg | number[]>): void
 
     /** Position of end point B. */
     get pointB(): Point
-    set pointB(pointB: Returnable<PointArg>): void
+    set pointB(pointB: Returnable<PointArg | number[]>): void
 
     /** The color of the line. */
     color: string

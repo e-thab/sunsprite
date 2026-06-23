@@ -2,7 +2,7 @@
 // import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
 import { deg2rad, rad2deg, random } from "./utility"
 // import { Point, type AnyPoint } from "./interfaces"
-import { PointFactory, type Point, type PointArg } from "./Point"
+import { pointFrom, type Point, type PointArg } from "./Point"
 import { screen, camera, timer, paused, getGamePoint } from "./core"
 
 import Phaser from "phaser"
@@ -161,7 +161,7 @@ export function Positionable<Base extends Class>(base: Base) {
             }
         }
         set position(pos: PointArg) {
-            pos = PointFactory.from(pos)
+            pos = pointFrom(pos)
             this._x = pos.x
             this._y = pos.y
             this._updatePosition()
