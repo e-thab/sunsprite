@@ -13,7 +13,6 @@ import Phaser from "phaser"
  *  - scaleX / scaleY ?
  *  - pivot / anchor ?
  *  - distanceTo
- *  - pointTowards
  *  - lastX / lastY
  *  - move?
  * 	- hitbox
@@ -70,6 +69,7 @@ export default class Sprite extends GameObject {
         // TODO: Add svg support. Should load as svg instead of image, and will need to override
         // some scalable methods to include new scale as object size args for load.svg, i.e.:
         // this.load.svg('pointer_c', 'cursors/pointer_c.svg', { width: 400, height: 400 })
+        // Additionally, look into svg exploits (like Scratch malware injection)
         scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
             this._sprite.setTexture(keyOrPath)
         })

@@ -66,11 +66,16 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	// Add the API lib as a model, this allows peeking definitions, but still needs work.
 	// Useful for seeing type definitions but functions have no body.
 	// Also, 'go to definiton' still doesn't work bc there's no visible area for the API lib model.
-	monaco.editor.createModel(
-		apiLib,
-		'typescript',
-		monaco.Uri.parse(apiUri)
-	)
+
+	// Only create api model if it doesn't already exist (on first page load). This is only for dev purposes
+	if (!monaco.editor.getModel(monaco.Uri.parse(modelUri))) {
+		// Create the editor model. This is the virtual 'file' that all public api definitions exist in.
+		monaco.editor.createModel(
+			apiModel,
+			'typescript',
+			monaco.Uri.parse(modelUri)
+		)
+	}
 
 	editor.updateOptions({
 		codeLens: false,
@@ -82,9 +87,9 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 	// console.log(editor)
 }
 
-// Example API
-import { apiLib } from '@/assets/api/api'
-const apiUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
+import { apiLib, apiModel } from '@/assets/api/apiLib'
+const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
+const libUri = 'file:///lib.ts'
 
 // monaco.typescript.typescriptDefaults.setExtraLibs([
 //   {
@@ -111,14 +116,15 @@ const compilerOptions = monaco.typescript.javascriptDefaults.getCompilerOptions(
 monaco.typescript.javascriptDefaults.setCompilerOptions({
 	...compilerOptions,
 	// noLib: true,
-	lib: ['es2022'],
+	lib: ['es2020'],
 	allowJs: true,
 	checkJs: true,
 	target: monaco.typescript.ScriptTarget.ES2020,
 	strictNullChecks: true
 })
 
-monaco.typescript.javascriptDefaults.addExtraLib(apiLib, apiUri)
+monaco.typescript.javascriptDefaults.addExtraLib(apiModel, modelUri)
+monaco.typescript.javascriptDefaults.addExtraLib(apiLib, libUri)
 // monaco.typescript.javascriptDefaults.setExtraLibs([
 //   {
 //     content: apiLib,

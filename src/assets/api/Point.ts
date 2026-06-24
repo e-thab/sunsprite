@@ -1,10 +1,15 @@
-/** Point object with { x, y } */
-export type Point = { x: number, y: number }
+/** Any object with both x and y properties. */
+export type Point = {
+	/** Horizontal position in the world. */
+	x: number,
+	/** Vertical position in the world. */
+	y: number
+}
 
-/** Point-interpretable array of the form [x, y] */
+/** Point-interpretable array of the form [x, y]. */
 export type ArrayPoint = [number, number]
 
-/** Type to be provided when users provide points as arguments/setter values, either a Point directly or an [x, y] array. */
+/** Type to be provided when providing points as arguments/setter values, either a Point directly or an [x, y] array. */
 export type PointArg = Point | ArrayPoint
 
 function isPoint(obj: any): obj is Point {

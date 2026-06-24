@@ -26,37 +26,40 @@
 // }
 // export default api
 import { positionableApi, sizableApi, rotatableApi, viewableApi, interactableApi, timeableApi, gameObjectApi, gameObjectPropsTypeDef, positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef } from "./mixins"
+import Colors from './Colors'
 
-// /**
-//  * Defines a point as a coordinate pair { x, y }.
-//  */
-// class Point {
-//     /**
-//      * Horizontal position.
-//      */
-//     x: number,
+// TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
+// so that peeking definitions doesn't look so crowded?
 
-//     /**
-//      * Vertical position.
-//      */
-//     y: number
-// }
+// TODO: Fix all this vvv, model and lib should probably just stay the same for now
 
-// /**
-//  * True when the game is paused.
-//  */
-// let paused: boolean
+/** 
+ * Added to the editor as a model, allows viewing definitions and better ts
+ * support, but can't have direct const declarations. User-facing.
+ */
+export const apiModel = `
+declare enum Colors ${
+    // Colors is just an object, but works better as an enum here so it needs conversion
+    JSON.stringify(Colors, null, 2) // Convert to pretty string with newlines & tabs
+    .replace(/"([^"]+)":/g, '$1 =') // Unquote keys and replace colons with =
+}
+`
 
-// /**
-//  * @typedef {Object} Point
-//  * @property {number} x - Horizontal position.
-//  * @property {number} y - Vertical position.
-//  */
+/** 
+ * Added to the editor as a library, definitions are not added to the model
+ * but general type information is still displayed. Internal.
+ */
 export const apiLib = [
 // Types
+// `
+// declare enum Colors ${
+//     // Colors is just an object, but works better as an enum here so it needs conversion
+//     JSON.stringify(Colors, null, 2) // Convert to pretty string with newlines & tabs
+//     .replace(/"([^"]+)":/g, '$1 =') // Unquote keys and replace colons with =
+// }`,
 
 // PointArgs include union w/ number[] in setter params because 
-// JS array literals are inferred as <type>[], not [type, type, ...]
+// JS array literals are inferred as <T>[], not [<T>, <T>, ...]
 `
 ${positionablePropsTypeDef}
 ${sizablePropsTypeDef}
@@ -66,7 +69,7 @@ ${interactablePropsTypeDef}
 ${gameObjectPropsTypeDef}
 
 /** Point def */
-declare type Point = {
+type Point = {
     /** x def */
     x: number,
 
@@ -74,19 +77,17 @@ declare type Point = {
     y: number
 }
 
-declare function foo(p: Point)
-
 /** ArrayPoint def */
-declare type ArrayPoint = [number, number]
+type ArrayPoint = [number, number]
 
 /** PointArg def */
-declare type PointArg = Point | ArrayPoint
+type PointArg = Point | ArrayPoint
 
-declare type Action = (...args: any[]) => void
-declare type Predicate = (...args: any[]) => boolean
+type Action = (...args: any[]) => void
+type Predicate = (...args: any[]) => boolean
 
 /** Returnable def */
-declare type Returnable<T> = T | (() => T)
+type Returnable<T> = T | (() => T)
 `,
 
 // Core
@@ -94,7 +95,7 @@ declare type Returnable<T> = T | (() => T)
 /**
  * User mouse reference.
  */
-declare const Mouse: {
+const Mouse = {
     /**
      * Vertical position of the user's cursor.
      */
@@ -119,7 +120,7 @@ declare const Mouse: {
 /**
  * Game screen reference.
  */
-const Screen: {
+const Screen = {
     /**
      * Current width of the game screen.
      */
@@ -159,7 +160,7 @@ const Screen: {
 /**
  * Timer singleton.
  */
-const Timer: {
+const Timer = {
     /**
      * Time since start, does not increment during pause.
      */
@@ -320,7 +321,7 @@ declare function clearOutput(): void`,
 /**
  * A collection of functions useful for generating random values.
  */
-declare const Random: {
+const Random: {
     /**
      * Returns a random integer in a given range, min and max inclusive. If min > max, they're automatically swapped for you.
      * @param min The low end of the range.
@@ -471,17 +472,17 @@ declare function round(num: number): number
 /**
  * The ratio of the circumference of a circle to its diameter.
  */
-declare const PI = ${Math.PI}`,
+const PI = ${Math.PI}`,
 
 // Sprite
 // TODO: include default values
 `
-declare type SpriteProps = GameObjectProps & {
+type SpriteProps = GameObjectProps & {
     /** A URL path to the sprite's image. */
     src?: string
 }
 
-declare class Sprite {
+class Sprite {
     /**
      * The Sprite class. TODO: describe
      * @param options TODO: describe
@@ -496,12 +497,12 @@ declare class Sprite {
 
 // Rectangle
 `
-declare type RectangleProps = GameObjectProps & {
+type RectangleProps = GameObjectProps & {
     /** The fill color. */
     color?: string
 }
 
-declare class Rectangle {
+class Rectangle {
     /**
      * The Rectangle class. TODO: describe
      * @param options TODO: describe
@@ -519,7 +520,7 @@ declare class Rectangle {
 // setters. Using [x, y] to define a point in the props object is no problem, but
 // when just doing something like line.pointA = [x, y] it raises an error along
 // the lines of 'number[] not assignable to [number, number] (Target requires 2 element(s) but source may have fewer)'
-`declare type LineProps = RotatableProps & ViewableProps & {
+`type LineProps = RotatableProps & ViewableProps & {
     /** Position of end point A. */
     pointA?: Returnable<PointArg>
 
@@ -533,7 +534,7 @@ declare class Rectangle {
     thickness?: number
 }
 
-declare class Line {
+class Line {
     /**
      * A straight line from point A to point B.
      * @param options TODO: describe
@@ -546,11 +547,11 @@ declare class Line {
 
     /** Position of end point A. */
     get pointA(): Point
-    set pointA(pointA: Returnable<PointArg | number[]>): void
+    set pointA(pointA: Returnable<PointArg | number[]>)
 
     /** Position of end point B. */
     get pointB(): Point
-    set pointB(pointB: Returnable<PointArg | number[]>): void
+    set pointB(pointB: Returnable<PointArg | number[]>)
 
     /** The color of the line. */
     color: string
@@ -560,7 +561,7 @@ declare class Line {
 }`,
 
 // VLine
-`declare type VLineProps = ViewableProps & {
+`type VLineProps = ViewableProps & {
     /** The horizontal position of the line. */
     x?: number
 
@@ -591,7 +592,7 @@ class VLine {
 }`,
 
 // HLine
-`declare type HLineProps = ViewableProps & {
+`type HLineProps = ViewableProps & {
     /** The vertical position of the line. */
     y?: number
 
@@ -623,15 +624,18 @@ class HLine {
 ,
 
 // Label
-`declare type LabelProps = GameObjectProps & {
+`type LabelProps = GameObjectProps & {
     /** Text content of the label. */
-    text?: string
+    text?: string | string[]
 
     /** Font size. */
     size?: number
 
     /** Font family. */
     font?: string
+
+    /** Fill color. */
+    color?: string
 }
 
 class Label {
@@ -644,13 +648,17 @@ class Label {
     ${gameObjectApi}
 
     /** Text content of the label. */
-    text: string
+    get text(): string
+    set text(text: string | string[])
 
     /** Font size. */
     size: number
 
     /** Font family. */
     font: string
+
+    /** Fill color. */
+    color: string
 }`,
 
 // Vector2
@@ -658,18 +666,6 @@ class Label {
  * 
  */
 class Vector2 {
-    TODO
+    // TODO: Vector2
 }`,
 ].join('\n')
-
-// TODO: Find a way to offer intellisense when creating arg objects. e.g.
-// new Sprite({
-//      . <- when cursor is here, suggest possible properties. @constructor jsdoc?
-// })
-// export const apiLib = `
-// 	${coreApi}
-// 	${utilityApi}
-// 	${rectangleApi}
-//     ${lineApi}
-//     ${spriteApi}
-// `

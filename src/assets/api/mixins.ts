@@ -71,7 +71,7 @@ export type PositionableProps = {
     position?: PointArg
 }
 export const positionablePropsTypeDef = `
-type PositionableProps = {
+declare type PositionableProps = {
     /** ${propDescription.x} */
     x?: number
 
@@ -79,10 +79,10 @@ type PositionableProps = {
     y?: number
 
     /** ${propDescription.pos} */
-    pos?: AnyPoint
+    pos?: PointArg
 
     /** ${propDescription.position} */
-    position?: AnyPoint
+    position?: PointArg
 }`
 export const positionableApi = [
     // Props
@@ -93,10 +93,10 @@ export const positionableApi = [
     y: number`,
 
     `/** ${propDescription.pos} */
-    pos: { x: number, y: number }`,
+    pos: Point`,
 
     `/** ${propDescription.position} */
-    position: { x: number, y: number }`,
+    position: Point`,
 
     // Methods
     `/**
@@ -242,7 +242,7 @@ export type SizableProps = {
     scale?: number // - still needs testing
 }
 export const sizablePropsTypeDef = `
-type SizableProps = {
+declare type SizableProps = {
     /** ${propDescription.width} */
     width?: number
 
@@ -395,7 +395,7 @@ export function Rotatable<Base extends Class>(base: Base) {
         }
 
         lookAt(other: Point) {
-            // TODO
+            // TODO: lookAt()
         }
     }
 }
@@ -437,7 +437,7 @@ export const viewableApi = [
 
 export function Viewable<Base extends Class>(base: Base) {    
     return class Viewable extends base {
-        // TODO:
+        // TODO (Viewable):
         // - tint
         // - blend mode
         // - effects?
@@ -560,7 +560,7 @@ export type InteractableProps = {
     onDragEnd?: PointerAction
 }
 export const interactablePropsTypeDef = `
-type PointerAction = (
+declare type PointerAction = (
     /**
      * @param x The x position of the mouse during the click.
      * @param y The y position of the mouse during the click.
@@ -568,7 +568,7 @@ type PointerAction = (
     (x: number, y: number) => void
 ) | undefined | null
 
-enum CursorType {
+declare enum CursorType {
     AUTO = 'auto',
     DEFAULT = 'default',
     NONE = 'none',
@@ -577,12 +577,12 @@ enum CursorType {
     POINTER = 'pointer',
     ETC = 'etc',
 }
-type Cursor = {
+declare type Cursor = {
     src: string,
     type?: CursorType | 'auto' | 'default' | 'none' | 'context-menu' | 'help' | 'pointer' | 'progress' | 'wait' | 'cell' | 'crosshair' | 'text' | 'vertical-text' | 'copy' | 'move' | 'no-drop' | 'not-allowed' | 'grab' | 'grabbing' | 'all-scroll' | 'col-resize' | 'row-resize' | 'n-resize' | 'e-resize' | 's-resize' | 'w-resize' | 'ne-resize' | 'nw-resize' | 'se-resize' | 'sw-resize' | 'ew-resize' | 'ns-resize' // ...TODO
 } | undefined | null
 
-type InteractableProps = {
+declare type InteractableProps = {
     /** ${propDescription.draggable} */
     draggable?: boolean
 
@@ -646,7 +646,7 @@ export const interactableApi = [
 
 export function Interactable<Base extends Class>(base: Base) {
     return class Interactable extends base {
-        // TODO:
+        // TODO (Interactable):
         // - more input events (double click, right click, scroll, mousemove...)
         // - drag cursor
         // - look into context menu interrupting, i.e. right click while dragging doesn't end drag (should it? should i just disable canvas context menu)
@@ -915,11 +915,12 @@ export const gameObjectApi = [
     timeableApi
 ].join('\n')
 
-export const gameObjectPropsTypeDef = [
-    positionablePropsTypeDef,
-    sizablePropsTypeDef,
-    rotatablePropsTypeDef,
-    viewablePropsTypeDef,
-    interactablePropsTypeDef,
-    `type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps`
-]
+export const gameObjectPropsTypeDef = 'type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps'
+// [
+//     positionablePropsTypeDef,
+//     sizablePropsTypeDef,
+//     rotatablePropsTypeDef,
+//     viewablePropsTypeDef,
+//     interactablePropsTypeDef,
+//     `type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps`
+// ]

@@ -4,9 +4,10 @@ import GameObject from "./GameObject"
 import Phaser from "phaser"
 
 type LabelProps = GameObjectProps & {
-    text?: string
+    text?: string | string[]
     size?: number
     font?: string
+    color?: string
     /* ... */
 }
 
@@ -15,6 +16,7 @@ export default class Label extends GameObject {
 
     _size: number
     _font: string
+    _color: string
 
     constructor(props?: LabelProps) {
         super()
@@ -30,7 +32,11 @@ export default class Label extends GameObject {
         this._size = props?.size ?? 32
         this.size = this._size
 
-        this._font = '' // TODO
+        this._font = props?.font ?? 'sans-serif'
+        this.font = this._font
+
+        this._color = props?.color ?? '#fff'
+        this.color = this._color
 
         // Set mixin props
         this.initMixins(props)
@@ -62,6 +68,15 @@ export default class Label extends GameObject {
         return this._font
     }
     set font(font: string) {
+        this._label.setFontFamily(font)
         this._font = font
+    }
+
+    get color(): string {
+        return this._color
+    }
+    set color(color: string) {
+        this._label.setColor(color)
+        this._color = color
     }
 }

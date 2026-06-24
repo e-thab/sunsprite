@@ -8,6 +8,7 @@ import { Mouse } from './interfaces'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility';
 import { type Point, type PointArg, Vector2 } from './Point'
 
+import Colors from './Colors';
 import Sprite from './Sprite';
 import Rectangle from './Rectangle';
 import Label from './Label';
@@ -142,19 +143,17 @@ function _runPropUpdaters() {
 }
 
 function _clearKeysJustPressed(frame: number) {
-	// TODO: Just use map.clear() ..?
 	for (const key of keysJustPressed.keys()) {
 		if (keysJustPressed.get(key) !== frame) {
-			keysJustPressed.set(key, undefined)
+			keysJustPressed.delete(key)
 		}
 	}
 }
 
 function _clearKeysJustReleased(frame: number) {
-	// TODO: Just use map.clear() ..?
 	for (const key of keysJustReleased.keys()) {
 		if (keysJustReleased.get(key) !== frame) {
-			keysJustReleased.set(key, undefined)
+			keysJustReleased.delete(key)
 		}
 	}
 }
@@ -356,11 +355,6 @@ export function keyJustReleased(key: string): boolean {
 	return keysJustReleased.get(key.toLowerCase()) !== undefined
 }
 
-// TODO: Add maps for onKey actions so that setting to null/undefined
-// removes the behavior and reassigning overwrites instead of adding.
-// Move to update loop rather than just adding new forevers. Also make
-// sure press checks come before hold checks
-
 /* Allows cleaner input key mapping for pressed key behavior */
 export function onKeyPress(actions: KeyAction) {
 	for (const [inputKey, action] of Object.entries(actions)) {
@@ -390,7 +384,7 @@ function clearStage() {
 }
 
 export function warn() {
-	// TODO
+	// TODO: warn()
 }
 
 export function print(msg: string, bgColor: string | undefined = undefined, textColor: string | undefined = undefined) {
@@ -564,7 +558,7 @@ class UserScene extends Scene {
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
 			Sprite, Rectangle, Label, Line, HLine, VLine, Vector2, /*Point,*/
-			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse,
+			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease,
 			print, play, pause, setBackgroundColor,
