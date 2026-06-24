@@ -8,7 +8,7 @@ import { Mouse } from './interfaces'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility';
 import { type Point, type PointArg, Vector2 } from './Point'
 
-import Colors from './Colors';
+import { Colors } from './Colors';
 import Sprite from './Sprite';
 import Rectangle from './Rectangle';
 import Label from './Label';

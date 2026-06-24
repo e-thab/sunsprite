@@ -26,7 +26,7 @@
 // }
 // export default api
 import { positionableApi, sizableApi, rotatableApi, viewableApi, interactableApi, timeableApi, gameObjectApi, gameObjectPropsTypeDef, positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef } from "./mixins"
-import Colors from './Colors'
+import { Colors } from './Colors'
 
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
 // so that peeking definitions doesn't look so crowded?
@@ -39,7 +39,7 @@ import Colors from './Colors'
  */
 export const apiModel = `
 declare enum Colors ${
-    // Colors is just an object, but works better as an enum here so it needs conversion
+    // Enums are stringified as if they're regular objects, so this needs conversion
     JSON.stringify(Colors, null, 2) // Convert to pretty string with newlines & tabs
     .replace(/"([^"]+)":/g, '$1 =') // Unquote keys and replace colons with =
 }
@@ -346,6 +346,17 @@ const Random: {
      * @param sides The number of sides on the die.
      */
     roll(sides: number): number,
+
+    /**
+     * Returns a random character from a given string.
+     * @param str The string to choose a character from.
+     */
+    char(str: string): string,
+
+    /**
+     * Returns a random hex RGB color string.
+     */
+    color(): string
 
     /**
      * Returns a random item from a given array.

@@ -87,6 +87,7 @@ function generateKeyArray() {
 // generateKeyArray()
 
 // TODO: Check that all these keys actually register inputs, esp. shift-keys i.e. @, $, etc.
+// TODO: Add an 'any' entry that will allow handling any key press
 const keys = [
 	'\`', '~', '1', '!', '2', '@', '3', '#', '4', '$', '5', '%', '6', '^', '7', '&', '8', '*', '9', '(', '0', ')', '-', '_', 
 	'=', '+', 'Q', 'q', 'W', 'w', 'E', 'e', 'R', 'r', 'T', 't', 'Y', 'y', 'U', 'u', 'I', 'i', 'O', 'o', 'P', 'p', '[', '{', ']', 

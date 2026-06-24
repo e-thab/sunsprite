@@ -56,6 +56,7 @@ const propDescription: Record<keyof GameObjectProps, string> = {
     draggable: `Whether this object can be dragged with the mouse.`,
     cursor: `The cursor shown when the mouse is over this object.`,
     onClick: `Register a function to run when clicking this object.`,
+    onRightClick: `Register a function to run when right clicking this object.`,
     onRelease: `Register a function to run when releasing a click on this object.`,
     onMouseEnter: `Register a function to run when the mouse first starts overlapping this object.`,
     onMouseExit: `Register a function to run when the mouse first stops overlapping this object.`,
@@ -552,6 +553,7 @@ export type InteractableProps = {
     draggable?: boolean
     cursor?: Cursor
     onClick?: PointerAction
+    onRightClick?: PointerAction
     onRelease?: PointerAction
     onMouseEnter?: PointerAction
     onMouseExit?: PointerAction
@@ -592,6 +594,9 @@ declare type InteractableProps = {
     /** ${propDescription.onClick} */
     onClick?: PointerAction
 
+    /** ${propDescription.onRightClick} */
+    onRightClick?: PointerAction
+
     /** ${propDescription.onRelease} */
     onRelease?: PointerAction
 
@@ -621,6 +626,9 @@ export const interactableApi = [
     `/** ${propDescription.onClick} */
     onClick: PointerAction`,
 
+    `/** ${propDescription.onRightClick} */
+    onRightClick: PointerAction`,
+
     `/** ${propDescription.onRelease} */
     onRelease: PointerAction`,
 
@@ -644,6 +652,9 @@ export const interactableApi = [
     resetCursor(): void`,
 ].join('\n')
 
+const POINTER_DOWN_LEFT = 'pointerdown-left'
+const POINTER_DOWN_RIGHT = 'pointerdown-right'
+
 export function Interactable<Base extends Class>(base: Base) {
     return class Interactable extends base {
         // TODO (Interactable):
@@ -655,6 +666,7 @@ export function Interactable<Base extends Class>(base: Base) {
         _cursor?: Cursor
 
         _onClick?: PointerAction
+        _onRightClick?: PointerAction
         _onRelease?: PointerAction
         _onMouseEnter?: PointerAction
         _onMouseExit?: PointerAction
@@ -675,6 +687,7 @@ export function Interactable<Base extends Class>(base: Base) {
             if (props?.cursor) this.cursor = props.cursor
 
             if (props?.onClick) this.onClick = props.onClick
+            if (props?.onRightClick) this.onRightClick = props.onRightClick
             if (props?.onRelease) this.onRelease = props.onRelease
             if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
             if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
@@ -726,12 +739,10 @@ export function Interactable<Base extends Class>(base: Base) {
             return this._onClick
         }
         set onClick(onClick: PointerAction) {
-            // Using PhaserObject.off(inputEvent, fn) doesn't seem to remove specific callbacks
-            // Just removing all listeners indiscriminately before assigning new for now
             if (!this._refObj) return
 
             this._replacePointerListener(
-                Phaser.Input.Events.POINTER_DOWN,
+                POINTER_DOWN_LEFT,
                 onClick
             )
             this._onClick = onClick
@@ -749,6 +760,27 @@ export function Interactable<Base extends Class>(base: Base) {
             )
             this._onRelease = onRelease
         }
+
+        get onRightClick(): PointerAction {
+            return this._onRightClick
+        }
+        set onRightClick(onRightClick: PointerAction) {
+            if (!this._refObj) return
+
+            this._replacePointerListener(
+                POINTER_DOWN_RIGHT,
+                onRightClick
+            )
+            this._onRightClick = onRightClick
+        }
+
+        // TODO !
+        // get onRightRelease(): PointerAction {
+            
+        // }
+        // set onRightRelease(onRightRelease: PointerAction) {
+            
+        // }
 
         get onMouseEnter(): PointerAction {
             return this._onMouseEnter
@@ -859,15 +891,27 @@ export function Interactable<Base extends Class>(base: Base) {
         _replacePointerListener(inputEvent: string, callback: PointerAction) {
             if (!this._refObj) return
             
-            // Look for a way to disable the specific listener to be replaced. Maybe if
-            // callback is a function, store a reference somewhere then retrieve here?
-            // For now, just remove all listeners
+            // TODO: Fix right click event not being removed here because inputEvent includes
+            // custom left/right values now... could be a doozy.
+            // Also, should there be an onClick (both buttons), onLeftClick (left only), AND onRightClick (right only)?
             this._refObj.off(inputEvent)
 
             if (!callback) return
             this.setInteractive()
-            this._refObj.on(inputEvent, (pointer: any, localX: number, localY: number, event: any) => {
-                if (paused) return
+
+            // Left/right click both use the 'pointerdown' event, so to differentiate the handler
+            // func has to check button down type before processing.
+            const eventString = (inputEvent == POINTER_DOWN_LEFT || inputEvent == POINTER_DOWN_RIGHT) ? 'pointerdown' : inputEvent
+            let pointerCondition = (...args: any[]) => false
+
+            if (inputEvent == POINTER_DOWN_LEFT) {
+                pointerCondition = (pointer: Phaser.Input.Pointer) => !pointer.leftButtonDown()
+            } else if (inputEvent == POINTER_DOWN_RIGHT) {
+                pointerCondition = (pointer: Phaser.Input.Pointer) => !pointer.rightButtonDown()
+            }
+
+            this._refObj.on(eventString, (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: any) => {
+                if (paused || pointerCondition(pointer)) return
                 const eventPoint = getGamePoint({
                     x: localX,
                     y: localY

@@ -5,7 +5,7 @@ import { game, setup, mouseRef, resizeStage, pause, play, pausedRef, print } fro
 import { useFullscreenStore } from '@/stores/fullscreen'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
-const canvas = ref<HTMLCanvasElement | null>(null)
+// const canvas = ref<HTMLCanvasElement | null>(null)
 const fps = ref()
 const fpsColor = ref()
 const fsStore = useFullscreenStore()
@@ -35,6 +35,12 @@ onMounted(async () => {
     // new Promise(resolve => setTimeout(resolve, 250)).then(() => {
     //   resizeStage()
     // })
+
+    // Prevent right click opening context menu
+    const gameContainer = document.getElementById('game-container')
+    gameContainer?.addEventListener('contextmenu', event => {
+      event.preventDefault()
+    })
 
     window.setInterval(updateFpsInterval, 250)
     emit('ready')

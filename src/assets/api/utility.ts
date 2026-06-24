@@ -33,10 +33,20 @@ export const random = {
         return this.range(1, sides)
     },
 
-    // TODO: Random color
-    // color(): string {
+    // Random character from a string
+    char(str: string): string {
+        return str.charAt(this.range(0, str.length - 1))
+    },
 
-    // },
+    // Random color
+    color(): string {
+        const hexChars = '0123456789abcdef'
+        let color = '#'
+        while (color.length < 7) {
+            color += this.char(hexChars)
+        }
+        return color
+    },
 
     // TODO: Shuffle an array
     // shuffle(arr: any[]): void {
