@@ -51,6 +51,13 @@ let _keyHoldActions: Map<string, Action | undefined> = new Map()
 /**
  * API internal methods
  */
+
+// Maybe these will be user-accessible at some point?
+export const PointerEvents = {
+	POINTER_DOWN_LEFT: 'pointerdown-left',
+	POINTER_DOWN_RIGHT: 'pointerdown-right'
+}
+
 export function getNextObjectId(): string {
 	return (_nextObjectId++).toString()
 }
