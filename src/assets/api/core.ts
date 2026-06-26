@@ -55,7 +55,9 @@ let _keyHoldActions: Map<string, Action | undefined> = new Map()
 // Maybe these will be user-accessible at some point?
 export const PointerEvents = {
 	POINTER_DOWN_LEFT: 'pointerdown-left',
-	POINTER_DOWN_RIGHT: 'pointerdown-right'
+	POINTER_DOWN_RIGHT: 'pointerdown-right',
+	POINTER_UP_LEFT: 'pointerup-left',
+	POINTER_UP_RIGHT: 'pointerup-right',
 }
 
 export function getNextObjectId(): string {
@@ -522,9 +524,24 @@ class UserScene extends Scene {
 			_mouseOverCanvas = true
 		})
 
-		// TODO
-		// this.input.on('pointerdown', (event: any) => {
-		// 	print('down')
+		// TODO: Let users listen to these signals directly
+		// this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+		// 	if (pointer.leftButtonDown()) {
+		// 		scene.events.emit(PointerEvents.POINTER_DOWN_LEFT, pointer)
+		// 	}
+		// 	if (pointer.rightButtonDown()) {
+		// 		scene.events.emit(PointerEvents.POINTER_DOWN_RIGHT, pointer)
+		// 	}
+		// 	if (pointer.leftButtonReleased()) {
+		// 		scene.events.emit(PointerEvents.POINTER_UP_LEFT, pointer)
+		// 	}
+		// 	if (pointer.rightButtonReleased()) {
+		// 		scene.events.emit(PointerEvents.POINTER_UP_RIGHT, pointer)
+		// 	}
+		// })
+
+		// this.input.on('pointerup', (event: any) => {
+		// 	print('up')
 		// })
 
 		// TODO
@@ -533,9 +550,6 @@ class UserScene extends Scene {
 		// })
 
 		// TODO
-		// this.input.on('pointerup', (event: any) => {
-		// 	print('up')
-		// })
 
 		// TODO...?
 		// this.input.on(Phaser.Input.Events.POINTER_OUT, (event: any) => {

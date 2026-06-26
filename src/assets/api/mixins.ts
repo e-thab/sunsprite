@@ -56,9 +56,16 @@ const propDescription: Record<keyof GameObjectProps, string> = {
     // Interactable
     draggable: `Whether this object can be dragged with the mouse.`,
     cursor: `The cursor shown when the mouse is over this object.`,
+
     onClick: `Register a function to run when clicking this object.`,
-    onRightClick: `Register a function to run when right clicking this object.`,
     onRelease: `Register a function to run when releasing a click on this object.`,
+
+    onLeftClick: `Register a function to run when left clicking this object.`,
+    onLeftRelease: `Register a function to run when releasing a left click on this object.`,
+
+    onRightClick: `Register a function to run when right clicking this object.`,
+    onRightRelease: `Register a function to run when releasing a right click on this object.`,
+
     onMouseEnter: `Register a function to run when the mouse first starts overlapping this object.`,
     onMouseExit: `Register a function to run when the mouse first stops overlapping this object.`,
     onDrag: `Register a function to run repeatedly while this object is being dragged.`,
@@ -530,8 +537,8 @@ export function Viewable<Base extends Class>(base: Base) {
     }
 }
 
-// (pointer: any, localX: number, localY: number, event: any) -- args from pointer event callbacks
-type PointerAction = ((x: number, y: number) => void) | undefined | null
+type PhaserPointerAction = (pointer: any, localX: number, localY: number, event: any) => void // -- args from pointer event callbacks
+type PointerAction = ((x: number, y: number) => void) | (() => void) | undefined
 
 enum CursorType {
     AUTO = 'auto',
@@ -554,8 +561,11 @@ export type InteractableProps = {
     draggable?: boolean
     cursor?: Cursor
     onClick?: PointerAction
-    onRightClick?: PointerAction
     onRelease?: PointerAction
+    onLeftClick?: PointerAction
+    onLeftRelease?: PointerAction
+    onRightClick?: PointerAction
+    onRightRelease?: PointerAction
     onMouseEnter?: PointerAction
     onMouseExit?: PointerAction
     onDrag?: PointerAction
@@ -595,11 +605,20 @@ declare type InteractableProps = {
     /** ${propDescription.onClick} */
     onClick?: PointerAction
 
+    /** ${propDescription.onRelease} */
+    onRelease?: PointerAction
+
+    /** ${propDescription.onLeftClick} */
+    onLeftClick?: PointerAction
+
+    /** ${propDescription.onLeftRelease} */
+    onLeftRelease?: PointerAction
+
     /** ${propDescription.onRightClick} */
     onRightClick?: PointerAction
 
-    /** ${propDescription.onRelease} */
-    onRelease?: PointerAction
+    /** ${propDescription.onRightRelease} */
+    onRightRelease?: PointerAction
 
     /** ${propDescription.onMouseEnter} */
     onMouseEnter?: PointerAction
@@ -627,11 +646,20 @@ export const interactableApi = [
     `/** ${propDescription.onClick} */
     onClick: PointerAction`,
 
+    `/** ${propDescription.onRelease} */
+    onRelease: PointerAction`,
+
+    `/** ${propDescription.onLeftClick} */
+    onLeftClick: PointerAction`,
+
+    `/** ${propDescription.onLeftRelease} */
+    onLeftRelease: PointerAction`,
+
     `/** ${propDescription.onRightClick} */
     onRightClick: PointerAction`,
 
-    `/** ${propDescription.onRelease} */
-    onRelease: PointerAction`,
+    `/** ${propDescription.onRightRelease} */
+    onRightRelease: PointerAction`,
 
     `/** ${propDescription.onMouseEnter} */
     onMouseEnter: PointerAction`,
@@ -653,6 +681,17 @@ export const interactableApi = [
     resetCursor(): void`,
 ].join('\n')
 
+function convertedPointerAction(pointerAction: PointerAction): PhaserPointerAction | undefined {
+    return pointerAction ? (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: any) => {
+        if (paused) return
+        const eventPoint = getGamePoint({
+            x: localX,
+            y: localY
+        })
+        pointerAction(eventPoint.x, eventPoint.y)
+    } : undefined
+}
+
 export function Interactable<Base extends Class>(base: Base) {
     return class Interactable extends base {
         // TODO (Interactable):
@@ -660,14 +699,20 @@ export function Interactable<Base extends Class>(base: Base) {
         // - drag cursor
         // - look into context menu interrupting, i.e. right click while dragging doesn't end drag (should it? should i just disable canvas context menu)
 
-        _actionMap: Map<string, { event: string, func: Action }> = new Map()
+        _actionMap: Map<string, Action> = new Map()
 
         _refObj?: any
         _cursor?: Cursor
 
         _onClick?: PointerAction
-        _onRightClick?: PointerAction
         _onRelease?: PointerAction
+
+        _onRightClick?: PointerAction
+        _onRightRelease?: PointerAction
+
+        _onLeftClick?: PointerAction
+        _onLeftRelease?: PointerAction
+
         _onMouseEnter?: PointerAction
         _onMouseExit?: PointerAction
 
@@ -684,17 +729,63 @@ export function Interactable<Base extends Class>(base: Base) {
 
         initInteractable(props?: GameObjectProps) {
             if (props?.draggable) this.draggable = props.draggable
+            this.setInteractive()
             if (props?.cursor) this.cursor = props.cursor
 
             if (props?.onClick) this.onClick = props.onClick
-            if (props?.onRightClick) this.onRightClick = props.onRightClick
             if (props?.onRelease) this.onRelease = props.onRelease
+
+            if (props?.onLeftClick) this.onLeftClick = props.onLeftClick
+            if (props?.onLeftRelease) this.onLeftRelease = props.onLeftRelease
+
+            if (props?.onRightClick) this.onRightClick = props.onRightClick
+            if (props?.onRightRelease) this.onRightRelease = props.onRightRelease
+
             if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
             if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
 
             if (props?.onDrag) this.onDrag = props.onDrag
             if (props?.onDragStart) this.onDragStart = props.onDragStart
             if (props?.onDragEnd) this.onDragEnd = props.onDragEnd
+
+            this._refObj?.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+                if (pointer.leftButtonDown()) {
+                    this._refObj.emit(PointerEvents.POINTER_DOWN_LEFT)
+                }
+                if (pointer.rightButtonDown()) {
+                    this._refObj.emit(PointerEvents.POINTER_DOWN_RIGHT)
+                }
+            })
+
+            this._refObj?.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+                if (pointer.leftButtonReleased()) {
+                    this._refObj.emit(PointerEvents.POINTER_UP_LEFT)
+                }
+                if (pointer.rightButtonReleased()) {
+                    this._refObj.emit(PointerEvents.POINTER_UP_RIGHT)
+                }
+            })
+            
+            this.setInteractive()
+
+            // if ('x' in this && 'y' in this) {
+            //     this._refObj.on(Phaser.Input.Events.DRAG, (pointer: Phaser.Input.Pointer) => {
+            //         const { x, y } = getGamePoint({ x: pointer.x, y: pointer.y })
+            //         this.x = x
+            //         this.y = y
+            //     })
+            // }
+
+            // if (this._refObj && 'x' in this && 'y' in this && !props?.onDrag) {
+            //     console.log('setting drag')
+            //     this.onDrag = (x: number, y: number) => {
+            //         // this._refObj.x = x + screen.right
+            //         // this._refObj.y = -y + screen.top
+            //         console.log('drag')
+            //         this.x = x
+            //         this.y = y
+            //     }
+            // }
         }
 
         get cursor(): Cursor {
@@ -725,7 +816,6 @@ export function Interactable<Base extends Class>(base: Base) {
                 return
             }
 
-            this.setInteractive()
             this._cursor = cursorObj
 
             // Absolutely find a better way to do this, just testing for now
@@ -735,129 +825,128 @@ export function Interactable<Base extends Class>(base: Base) {
             this._refObj.input.cursor = `${url} ${offset}, ${cursorObj.type}`
         }
 
-        /** Emitted on any pointer down event, either left or right mouse button. */
+        /** Captures any pointer down event, either left or right mouse button. */
         get onClick(): PointerAction {
             return this._onClick
         }
         set onClick(onClick: PointerAction) {
             if (!this._refObj) return
 
-            this._replacePointerListener(
-                Phaser.Input.Events.POINTER_DOWN,
-                onClick
-            )
+            const eventName = Phaser.Input.Events.POINTER_DOWN
+
+            // TODO: Convert user-friendly PointerActions to Phaser-type actions.
+            // Need to store the exact function assigned with .on(), maybe internal
+            // members should be typed as PhaserPointerActions and the getters can
+            // return an un-converted version?
+
+            // const callback = convertedPointerAction(onClick)
+
+            if (this._onClick) this._refObj.off(eventName, this._onClick, this)
+            this._refObj.on(eventName, onClick, this)
             this._onClick = onClick
         }
 
-        /** Emitted on any pointer release event, either left or right mouse button. */
+        /** Captures any pointer release event, either left or right mouse button. */
         get onRelease(): PointerAction {
             return this._onRelease
         }
         set onRelease(onRelease: PointerAction) {
             if (!this._refObj) return
-
-            this._replacePointerListener(
-                Phaser.Input.Events.POINTER_UP,
-                onRelease
-            )
+            const eventName = Phaser.Input.Events.POINTER_UP
+            
+            if (this._onRelease) this._refObj.off(eventName, this._onRelease, this)
+            this._refObj.on(eventName, onRelease, this)
             this._onRelease = onRelease
         }
 
-        // TODO !
-        /** Emitted only on left button press. */
+        /** Captures only left button press. */
         get onLeftClick(): PointerAction {
             return this._onLeftClick
         }
         set onLeftClick(onLeftClick: PointerAction) {
             if (!this._refObj) return
-
-            this._replacePointerListener(
-                PointerEvents.POINTER_DOWN_LEFT,
-                onLeftClick
-            )
+            const eventName = PointerEvents.POINTER_DOWN_LEFT
+            
+            if (this._onLeftClick) this._refObj.off(eventName, this._onLeftClick, this)
+            this._refObj.on(eventName, onLeftClick, this)
             this._onLeftClick = onLeftClick
         }
         
-        // TODO !
-        /** Emitted only on left button release. */
+        /** Captures only left button release. */
         get onLeftRelease(): PointerAction {
             return this._onLeftRelease
         }
         set onLeftRelease(onLeftRelease: PointerAction) {
             if (!this._refObj) return
-
-            this._replacePointerListener(
-                PointerEvents.POINTER_UP_LEFT,
-                onLeftRelease
-            )
+            const eventName = PointerEvents.POINTER_UP_LEFT
+            
+            if (this._onLeftRelease) this._refObj.off(eventName, this._onLeftRelease, this)
+            this._refObj.on(eventName, onLeftRelease, this)
             this._onLeftRelease = onLeftRelease
         }
 
-        /** Emitted only on right button press. */
+        /** Captures only right button press. */
         get onRightClick(): PointerAction {
             return this._onRightClick
         }
         set onRightClick(onRightClick: PointerAction) {
             if (!this._refObj) return
-
-            this._replacePointerListener(
-                PointerEvents.POINTER_DOWN_RIGHT,
-                onRightClick
-            )
+            const eventName = PointerEvents.POINTER_DOWN_RIGHT
+            
+            if (this._onRightClick) this._refObj.off(eventName, this._onRightClick, this)
+            this._refObj.on(eventName, onRightClick, this)
             this._onRightClick = onRightClick
         }
 
-        // TODO !
-        /** Emitted only on right button release. */
+        /** Captures only right button release. */
         get onRightRelease(): PointerAction {
             return this._onRightRelease
         }
         set onRightRelease(onRightRelease: PointerAction) {
             if (!this._refObj) return
-
-            this._replacePointerListener(
-                PointerEvents.POINTER_UP_RIGHT,
-                onRightRelease
-            )
+            const eventName = PointerEvents.POINTER_UP_RIGHT
+            
+            if (this._onRightRelease) this._refObj.off(eventName, this._onRightRelease, this)
+            this._refObj.on(eventName, onRightRelease, this)
             this._onRightRelease = onRightRelease
         }
 
+        /** Captures the pointer entering the object. */
         get onMouseEnter(): PointerAction {
             return this._onMouseEnter
         }
         set onMouseEnter(onMouseEnter: PointerAction) {
             if (!this._refObj) return
-
-            this._replacePointerListener(
-                Phaser.Input.Events.POINTER_OVER,
-                onMouseEnter
-            )
+            const eventName = Phaser.Input.Events.POINTER_OVER
+            
+            if (this._onMouseEnter) this._refObj.off(eventName, this._onMouseEnter, this)
+            this._refObj.on(eventName, onMouseEnter, this)
             this._onMouseEnter = onMouseEnter
         }
 
+        /** Captures the pointer exiting the object. */
         get onMouseExit(): PointerAction {
             return this._onMouseExit
         }
         set onMouseExit(onMouseExit: PointerAction) {
             if (!this._refObj) return
+            const eventName = Phaser.Input.Events.POINTER_OUT
             
-            this._replacePointerListener(
-                Phaser.Input.Events.POINTER_OUT,
-                onMouseExit
-            )
+            if (this._onMouseExit) this._refObj.off(eventName, this._onMouseExit, this)
+            this._refObj.on(eventName, onMouseExit, this)
             this._onMouseExit = onMouseExit
         }
 
+        /** Captures the pointer dragging the object. */
         get onDrag(): PointerAction {
             return this._onDrag
         }
         set onDrag(onDrag: PointerAction) {
             if (!this._refObj) return
-
-            this._replacePointerListener(
-                Phaser.Input.Events.DRAG,
-                onDrag
-            )
+            const eventName = Phaser.Input.Events.DRAG
+            
+            if (this._onDrag) this._refObj.off(eventName, this._onDrag, this)
+            this._refObj.on(eventName, onDrag, this)
             this._onDrag = onDrag
         }
 
@@ -866,24 +955,22 @@ export function Interactable<Base extends Class>(base: Base) {
         }
         set onDragStart(onDragStart: PointerAction) {
             if (!this._refObj) return
-
-            this._replacePointerListener(
-                Phaser.Input.Events.DRAG_START,
-                onDragStart
-            )
+            const eventName = Phaser.Input.Events.DRAG_START
+            
+            if (this._onDragStart) this._refObj.off(eventName, this._onDragStart, this)
+            this._refObj.on(eventName, onDragStart, this)
             this._onDragStart = onDragStart
         }
 
         get onDragEnd(): PointerAction {
-            return this._onDragStart
+            return this._onDragEnd
         }
         set onDragEnd(onDragEnd: PointerAction) {
             if (!this._refObj) return
-
-            this._replacePointerListener(
-                Phaser.Input.Events.DRAG_END,
-                onDragEnd
-            )
+            const eventName = Phaser.Input.Events.DRAG_END
+            
+            if (this._onDragEnd) this._refObj.off(eventName, this._onDragEnd, this)
+            this._refObj.on(eventName, onDragEnd, this)
             this._onDragEnd = onDragEnd
         }
 
@@ -928,44 +1015,72 @@ export function Interactable<Base extends Class>(base: Base) {
         }
 
         // Internal, for pointer events
+        // _replacePointerListener(inputEvent: string, callback: PointerAction) {
+        //     if (!this._refObj) return
+            
+        //     // TODO: Set up custom event emitters, probably from core/game loop
+        //     // May not need map anymore..?
+
+        //     const eventString = (inputEvent == PointerEvents.POINTER_DOWN_LEFT || inputEvent == PointerEvents.POINTER_DOWN_RIGHT) ? 'pointerdown' : inputEvent
+        //     // this._refObj.off()
+        //     scene.events.off(eventString, this._actionMap.get(inputEvent)?.func, this)
+        //     this._actionMap.delete(inputEvent)
+
+        //     if (!callback) return
+        //     this.setInteractive()
+
+        //     // Left/right click both use the 'pointerdown' event, so to differentiate the handler
+        //     // func has to check button down type before processing.
+        //     let pointerCondition = (...args: any[]) => false
+
+        //     if (inputEvent == PointerEvents.POINTER_DOWN_LEFT) {
+        //         pointerCondition = (pointer: Phaser.Input.Pointer) => !pointer.leftButtonDown()
+        //     } else if (inputEvent == PointerEvents.POINTER_DOWN_RIGHT) {
+        //         pointerCondition = (pointer: Phaser.Input.Pointer) => !pointer.rightButtonDown()
+        //     }
+
+        //     const func = (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: any) => {
+        //         if (paused || pointerCondition(pointer)) return
+        //         const eventPoint = getGamePoint({
+        //             x: localX,
+        //             y: localY
+        //         })
+        //         callback(eventPoint.x, eventPoint.y)
+        //     }
+
+        //     this._actionMap.set(inputEvent, { event: eventString, func })
+        //     scene.events.on(eventString, func, this)
+        //     // this._refObj.on(eventString, func, this)
+        //     console.log(this._actionMap)
+        //     console.log(scene.events.listeners(eventString))
+        // }
+
         _replacePointerListener(inputEvent: string, callback: PointerAction) {
             if (!this._refObj) return
             
             // TODO: Set up custom event emitters, probably from core/game loop
             // May not need map anymore..?
 
-            const eventString = (inputEvent == PointerEvents.POINTER_DOWN_LEFT || inputEvent == PointerEvents.POINTER_DOWN_RIGHT) ? 'pointerdown' : inputEvent
             // this._refObj.off()
-            scene.events.off(eventString, this._actionMap.get(inputEvent)?.func, this)
-            this._actionMap.delete(inputEvent)
+            if (this._refObj.off(inputEvent, this._actionMap.get(inputEvent), this))
+                console.log('removed listener')
 
             if (!callback) return
             this.setInteractive()
 
-            // Left/right click both use the 'pointerdown' event, so to differentiate the handler
-            // func has to check button down type before processing.
-            let pointerCondition = (...args: any[]) => false
-
-            if (inputEvent == PointerEvents.POINTER_DOWN_LEFT) {
-                pointerCondition = (pointer: Phaser.Input.Pointer) => !pointer.leftButtonDown()
-            } else if (inputEvent == PointerEvents.POINTER_DOWN_RIGHT) {
-                pointerCondition = (pointer: Phaser.Input.Pointer) => !pointer.rightButtonDown()
-            }
-
             const func = (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: any) => {
-                if (paused || pointerCondition(pointer)) return
+                if (paused) return
                 const eventPoint = getGamePoint({
                     x: localX,
                     y: localY
                 })
                 callback(eventPoint.x, eventPoint.y)
             }
-
-            this._actionMap.set(inputEvent, { event: eventString, func })
-            scene.events.on(eventString, func, this)
-            // this._refObj.on(eventString, func, this)
-            console.log(this._actionMap)
-            console.log(scene.events.listeners(eventString))
+            this._refObj.on(inputEvent, func, this)
+            this._actionMap.set(inputEvent, func)
+            // scene.events.on(inputEvent, func, this)
+            // console.log(this._actionMap)
+            // console.log(scene.events.listeners(eventString))
         }
 
         // _removeListener(inputEvent: string, callback: PointerAction) {
