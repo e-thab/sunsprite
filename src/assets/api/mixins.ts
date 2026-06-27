@@ -692,6 +692,16 @@ function convertedPointerAction(pointerAction: PointerAction): PhaserPointerActi
     } : undefined
 }
 
+/**
+ * Stores references to both the user-defined PointerAction (what the user passes to Obj.onEvent prop)
+ * and the phaser-converted function that's actually passed to the behind-the-scenes refObj.on()
+ * TODO: finish implementing
+ */
+type ActionStore = {
+    userAction: PointerAction,
+    phaserAction: PhaserPointerAction
+}
+
 export function Interactable<Base extends Class>(base: Base) {
     return class Interactable extends base {
         // TODO (Interactable):
@@ -1055,33 +1065,33 @@ export function Interactable<Base extends Class>(base: Base) {
         //     console.log(scene.events.listeners(eventString))
         // }
 
-        _replacePointerListener(inputEvent: string, callback: PointerAction) {
-            if (!this._refObj) return
+        // _replacePointerListener(inputEvent: string, callback: PointerAction) {
+        //     if (!this._refObj) return
             
-            // TODO: Set up custom event emitters, probably from core/game loop
-            // May not need map anymore..?
+        //     // TODO: Set up custom event emitters, probably from core/game loop
+        //     // May not need map anymore..?
 
-            // this._refObj.off()
-            if (this._refObj.off(inputEvent, this._actionMap.get(inputEvent), this))
-                console.log('removed listener')
+        //     // this._refObj.off()
+        //     if (this._refObj.off(inputEvent, this._actionMap.get(inputEvent), this))
+        //         console.log('removed listener')
 
-            if (!callback) return
-            this.setInteractive()
+        //     if (!callback) return
+        //     this.setInteractive()
 
-            const func = (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: any) => {
-                if (paused) return
-                const eventPoint = getGamePoint({
-                    x: localX,
-                    y: localY
-                })
-                callback(eventPoint.x, eventPoint.y)
-            }
-            this._refObj.on(inputEvent, func, this)
-            this._actionMap.set(inputEvent, func)
-            // scene.events.on(inputEvent, func, this)
-            // console.log(this._actionMap)
-            // console.log(scene.events.listeners(eventString))
-        }
+        //     const func = (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: any) => {
+        //         if (paused) return
+        //         const eventPoint = getGamePoint({
+        //             x: localX,
+        //             y: localY
+        //         })
+        //         callback(eventPoint.x, eventPoint.y)
+        //     }
+        //     this._refObj.on(inputEvent, func, this)
+        //     this._actionMap.set(inputEvent, func)
+        //     // scene.events.on(inputEvent, func, this)
+        //     // console.log(this._actionMap)
+        //     // console.log(scene.events.listeners(eventString))
+        // }
 
         // _removeListener(inputEvent: string, callback: PointerAction) {
         //     if (!this._refObj) return
