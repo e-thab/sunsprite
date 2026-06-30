@@ -39,14 +39,14 @@ export default abstract class GameObject extends
         
         // TODO: test this; originally had the if/else above connected, don't
         // remember why but it seems redundant since it already does that in the mixin
-        if (this._refObj && !props?.onDrag) {
-            this.onDrag = (x: number, y: number) => {
-                // this._refObj.x = x + screen.right
-                // this._refObj.y = -y + screen.top
-                this.x = x
-                this.y = y
-            }
-        }
+        // if (this._refObj && !props?.onDrag) {
+        //     this.onDrag = (x: number, y: number) => {
+        //         // this._refObj.x = x + screen.right
+        //         // this._refObj.y = -y + screen.top
+        //         this.x = x
+        //         this.y = y
+        //     }
+        // }
     }
 
     get left(): number {

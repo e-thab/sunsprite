@@ -35,7 +35,6 @@ export default class Sprite extends GameObject {
         this._sprite = sprite // Reference to Phaser object used within this class (for readability)
         
         this.src = props?.src
-        
         // Set mixin props
         this.initMixins(props)
         

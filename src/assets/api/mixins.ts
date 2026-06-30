@@ -682,13 +682,13 @@ export const interactableApi = [
 ].join('\n')
 
 function convertedPointerAction(pointerAction: PointerAction): PhaserPointerAction | undefined {
-    return pointerAction ? (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: any) => {
+    return pointerAction ? (pointer: Phaser.Input.Pointer, eventX: number, eventY: number, ...rest: any[]) => {
         if (paused) return
-        const eventPoint = getGamePoint({
-            x: localX,
-            y: localY
+        const { x, y } = getGamePoint({
+            x: eventX,
+            y: eventY
         })
-        pointerAction(eventPoint.x, eventPoint.y)
+        pointerAction(x, y)
     } : undefined
 }
 
@@ -699,7 +699,7 @@ function convertedPointerAction(pointerAction: PointerAction): PhaserPointerActi
  */
 type ActionStore = {
     userAction: PointerAction,
-    phaserAction: PhaserPointerAction
+    listenerAction?: PhaserPointerAction
 }
 
 export function Interactable<Base extends Class>(base: Base) {
@@ -709,26 +709,26 @@ export function Interactable<Base extends Class>(base: Base) {
         // - drag cursor
         // - look into context menu interrupting, i.e. right click while dragging doesn't end drag (should it? should i just disable canvas context menu)
 
-        _actionMap: Map<string, Action> = new Map()
+        _eventActions: Map<string, ActionStore> = new Map()
 
         _refObj?: any
         _cursor?: Cursor
 
-        _onClick?: PointerAction
-        _onRelease?: PointerAction
+        // _onClick?: PointerAction
+        // _onRelease?: PointerAction
 
-        _onRightClick?: PointerAction
-        _onRightRelease?: PointerAction
+        // _onRightClick?: PointerAction
+        // _onRightRelease?: PointerAction
 
-        _onLeftClick?: PointerAction
-        _onLeftRelease?: PointerAction
+        // _onLeftClick?: PointerAction
+        // _onLeftRelease?: PointerAction
 
-        _onMouseEnter?: PointerAction
-        _onMouseExit?: PointerAction
+        // _onMouseEnter?: PointerAction
+        // _onMouseExit?: PointerAction
 
-        _onDrag?: PointerAction
-        _onDragStart?: PointerAction
-        _onDragEnd?: PointerAction
+        // _onDrag?: PointerAction
+        // _onDragStart?: PointerAction
+        // _onDragEnd?: PointerAction
         
         _draggable: boolean = false
         isInteractive: boolean = false
@@ -758,6 +758,7 @@ export function Interactable<Base extends Class>(base: Base) {
             if (props?.onDragStart) this.onDragStart = props.onDragStart
             if (props?.onDragEnd) this.onDragEnd = props.onDragEnd
 
+            // Emit custom left/right click events
             this._refObj?.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
                 if (pointer.leftButtonDown()) {
                     this._refObj.emit(PointerEvents.POINTER_DOWN_LEFT)
@@ -766,7 +767,8 @@ export function Interactable<Base extends Class>(base: Base) {
                     this._refObj.emit(PointerEvents.POINTER_DOWN_RIGHT)
                 }
             })
-
+            
+            // Emit custom left/right release events
             this._refObj?.on('pointerup', (pointer: Phaser.Input.Pointer) => {
                 if (pointer.leftButtonReleased()) {
                     this._refObj.emit(PointerEvents.POINTER_UP_LEFT)
@@ -775,27 +777,14 @@ export function Interactable<Base extends Class>(base: Base) {
                     this._refObj.emit(PointerEvents.POINTER_UP_RIGHT)
                 }
             })
-            
-            this.setInteractive()
 
-            // if ('x' in this && 'y' in this) {
-            //     this._refObj.on(Phaser.Input.Events.DRAG, (pointer: Phaser.Input.Pointer) => {
-            //         const { x, y } = getGamePoint({ x: pointer.x, y: pointer.y })
-            //         this.x = x
-            //         this.y = y
-            //     })
-            // }
-
-            // if (this._refObj && 'x' in this && 'y' in this && !props?.onDrag) {
-            //     console.log('setting drag')
-            //     this.onDrag = (x: number, y: number) => {
-            //         // this._refObj.x = x + screen.right
-            //         // this._refObj.y = -y + screen.top
-            //         console.log('drag')
-            //         this.x = x
-            //         this.y = y
-            //     }
-            // }
+            // Default drag event that gets replaced once user assigns their own
+            if ('x' in this && 'y' in this) {
+                this._replacePointerListener(Phaser.Input.Events.GAMEOBJECT_DRAG, (x, y) => {
+                    this.x = x
+                    this.y = y
+                })
+            }
         }
 
         get cursor(): Cursor {
@@ -837,151 +826,104 @@ export function Interactable<Base extends Class>(base: Base) {
 
         /** Captures any pointer down event, either left or right mouse button. */
         get onClick(): PointerAction {
-            return this._onClick
+            return this._getUserAction(Phaser.Input.Events.POINTER_DOWN)
         }
         set onClick(onClick: PointerAction) {
             if (!this._refObj) return
-
-            const eventName = Phaser.Input.Events.POINTER_DOWN
-
-            // TODO: Convert user-friendly PointerActions to Phaser-type actions.
-            // Need to store the exact function assigned with .on(), maybe internal
-            // members should be typed as PhaserPointerActions and the getters can
-            // return an un-converted version?
-
-            // const callback = convertedPointerAction(onClick)
-
-            if (this._onClick) this._refObj.off(eventName, this._onClick, this)
-            this._refObj.on(eventName, onClick, this)
-            this._onClick = onClick
+            this._replacePointerListener(Phaser.Input.Events.POINTER_DOWN, onClick)
         }
 
         /** Captures any pointer release event, either left or right mouse button. */
         get onRelease(): PointerAction {
-            return this._onRelease
+            return this._getUserAction(Phaser.Input.Events.POINTER_UP)
         }
         set onRelease(onRelease: PointerAction) {
             if (!this._refObj) return
-            const eventName = Phaser.Input.Events.POINTER_UP
-            
-            if (this._onRelease) this._refObj.off(eventName, this._onRelease, this)
-            this._refObj.on(eventName, onRelease, this)
-            this._onRelease = onRelease
+            this._replacePointerListener(Phaser.Input.Events.POINTER_UP, onRelease)
         }
 
         /** Captures only left button press. */
         get onLeftClick(): PointerAction {
-            return this._onLeftClick
+            return this._getUserAction(PointerEvents.POINTER_DOWN_LEFT)
         }
         set onLeftClick(onLeftClick: PointerAction) {
             if (!this._refObj) return
-            const eventName = PointerEvents.POINTER_DOWN_LEFT
-            
-            if (this._onLeftClick) this._refObj.off(eventName, this._onLeftClick, this)
-            this._refObj.on(eventName, onLeftClick, this)
-            this._onLeftClick = onLeftClick
+            this._replacePointerListener(PointerEvents.POINTER_DOWN_LEFT, onLeftClick)
         }
         
         /** Captures only left button release. */
         get onLeftRelease(): PointerAction {
-            return this._onLeftRelease
+            return this._getUserAction(PointerEvents.POINTER_UP_LEFT)
         }
         set onLeftRelease(onLeftRelease: PointerAction) {
             if (!this._refObj) return
-            const eventName = PointerEvents.POINTER_UP_LEFT
-            
-            if (this._onLeftRelease) this._refObj.off(eventName, this._onLeftRelease, this)
-            this._refObj.on(eventName, onLeftRelease, this)
-            this._onLeftRelease = onLeftRelease
+            this._replacePointerListener(PointerEvents.POINTER_UP_LEFT, onLeftRelease)
         }
 
         /** Captures only right button press. */
         get onRightClick(): PointerAction {
-            return this._onRightClick
+            return this._getUserAction(PointerEvents.POINTER_DOWN_RIGHT)
         }
         set onRightClick(onRightClick: PointerAction) {
             if (!this._refObj) return
-            const eventName = PointerEvents.POINTER_DOWN_RIGHT
-            
-            if (this._onRightClick) this._refObj.off(eventName, this._onRightClick, this)
-            this._refObj.on(eventName, onRightClick, this)
-            this._onRightClick = onRightClick
+            this._replacePointerListener(PointerEvents.POINTER_DOWN_RIGHT, onRightClick)
         }
 
         /** Captures only right button release. */
         get onRightRelease(): PointerAction {
-            return this._onRightRelease
+            return this._getUserAction(PointerEvents.POINTER_UP_RIGHT)
         }
         set onRightRelease(onRightRelease: PointerAction) {
             if (!this._refObj) return
-            const eventName = PointerEvents.POINTER_UP_RIGHT
-            
-            if (this._onRightRelease) this._refObj.off(eventName, this._onRightRelease, this)
-            this._refObj.on(eventName, onRightRelease, this)
-            this._onRightRelease = onRightRelease
+            this._replacePointerListener(PointerEvents.POINTER_UP_RIGHT, onRightRelease)
         }
 
         /** Captures the pointer entering the object. */
         get onMouseEnter(): PointerAction {
-            return this._onMouseEnter
+            return this._getUserAction(Phaser.Input.Events.POINTER_OVER)
         }
         set onMouseEnter(onMouseEnter: PointerAction) {
             if (!this._refObj) return
-            const eventName = Phaser.Input.Events.POINTER_OVER
-            
-            if (this._onMouseEnter) this._refObj.off(eventName, this._onMouseEnter, this)
-            this._refObj.on(eventName, onMouseEnter, this)
-            this._onMouseEnter = onMouseEnter
+            this._replacePointerListener(Phaser.Input.Events.POINTER_OVER, onMouseEnter)
         }
 
         /** Captures the pointer exiting the object. */
         get onMouseExit(): PointerAction {
-            return this._onMouseExit
+            return this._getUserAction(Phaser.Input.Events.POINTER_OUT)
         }
         set onMouseExit(onMouseExit: PointerAction) {
             if (!this._refObj) return
-            const eventName = Phaser.Input.Events.POINTER_OUT
-            
-            if (this._onMouseExit) this._refObj.off(eventName, this._onMouseExit, this)
-            this._refObj.on(eventName, onMouseExit, this)
-            this._onMouseExit = onMouseExit
+            this._replacePointerListener(Phaser.Input.Events.POINTER_OUT, onMouseExit)
         }
 
         /** Captures the pointer dragging the object. */
         get onDrag(): PointerAction {
-            return this._onDrag
+            // Note: In the listener for drag events, the x and y variables sent to the callback represent
+            // a calculated position using the offset of the pointer to the object origin when initially
+            // starting the drag. i.e. the arguments are provided as
+            // x = pointerX - initialPointerOffsetX
+            // y = pointerY - initialPointerOffsetY
+            return this._getUserAction(Phaser.Input.Events.GAMEOBJECT_DRAG)
         }
         set onDrag(onDrag: PointerAction) {
             if (!this._refObj) return
-            const eventName = Phaser.Input.Events.DRAG
-            
-            if (this._onDrag) this._refObj.off(eventName, this._onDrag, this)
-            this._refObj.on(eventName, onDrag, this)
-            this._onDrag = onDrag
+            this._replacePointerListener(Phaser.Input.Events.GAMEOBJECT_DRAG, onDrag)
         }
 
         get onDragStart(): PointerAction {
-            return this._onDragStart
+            return this._getUserAction(Phaser.Input.Events.GAMEOBJECT_DRAG_START)
         }
         set onDragStart(onDragStart: PointerAction) {
             if (!this._refObj) return
-            const eventName = Phaser.Input.Events.DRAG_START
-            
-            if (this._onDragStart) this._refObj.off(eventName, this._onDragStart, this)
-            this._refObj.on(eventName, onDragStart, this)
-            this._onDragStart = onDragStart
+            this._replacePointerListener(Phaser.Input.Events.GAMEOBJECT_DRAG_START, onDragStart)
         }
 
         get onDragEnd(): PointerAction {
-            return this._onDragEnd
+            return this._getUserAction(Phaser.Input.Events.GAMEOBJECT_DRAG_END)
         }
         set onDragEnd(onDragEnd: PointerAction) {
             if (!this._refObj) return
-            const eventName = Phaser.Input.Events.DRAG_END
-            
-            if (this._onDragEnd) this._refObj.off(eventName, this._onDragEnd, this)
-            this._refObj.on(eventName, onDragEnd, this)
-            this._onDragEnd = onDragEnd
+            this._replacePointerListener(Phaser.Input.Events.GAMEOBJECT_DRAG_END, onDragEnd)
         }
 
         get draggable(): boolean {
@@ -990,11 +932,10 @@ export function Interactable<Base extends Class>(base: Base) {
         set draggable(draggable: boolean) {
             if (!this._refObj) return
             if (draggable === this._draggable) return
-
+            
             this._draggable = draggable
-            // if (!draggable && !this.isInteractive) {
-                this.setInteractive()
-            // }
+            this.setInteractive()
+            // scene.input.setDraggable(this._refObj, draggable)
         }
         
         resetCursor() {
@@ -1006,13 +947,10 @@ export function Interactable<Base extends Class>(base: Base) {
             if (!this._refObj) return
             
             if (!this.isInteractive) {
-                if (this._draggable) {
-                    this._refObj.setInteractive({draggable: true})
-                } else {
-                    this._refObj.setInteractive()
-                }
+                this._refObj.setInteractive()
                 this.isInteractive = true
             }
+            scene.input.setDraggable(this._refObj, this._draggable)
         }
 
         disableInteractive() {
@@ -1024,78 +962,30 @@ export function Interactable<Base extends Class>(base: Base) {
             }
         }
 
-        // Internal, for pointer events
-        // _replacePointerListener(inputEvent: string, callback: PointerAction) {
-        //     if (!this._refObj) return
+        /**
+         * Replace a pointer event listener with a new one.
+         * @param eventName The name of the event to replace.
+         * @param userAction The new callback function.
+         */
+        _replacePointerListener(eventName: string, userAction: PointerAction) {
+            if (!this._refObj) return
+
+            if (this._eventActions.get(eventName)) {
+                this._refObj.off(eventName, this._eventActions.get(eventName)?.listenerAction, this)
+            }
             
-        //     // TODO: Set up custom event emitters, probably from core/game loop
-        //     // May not need map anymore..?
+            const listenerAction = convertedPointerAction(userAction)
+            if (listenerAction) {
+                this._eventActions.set(eventName, { userAction, listenerAction })
+            } else {
+                this._eventActions.delete(eventName)
+            }
+            this._refObj.on(eventName, listenerAction, this)
+        }
 
-        //     const eventString = (inputEvent == PointerEvents.POINTER_DOWN_LEFT || inputEvent == PointerEvents.POINTER_DOWN_RIGHT) ? 'pointerdown' : inputEvent
-        //     // this._refObj.off()
-        //     scene.events.off(eventString, this._actionMap.get(inputEvent)?.func, this)
-        //     this._actionMap.delete(inputEvent)
-
-        //     if (!callback) return
-        //     this.setInteractive()
-
-        //     // Left/right click both use the 'pointerdown' event, so to differentiate the handler
-        //     // func has to check button down type before processing.
-        //     let pointerCondition = (...args: any[]) => false
-
-        //     if (inputEvent == PointerEvents.POINTER_DOWN_LEFT) {
-        //         pointerCondition = (pointer: Phaser.Input.Pointer) => !pointer.leftButtonDown()
-        //     } else if (inputEvent == PointerEvents.POINTER_DOWN_RIGHT) {
-        //         pointerCondition = (pointer: Phaser.Input.Pointer) => !pointer.rightButtonDown()
-        //     }
-
-        //     const func = (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: any) => {
-        //         if (paused || pointerCondition(pointer)) return
-        //         const eventPoint = getGamePoint({
-        //             x: localX,
-        //             y: localY
-        //         })
-        //         callback(eventPoint.x, eventPoint.y)
-        //     }
-
-        //     this._actionMap.set(inputEvent, { event: eventString, func })
-        //     scene.events.on(eventString, func, this)
-        //     // this._refObj.on(eventString, func, this)
-        //     console.log(this._actionMap)
-        //     console.log(scene.events.listeners(eventString))
-        // }
-
-        // _replacePointerListener(inputEvent: string, callback: PointerAction) {
-        //     if (!this._refObj) return
-            
-        //     // TODO: Set up custom event emitters, probably from core/game loop
-        //     // May not need map anymore..?
-
-        //     // this._refObj.off()
-        //     if (this._refObj.off(inputEvent, this._actionMap.get(inputEvent), this))
-        //         console.log('removed listener')
-
-        //     if (!callback) return
-        //     this.setInteractive()
-
-        //     const func = (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: any) => {
-        //         if (paused) return
-        //         const eventPoint = getGamePoint({
-        //             x: localX,
-        //             y: localY
-        //         })
-        //         callback(eventPoint.x, eventPoint.y)
-        //     }
-        //     this._refObj.on(inputEvent, func, this)
-        //     this._actionMap.set(inputEvent, func)
-        //     // scene.events.on(inputEvent, func, this)
-        //     // console.log(this._actionMap)
-        //     // console.log(scene.events.listeners(eventString))
-        // }
-
-        // _removeListener(inputEvent: string, callback: PointerAction) {
-        //     if (!this._refObj) return
-        // }
+        _getUserAction(eventName: string) {
+            return this._eventActions.get(eventName)?.userAction
+        }
     }
 }
 
