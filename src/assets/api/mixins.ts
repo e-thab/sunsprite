@@ -537,7 +537,6 @@ export function Viewable<Base extends Class>(base: Base) {
     }
 }
 
-type PhaserPointerAction = (pointer: any, localX: number, localY: number, event: any) => void // -- args from pointer event callbacks
 type PointerAction = ((x: number, y: number) => void) | (() => void) | undefined
 
 enum CursorType {
@@ -681,55 +680,15 @@ export const interactableApi = [
     resetCursor(): void`,
 ].join('\n')
 
-function convertedPointerAction(pointerAction: PointerAction): PhaserPointerAction | undefined {
-    return pointerAction ? (pointer: Phaser.Input.Pointer, eventX: number, eventY: number, ...rest: any[]) => {
-        if (paused) return
-        const { x, y } = getGamePoint({
-            x: eventX,
-            y: eventY
-        })
-        pointerAction(x, y)
-    } : undefined
-}
-
-/**
- * Stores references to both the user-defined PointerAction (what the user passes to Obj.onEvent prop)
- * and the phaser-converted function that's actually passed to the behind-the-scenes refObj.on()
- * TODO: finish implementing
- */
-type ActionStore = {
-    userAction: PointerAction,
-    listenerAction?: PhaserPointerAction
-}
-
 export function Interactable<Base extends Class>(base: Base) {
     return class Interactable extends base {
         // TODO (Interactable):
         // - more input events (double click, right click, scroll, mousemove...)
         // - drag cursor
         // - look into context menu interrupting, i.e. right click while dragging doesn't end drag (should it? should i just disable canvas context menu)
-
-        _eventActions: Map<string, ActionStore> = new Map()
-
         _refObj?: any
+        _eventActions: Map<string, PointerAction> = new Map()
         _cursor?: Cursor
-
-        // _onClick?: PointerAction
-        // _onRelease?: PointerAction
-
-        // _onRightClick?: PointerAction
-        // _onRightRelease?: PointerAction
-
-        // _onLeftClick?: PointerAction
-        // _onLeftRelease?: PointerAction
-
-        // _onMouseEnter?: PointerAction
-        // _onMouseExit?: PointerAction
-
-        // _onDrag?: PointerAction
-        // _onDragStart?: PointerAction
-        // _onDragEnd?: PointerAction
-        
         _draggable: boolean = false
         isInteractive: boolean = false
         
@@ -758,33 +717,81 @@ export function Interactable<Base extends Class>(base: Base) {
             if (props?.onDragStart) this.onDragStart = props.onDragStart
             if (props?.onDragEnd) this.onDragEnd = props.onDragEnd
 
+            if (!('x' in this && 'y' in this)) return
+
+            // Capturing Phaser events here and emitting them as custom events for easier control
+            // over sent params + auto converting pointer coords
+            const getCenterOffset = (pointer: Phaser.Input.Pointer) => {
+                return {
+                    x: pointer.x - this._refObj.getCenter().x,
+                    y: -(pointer.y - this._refObj.getCenter().y)
+                }
+            }
+
             // Emit custom left/right click events
-            this._refObj?.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            this._refObj?.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                const { x, y } = getCenterOffset(pointer)
                 if (pointer.leftButtonDown()) {
-                    this._refObj.emit(PointerEvents.POINTER_DOWN_LEFT)
+                    this._refObj.emit(PointerEvents.POINTER_DOWN_LEFT, x, y)
                 }
                 if (pointer.rightButtonDown()) {
-                    this._refObj.emit(PointerEvents.POINTER_DOWN_RIGHT)
+                    this._refObj.emit(PointerEvents.POINTER_DOWN_RIGHT, x, y)
                 }
+                this._refObj.emit(PointerEvents.POINTER_DOWN, x, y)
             })
             
             // Emit custom left/right release events
-            this._refObj?.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+            this._refObj?.on(Phaser.Input.Events.POINTER_UP, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                const { x, y } = getCenterOffset(pointer)
                 if (pointer.leftButtonReleased()) {
-                    this._refObj.emit(PointerEvents.POINTER_UP_LEFT)
+                    this._refObj.emit(PointerEvents.POINTER_UP_LEFT, x, y)
                 }
                 if (pointer.rightButtonReleased()) {
-                    this._refObj.emit(PointerEvents.POINTER_UP_RIGHT)
+                    this._refObj.emit(PointerEvents.POINTER_UP_RIGHT, x, y)
                 }
+                this._refObj.emit(PointerEvents.POINTER_UP, x, y)
+            })
+
+            // Custom drag event
+            // Note: In the listener for drag events, the x and y args sent to the callback represent
+            // a calculated position using the offset of the pointer to the object origin when initially
+            // starting the drag. i.e. the arguments are provided as
+            // x = pointerX - initialPointerOffsetX
+            // y = pointerY - initialPointerOffsetY
+            this._refObj?.on(Phaser.Input.Events.DRAG, (pointer: Phaser.Input.Pointer, localX: number, localY: number, ...rest: any[]) => {
+                const { x, y } = getGamePoint({ x: localX, y: localY })
+                this._refObj.emit(PointerEvents.DRAG, x, y)
+            })
+
+            // Custom drag start event
+            this._refObj?.on(Phaser.Input.Events.DRAG_START, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                const { x, y } = getCenterOffset(pointer)
+                this._refObj.emit(PointerEvents.DRAG_START, x, y)
+            })
+
+            // Custom drag end event
+            this._refObj?.on(Phaser.Input.Events.DRAG_END, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                const { x, y } = getCenterOffset(pointer)
+                this._refObj.emit(PointerEvents.DRAG_END, x, y)
+            })
+
+            // Custom pointer over / mouse enter event
+            this._refObj?.on(Phaser.Input.Events.POINTER_OVER, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                const { x, y } = getCenterOffset(pointer)
+                this._refObj.emit(PointerEvents.POINTER_OVER, x, y)
+            })
+
+            // Custom pointer out / mouse exit event
+            this._refObj?.on(Phaser.Input.Events.POINTER_OUT, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                const { x, y } = getCenterOffset(pointer)
+                this._refObj.emit(PointerEvents.POINTER_OUT, x, y)
             })
 
             // Default drag event that gets replaced once user assigns their own
-            if ('x' in this && 'y' in this) {
-                this._replacePointerListener(Phaser.Input.Events.GAMEOBJECT_DRAG, (x, y) => {
-                    this.x = x
-                    this.y = y
-                })
-            }
+            this._replacePointerListener(PointerEvents.DRAG, (x, y) => {
+                this.x = x
+                this.y = y
+            })
         }
 
         get cursor(): Cursor {
@@ -826,20 +833,20 @@ export function Interactable<Base extends Class>(base: Base) {
 
         /** Captures any pointer down event, either left or right mouse button. */
         get onClick(): PointerAction {
-            return this._getUserAction(Phaser.Input.Events.POINTER_DOWN)
+            return this._getUserAction(PointerEvents.POINTER_DOWN)
         }
         set onClick(onClick: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(Phaser.Input.Events.POINTER_DOWN, onClick)
+            this._replacePointerListener(PointerEvents.POINTER_DOWN, onClick)
         }
 
         /** Captures any pointer release event, either left or right mouse button. */
         get onRelease(): PointerAction {
-            return this._getUserAction(Phaser.Input.Events.POINTER_UP)
+            return this._getUserAction(PointerEvents.POINTER_UP)
         }
         set onRelease(onRelease: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(Phaser.Input.Events.POINTER_UP, onRelease)
+            this._replacePointerListener(PointerEvents.POINTER_UP, onRelease)
         }
 
         /** Captures only left button press. */
@@ -880,50 +887,46 @@ export function Interactable<Base extends Class>(base: Base) {
 
         /** Captures the pointer entering the object. */
         get onMouseEnter(): PointerAction {
-            return this._getUserAction(Phaser.Input.Events.POINTER_OVER)
+            return this._getUserAction(PointerEvents.POINTER_OVER)
         }
         set onMouseEnter(onMouseEnter: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(Phaser.Input.Events.POINTER_OVER, onMouseEnter)
+            this._replacePointerListener(PointerEvents.POINTER_OVER, onMouseEnter)
         }
 
         /** Captures the pointer exiting the object. */
         get onMouseExit(): PointerAction {
-            return this._getUserAction(Phaser.Input.Events.POINTER_OUT)
+            return this._getUserAction(PointerEvents.POINTER_OUT)
         }
         set onMouseExit(onMouseExit: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(Phaser.Input.Events.POINTER_OUT, onMouseExit)
+            this._replacePointerListener(PointerEvents.POINTER_OUT, onMouseExit)
         }
 
         /** Captures the pointer dragging the object. */
         get onDrag(): PointerAction {
-            // Note: In the listener for drag events, the x and y variables sent to the callback represent
-            // a calculated position using the offset of the pointer to the object origin when initially
-            // starting the drag. i.e. the arguments are provided as
-            // x = pointerX - initialPointerOffsetX
-            // y = pointerY - initialPointerOffsetY
-            return this._getUserAction(Phaser.Input.Events.GAMEOBJECT_DRAG)
+            return this._getUserAction(PointerEvents.DRAG)
         }
         set onDrag(onDrag: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(Phaser.Input.Events.GAMEOBJECT_DRAG, onDrag)
+            this._replacePointerListener(PointerEvents.DRAG, onDrag)
         }
 
+        // Note: In the listeners for drag start and end, x and y args
         get onDragStart(): PointerAction {
-            return this._getUserAction(Phaser.Input.Events.GAMEOBJECT_DRAG_START)
+            return this._getUserAction(PointerEvents.DRAG_START)
         }
         set onDragStart(onDragStart: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(Phaser.Input.Events.GAMEOBJECT_DRAG_START, onDragStart)
+            this._replacePointerListener(PointerEvents.DRAG_START, onDragStart)
         }
 
         get onDragEnd(): PointerAction {
-            return this._getUserAction(Phaser.Input.Events.GAMEOBJECT_DRAG_END)
+            return this._getUserAction(PointerEvents.DRAG_END)
         }
         set onDragEnd(onDragEnd: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(Phaser.Input.Events.GAMEOBJECT_DRAG_END, onDragEnd)
+            this._replacePointerListener(PointerEvents.DRAG_END, onDragEnd)
         }
 
         get draggable(): boolean {
@@ -967,24 +970,23 @@ export function Interactable<Base extends Class>(base: Base) {
          * @param eventName The name of the event to replace.
          * @param userAction The new callback function.
          */
-        _replacePointerListener(eventName: string, userAction: PointerAction) {
+        _replacePointerListener(eventName: string, userAction?: PointerAction) {
             if (!this._refObj) return
 
             if (this._eventActions.get(eventName)) {
-                this._refObj.off(eventName, this._eventActions.get(eventName)?.listenerAction, this)
+                this._refObj.off(eventName, this._eventActions.get(eventName), this)
             }
-            
-            const listenerAction = convertedPointerAction(userAction)
-            if (listenerAction) {
-                this._eventActions.set(eventName, { userAction, listenerAction })
+
+            if (userAction) {
+                this._eventActions.set(eventName, userAction)
             } else {
                 this._eventActions.delete(eventName)
             }
-            this._refObj.on(eventName, listenerAction, this)
+            this._refObj.on(eventName, userAction, this)
         }
 
         _getUserAction(eventName: string) {
-            return this._eventActions.get(eventName)?.userAction
+            return this._eventActions.get(eventName)
         }
     }
 }

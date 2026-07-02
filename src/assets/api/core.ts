@@ -54,10 +54,24 @@ let _keyHoldActions: Map<string, Action | undefined> = new Map()
 
 // Maybe these will be user-accessible at some point?
 export const PointerEvents = {
-	POINTER_DOWN_LEFT: 'pointerdown-left',
-	POINTER_DOWN_RIGHT: 'pointerdown-right',
-	POINTER_UP_LEFT: 'pointerup-left',
-	POINTER_UP_RIGHT: 'pointerup-right',
+	// POINTER_DOWN: Phaser.Input.Events.POINTER_DOWN,
+	// POINTER_UP: Phaser.Input.Events.POINTER_UP,
+	// POINTER_OVER: Phaser.Input.Events.POINTER_OVER,
+	// POINTER_OUT: Phaser.Input.Events.POINTER_OUT,
+	// GAMEOBJECT_DRAG: Phaser.Input.Events.GAMEOBJECT_DRAG,
+	// GAMEOBJECT_DRAG_START: Phaser.Input.Events.GAMEOBJECT_DRAG_START,
+	// GAMEOBJECT_DRAG_END: Phaser.Input.Events.GAMEOBJECT_DRAG_END,
+	DRAG: 'sunsprite-drag',
+	DRAG_END: 'sunsprite-dragend',
+	DRAG_START: 'sunsprite-dragstart',
+	POINTER_DOWN: 'sunsprite-pointerdown',
+	POINTER_DOWN_LEFT: 'sunsprite-pointerdown-left',
+	POINTER_DOWN_RIGHT: 'sunsprite-pointerdown-right',
+	POINTER_OUT: 'sunsprite-pointerout',
+	POINTER_OVER: 'sunsprite-pointerover',
+	POINTER_UP: 'sunsprite-pointerup',
+	POINTER_UP_LEFT: 'sunsprite-pointerup-left',
+	POINTER_UP_RIGHT: 'sunsprite-pointerup-right',
 }
 
 export function getNextObjectId(): string {
