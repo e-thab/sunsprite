@@ -67,11 +67,13 @@ export const PointerEvents = {
 	POINTER_DOWN: 'sunsprite-pointerdown',
 	POINTER_DOWN_LEFT: 'sunsprite-pointerdown-left',
 	POINTER_DOWN_RIGHT: 'sunsprite-pointerdown-right',
+	POINTER_MOVE: 'sunsprite-pointermove',
 	POINTER_OUT: 'sunsprite-pointerout',
 	POINTER_OVER: 'sunsprite-pointerover',
 	POINTER_UP: 'sunsprite-pointerup',
 	POINTER_UP_LEFT: 'sunsprite-pointerup-left',
 	POINTER_UP_RIGHT: 'sunsprite-pointerup-right',
+	POINTER_WHEEL: 'sunsprite-pointerwheel',
 }
 
 export function getNextObjectId(): string {
@@ -520,6 +522,9 @@ class UserScene extends Scene {
 		_frame = 0
 		_nextObjectId = 0
 
+		_keyPressActions.clear()
+		_keyHoldActions.clear()
+		_keyReleaseActions.clear()
 		_propUpdaters.clear()
 		
 		// this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {

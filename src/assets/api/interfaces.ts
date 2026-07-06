@@ -6,6 +6,7 @@ import type { Point } from "./Point"
 export type Action = (...args: any[]) => void
 export type Predicate = (...args: any[]) => boolean
 export type Returnable<T> = T | (() => T)
+export type Optional<T> = T | undefined | null
 
 export interface Touchable {
 	left: number
@@ -98,9 +99,34 @@ const keys = [
 ] as const
 
 type InputKey = typeof keys[number]
-
 export type KeyAction = {
 	[key in InputKey]?: Action
+}
+
+const mouseEvents = [
+	'CLICK', 'Click', 'click',
+	'RELEASE', 'Release', 'release',
+
+	'LEFT_CLICK', 'Left_Click', 'left_click',
+	'LEFT_RELEASE', 'Left_Release', 'left_release',
+
+	'RIGHT_CLICK',
+	'RIGHT_RELEASE',
+
+	'ENTER',
+	'EXIT',
+
+	'DRAG',
+	'DRAG_START',
+	'DRAG_END',
+
+	'SCROLL',
+	'MOVE',
+] as const
+
+type MouseEvent = typeof mouseEvents[number]
+export type MouseAction = {
+	[key in MouseEvent]?: Action
 }
 
 export class Mouse {

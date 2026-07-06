@@ -6,7 +6,7 @@ import { pointFrom, type Point, type PointArg } from "./Point"
 import { screen, camera, timer, paused, getGamePoint, game, scene, PointerEvents } from "./core"
 
 import Phaser from "phaser"
-import type { Action } from "./interfaces"
+import type { Action, MouseAction, Optional } from "./interfaces"
 
 type Class<T = {}> = new (...args: any[]) => T
 
@@ -68,9 +68,13 @@ const propDescription: Record<keyof GameObjectProps, string> = {
 
     onMouseEnter: `Register a function to run when the mouse first starts overlapping this object.`,
     onMouseExit: `Register a function to run when the mouse first stops overlapping this object.`,
+    onMouseMove: `Register a function to run when the mouse moves while overlapping over this object.`,
+
     onDrag: `Register a function to run repeatedly while this object is being dragged.`,
     onDragStart: `Register a function to run when this object first starts being dragged.`,
     onDragEnd: `Register a function to run when this object first stops being dragged.`,
+
+	onScroll: `Register a function to run when scrolling while hoevering over this object.`
 }
 
 export type PositionableProps = {
@@ -537,7 +541,7 @@ export function Viewable<Base extends Class>(base: Base) {
     }
 }
 
-type PointerAction = ((x: number, y: number) => void) | (() => void) | undefined
+type PointerAction = ((x: number, y: number) => void) | (() => void)
 
 enum CursorType {
     AUTO = 'auto',
@@ -549,12 +553,10 @@ enum CursorType {
     // ETC = 'etc',
 }
 
-type Cursor = {
+type Cursor = Optional<{
     src: string,
     type?: CursorType | 'auto' | 'default' | 'none' | 'context-menu' | 'help' | 'pointer' | 'progress' | 'wait' | 'cell' | 'crosshair' | 'text' | 'vertical-text' | 'copy' | 'move' | 'no-drop' | 'not-allowed' | 'grab' | 'grabbing' | 'all-scroll' | 'col-resize' | 'row-resize' | 'n-resize' | 'e-resize' | 's-resize' | 'w-resize' | 'ne-resize' | 'nw-resize' | 'se-resize' | 'sw-resize' | 'ew-resize' | 'ns-resize' // ...TODO
-} | undefined | null
-
-// const cursorApiString = '{  }'
+}>
 
 export type InteractableProps = {
     draggable?: boolean
@@ -567,9 +569,11 @@ export type InteractableProps = {
     onRightRelease?: PointerAction
     onMouseEnter?: PointerAction
     onMouseExit?: PointerAction
+	onMouseMove?: PointerAction
     onDrag?: PointerAction
     onDragStart?: PointerAction
     onDragEnd?: PointerAction
+	onScroll?: PointerAction
 }
 export const interactablePropsTypeDef = `
 declare type PointerAction = (
@@ -578,7 +582,15 @@ declare type PointerAction = (
      * @param y The y position of the mouse during the click.
      */
     (x: number, y: number) => void
-) | undefined | null
+)
+
+declare type ScrollAction = (
+    /**
+     * @param x The horizontal distance scrolled.
+     * @param y The vertical distance scrolled.
+     */
+    (x: number, y: number) => void
+)
 
 declare enum CursorType {
     AUTO = 'auto',
@@ -625,6 +637,9 @@ declare type InteractableProps = {
     /** ${propDescription.onMouseExit} */
     onMouseExit?: PointerAction
 
+	/** ${propDescription.onMouseMove} */
+    onMouseMove?: PointerAction
+
     /** ${propDescription.onDrag} */
     onDrag?: PointerAction
 
@@ -633,6 +648,9 @@ declare type InteractableProps = {
 
     /** ${propDescription.onDragEnd} */
     onDragEnd?: PointerAction
+
+	/** ${propDescription.onScroll} */
+    onScroll?: PointerAction
 }`
 export const interactableApi = [
     // Props
@@ -643,37 +661,43 @@ export const interactableApi = [
     cursor: Cursor`,
 
     `/** ${propDescription.onClick} */
-    onClick: PointerAction`,
+    onClick(func?: PointerAction): void`,
 
     `/** ${propDescription.onRelease} */
-    onRelease: PointerAction`,
+    onRelease(func?: PointerAction): void`,
 
     `/** ${propDescription.onLeftClick} */
-    onLeftClick: PointerAction`,
+    onLeftClick(func?: PointerAction): void`,
 
     `/** ${propDescription.onLeftRelease} */
-    onLeftRelease: PointerAction`,
+    onLeftRelease(func?: PointerAction): void`,
 
     `/** ${propDescription.onRightClick} */
-    onRightClick: PointerAction`,
+    onRightClick(func?: PointerAction): void`,
 
     `/** ${propDescription.onRightRelease} */
-    onRightRelease: PointerAction`,
+    onRightRelease(func?: PointerAction): void`,
 
     `/** ${propDescription.onMouseEnter} */
-    onMouseEnter: PointerAction`,
+    onMouseEnter(func?: PointerAction): void`,
 
     `/** ${propDescription.onMouseExit} */
-    onMouseExit: PointerAction`,
+    onMouseExit(func?: PointerAction): void`,
+
+	`/** ${propDescription.onMouseMove} */
+    onMouseMove(func?: PointerAction): void`,
 
     `/** ${propDescription.onDrag} */
-    onDrag: PointerAction`,
+    onDrag(func?: PointerAction): void`,
 
     `/** ${propDescription.onDragStart} */
-    onDragStart: PointerAction`,
+    onDragStart(func?: PointerAction): void`,
 
     `/** ${propDescription.onDragEnd} */
-    onDragEnd: PointerAction`,
+    onDragEnd(func?: PointerAction): void`,
+
+	`/** ${propDescription.onScroll} */
+    onScroll(func?: ScrollAction): void`,
 
     // Methods
     `/** Set this object's hover cursor back to the default pointer. */
@@ -698,25 +722,26 @@ export function Interactable<Base extends Class>(base: Base) {
 
         initInteractable(props?: GameObjectProps) {
             if (props?.draggable) this.draggable = props.draggable
-            this.setInteractive()
+            this._setInteractive()
             if (props?.cursor) this.cursor = props.cursor
 
-            if (props?.onClick) this.onClick = props.onClick
-            if (props?.onRelease) this.onRelease = props.onRelease
+            if (props?.onClick) this.onClick(props.onClick)
+            if (props?.onRelease) this.onRelease(props.onRelease)
 
-            if (props?.onLeftClick) this.onLeftClick = props.onLeftClick
-            if (props?.onLeftRelease) this.onLeftRelease = props.onLeftRelease
+            if (props?.onLeftClick) this.onLeftClick(props.onLeftClick)
+            if (props?.onLeftRelease) this.onLeftRelease(props.onLeftRelease)
 
-            if (props?.onRightClick) this.onRightClick = props.onRightClick
-            if (props?.onRightRelease) this.onRightRelease = props.onRightRelease
+            if (props?.onRightClick) this.onRightClick(props.onRightClick)
+            if (props?.onRightRelease) this.onRightRelease(props.onRightRelease)
 
-            if (props?.onMouseEnter) this.onMouseEnter = props.onMouseEnter
-            if (props?.onMouseExit) this.onMouseExit = props.onMouseExit
+            if (props?.onMouseEnter) this.onMouseEnter(props.onMouseEnter)
+            if (props?.onMouseExit) this.onMouseExit(props.onMouseExit)
 
-            if (props?.onDrag) this.onDrag = props.onDrag
-            if (props?.onDragStart) this.onDragStart = props.onDragStart
-            if (props?.onDragEnd) this.onDragEnd = props.onDragEnd
-
+            if (props?.onDrag) this.onDrag(props.onDrag)
+            if (props?.onDragStart) this.onDragStart(props.onDragStart)
+            if (props?.onDragEnd) this.onDragEnd(props.onDragEnd)
+            if (props?.onScroll) this.onScroll(props.onScroll)
+            
             if (!('x' in this && 'y' in this)) return
 
             // Capturing Phaser events here and emitting them as custom events for easier control
@@ -753,12 +778,12 @@ export function Interactable<Base extends Class>(base: Base) {
             })
 
             // Custom drag event
-            // Note: In the listener for drag events, the x and y args sent to the callback represent
-            // a calculated position using the offset of the pointer to the object origin when initially
-            // starting the drag. i.e. the arguments are provided as
-            // x = pointerX - initialPointerOffsetX
-            // y = pointerY - initialPointerOffsetY
             this._refObj?.on(Phaser.Input.Events.DRAG, (pointer: Phaser.Input.Pointer, localX: number, localY: number, ...rest: any[]) => {
+                // Note: In the listener for drag events, the x and y args sent to the callback represent
+                // a calculated position using the offset of the pointer to the object origin when initially
+                // starting the drag. i.e. the arguments are provided as
+                // x = pointerX - initialPointerOffsetX
+                // y = pointerY - initialPointerOffsetY
                 const { x, y } = getGamePoint({ x: localX, y: localY })
                 this._refObj.emit(PointerEvents.DRAG, x, y)
             })
@@ -787,8 +812,19 @@ export function Interactable<Base extends Class>(base: Base) {
                 this._refObj.emit(PointerEvents.POINTER_OUT, x, y)
             })
 
+			this._refObj?.on(Phaser.Input.Events.POINTER_MOVE, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                const { x, y } = getCenterOffset(pointer)
+				this._refObj.emit(PointerEvents.POINTER_MOVE, x, y)
+			})
+
+            // Custom scroll event
+            this._refObj?.on(Phaser.Input.Events.POINTER_WHEEL, (pointer: Phaser.Input.Pointer, deltaX: number, deltaY: number, deltaZ: number, ...rest: any[]) => {
+				// deltaZ..?
+                this._refObj.emit(PointerEvents.POINTER_WHEEL, deltaX, deltaY)
+            })
+
             // Default drag event that gets replaced once user assigns their own
-            this._replacePointerListener(PointerEvents.DRAG, (x, y) => {
+            this.onDrag((x, y) => {
                 this.x = x
                 this.y = y
             })
@@ -831,103 +867,145 @@ export function Interactable<Base extends Class>(base: Base) {
             this._refObj.input.cursor = `${url} ${offset}, ${cursorObj.type}`
         }
 
+		/**
+		 * TEST SCRIPT (temp)
+		const card = new Sprite({
+			src: './images/cards/joker_red.png',
+			cursor: 'dot.cur',
+			draggable: true
+		})
+		// card.draggable = true
+
+		card.onClick((x, y) => print(`click1: (${x}, ${y})`))
+		// card.onClick = (x, y) => print(`click: (${x}, ${y})`)
+
+		// card.onRelease = (x, y) => print(`rel1: (${x}, ${y})`)
+		// card.onRelease = (x, y) => print(`rel: (${x}, ${y})`)
+
+		card.onLeftClick((x, y) => print(`Lclick1: (${x}, ${y})`))
+		card.onLeftClick((x, y) => print(`Lclick: (${x}, ${y})`))
+
+		card.onLeftRelease((x, y) => print(`Lrel1: (${x}, ${y})`))
+		card.onLeftRelease((x, y) => print(`Lrel: (${x}, ${y})`))
+
+		card.onRightClick((x, y) => print(`Rclick1: (${x}, ${y})`))
+		card.onRightClick((x, y) => print(`Rclick: (${x}, ${y})`))
+
+		card.onRightRelease((x, y) => print(`Rrel1: (${x}, ${y})`))
+		card.onRightRelease((x, y) => print(`Rrel: (${x}, ${y})`))
+
+		card.onMouseEnter((x, y) => print(`enter1: (${x}, ${y})`))
+		card.onMouseEnter((x, y) => print(`enter: (${x}, ${y})`))
+
+		card.onMouseExit((x, y) => print(`exit1: (${x}, ${y})`))
+		card.onMouseExit((x, y) => print(`exit: (${x}, ${y})`))
+
+		// card.onMouseMove((x, y) => print(`move: (${x}, ${y})`))
+		card.onScroll((x, y) => print(`scroll: (${x}, ${y})`))
+
+		// card.onDragStart = (x, y) => {
+		//     card.pos = { x, y }
+		//     print(`(${x}, ${y})`)
+		// }
+		// card.onDragEnd = (x, y) => {
+		// //     // card.pos = { x, y }
+		//     print(`(${x}, ${y})`)
+		// }
+		// card.onDrag = (x, y) => print(`onDrag-1 (${x}, ${y})`)
+		// card.onDrag = (x, y) => {
+			// card.pos = { x, y }
+			// print(`(${x}, ${y})`)
+		// }
+
+		onKeyPress({
+			SPACE: () => card.draggable = !card.draggable,
+			F: () => card.onClick()
+		})
+		 */
+
+		/** Generalized dict function for assigning to multiple events at once. */
+		onMouse(actions?: MouseAction) {
+			// TODO
+		}
+
         /** Captures any pointer down event, either left or right mouse button. */
-        get onClick(): PointerAction {
-            return this._getUserAction(PointerEvents.POINTER_DOWN)
-        }
-        set onClick(onClick: PointerAction) {
+        onClick(action?: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.POINTER_DOWN, onClick)
+            this._replacePointerListener(PointerEvents.POINTER_DOWN, action)
         }
 
         /** Captures any pointer release event, either left or right mouse button. */
-        get onRelease(): PointerAction {
-            return this._getUserAction(PointerEvents.POINTER_UP)
-        }
-        set onRelease(onRelease: PointerAction) {
+        onRelease(action?: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.POINTER_UP, onRelease)
+            this._replacePointerListener(PointerEvents.POINTER_UP, action)
         }
 
         /** Captures only left button press. */
-        get onLeftClick(): PointerAction {
-            return this._getUserAction(PointerEvents.POINTER_DOWN_LEFT)
-        }
-        set onLeftClick(onLeftClick: PointerAction) {
+        onLeftClick(action?: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.POINTER_DOWN_LEFT, onLeftClick)
+            this._replacePointerListener(PointerEvents.POINTER_DOWN_LEFT, action)
         }
         
         /** Captures only left button release. */
-        get onLeftRelease(): PointerAction {
-            return this._getUserAction(PointerEvents.POINTER_UP_LEFT)
-        }
-        set onLeftRelease(onLeftRelease: PointerAction) {
+        onLeftRelease(action?: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.POINTER_UP_LEFT, onLeftRelease)
+            this._replacePointerListener(PointerEvents.POINTER_UP_LEFT, action)
         }
 
         /** Captures only right button press. */
-        get onRightClick(): PointerAction {
-            return this._getUserAction(PointerEvents.POINTER_DOWN_RIGHT)
-        }
-        set onRightClick(onRightClick: PointerAction) {
+        onRightClick(action?: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.POINTER_DOWN_RIGHT, onRightClick)
+            this._replacePointerListener(PointerEvents.POINTER_DOWN_RIGHT, action)
         }
 
         /** Captures only right button release. */
-        get onRightRelease(): PointerAction {
-            return this._getUserAction(PointerEvents.POINTER_UP_RIGHT)
-        }
-        set onRightRelease(onRightRelease: PointerAction) {
+        onRightRelease(action?: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.POINTER_UP_RIGHT, onRightRelease)
+            this._replacePointerListener(PointerEvents.POINTER_UP_RIGHT, action)
         }
 
         /** Captures the pointer entering the object. */
-        get onMouseEnter(): PointerAction {
-            return this._getUserAction(PointerEvents.POINTER_OVER)
-        }
-        set onMouseEnter(onMouseEnter: PointerAction) {
+        onMouseEnter(action?: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.POINTER_OVER, onMouseEnter)
+            this._replacePointerListener(PointerEvents.POINTER_OVER, action)
         }
 
         /** Captures the pointer exiting the object. */
-        get onMouseExit(): PointerAction {
-            return this._getUserAction(PointerEvents.POINTER_OUT)
-        }
-        set onMouseExit(onMouseExit: PointerAction) {
+        onMouseExit(action?: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.POINTER_OUT, onMouseExit)
+            this._replacePointerListener(PointerEvents.POINTER_OUT, action)
         }
 
         /** Captures the pointer dragging the object. */
-        get onDrag(): PointerAction {
-            return this._getUserAction(PointerEvents.DRAG)
-        }
-        set onDrag(onDrag: PointerAction) {
+        onDrag(action?: PointerAction) {
             if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.DRAG, onDrag)
+            this._replacePointerListener(PointerEvents.DRAG, action)
         }
 
-        // Note: In the listeners for drag start and end, x and y args
-        get onDragStart(): PointerAction {
-            return this._getUserAction(PointerEvents.DRAG_START)
-        }
-        set onDragStart(onDragStart: PointerAction) {
+		/** Captures the beginning of the drag event. */
+        onDragStart(action?: PointerAction) {
+			// Note: In the listeners for drag start and end, x and y args are not the same as
+			// the x and y args passed during drag
             if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.DRAG_START, onDragStart)
+            this._replacePointerListener(PointerEvents.DRAG_START, action)
         }
+		
+		/** Captures the end of the drag event. */
+        onDragEnd(action?: PointerAction) {
+            if (!this._refObj) return
+            this._replacePointerListener(PointerEvents.DRAG_END, action)
+        }
+		
+		/** Captures scroll events while hovering over this object. */
+		onScroll(action?: PointerAction) {
+            if (!this._refObj) return
+            this._replacePointerListener(PointerEvents.POINTER_WHEEL, action)
+		}
 
-        get onDragEnd(): PointerAction {
-            return this._getUserAction(PointerEvents.DRAG_END)
-        }
-        set onDragEnd(onDragEnd: PointerAction) {
-            if (!this._refObj) return
-            this._replacePointerListener(PointerEvents.DRAG_END, onDragEnd)
-        }
+		onMouseMove(action?: PointerAction) {
+			if (!this._refObj) return
+			this._replacePointerListener(PointerEvents.POINTER_MOVE, action)
+		}
 
         get draggable(): boolean {
             return this._draggable
@@ -937,7 +1015,7 @@ export function Interactable<Base extends Class>(base: Base) {
             if (draggable === this._draggable) return
             
             this._draggable = draggable
-            this.setInteractive()
+            this._setInteractive()
             // scene.input.setDraggable(this._refObj, draggable)
         }
         
@@ -945,7 +1023,7 @@ export function Interactable<Base extends Class>(base: Base) {
             this.cursor = 'default'
         }
         
-        setInteractive() {
+        _setInteractive() {
             // Set's phaser object's interactive state if it isn't already
             if (!this._refObj) return
             
@@ -956,7 +1034,7 @@ export function Interactable<Base extends Class>(base: Base) {
             scene.input.setDraggable(this._refObj, this._draggable)
         }
 
-        disableInteractive() {
+        _disableInteractive() {
             if (!this._refObj) return
             
             if (this.isInteractive) {
@@ -979,14 +1057,10 @@ export function Interactable<Base extends Class>(base: Base) {
 
             if (userAction) {
                 this._eventActions.set(eventName, userAction)
+				this._refObj.on(eventName, userAction, this)
             } else {
                 this._eventActions.delete(eventName)
             }
-            this._refObj.on(eventName, userAction, this)
-        }
-
-        _getUserAction(eventName: string) {
-            return this._eventActions.get(eventName)
         }
     }
 }
