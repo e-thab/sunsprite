@@ -8,6 +8,8 @@ export type Predicate = (...args: any[]) => boolean
 export type Returnable<T> = T | (() => T)
 export type Optional<T> = T | undefined | null
 
+export type PointerAction = ((x: number, y: number) => void) | (() => void)
+
 export interface Touchable {
 	left: number
 	right: number
@@ -98,54 +100,42 @@ const keys = [
 	'Alt', 'alt', 'ALT', 'Tab', 'tab', 'TAB', 'Esc', 'esc', 'ESC', 'Enter', 'enter', 'ENTER'
 ] as const
 
-type InputKey = typeof keys[number]
+export type InputKey = typeof keys[number]
 export type KeyAction = {
 	[key in InputKey]?: Action
 }
 
-// const mouseEvents = [
-// 	'CLICK', //'Click', 'click',
-// 	'RELEASE', //'Release', 'release',
-// 	'DOUBLE_CLICK',
+const mouseEvents = [
+	'CLICK', //'Click', 'click',
+	'RELEASE', //'Release', 'release',
+	'DOUBLE_CLICK',
 
-// 	'LEFT_CLICK', //'Left_Click', 'left_click',
-// 	'LEFT_RELEASE', //'Left_Release', 'left_release',
+	'LEFT_CLICK', //'Left_Click', 'left_click',
+	'LEFT_RELEASE', //'Left_Release', 'left_release',
 
-// 	'RIGHT_CLICK',
-// 	'RIGHT_RELEASE',
+	'RIGHT_CLICK',
+	'RIGHT_RELEASE',
 
-// 	'ENTER',
-// 	'EXIT',
+	'ENTER',
+	'EXIT',
 
-// 	'DRAG',
-// 	'DRAG_START',
-// 	'DRAG_END',
+	'DRAG',
+	'DRAG_START',
+	'DRAG_END',
 
-// 	'SCROLL',
-// 	'MOVE',
-// ] as const
+	'SCROLL',
+	'MOVE',
+] as const
 
-// type MouseEvent = typeof mouseEvents[number]
-// export type MouseAction = {
-// 	[key in MouseEvent]?: Action
-// }
-
-export type MouseAction = {
-	CLICK?: Action,
-	RELEASE?: Action,
-	DOUBLE_CLICK?: Action,
-	LEFT_CLICK?: Action,
-	LEFT_RELEASE?: Action,
-	RIGHT_CLICK?: Action,
-	RIGHT_RELEASE?: Action,
-	ENTER?: Action,
-	EXIT?: Action,
-	DRAG?: Action,
-	DRAG_START?: Action,
-	DRAG_END?: Action,
-	SCROLL?: Action,
-	MOVE?: Action,
+export type MouseInputEvent = typeof mouseEvents[number]
+export type MouseInputAction = {
+	[key in MouseInputEvent]?: Action
 }
+
+// export type MouseHoldEvent = 'LEFT' | 'RIGHT' | 'MIDDLE'
+// export type MouseHoldAction = {
+// 	[key in MouseHoldEvent]?: Action
+// }
 
 export class Mouse {
 	x: number = 0

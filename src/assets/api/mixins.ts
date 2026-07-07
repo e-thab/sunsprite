@@ -6,7 +6,7 @@ import { pointFrom, type Point, type PointArg } from "./Point"
 import { screen, camera, timer, paused, getGamePoint, game, scene, PointerEvents } from "./core"
 
 import Phaser from "phaser"
-import type { Action, MouseAction, Optional } from "./interfaces"
+import type { Action, MouseInputAction, Optional, PointerAction } from "./interfaces"
 
 type Class<T = {}> = new (...args: any[]) => T
 
@@ -544,8 +544,6 @@ export function Viewable<Base extends Class>(base: Base) {
     }
 }
 
-type PointerAction = ((x: number, y: number) => void) | (() => void)
-
 enum CursorType {
     AUTO = 'auto',
     DEFAULT = 'default',
@@ -564,7 +562,7 @@ type Cursor = Optional<{
 export type InteractableProps = {
     draggable?: boolean
     cursor?: Cursor
-    onMouse?: MouseAction
+    onMouse?: MouseInputAction
     onClick?: PointerAction
     onRelease?: PointerAction
     onDoubleClick?: PointerAction
@@ -971,7 +969,7 @@ export function Interactable<Base extends Class>(base: Base) {
 		 */
 
 		/** Generalized dict function for assigning to multiple events at once. */
-		onMouse(actions: MouseAction) {
+		onMouse(actions: MouseInputAction) {
 			if (actions.CLICK) this.onClick(actions.CLICK)
             if (actions.RELEASE) this.onRelease(actions.RELEASE)
             if (actions.DOUBLE_CLICK) this.onDoubleClick(actions.DOUBLE_CLICK)

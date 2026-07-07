@@ -1,9 +1,9 @@
 import { ref } from 'vue';
 
-import { AUTO, Game, Scene, type Types } from 'phaser';
+import { AUTO, Game, LEFT, Scene, type Types } from 'phaser';
 import Phaser from 'phaser';
 
-import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction, MouseAction } from './interfaces';
+import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent } from './interfaces';
 import { Mouse } from './interfaces'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility';
 import { type Point, type PointArg, Vector2 } from './Point'
@@ -41,7 +41,7 @@ export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 
 let _frame: number = 0 // current render frame index
 let _nextObjectId: number = 0
-let _mouseOverCanvas: boolean = false
+let _lastLeftClickTime: number = 0
 // let _ticker: Ticker = new Ticker()
 let _forevers: Action[] = []
 let _repeats: Repeatable[] = []
@@ -54,7 +54,8 @@ const _keyReleaseActions: Map<string, Action> = new Map()
 const _keyHoldActions: Map<string, Action> = new Map()
 
 // TODO
-const _mouseActions: Map<string, Action> = new Map()
+const _mouseInputActions: Map<string, PointerAction> = new Map()
+const _mouseHoldActions: Map<string, Action> = new Map()
 
 /**
  * API internal methods
@@ -65,16 +66,21 @@ export const PointerEvents = {
 	DRAG: 'sunsprite-drag',
 	DRAG_END: 'sunsprite-dragend',
 	DRAG_START: 'sunsprite-dragstart',
+	HOLD_LEFT: 'sunsprite-hold-left',
+	HOLD_RIGHT: 'sunsprite-hold-right',
+	HOLD_MIDDLE: 'sunsprite-hold-middle',
 	POINTER_DOUBLE: 'sunsprite-doubleclick',
 	POINTER_DOWN: 'sunsprite-pointerdown',
 	POINTER_DOWN_LEFT: 'sunsprite-pointerdown-left',
 	POINTER_DOWN_RIGHT: 'sunsprite-pointerdown-right',
+	POINTER_DOWN_MIDDLE: 'sunsprite-pointerdown-middle',
 	POINTER_MOVE: 'sunsprite-pointermove',
 	POINTER_OUT: 'sunsprite-pointerout',
 	POINTER_OVER: 'sunsprite-pointerover',
 	POINTER_UP: 'sunsprite-pointerup',
 	POINTER_UP_LEFT: 'sunsprite-pointerup-left',
 	POINTER_UP_RIGHT: 'sunsprite-pointerup-right',
+	POINTER_UP_MIDDLE: 'sunsprite-pointerup-middle',
 	POINTER_WHEEL: 'sunsprite-pointerwheel',
 }
 
@@ -393,16 +399,87 @@ export function onKeyPress(actions: KeyAction) {
 /* Allows cleaner input key mapping for released key behavior */
 export function onKeyRelease(actions: KeyAction) {
 	for (const [inputKey, action] of Object.entries(actions)) {
-		const actionKey = inputKey as keyof typeof actions
-		_keyReleaseActions.set(actionKey, action)
+		// const actionKey = inputKey as keyof typeof actions
+		_keyReleaseActions.set(inputKey, action)
 	}
 }
 
 /* Allows cleaner input key mapping for held key behavior */
 export function onKeyHold(actions: KeyAction) {
 	for (const [inputKey, action] of Object.entries(actions)) {
-		const actionKey = inputKey as keyof typeof actions
-		_keyHoldActions.set(actionKey, action)
+		// const actionKey = inputKey as keyof typeof actions
+		_keyHoldActions.set(inputKey, action)
+	}
+}
+
+/** TODO */
+function onMouse(actions: MouseInputAction) {
+	for (const [button, action] of Object.entries(actions)) {
+		const eventName = mouseInputEventNames[button]
+		console.log('onMouse:', button, eventName, action)
+		if (eventName) _registerMouseInputAction(eventName, action)
+	}
+}
+
+/** TODO */
+function onMouseHold(actions: MouseHoldAction) {
+	for (const [button, action] of Object.entries(actions)) {
+		// const actionButton = button as keyof typeof actions
+		// _keyPressActions.set(button, action)
+	}
+}
+
+const mouseInputEventNames: { [key: string]: string } = {
+	CLICK: PointerEvents.POINTER_DOWN,
+	DOUBLE_CLICK: PointerEvents.POINTER_DOUBLE,
+	ENTER: PointerEvents.POINTER_OVER,
+	EXIT: PointerEvents.POINTER_OUT,
+	LEFT_CLICK: PointerEvents.POINTER_DOWN_LEFT,
+	LEFT_RELEASE: PointerEvents.POINTER_UP_LEFT,
+	MIDDLE_CLICK: PointerEvents.POINTER_DOWN_MIDDLE,
+	MIDDLE_RELEASE: PointerEvents.POINTER_UP_MIDDLE,
+	MOVE: PointerEvents.POINTER_MOVE,
+	RELEASE: PointerEvents.POINTER_UP,
+	RIGHT_CLICK: PointerEvents.POINTER_DOWN_RIGHT,
+	RIGHT_RELEASE: PointerEvents.POINTER_UP_RIGHT,
+	SCROLL: PointerEvents.POINTER_WHEEL
+}
+
+const mouseHoldEventNames: { [key: string]: string } = {
+	RIGHT: PointerEvents.POINTER_DOWN_RIGHT,
+	MIDDLE: PointerEvents.POINTER_DOWN_MIDDLE,
+	LEFT: PointerEvents.HOLD_LEFT,
+}
+
+// TODO: Are these useful anymore?
+type MouseHoldEvent = 'LEFT' | 'RIGHT' | 'MIDDLE'
+type MouseHoldAction = { [key in MouseHoldEvent]?: Action }
+
+function _registerMouseInputAction(eventName: string, action?: PointerAction) {
+	print(`register: ${eventName}`)
+	if (_mouseInputActions.get(eventName)) {
+		scene.input.off(eventName, _mouseInputActions.get(eventName))
+	}
+
+	if (action) {
+		_mouseInputActions.set(eventName, action)
+		scene.input.on(eventName, action)
+	} else {
+		_mouseInputActions.delete(eventName)
+	}
+	console.log(_mouseInputActions)
+}
+
+function _registerMouseHoldAction(eventName: string, action?: PointerAction) {
+	if (_mouseHoldActions.get(eventName)) {
+		scene.input.off(eventName, _mouseHoldActions.get(eventName))
+	}
+
+	if (action) {
+		_mouseHoldActions.set(eventName, action)
+		scene.input.on(eventName, action)
+	} else {
+		_mouseHoldActions.delete(eventName)
 	}
 }
 
@@ -474,6 +551,10 @@ function clearOutput() {
 	}
 }
 
+function mouseOverCanvas() {
+	return game.canvas.matches(':hover')
+}
+
 /**
  * API utility
  */
@@ -495,21 +576,6 @@ class UserScene extends Scene {
 	}
 	
 	async create() {
-		// TEMP: testing start code
-		// const sprite = new Sprite()
-
-		// after(2000, () => print('done'))
-
-		// forever(() => {
-		// 	if (keyPressed('W')) sprite.y += 2
-		// 	if (keyPressed('A')) sprite.x -= 2
-		// 	if (keyPressed('S')) sprite.y -= 2
-		// 	if (keyPressed('D')) sprite.x += 2
-		// 	if (keyPressed('Q')) sprite.rotation -= 2
-		// 	if (keyPressed('E')) sprite.rotation += 2
-		// 	if (keyJustPressed('SPACE')) print('space')
-		// })
-		
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
 		
@@ -523,43 +589,44 @@ class UserScene extends Scene {
 		timer.frame = 0
 		_frame = 0
 		_nextObjectId = 0
+
+		/* 
+		 * Capturing Phaser pointer events
+		 */
+		// Phaser canvas pointer down event
+		this.input.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer, gameObjects: Phaser.GameObjects.GameObject[]) => {
+			if (pointer.leftButtonDown()) {
+				this.input.emit(PointerEvents.POINTER_DOWN_LEFT, mouse.x, mouse.y)
+				
+				// Double click if it's been <= 500 ms since last left click
+				if (Date.now() - _lastLeftClickTime <= 500) {
+					this.input.emit(PointerEvents.POINTER_DOUBLE, mouse.x, mouse.y)
+				}
+				_lastLeftClickTime = Date.now()
+			}
+			if (pointer.rightButtonDown()) {
+				this.input.emit(PointerEvents.POINTER_DOWN_RIGHT, mouse.x, mouse.y)
+			}
+			if (pointer.middleButtonDown()) {
+				this.input.emit(PointerEvents.POINTER_DOWN_MIDDLE, mouse.x, mouse.y)
+			}
+			this.input.emit(PointerEvents.POINTER_DOWN, mouse.x, mouse.y)
+		})
 		
-		// this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-		// 	pointer.updateWorldPoint(camera) // ..?
-		// 	mouse.x = pointer.x - screen.width / 2
-		// 	mouse.y = screen.height / 2 - pointer.y 
-		// 	mouseRef.value.mouseX = Math.round(mouse.x)
-		// 	mouseRef.value.mouseY = Math.round(mouse.y)
-		// })
-
-		// Detect if pointer is over canvas on game start
-		const pos = this.input.activePointer.position
-		_mouseOverCanvas = (pos.x >= screen.left || pos.x <= screen.right || pos.y >= screen.bottom || pos.y <= screen.top)
-
+		// Phaser canvas pointer exit event
 		this.input.on(Phaser.Input.Events.GAME_OUT, (pointer: Phaser.Input.Pointer) => {
-			_mouseOverCanvas = false
+			// _mouseOverCanvas = false
+			this.input.emit(PointerEvents.POINTER_OUT, mouse.x, mouse.y)
 		})
 
+		// Phaser canvas pointer enter event
 		this.input.on(Phaser.Input.Events.GAME_OVER, (pointer: Phaser.Input.Pointer) => {
-			_mouseOverCanvas = true
+			// _mouseOverCanvas = true
+			this.input.emit(PointerEvents.POINTER_OVER, mouse.x, mouse.y)
 		})
 
-		// TODO: canvas events
-		// this.input.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer, gameObjects: Phaser.GameObjects.GameObject[]) => {
-		// 	if (pointer.leftButtonDown()) {
-		// 		this._refObj.emit(PointerEvents.POINTER_DOWN_LEFT, x, y)
-
-		// 		// Double click if it's been <= 500 ms since last left click
-		// 		if (Date.now() - this._lastLeftClickTime <= 500) {
-		// 			this._refObj.emit(PointerEvents.POINTER_DOUBLE, x, y)
-		// 		}
-		// 		this._lastLeftClickTime = Date.now()
-		// 	}
-		// 	if (pointer.rightButtonDown()) {
-		// 		this._refObj.emit(PointerEvents.POINTER_DOWN_RIGHT, x, y)
-		// 	}
-		// 	this._refObj.emit(PointerEvents.POINTER_DOWN, x, y)
-		// })
+		// TODO: Mouse events
+		// ...
 
 		// TODO: Let users listen to these signals directly
 		// this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -619,6 +686,7 @@ class UserScene extends Scene {
 			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease,
+			onMouse,
 			print, play, pause, setBackgroundColor,
 			Random: random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
@@ -663,7 +731,7 @@ class UserScene extends Scene {
 		_clearKeysJustReleased(_frame)
 
 		// Only update mouse pos while mouse is over canvas, otherwise clicking code editor updates
-		if (_mouseOverCanvas) {
+		if (mouseOverCanvas()) {
 			mouse.x = clamp(this.input.activePointer.x - screen.width / 2, screen.left, screen.right)
 			mouse.y = clamp(screen.height / 2 - this.input.activePointer.y, screen.bottom, screen.top)
 			mouseRef.value.mouseX = Math.round(mouse.x)
@@ -702,6 +770,8 @@ export async function runUserCode(code: string): Promise<void> {
 	_keyPressActions.clear()
 	_keyHoldActions.clear()
 	_keyReleaseActions.clear()
+	_mouseInputActions.clear()
+	_mouseHoldActions.clear()
 	_propUpdaters.clear()
 	// camera.goTo(0, 0)
 	
@@ -754,12 +824,7 @@ export async function runUserCode(code: string): Promise<void> {
 		
 		// Monaco
 		if (activeElement?.className === 'native-edit-context') activeElement.blur()
-		
-		// CodeMirror
-		// if (activeElement?.className === 'cm-content') activeElement.blur()
 	}
-
-	// game.canvas.onclick = () => console.log('canvas click')
 }
 
 const resizeDelay = 5 // milliseconds
@@ -820,13 +885,8 @@ export function setup() {
 
 	// Key press/release registration
 	window.addEventListener('keydown', event => {
-		// Don't register press in code editor
-
-		// CodeMirror
-		// if (document.activeElement?.ariaPlaceholder) return
-
-		// Monaco
-		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
+		// Don't register game key press when code editor has focus
+		if (document.activeElement?.ariaRoleDescription === 'editor') return
 
 		const key = apiKeyCode(event.key)
 
@@ -837,11 +897,8 @@ export function setup() {
 		}
 	})
 	window.addEventListener('keyup', event => {
-		// CodeMirror
-		// if (document.activeElement?.ariaPlaceholder) return
-
-		// Monaco
-		if (document.activeElement?.ariaRoleDescription === 'editor') { return }
+		// Don't register game key release when code editor has focus
+		if (document.activeElement?.ariaRoleDescription === 'editor') return
 
 		const key = apiKeyCode(event.key)
 
@@ -855,11 +912,13 @@ export function setup() {
 		}
 	})
 	window.addEventListener('contextmenu', event => {
-		// Prevent opening the context menu from interrupting key registration
+		// Prevent opening the context menu from holding down pressed keys
+		// Note: this probably doesn't matter since context menu events were disabled
+		// on the game canvas, but I'll leave it here for now.
 		_releaseAllKeys()
 	})
 	window.addEventListener('blur', event => {
-		// Prevent window losing focus from interrupting key registration
+		// Prevent window losing focus from holding down pressed keys
 		_releaseAllKeys()
 	})
 	// window.addEventListener('resize', async () => {
