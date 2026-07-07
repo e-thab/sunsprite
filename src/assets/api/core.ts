@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { AUTO, Game, Scene, type Types } from 'phaser';
 import Phaser from 'phaser';
 
-import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction } from './interfaces';
+import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction, MouseAction } from './interfaces';
 import { Mouse } from './interfaces'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility';
 import { type Point, type PointArg, Vector2 } from './Point'
@@ -33,7 +33,12 @@ export function play() {
 /**
  * API Internal vars
  */
+/** All objects that can be positioned on the screen/in the world */
 export let allPositionables: { _updatePosition(): void }[] = []
+
+/** A map associating Phaser objects to custom Sunsprite objects */
+export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
+
 let _frame: number = 0 // current render frame index
 let _nextObjectId: number = 0
 let _mouseOverCanvas: boolean = false
@@ -44,9 +49,12 @@ let _repeatUntils: RepeatableUntil[] = []
 let _afters: Delayable[] = []
 let _everys: Delayable[] = []
 
-let _keyPressActions: Map<string, Action | undefined> = new Map()
-let _keyReleaseActions: Map<string, Action | undefined> = new Map()
-let _keyHoldActions: Map<string, Action | undefined> = new Map()
+const _keyPressActions: Map<string, Action> = new Map()
+const _keyReleaseActions: Map<string, Action> = new Map()
+const _keyHoldActions: Map<string, Action> = new Map()
+
+// TODO
+const _mouseActions: Map<string, Action> = new Map()
 
 /**
  * API internal methods
@@ -54,16 +62,10 @@ let _keyHoldActions: Map<string, Action | undefined> = new Map()
 
 // Maybe these will be user-accessible at some point?
 export const PointerEvents = {
-	// POINTER_DOWN: Phaser.Input.Events.POINTER_DOWN,
-	// POINTER_UP: Phaser.Input.Events.POINTER_UP,
-	// POINTER_OVER: Phaser.Input.Events.POINTER_OVER,
-	// POINTER_OUT: Phaser.Input.Events.POINTER_OUT,
-	// GAMEOBJECT_DRAG: Phaser.Input.Events.GAMEOBJECT_DRAG,
-	// GAMEOBJECT_DRAG_START: Phaser.Input.Events.GAMEOBJECT_DRAG_START,
-	// GAMEOBJECT_DRAG_END: Phaser.Input.Events.GAMEOBJECT_DRAG_END,
 	DRAG: 'sunsprite-drag',
 	DRAG_END: 'sunsprite-dragend',
 	DRAG_START: 'sunsprite-dragstart',
+	POINTER_DOUBLE: 'sunsprite-doubleclick',
 	POINTER_DOWN: 'sunsprite-pointerdown',
 	POINTER_DOWN_LEFT: 'sunsprite-pointerdown-left',
 	POINTER_DOWN_RIGHT: 'sunsprite-pointerdown-right',
@@ -521,11 +523,6 @@ class UserScene extends Scene {
 		timer.frame = 0
 		_frame = 0
 		_nextObjectId = 0
-
-		_keyPressActions.clear()
-		_keyHoldActions.clear()
-		_keyReleaseActions.clear()
-		_propUpdaters.clear()
 		
 		// this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 		// 	pointer.updateWorldPoint(camera) // ..?
@@ -535,6 +532,10 @@ class UserScene extends Scene {
 		// 	mouseRef.value.mouseY = Math.round(mouse.y)
 		// })
 
+		// Detect if pointer is over canvas on game start
+		const pos = this.input.activePointer.position
+		_mouseOverCanvas = (pos.x >= screen.left || pos.x <= screen.right || pos.y >= screen.bottom || pos.y <= screen.top)
+
 		this.input.on(Phaser.Input.Events.GAME_OUT, (pointer: Phaser.Input.Pointer) => {
 			_mouseOverCanvas = false
 		})
@@ -542,6 +543,23 @@ class UserScene extends Scene {
 		this.input.on(Phaser.Input.Events.GAME_OVER, (pointer: Phaser.Input.Pointer) => {
 			_mouseOverCanvas = true
 		})
+
+		// TODO: canvas events
+		// this.input.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer, gameObjects: Phaser.GameObjects.GameObject[]) => {
+		// 	if (pointer.leftButtonDown()) {
+		// 		this._refObj.emit(PointerEvents.POINTER_DOWN_LEFT, x, y)
+
+		// 		// Double click if it's been <= 500 ms since last left click
+		// 		if (Date.now() - this._lastLeftClickTime <= 500) {
+		// 			this._refObj.emit(PointerEvents.POINTER_DOUBLE, x, y)
+		// 		}
+		// 		this._lastLeftClickTime = Date.now()
+		// 	}
+		// 	if (pointer.rightButtonDown()) {
+		// 		this._refObj.emit(PointerEvents.POINTER_DOWN_RIGHT, x, y)
+		// 	}
+		// 	this._refObj.emit(PointerEvents.POINTER_DOWN, x, y)
+		// })
 
 		// TODO: Let users listen to these signals directly
 		// this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -680,6 +698,11 @@ export async function runUserCode(code: string): Promise<void> {
 	_everys = []
 	_repeatUntils = []
 	allPositionables = []
+
+	_keyPressActions.clear()
+	_keyHoldActions.clear()
+	_keyReleaseActions.clear()
+	_propUpdaters.clear()
 	// camera.goTo(0, 0)
 	
 	// Switch this to an internal addInput func that can modify innerHTML
@@ -729,12 +752,14 @@ export async function runUserCode(code: string): Promise<void> {
 		// Remove focus from code editor when clicking on game canvas
 		const activeElement = document.activeElement as HTMLElement
 		
-		// CodeMirror
-		// if (activeElement?.className === 'cm-content') activeElement.blur()
-
 		// Monaco
 		if (activeElement?.className === 'native-edit-context') activeElement.blur()
+		
+		// CodeMirror
+		// if (activeElement?.className === 'cm-content') activeElement.blur()
 	}
+
+	// game.canvas.onclick = () => console.log('canvas click')
 }
 
 const resizeDelay = 5 // milliseconds

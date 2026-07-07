@@ -57,8 +57,11 @@ const propDescription: Record<keyof GameObjectProps, string> = {
     draggable: `Whether this object can be dragged with the mouse.`,
     cursor: `The cursor shown when the mouse is over this object.`,
 
+    onMouse: `Register mouse event functions, used to more easily assign several actions at once.`,
+
     onClick: `Register a function to run when clicking this object.`,
     onRelease: `Register a function to run when releasing a click on this object.`,
+    onDoubleClick: `Register a function to run when quickly left clicking twice on this object.`,
 
     onLeftClick: `Register a function to run when left clicking this object.`,
     onLeftRelease: `Register a function to run when releasing a left click on this object.`,
@@ -561,8 +564,10 @@ type Cursor = Optional<{
 export type InteractableProps = {
     draggable?: boolean
     cursor?: Cursor
+    onMouse?: MouseAction
     onClick?: PointerAction
     onRelease?: PointerAction
+    onDoubleClick?: PointerAction
     onLeftClick?: PointerAction
     onLeftRelease?: PointerAction
     onRightClick?: PointerAction
@@ -592,6 +597,23 @@ declare type ScrollAction = (
     (x: number, y: number) => void
 )
 
+declare type MouseAction = {
+	CLICK?: Action,
+	RELEASE?: Action,
+	DOUBLE_CLICK?: Action,
+	LEFT_CLICK?: Action,
+	LEFT_RELEASE?: Action,
+	RIGHT_CLICK?: Action,
+	RIGHT_RELEASE?: Action,
+	ENTER?: Action,
+	EXIT?: Action,
+	DRAG?: Action,
+	DRAG_START?: Action,
+	DRAG_END?: Action,
+	SCROLL?: Action,
+	MOVE?: Action,
+}
+
 declare enum CursorType {
     AUTO = 'auto',
     DEFAULT = 'default',
@@ -612,12 +634,18 @@ declare type InteractableProps = {
 
     /** ${propDescription.cursor} */
     cursor?: Cursor | string
+
+    /** ${propDescription.onMouse} */
+    onMouse?: MouseAction
     
     /** ${propDescription.onClick} */
     onClick?: PointerAction
 
     /** ${propDescription.onRelease} */
     onRelease?: PointerAction
+
+    /** ${propDescription.onDoubleClick} */
+    onDoubleClick?: PointerAction
 
     /** ${propDescription.onLeftClick} */
     onLeftClick?: PointerAction
@@ -660,11 +688,17 @@ export const interactableApi = [
     `/** ${propDescription.cursor} */
     cursor: Cursor`,
 
+    `/** ${propDescription.onMouse} */
+    onMouse(actions: MouseAction): void`,
+
     `/** ${propDescription.onClick} */
     onClick(func?: PointerAction): void`,
 
     `/** ${propDescription.onRelease} */
     onRelease(func?: PointerAction): void`,
+
+    `/** ${propDescription.onDoubleClick} */
+    onDoubleClick(func?: PointerAction): void`,
 
     `/** ${propDescription.onLeftClick} */
     onLeftClick(func?: PointerAction): void`,
@@ -707,13 +741,13 @@ export const interactableApi = [
 export function Interactable<Base extends Class>(base: Base) {
     return class Interactable extends base {
         // TODO (Interactable):
-        // - more input events (double click, right click, scroll, mousemove...)
+        // - more input events?
         // - drag cursor
-        // - look into context menu interrupting, i.e. right click while dragging doesn't end drag (should it? should i just disable canvas context menu)
         _refObj?: any
         _eventActions: Map<string, PointerAction> = new Map()
         _cursor?: Cursor
         _draggable: boolean = false
+        _lastLeftClickTime: number = 0
         isInteractive: boolean = false
         
         constructor(...args: any[]) {
@@ -725,9 +759,13 @@ export function Interactable<Base extends Class>(base: Base) {
             this._setInteractive()
             if (props?.cursor) this.cursor = props.cursor
 
+            // Warning if providing onMouse along with other event registers
+            if (props?.onMouse) this.onMouse(props.onMouse)
+
             if (props?.onClick) this.onClick(props.onClick)
             if (props?.onRelease) this.onRelease(props.onRelease)
-
+            if (props?.onDoubleClick) this.onDoubleClick(props.onDoubleClick)
+                    
             if (props?.onLeftClick) this.onLeftClick(props.onLeftClick)
             if (props?.onLeftRelease) this.onLeftRelease(props.onLeftRelease)
 
@@ -736,10 +774,12 @@ export function Interactable<Base extends Class>(base: Base) {
 
             if (props?.onMouseEnter) this.onMouseEnter(props.onMouseEnter)
             if (props?.onMouseExit) this.onMouseExit(props.onMouseExit)
+            if (props?.onMouseMove) this.onMouseMove(props.onMouseMove)
 
             if (props?.onDrag) this.onDrag(props.onDrag)
             if (props?.onDragStart) this.onDragStart(props.onDragStart)
             if (props?.onDragEnd) this.onDragEnd(props.onDragEnd)
+
             if (props?.onScroll) this.onScroll(props.onScroll)
             
             if (!('x' in this && 'y' in this)) return
@@ -756,8 +796,15 @@ export function Interactable<Base extends Class>(base: Base) {
             // Emit custom left/right click events
             this._refObj?.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
                 const { x, y } = getCenterOffset(pointer)
+
                 if (pointer.leftButtonDown()) {
                     this._refObj.emit(PointerEvents.POINTER_DOWN_LEFT, x, y)
+
+                    // Double click if it's been <= 500 ms since last left click
+                    if (Date.now() - this._lastLeftClickTime <= 500) {
+                        this._refObj.emit(PointerEvents.POINTER_DOUBLE, x, y)
+                    }
+                    this._lastLeftClickTime = Date.now()
                 }
                 if (pointer.rightButtonDown()) {
                     this._refObj.emit(PointerEvents.POINTER_DOWN_RIGHT, x, y)
@@ -924,8 +971,38 @@ export function Interactable<Base extends Class>(base: Base) {
 		 */
 
 		/** Generalized dict function for assigning to multiple events at once. */
-		onMouse(actions?: MouseAction) {
-			// TODO
+		onMouse(actions: MouseAction) {
+			if (actions.CLICK) this.onClick(actions.CLICK)
+            if (actions.RELEASE) this.onRelease(actions.RELEASE)
+            if (actions.DOUBLE_CLICK) this.onDoubleClick(actions.DOUBLE_CLICK)
+
+            if (actions.LEFT_CLICK) this.onLeftClick(actions.LEFT_CLICK)
+            if (actions.LEFT_RELEASE) this.onLeftRelease(actions.LEFT_RELEASE)
+
+            if (actions.RIGHT_CLICK) this.onRightClick(actions.RIGHT_CLICK)
+            if (actions.RIGHT_RELEASE) this.onRightRelease(actions.RIGHT_RELEASE)
+
+            if (actions.ENTER) this.onMouseEnter(actions.ENTER)
+            if (actions.EXIT) this.onMouseExit(actions.EXIT)
+
+            if (actions.DRAG) this.onDrag(actions.DRAG)
+            if (actions.DRAG_START) this.onDragStart(actions.DRAG_START)
+            if (actions.DRAG_END) this.onDragEnd(actions.DRAG_END)
+
+            if (actions.SCROLL) this.onScroll(actions.SCROLL)
+            if (actions.MOVE) this.onMouseMove(actions.MOVE)
+
+            if (actions.CLICK) {
+                console.log('actions.CLICK evaluates to true')
+            } else {
+                console.log('actions.CLICK evaluates to false')
+            }
+
+            if (actions.hasOwnProperty('CLICK')) {
+                console.log('hasOwnProp evaluates to true')
+            } else {
+                console.log('hasOwnProp evaluates to false')
+            }
 		}
 
         /** Captures any pointer down event, either left or right mouse button. */
@@ -933,11 +1010,17 @@ export function Interactable<Base extends Class>(base: Base) {
             if (!this._refObj) return
             this._replacePointerListener(PointerEvents.POINTER_DOWN, action)
         }
-
+        
         /** Captures any pointer release event, either left or right mouse button. */
         onRelease(action?: PointerAction) {
             if (!this._refObj) return
             this._replacePointerListener(PointerEvents.POINTER_UP, action)
+        }
+
+        /** Captures only left button double clicks (two left clicks within 500ms). */
+        onDoubleClick(action?: PointerAction) {
+            if (!this._refObj) return
+            this._replacePointerListener(PointerEvents.POINTER_DOUBLE, action)
         }
 
         /** Captures only left button press. */
