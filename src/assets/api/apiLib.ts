@@ -115,6 +115,26 @@ const Mouse = {
      * Position of the user's cursor as a Point. (alias for position)
      */
     pos: Point
+
+    /**
+     * Returns whether the left mouse button is currently held down.
+     */
+    leftButtonDown: boolean
+
+    /**
+     * Returns whether the right mouse button is currently held down.
+     */
+	rightButtonDown: boolean
+
+    /**
+     * Returns whether the middle mouse button is currently held down.
+     */
+	middleButtonDown: boolean
+
+    /**
+     * Returns whether any mouse button is currently held down.
+     */
+	anyButtonDown: boolean
 }
 
 /**

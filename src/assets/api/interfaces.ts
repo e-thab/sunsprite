@@ -138,8 +138,17 @@ export type MouseInputAction = {
 // }
 
 export class Mouse {
+	_pointer?: Phaser.Input.Pointer
 	x: number = 0
 	y: number = 0
+
+	constructor(pointer?: Phaser.Input.Pointer) {
+		this._pointer = pointer
+	}
+
+	_setPointer(pointer: Phaser.Input.Pointer) {
+		this._pointer = pointer
+	}
 
 	get position(): Point {
 		return {
@@ -151,5 +160,21 @@ export class Mouse {
 	// Alias for position
 	get pos(): Point {
 		return this.position
+	}
+
+	get leftButtonDown() {
+		return this._pointer?.leftButtonDown()
+	}
+
+	get rightButtonDown() {
+		return this._pointer?.rightButtonDown()
+	}
+
+	get middleButtonDown() {
+		return this._pointer?.middleButtonDown()
+	}
+
+	get anyButtonDown() {
+		return this._pointer?.isDown
 	}
 }

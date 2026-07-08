@@ -583,6 +583,7 @@ class UserScene extends Scene {
 		this.input.setPollAlways()
 		this.input.setDefaultCursor('url(cursors/default.cur), default')
 
+		mouse._setPointer(this.input.activePointer)
 		camera = this.cameras.main
 		timer.time = 0
 		timer.totalTime = 0
@@ -593,7 +594,7 @@ class UserScene extends Scene {
 		/* 
 		 * Capturing Phaser pointer events
 		 */
-		// Phaser canvas pointer down event
+		// Canvas pointer down events
 		this.input.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer, gameObjects: Phaser.GameObjects.GameObject[]) => {
 			if (pointer.leftButtonDown()) {
 				this.input.emit(PointerEvents.POINTER_DOWN_LEFT, mouse.x, mouse.y)
@@ -604,29 +605,52 @@ class UserScene extends Scene {
 				}
 				_lastLeftClickTime = Date.now()
 			}
+
 			if (pointer.rightButtonDown()) {
 				this.input.emit(PointerEvents.POINTER_DOWN_RIGHT, mouse.x, mouse.y)
 			}
+
 			if (pointer.middleButtonDown()) {
 				this.input.emit(PointerEvents.POINTER_DOWN_MIDDLE, mouse.x, mouse.y)
 			}
+
 			this.input.emit(PointerEvents.POINTER_DOWN, mouse.x, mouse.y)
 		})
+
+		// Canvas pointer up events
+		this.input.on(Phaser.Input.Events.POINTER_UP, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+			if (pointer.leftButtonReleased()) {
+				this.input.emit(PointerEvents.POINTER_UP_LEFT, mouse.x, mouse.y)
+			}
+
+			if (pointer.rightButtonReleased()) {
+				this.input.emit(PointerEvents.POINTER_UP_RIGHT, mouse.x, mouse.y)
+			}
+
+			if (pointer.middleButtonReleased()) {
+				this.input.emit(PointerEvents.POINTER_UP_MIDDLE, mouse.x, mouse.y)
+			}
+
+			this.input.emit(PointerEvents.POINTER_UP, mouse.x, mouse.y)
+		})
 		
-		// Phaser canvas pointer exit event
+		// Canvas pointer exit event
 		this.input.on(Phaser.Input.Events.GAME_OUT, (pointer: Phaser.Input.Pointer) => {
 			// _mouseOverCanvas = false
 			this.input.emit(PointerEvents.POINTER_OUT, mouse.x, mouse.y)
 		})
-
-		// Phaser canvas pointer enter event
+		
+		// Canvas pointer enter event
 		this.input.on(Phaser.Input.Events.GAME_OVER, (pointer: Phaser.Input.Pointer) => {
 			// _mouseOverCanvas = true
 			this.input.emit(PointerEvents.POINTER_OVER, mouse.x, mouse.y)
 		})
 
-		// TODO: Mouse events
-		// ...
+		// Canvas scroll event
+		this.input.on(Phaser.Input.Events.POINTER_WHEEL, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+			console.log(rest)
+			this.input.emit(PointerEvents.POINTER_WHEEL, )
+		})
 
 		// TODO: Let users listen to these signals directly
 		// this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
