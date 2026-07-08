@@ -69,6 +69,9 @@ const propDescription: Record<keyof GameObjectProps, string> = {
     onRightClick: `Register a function to run when right clicking this object.`,
     onRightRelease: `Register a function to run when releasing a right click on this object.`,
 
+    onMiddleClick: `Register a function to run when middle clicking this object.`,
+    onMiddleRelease: `Register a function to run when releasing a middle click on this object.`,
+
     onMouseEnter: `Register a function to run when the mouse first starts overlapping this object.`,
     onMouseExit: `Register a function to run when the mouse first stops overlapping this object.`,
     onMouseMove: `Register a function to run when the mouse moves while overlapping over this object.`,
@@ -570,6 +573,8 @@ export type InteractableProps = {
     onLeftRelease?: PointerAction
     onRightClick?: PointerAction
     onRightRelease?: PointerAction
+    onMiddleClick?: PointerAction
+    onMiddleRelease?: PointerAction
     onMouseEnter?: PointerAction
     onMouseExit?: PointerAction
 	onMouseMove?: PointerAction
@@ -634,7 +639,7 @@ declare type InteractableProps = {
     cursor?: Cursor | string
 
     /** ${propDescription.onMouse} */
-    onMouse?: MouseAction
+    onMouse?: MouseInputAction
     
     /** ${propDescription.onClick} */
     onClick?: PointerAction
@@ -687,7 +692,7 @@ export const interactableApi = [
     cursor: Cursor`,
 
     `/** ${propDescription.onMouse} */
-    onMouse(actions: MouseAction): void`,
+    onMouse(actions: MouseInputAction): void`,
 
     `/** ${propDescription.onClick} */
     onClick(func?: PointerAction): void`,
@@ -770,6 +775,9 @@ export function Interactable<Base extends Class>(base: Base) {
             if (props?.onRightClick) this.onRightClick(props.onRightClick)
             if (props?.onRightRelease) this.onRightRelease(props.onRightRelease)
 
+            if (props?.onMiddleClick) this.onMiddleClick(props.onMiddleClick)
+            if (props?.onMiddleRelease) this.onMiddleRelease(props.onMiddleRelease)
+
             if (props?.onMouseEnter) this.onMouseEnter(props.onMouseEnter)
             if (props?.onMouseExit) this.onMouseExit(props.onMouseExit)
             if (props?.onMouseMove) this.onMouseMove(props.onMouseMove)
@@ -798,15 +806,25 @@ export function Interactable<Base extends Class>(base: Base) {
                 if (pointer.leftButtonDown()) {
                     this._refObj.emit(PointerEvents.POINTER_DOWN_LEFT, x, y)
 
-                    // Double click if it's been <= 500 ms since last left click
+                    // Double click if it's been <= 500 ms since last non-double left click
                     if (Date.now() - this._lastLeftClickTime <= 500) {
                         this._refObj.emit(PointerEvents.POINTER_DOUBLE, x, y)
+                        // Reset last click time so that three quick clicks don't count as single-double-double.
+                        // So two consecutive *double* clicks requires 4 individual clicks.
+                        this._lastLeftClickTime = 0
+                    } else {
+                        this._lastLeftClickTime = Date.now()
                     }
-                    this._lastLeftClickTime = Date.now()
                 }
+
                 if (pointer.rightButtonDown()) {
                     this._refObj.emit(PointerEvents.POINTER_DOWN_RIGHT, x, y)
                 }
+
+                if (pointer.middleButtonDown()) {
+                    this._refObj.emit(PointerEvents.POINTER_DOWN_MIDDLE, x, y)
+                }
+
                 this._refObj.emit(PointerEvents.POINTER_DOWN, x, y)
             })
             
@@ -816,9 +834,15 @@ export function Interactable<Base extends Class>(base: Base) {
                 if (pointer.leftButtonReleased()) {
                     this._refObj.emit(PointerEvents.POINTER_UP_LEFT, x, y)
                 }
+
                 if (pointer.rightButtonReleased()) {
                     this._refObj.emit(PointerEvents.POINTER_UP_RIGHT, x, y)
                 }
+
+                if (pointer.middleButtonReleased()) {
+                    this._refObj.emit(PointerEvents.POINTER_UP_MIDDLE, x, y)
+                }
+
                 this._refObj.emit(PointerEvents.POINTER_UP, x, y)
             })
 
@@ -865,7 +889,7 @@ export function Interactable<Base extends Class>(base: Base) {
             // Custom scroll event
             this._refObj?.on(Phaser.Input.Events.POINTER_WHEEL, (pointer: Phaser.Input.Pointer, deltaX: number, deltaY: number, deltaZ: number, ...rest: any[]) => {
 				// deltaZ..?
-                this._refObj.emit(PointerEvents.POINTER_WHEEL, deltaX, deltaY)
+                this._refObj.emit(PointerEvents.POINTER_WHEEL, deltaX, -deltaY)
             })
 
             // Default drag event that gets replaced once user assigns their own
@@ -980,6 +1004,9 @@ export function Interactable<Base extends Class>(base: Base) {
             if (actions.RIGHT_CLICK) this.onRightClick(actions.RIGHT_CLICK)
             if (actions.RIGHT_RELEASE) this.onRightRelease(actions.RIGHT_RELEASE)
 
+            if (actions.MIDDLE_CLICK) this.onMiddleClick(actions.MIDDLE_CLICK)
+            if (actions.MIDDLE_RELEASE) this.onMiddleRelease(actions.MIDDLE_RELEASE)
+
             if (actions.ENTER) this.onMouseEnter(actions.ENTER)
             if (actions.EXIT) this.onMouseExit(actions.EXIT)
 
@@ -1002,6 +1029,10 @@ export function Interactable<Base extends Class>(base: Base) {
                 console.log('hasOwnProp evaluates to false')
             }
 		}
+
+        onMouseHold() {
+            // TODO
+        }
 
         /** Captures any pointer down event, either left or right mouse button. */
         onClick(action?: PointerAction) {
@@ -1043,6 +1074,18 @@ export function Interactable<Base extends Class>(base: Base) {
         onRightRelease(action?: PointerAction) {
             if (!this._refObj) return
             this._replacePointerListener(PointerEvents.POINTER_UP_RIGHT, action)
+        }
+
+        /** Captures only middle button press. */
+        onMiddleClick(action?: PointerAction) {
+            if (!this._refObj) return
+            this._replacePointerListener(PointerEvents.POINTER_DOWN_MIDDLE, action)
+        }
+
+        /** Captures only middle button release. */
+        onMiddleRelease(action?: PointerAction) {
+            if (!this._refObj) return
+            this._replacePointerListener(PointerEvents.POINTER_UP_MIDDLE, action)
         }
 
         /** Captures the pointer entering the object. */

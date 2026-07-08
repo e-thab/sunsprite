@@ -88,6 +88,36 @@ type Predicate = (...args: any[]) => boolean
 
 /** Returnable def */
 type Returnable<T> = T | (() => T)
+
+const mouseEvents = [
+    'CLICK',
+    'RELEASE',
+    'DOUBLE_CLICK',
+
+    'LEFT_CLICK',
+    'LEFT_RELEASE',
+
+    'RIGHT_CLICK',
+    'RIGHT_RELEASE',
+
+    'MIDDLE_CLICK',
+    'MIDDLE_RELEASE',
+
+    'ENTER',
+    'EXIT',
+
+    'DRAG',
+    'DRAG_START',
+    'DRAG_END',
+
+    'SCROLL',
+    'MOVE',
+] as const
+
+type MouseInputEvent = typeof mouseEvents[number]
+type MouseInputAction = {
+    [key in MouseInputEvent]?: Action
+}
 `,
 
 // Core
@@ -314,6 +344,12 @@ declare function onKeyRelease(actions: object): void
  * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
  */
 declare function onKeyHold(actions: object): void
+
+/**
+ * Register input actions to run once each time a mouse event is detected.
+ * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
+ */
+declare function onMouse(actions: object): void
 
 /**
  * Display a message in the output panel.

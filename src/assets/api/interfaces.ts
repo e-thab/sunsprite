@@ -116,6 +116,9 @@ const mouseEvents = [
 	'RIGHT_CLICK',
 	'RIGHT_RELEASE',
 
+	'MIDDLE_CLICK',
+	'MIDDLE_RELEASE',
+
 	'ENTER',
 	'EXIT',
 

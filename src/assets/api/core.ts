@@ -445,6 +445,7 @@ const mouseInputEventNames: { [key: string]: string } = {
 	SCROLL: PointerEvents.POINTER_WHEEL
 }
 
+// TODO: mouse hold events
 const mouseHoldEventNames: { [key: string]: string } = {
 	RIGHT: PointerEvents.POINTER_DOWN_RIGHT,
 	MIDDLE: PointerEvents.POINTER_DOWN_MIDDLE,
@@ -456,7 +457,6 @@ type MouseHoldEvent = 'LEFT' | 'RIGHT' | 'MIDDLE'
 type MouseHoldAction = { [key in MouseHoldEvent]?: Action }
 
 function _registerMouseInputAction(eventName: string, action?: PointerAction) {
-	print(`register: ${eventName}`)
 	if (_mouseInputActions.get(eventName)) {
 		scene.input.off(eventName, _mouseInputActions.get(eventName))
 	}
@@ -602,8 +602,12 @@ class UserScene extends Scene {
 				// Double click if it's been <= 500 ms since last left click
 				if (Date.now() - _lastLeftClickTime <= 500) {
 					this.input.emit(PointerEvents.POINTER_DOUBLE, mouse.x, mouse.y)
+					// Reset last click time so that three quick clicks don't count as single-double-double.
+					// So two consecutive *double* clicks requires 4 individual clicks.
+					_lastLeftClickTime = 0
+				} else {
+					_lastLeftClickTime = Date.now()
 				}
-				_lastLeftClickTime = Date.now()
 			}
 
 			if (pointer.rightButtonDown()) {
@@ -647,58 +651,14 @@ class UserScene extends Scene {
 		})
 
 		// Canvas scroll event
-		this.input.on(Phaser.Input.Events.POINTER_WHEEL, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
-			console.log(rest)
-			this.input.emit(PointerEvents.POINTER_WHEEL, )
+		this.input.on(Phaser.Input.Events.POINTER_WHEEL, (pointer: Phaser.Input.Pointer, gameObjects: Phaser.GameObjects.GameObject[], deltaX: number, deltaY: number, ...rest: any[]) => {
+			this.input.emit(PointerEvents.POINTER_WHEEL, deltaX, -deltaY)
 		})
 
-		// TODO: Let users listen to these signals directly
-		// this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-		// 	if (pointer.leftButtonDown()) {
-		// 		scene.events.emit(PointerEvents.POINTER_DOWN_LEFT, pointer)
-		// 	}
-		// 	if (pointer.rightButtonDown()) {
-		// 		scene.events.emit(PointerEvents.POINTER_DOWN_RIGHT, pointer)
-		// 	}
-		// 	if (pointer.leftButtonReleased()) {
-		// 		scene.events.emit(PointerEvents.POINTER_UP_LEFT, pointer)
-		// 	}
-		// 	if (pointer.rightButtonReleased()) {
-		// 		scene.events.emit(PointerEvents.POINTER_UP_RIGHT, pointer)
-		// 	}
-		// })
-
-		// this.input.on('pointerup', (event: any) => {
-		// 	print('up')
-		// })
-
-		// TODO
-		// this.input.on('pointermove', (event: any) => {
-		// 	print('move')
-		// })
-
-		// TODO
-
-		// TODO...?
-		// this.input.on(Phaser.Input.Events.POINTER_OUT, (event: any) => {
-		// 	print('out')
-		// })
-
-		// type PositionableObject = Phaser.GameObjects.GameObject & { x: number, y: number }
-		// this.input.on('drag', (pointer: Phaser.Input.Pointer, gameObject: PositionableObject, dragX: number, dragY: number) => {
-		// 	// This needs work; circumvents api game object position setters so that the object
-		// 	// visually moves but props don't update
-		// 	gameObject.x = dragX;
-		// 	gameObject.y = dragY;
-		// });
-		
-		// Is the window listener good enough for key events or should I use phaser's input handling?
-		
-		// this.input.keyboard?.on('keydown', (event: any) => {
-		// 	print(`key press: ${event.key}`)
-		// })
-
-		// console.log(this.scale.parent)
+		// Canvas pointer move event
+		this.input.on(Phaser.Input.Events.POINTER_MOVE, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+			this.input.emit(PointerEvents.POINTER_MOVE, mouse.x, mouse.y)
+		})
 
 		// At the moment, moving camera doesn't actually render the new area; sprites will get sliced
 		// in half when up against the previous screen edge
