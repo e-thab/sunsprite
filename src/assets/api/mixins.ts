@@ -765,28 +765,28 @@ export function Interactable<Base extends Class>(base: Base) {
             // Warning if providing onMouse along with other event registers
             if (props?.onMouse) this.onMouse(props.onMouse)
 
-            if (props?.onClick) this.onClick(props.onClick)
-            if (props?.onRelease) this.onRelease(props.onRelease)
-            if (props?.onDoubleClick) this.onDoubleClick(props.onDoubleClick)
+            if (props?.onClick !== undefined) this.onClick(props.onClick)
+            if (props?.onRelease !== undefined) this.onRelease(props.onRelease)
+            if (props?.onDoubleClick !== undefined) this.onDoubleClick(props.onDoubleClick)
                     
-            if (props?.onLeftClick) this.onLeftClick(props.onLeftClick)
-            if (props?.onLeftRelease) this.onLeftRelease(props.onLeftRelease)
+            if (props?.onLeftClick !== undefined) this.onLeftClick(props.onLeftClick)
+            if (props?.onLeftRelease !== undefined) this.onLeftRelease(props.onLeftRelease)
 
-            if (props?.onRightClick) this.onRightClick(props.onRightClick)
-            if (props?.onRightRelease) this.onRightRelease(props.onRightRelease)
+            if (props?.onRightClick !== undefined) this.onRightClick(props.onRightClick)
+            if (props?.onRightRelease !== undefined) this.onRightRelease(props.onRightRelease)
 
-            if (props?.onMiddleClick) this.onMiddleClick(props.onMiddleClick)
-            if (props?.onMiddleRelease) this.onMiddleRelease(props.onMiddleRelease)
+            if (props?.onMiddleClick !== undefined) this.onMiddleClick(props.onMiddleClick)
+            if (props?.onMiddleRelease !== undefined) this.onMiddleRelease(props.onMiddleRelease)
 
-            if (props?.onMouseEnter) this.onMouseEnter(props.onMouseEnter)
-            if (props?.onMouseExit) this.onMouseExit(props.onMouseExit)
-            if (props?.onMouseMove) this.onMouseMove(props.onMouseMove)
-
-            if (props?.onDrag) this.onDrag(props.onDrag)
-            if (props?.onDragStart) this.onDragStart(props.onDragStart)
-            if (props?.onDragEnd) this.onDragEnd(props.onDragEnd)
-
-            if (props?.onScroll) this.onScroll(props.onScroll)
+            if (props?.onMouseEnter !== undefined) this.onMouseEnter(props.onMouseEnter)
+            if (props?.onMouseExit !== undefined) this.onMouseExit(props.onMouseExit)
+                
+            if (props?.onDrag !== undefined) this.onDrag(props.onDrag)
+            if (props?.onDragStart !== undefined) this.onDragStart(props.onDragStart)
+            if (props?.onDragEnd !== undefined) this.onDragEnd(props.onDragEnd)
+                
+            if (props?.onScroll !== undefined) this.onScroll(props.onScroll)
+            if (props?.onMouseMove !== undefined) this.onMouseMove(props.onMouseMove)
             
             if (!('x' in this && 'y' in this)) return
 
@@ -994,28 +994,28 @@ export function Interactable<Base extends Class>(base: Base) {
 
 		/** Generalized dict function for assigning to multiple events at once. */
 		onMouse(actions: MouseInputAction) {
-			if (actions.CLICK) this.onClick(actions.CLICK)
-            if (actions.RELEASE) this.onRelease(actions.RELEASE)
-            if (actions.DOUBLE_CLICK) this.onDoubleClick(actions.DOUBLE_CLICK)
+			if (actions.CLICK !== undefined) this.onClick(actions.CLICK)
+            if (actions.RELEASE !== undefined) this.onRelease(actions.RELEASE)
+            if (actions.DOUBLE_CLICK !== undefined) this.onDoubleClick(actions.DOUBLE_CLICK)
 
-            if (actions.LEFT_CLICK) this.onLeftClick(actions.LEFT_CLICK)
-            if (actions.LEFT_RELEASE) this.onLeftRelease(actions.LEFT_RELEASE)
+            if (actions.LEFT_CLICK !== undefined) this.onLeftClick(actions.LEFT_CLICK)
+            if (actions.LEFT_RELEASE !== undefined) this.onLeftRelease(actions.LEFT_RELEASE)
 
-            if (actions.RIGHT_CLICK) this.onRightClick(actions.RIGHT_CLICK)
-            if (actions.RIGHT_RELEASE) this.onRightRelease(actions.RIGHT_RELEASE)
+            if (actions.RIGHT_CLICK !== undefined) this.onRightClick(actions.RIGHT_CLICK)
+            if (actions.RIGHT_RELEASE !== undefined) this.onRightRelease(actions.RIGHT_RELEASE)
 
-            if (actions.MIDDLE_CLICK) this.onMiddleClick(actions.MIDDLE_CLICK)
-            if (actions.MIDDLE_RELEASE) this.onMiddleRelease(actions.MIDDLE_RELEASE)
+            if (actions.MIDDLE_CLICK !== undefined) this.onMiddleClick(actions.MIDDLE_CLICK)
+            if (actions.MIDDLE_RELEASE !== undefined) this.onMiddleRelease(actions.MIDDLE_RELEASE)
 
-            if (actions.ENTER) this.onMouseEnter(actions.ENTER)
-            if (actions.EXIT) this.onMouseExit(actions.EXIT)
+            if (actions.ENTER !== undefined) this.onMouseEnter(actions.ENTER)
+            if (actions.EXIT !== undefined) this.onMouseExit(actions.EXIT)
 
-            if (actions.DRAG) this.onDrag(actions.DRAG)
-            if (actions.DRAG_START) this.onDragStart(actions.DRAG_START)
-            if (actions.DRAG_END) this.onDragEnd(actions.DRAG_END)
+            if (actions.DRAG !== undefined) this.onDrag(actions.DRAG)
+            if (actions.DRAG_START !== undefined) this.onDragStart(actions.DRAG_START)
+            if (actions.DRAG_END !== undefined) this.onDragEnd(actions.DRAG_END)
 
-            if (actions.SCROLL) this.onScroll(actions.SCROLL)
-            if (actions.MOVE) this.onMouseMove(actions.MOVE)
+            if (actions.SCROLL !== undefined) this.onScroll(actions.SCROLL)
+            if (actions.MOVE !== undefined) this.onMouseMove(actions.MOVE)
 
             if (actions.CLICK) {
                 console.log('actions.CLICK evaluates to true')
@@ -1172,7 +1172,7 @@ export function Interactable<Base extends Class>(base: Base) {
          * @param eventName The name of the event to replace.
          * @param userAction The new callback function.
          */
-        _replacePointerListener(eventName: string, userAction?: PointerAction) {
+        _replacePointerListener(eventName: string, userAction?: PointerAction | null) {
             if (!this._refObj) return
 
             if (this._eventActions.get(eventName)) {

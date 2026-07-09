@@ -116,7 +116,7 @@ const mouseEvents = [
 
 type MouseInputEvent = typeof mouseEvents[number]
 type MouseInputAction = {
-    [key in MouseInputEvent]?: Action
+    [key in MouseInputEvent]?: Action | null
 }
 `,
 

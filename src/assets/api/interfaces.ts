@@ -8,7 +8,7 @@ export type Predicate = (...args: any[]) => boolean
 export type Returnable<T> = T | (() => T)
 export type Optional<T> = T | undefined | null
 
-export type PointerAction = ((x: number, y: number) => void) | (() => void)
+export type PointerAction = ((x: number, y: number) => void) | (() => void) | null
 
 export interface Touchable {
 	left: number
@@ -97,7 +97,7 @@ const keys = [
 	'}', '\\', '|', 'A', 'a', 'S', 's', 'D', 'd', 'F', 'f', 'G', 'g', 'H', 'h', 'J', 'j', 'K', 'k', 'L', 'l', ';', ':', '\'', 
 	'"', 'Z', 'z', 'X', 'x', 'C', 'c', 'V', 'v', 'B', 'b', 'N', 'n', 'M', 'm', ',', '<', '.', '>', '/', '?', 'Up', 'up', 'UP', 
 	'Down', 'down', 'DOWN', 'Left', 'left', 'LEFT', 'Right', 'right', 'RIGHT', 'Shift', 'shift', 'SHIFT', 'Ctrl', 'ctrl', 'CTRL', 
-	'Alt', 'alt', 'ALT', 'Tab', 'tab', 'TAB', 'Esc', 'esc', 'ESC', 'Enter', 'enter', 'ENTER'
+	'Alt', 'alt', 'ALT', 'Tab', 'tab', 'TAB', 'Esc', 'esc', 'ESC', 'Enter', 'enter', 'ENTER', 'Any', 'any', 'ANY'
 ] as const
 
 export type InputKey = typeof keys[number]
@@ -132,7 +132,7 @@ const mouseEvents = [
 
 export type MouseInputEvent = typeof mouseEvents[number]
 export type MouseInputAction = {
-	[key in MouseInputEvent]?: Action
+	[key in MouseInputEvent]?: Action | null
 }
 
 // export type MouseHoldEvent = 'LEFT' | 'RIGHT' | 'MIDDLE'

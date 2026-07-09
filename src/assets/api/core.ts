@@ -458,7 +458,8 @@ type MouseHoldAction = { [key in MouseHoldEvent]?: Action }
 
 function _registerMouseInputAction(eventName: string, action?: PointerAction) {
 	if (_mouseInputActions.get(eventName)) {
-		scene.input.off(eventName, _mouseInputActions.get(eventName))
+		// Coalesce in case action entry is null
+		scene.input.off(eventName, _mouseInputActions.get(eventName) ?? undefined)
 	}
 
 	if (action) {
@@ -874,10 +875,15 @@ export function setup() {
 
 		const key = apiKeyCode(event.key)
 
-		// Add key to keysJustPressed map
+		// Add specific key to keysJustPressed map
 		if (key && !keysPressed.includes(key) && !event.repeat) {
 			keysPressed.push(key)
 			keysJustPressed.set(key, _frame)
+		}
+
+		// Add any key to map
+		if (!event.repeat) {
+			// TODO
 		}
 	})
 	window.addEventListener('keyup', event => {
