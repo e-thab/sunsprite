@@ -45,6 +45,9 @@ declare enum Colors ${
 }
 `
 
+const BACKSLASH = String.raw`'\\'`
+console.log(BACKSLASH)
+
 /** 
  * Added to the editor as a library, definitions are not added to the model
  * but general type information is still displayed. Internal.
@@ -68,6 +71,41 @@ ${viewablePropsTypeDef}
 ${interactablePropsTypeDef}
 ${gameObjectPropsTypeDef}
 
+namespace LibVars {
+    export const mouseEvents = [
+        'CLICK',
+        'RELEASE',
+        'DOUBLE_CLICK',
+
+        'LEFT_CLICK',
+        'LEFT_RELEASE',
+
+        'RIGHT_CLICK',
+        'RIGHT_RELEASE',
+
+        'MIDDLE_CLICK',
+        'MIDDLE_RELEASE',
+
+        'ENTER',
+        'EXIT',
+
+        'DRAG',
+        'DRAG_START',
+        'DRAG_END',
+
+        'SCROLL',
+        'MOVE',
+    ] as const
+
+    export const keyCodes = [
+        "\`", "~", "1", "!", "2", "@", "3", "#", "4", "$", "5", "%", "6", "^", "7", "&", "8", "*", "9", "(", "0", ")", "-", "_", "=", "+",
+        "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "{", "]", "}", "\\\\", "|",
+        "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", ":", "'", "\\"",
+        "Z", "X", "C", "V", "B", "N", "M", ",", "<", ".", ">", "/", "?",
+        "UP", "DOWN", "LEFT", "RIGHT", "SHIFT", "CTRL", "ALT", "TAB", "ESC", "ENTER", "SPACE", "ANY"
+    ] as const
+}
+
 /** Point def */
 type Point = {
     /** x def */
@@ -89,34 +127,14 @@ type Predicate = (...args: any[]) => boolean
 /** Returnable def */
 type Returnable<T> = T | (() => T)
 
-const mouseEvents = [
-    'CLICK',
-    'RELEASE',
-    'DOUBLE_CLICK',
-
-    'LEFT_CLICK',
-    'LEFT_RELEASE',
-
-    'RIGHT_CLICK',
-    'RIGHT_RELEASE',
-
-    'MIDDLE_CLICK',
-    'MIDDLE_RELEASE',
-
-    'ENTER',
-    'EXIT',
-
-    'DRAG',
-    'DRAG_START',
-    'DRAG_END',
-
-    'SCROLL',
-    'MOVE',
-] as const
-
-type MouseInputEvent = typeof mouseEvents[number]
+type MouseInputEvent = typeof LibVars.mouseEvents[number]
 type MouseInputAction = {
     [key in MouseInputEvent]?: Action | null
+}
+
+type InputKey = typeof LibVars.keyCodes[number]
+type KeyAction = {
+    [key in InputKey]?: Action | null
 }
 `,
 
@@ -331,25 +349,25 @@ declare function keyJustReleased(key: string): boolean
  * Register input actions to run once each time a key is pressed.
  * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
  */
-declare function onKeyPress(actions: object): void
+declare function onKeyPress(actions: KeyAction): void
 
 /**
  * Register input actions to run once each time a key is released.
  * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
  */
-declare function onKeyRelease(actions: object): void
+declare function onKeyRelease(actions: KeyAction): void
 
 /**
  * Register input actions to run repeatedly while a key is held.
  * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
  */
-declare function onKeyHold(actions: object): void
+declare function onKeyHold(actions: KeyAction): void
 
 /**
  * Register input actions to run once each time a mouse event is detected.
  * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
  */
-declare function onMouse(actions: object): void
+declare function onMouse(actions: MouseInputAction): void
 
 /**
  * Display a message in the output panel.
@@ -736,3 +754,5 @@ class Vector2 {
     // TODO: Vector2
 }`,
 ].join('\n')
+
+console.log(apiLib)

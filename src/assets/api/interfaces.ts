@@ -91,16 +91,16 @@ function generateKeyArray() {
 
 // TODO: Check that all these keys actually register inputs, esp. shift-keys i.e. @, $, etc.
 // TODO: Add an 'any' entry that will allow handling any key press
-const keys = [
+const keyCodes = [
 	'\`', '~', '1', '!', '2', '@', '3', '#', '4', '$', '5', '%', '6', '^', '7', '&', '8', '*', '9', '(', '0', ')', '-', '_', 
 	'=', '+', 'Q', 'q', 'W', 'w', 'E', 'e', 'R', 'r', 'T', 't', 'Y', 'y', 'U', 'u', 'I', 'i', 'O', 'o', 'P', 'p', '[', '{', ']', 
 	'}', '\\', '|', 'A', 'a', 'S', 's', 'D', 'd', 'F', 'f', 'G', 'g', 'H', 'h', 'J', 'j', 'K', 'k', 'L', 'l', ';', ':', '\'', 
 	'"', 'Z', 'z', 'X', 'x', 'C', 'c', 'V', 'v', 'B', 'b', 'N', 'n', 'M', 'm', ',', '<', '.', '>', '/', '?', 'Up', 'up', 'UP', 
 	'Down', 'down', 'DOWN', 'Left', 'left', 'LEFT', 'Right', 'right', 'RIGHT', 'Shift', 'shift', 'SHIFT', 'Ctrl', 'ctrl', 'CTRL', 
-	'Alt', 'alt', 'ALT', 'Tab', 'tab', 'TAB', 'Esc', 'esc', 'ESC', 'Enter', 'enter', 'ENTER', 'Any', 'any', 'ANY'
+	'Alt', 'alt', 'ALT', 'Tab', 'tab', 'TAB', 'Esc', 'esc', 'ESC', 'Enter', 'enter', 'ENTER', 'Space', 'space', 'SPACE', 'Any', 'any', 'ANY'
 ] as const
 
-export type InputKey = typeof keys[number]
+export type InputKey = typeof keyCodes[number]
 export type KeyAction = {
 	[key in InputKey]?: Action
 }

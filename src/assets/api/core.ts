@@ -42,7 +42,6 @@ export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 let _frame: number = 0 // current render frame index
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
-// let _ticker: Ticker = new Ticker()
 let _forevers: Action[] = []
 let _repeats: Repeatable[] = []
 let _repeatUntils: RepeatableUntil[] = []
@@ -157,6 +156,16 @@ function _runOnKeyActions() {
 	for (const [key, action] of _keyReleaseActions) {
 		if (action && keyJustReleased(key)) action()
 	}
+	 
+	const anyPressAction = _keyPressActions.get('any')
+	if (keysJustPressed.size > 0 && anyPressAction) {
+		anyPressAction()
+	} 
+
+	const anyHoldAction = _keyHoldActions.get('any')
+	if (keysPressed.length > 0 && anyHoldAction) {
+		anyHoldAction()
+	} 
 }
 
 const _propUpdaters: Map<string, (() => any)> = new Map()
@@ -320,6 +329,7 @@ export function repeat(times: number, fn: Action) {
 		// then: undefined
 	}
 	_repeats.push(repeatable)
+	console.log(_repeats.length)
 
 	return {
 		then(thenFn: Action) {
@@ -391,8 +401,8 @@ export function keyJustReleased(key: string): boolean {
 /* Allows cleaner input key mapping for pressed key behavior */
 export function onKeyPress(actions: KeyAction) {
 	for (const [inputKey, action] of Object.entries(actions)) {
-		const actionKey = inputKey as keyof typeof actions
-		_keyPressActions.set(actionKey, action)
+		// const actionKey = inputKey as keyof typeof actions
+		_keyPressActions.set(inputKey.toLowerCase(), action)
 	}
 }
 
@@ -400,7 +410,7 @@ export function onKeyPress(actions: KeyAction) {
 export function onKeyRelease(actions: KeyAction) {
 	for (const [inputKey, action] of Object.entries(actions)) {
 		// const actionKey = inputKey as keyof typeof actions
-		_keyReleaseActions.set(inputKey, action)
+		_keyReleaseActions.set(inputKey.toLowerCase(), action)
 	}
 }
 
@@ -408,7 +418,7 @@ export function onKeyRelease(actions: KeyAction) {
 export function onKeyHold(actions: KeyAction) {
 	for (const [inputKey, action] of Object.entries(actions)) {
 		// const actionKey = inputKey as keyof typeof actions
-		_keyHoldActions.set(inputKey, action)
+		_keyHoldActions.set(inputKey.toLowerCase(), action)
 	}
 }
 
@@ -416,7 +426,6 @@ export function onKeyHold(actions: KeyAction) {
 function onMouse(actions: MouseInputAction) {
 	for (const [button, action] of Object.entries(actions)) {
 		const eventName = mouseInputEventNames[button]
-		console.log('onMouse:', button, eventName, action)
 		if (eventName) _registerMouseInputAction(eventName, action)
 	}
 }
@@ -468,7 +477,6 @@ function _registerMouseInputAction(eventName: string, action?: PointerAction) {
 	} else {
 		_mouseInputActions.delete(eventName)
 	}
-	console.log(_mouseInputActions)
 }
 
 function _registerMouseHoldAction(eventName: string, action?: PointerAction) {
@@ -591,6 +599,7 @@ class UserScene extends Scene {
 		timer.frame = 0
 		_frame = 0
 		_nextObjectId = 0
+		_lastLeftClickTime = 0
 
 		/* 
 		 * Capturing Phaser pointer events
@@ -879,11 +888,6 @@ export function setup() {
 		if (key && !keysPressed.includes(key) && !event.repeat) {
 			keysPressed.push(key)
 			keysJustPressed.set(key, _frame)
-		}
-
-		// Add any key to map
-		if (!event.repeat) {
-			// TODO
 		}
 	})
 	window.addEventListener('keyup', event => {
