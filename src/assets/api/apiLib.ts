@@ -72,37 +72,41 @@ ${interactablePropsTypeDef}
 ${gameObjectPropsTypeDef}
 
 namespace LibVars {
-    export const mouseEvents = [
-        'CLICK',
-        'RELEASE',
-        'DOUBLE_CLICK',
-
-        'LEFT_CLICK',
-        'LEFT_RELEASE',
-
-        'RIGHT_CLICK',
-        'RIGHT_RELEASE',
-
-        'MIDDLE_CLICK',
-        'MIDDLE_RELEASE',
-
-        'ENTER',
-        'EXIT',
-
-        'DRAG',
-        'DRAG_START',
-        'DRAG_END',
-
-        'SCROLL',
-        'MOVE',
+    export const mouseInputEvents = [
+        'Click', 'Release', 'DoubleClick',
+        'LeftClick', 'LeftRelease',
+        'RightClick', 'RightRelease',
+        'MiddleClick', 'MiddleRelease',
+        'Enter', 'Exit',
+        'Drag', 'DragStart', 'DragEnd',
+        'Scroll', 'Move',
     ] as const
 
+    export const mouseHoldEvents = [
+        'Left', 'Right', 'Middle', 'Any'
+    ]
+
+    // export const keyCodes = [
+    //     "\`", "~", "1", "!", "2", "@", "3", "#", "4", "$", "5", "%", "6", "^", "7", "&", "8", "*", "9", "(", "0", ")", "-", "_", "=", "+",
+    //     "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "{", "]", "}", "\\\\", "|",
+    //     "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", ":", "'", "\\"",
+    //     "Z", "X", "C", "V", "B", "N", "M", ",", "<", ".", ">", "/", "?",
+    //     "UP", "DOWN", "LEFT", "RIGHT", "SHIFT", "CTRL", "ALT", "TAB", "ESC", "ENTER", "SPACE", "ANY"
+    // ] as const
     export const keyCodes = [
-        "\`", "~", "1", "!", "2", "@", "3", "#", "4", "$", "5", "%", "6", "^", "7", "&", "8", "*", "9", "(", "0", ")", "-", "_", "=", "+",
-        "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "{", "]", "}", "\\\\", "|",
-        "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", ":", "'", "\\"",
-        "Z", "X", "C", "V", "B", "N", "M", ",", "<", ".", ">", "/", "?",
-        "UP", "DOWN", "LEFT", "RIGHT", "SHIFT", "CTRL", "ALT", "TAB", "ESC", "ENTER", "SPACE", "ANY"
+        'Backquote', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Minus', 'Equal', 'Backspace',
+        'Tab', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'BracketLeft', 'BracketRight', 'Backslash',
+        'CapsLock', 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Semicolon', 'Quote', 'Enter',
+        'ShiftLeft', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Comma', 'Period', 'Slash', 'ShiftRight',
+        'ControlLeft', 'AltLeft', 'Space', 'AltRight', 'ContextMenu', 'ControlRight',
+
+        'Insert', 'Home', 'PageUp', 'Delete', 'End', 'PageDown',
+        'Up', 'Down', 'Left', 'Right', 'ScrollLock', 'Pause',
+
+        'Numpad0', 'Numpad1', 'Numpad2', 'Numpad3', 'Numpad4', 'Numpad5', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9',
+        'NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract', 'NumpadAdd', 'NumpadEnter', 'NumpadDecimal',
+
+        'Escape', 'Any'
     ] as const
 }
 
@@ -127,9 +131,14 @@ type Predicate = (...args: any[]) => boolean
 /** Returnable def */
 type Returnable<T> = T | (() => T)
 
-type MouseInputEvent = typeof LibVars.mouseEvents[number]
+type MouseInputEvent = typeof LibVars.mouseInputEvents[number]
 type MouseInputAction = {
     [key in MouseInputEvent]?: Action | null
+}
+
+type MouseHoldEvent = typeof LibVars.mouseHoldEvents[number]
+type MouseInputAction = {
+    [key in MouseHoldEvent]?: Action | null
 }
 
 type InputKey = typeof LibVars.keyCodes[number]

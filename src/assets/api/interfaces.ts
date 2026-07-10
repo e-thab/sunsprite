@@ -51,53 +51,20 @@ export interface Screen {
 	center: Point
 }
 
-function generateKeyArray() {
-	const keyString = '`~1!2@3#4$5%6^7&8*9(0)-_=+QWERTYUIOP[{]}\\|ASDFGHJKL;:\'\"ZXCVBNM,<.>/?'
-	const keyArray = keyString.split('')
-	keyArray.push('Up', 'Down', 'Left', 'Right', 'Shift', 'Ctrl', 'Alt', 'Tab', 'Esc', 'Enter')
-
-	let count = 0
-	let logString = '['
-	for (let key of keyArray) {
-		let escapeChar = ['\`', '\'', '\\'].includes(key) ? '\\' : ''
-		let prefixComma = key === keyString[0] ? '' : ', '
-
-		let genString = `'${escapeChar}${key}', `
-		logString += genString
-		if ((count += genString.length) > 120) {
-			logString += '\n'
-			count = 0
-		}
-
-		if (key.toLowerCase() !== key) {
-			logString += `'${escapeChar}${key.toLowerCase()}', `
-			if ((count += genString.length) > 120) {
-				logString += '\n'
-				count = 0
-			}
-		}
-
-		if (key.toUpperCase() !== key) {
-			logString += `'${escapeChar}${key.toUpperCase()}', `
-			if ((count += genString.length) > 120) {
-				logString += '\n'
-				count = 0
-			}
-		}
-	}
-	console.log(logString + ']')
-}
-// generateKeyArray()
-
-// TODO: Check that all these keys actually register inputs, esp. shift-keys i.e. @, $, etc.
-// TODO: Add an 'any' entry that will allow handling any key press
 const keyCodes = [
-	'\`', '~', '1', '!', '2', '@', '3', '#', '4', '$', '5', '%', '6', '^', '7', '&', '8', '*', '9', '(', '0', ')', '-', '_', 
-	'=', '+', 'Q', 'q', 'W', 'w', 'E', 'e', 'R', 'r', 'T', 't', 'Y', 'y', 'U', 'u', 'I', 'i', 'O', 'o', 'P', 'p', '[', '{', ']', 
-	'}', '\\', '|', 'A', 'a', 'S', 's', 'D', 'd', 'F', 'f', 'G', 'g', 'H', 'h', 'J', 'j', 'K', 'k', 'L', 'l', ';', ':', '\'', 
-	'"', 'Z', 'z', 'X', 'x', 'C', 'c', 'V', 'v', 'B', 'b', 'N', 'n', 'M', 'm', ',', '<', '.', '>', '/', '?', 'Up', 'up', 'UP', 
-	'Down', 'down', 'DOWN', 'Left', 'left', 'LEFT', 'Right', 'right', 'RIGHT', 'Shift', 'shift', 'SHIFT', 'Ctrl', 'ctrl', 'CTRL', 
-	'Alt', 'alt', 'ALT', 'Tab', 'tab', 'TAB', 'Esc', 'esc', 'ESC', 'Enter', 'enter', 'ENTER', 'Space', 'space', 'SPACE', 'Any', 'any', 'ANY'
+	'Backquote', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Minus', 'Equal', 'Backspace',
+	'Tab', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'BracketLeft', 'BracketRight', 'Backslash',
+	'CapsLock', 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Semicolon', 'Quote', 'Enter',
+	'ShiftLeft', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Comma', 'Period', 'Slash', 'ShiftRight',
+	'ControlLeft', 'AltLeft', 'Space', 'AltRight', 'ContextMenu', 'ControlRight',
+
+	'Insert', 'Home', 'PageUp', 'Delete', 'End', 'PageDown',
+	'Up', 'Down', 'Left', 'Right', 'ScrollLock', 'Pause',
+
+	'Numpad0', 'Numpad1', 'Numpad2', 'Numpad3', 'Numpad4', 'Numpad5', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9',
+	'NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract', 'NumpadAdd', 'NumpadEnter', 'NumpadDecimal',
+
+	'Escape', 'Any'
 ] as const
 
 export type InputKey = typeof keyCodes[number]
@@ -106,28 +73,13 @@ export type KeyAction = {
 }
 
 const mouseEvents = [
-	'CLICK', //'Click', 'click',
-	'RELEASE', //'Release', 'release',
-	'DOUBLE_CLICK',
-
-	'LEFT_CLICK', //'Left_Click', 'left_click',
-	'LEFT_RELEASE', //'Left_Release', 'left_release',
-
-	'RIGHT_CLICK',
-	'RIGHT_RELEASE',
-
-	'MIDDLE_CLICK',
-	'MIDDLE_RELEASE',
-
-	'ENTER',
-	'EXIT',
-
-	'DRAG',
-	'DRAG_START',
-	'DRAG_END',
-
-	'SCROLL',
-	'MOVE',
+	'Click', 'Release', 'DoubleClick',
+	'LeftClick', 'LeftRelease',
+	'RightClick', 'RightRelease',
+	'MiddleClick', 'MiddleRelease',
+	'Enter', 'Exit',
+	'Drag', 'DragStart', 'DragEnd',
+	'Scroll', 'Move',
 ] as const
 
 export type MouseInputEvent = typeof mouseEvents[number]

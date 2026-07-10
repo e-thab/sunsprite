@@ -994,30 +994,30 @@ export function Interactable<Base extends Class>(base: Base) {
 
 		/** Generalized dict function for assigning to multiple events at once. */
 		onMouse(actions: MouseInputAction) {
-			if (actions.CLICK !== undefined) this.onClick(actions.CLICK)
-            if (actions.RELEASE !== undefined) this.onRelease(actions.RELEASE)
-            if (actions.DOUBLE_CLICK !== undefined) this.onDoubleClick(actions.DOUBLE_CLICK)
+			if (actions.Click !== undefined) this.onClick(actions.Click)
+            if (actions.Release !== undefined) this.onRelease(actions.Release)
+            if (actions.DoubleClick !== undefined) this.onDoubleClick(actions.DoubleClick)
 
-            if (actions.LEFT_CLICK !== undefined) this.onLeftClick(actions.LEFT_CLICK)
-            if (actions.LEFT_RELEASE !== undefined) this.onLeftRelease(actions.LEFT_RELEASE)
+            if (actions.LeftClick !== undefined) this.onLeftClick(actions.LeftClick)
+            if (actions.LeftRelease !== undefined) this.onLeftRelease(actions.LeftRelease)
 
-            if (actions.RIGHT_CLICK !== undefined) this.onRightClick(actions.RIGHT_CLICK)
-            if (actions.RIGHT_RELEASE !== undefined) this.onRightRelease(actions.RIGHT_RELEASE)
+            if (actions.RightClick !== undefined) this.onRightClick(actions.RightClick)
+            if (actions.RightRelease !== undefined) this.onRightRelease(actions.RightRelease)
 
-            if (actions.MIDDLE_CLICK !== undefined) this.onMiddleClick(actions.MIDDLE_CLICK)
-            if (actions.MIDDLE_RELEASE !== undefined) this.onMiddleRelease(actions.MIDDLE_RELEASE)
+            if (actions.MiddleClick !== undefined) this.onMiddleClick(actions.MiddleClick)
+            if (actions.MiddleRelease !== undefined) this.onMiddleRelease(actions.MiddleRelease)
 
-            if (actions.ENTER !== undefined) this.onMouseEnter(actions.ENTER)
-            if (actions.EXIT !== undefined) this.onMouseExit(actions.EXIT)
+            if (actions.Enter !== undefined) this.onMouseEnter(actions.Enter)
+            if (actions.Exit !== undefined) this.onMouseExit(actions.Exit)
 
-            if (actions.DRAG !== undefined) this.onDrag(actions.DRAG)
-            if (actions.DRAG_START !== undefined) this.onDragStart(actions.DRAG_START)
-            if (actions.DRAG_END !== undefined) this.onDragEnd(actions.DRAG_END)
+            if (actions.Drag !== undefined) this.onDrag(actions.Drag)
+            if (actions.DragStart !== undefined) this.onDragStart(actions.DragStart)
+            if (actions.DragEnd !== undefined) this.onDragEnd(actions.DragEnd)
 
-            if (actions.SCROLL !== undefined) this.onScroll(actions.SCROLL)
-            if (actions.MOVE !== undefined) this.onMouseMove(actions.MOVE)
+            if (actions.Scroll !== undefined) this.onScroll(actions.Scroll)
+            if (actions.Move !== undefined) this.onMouseMove(actions.Move)
 
-            if (actions.CLICK) {
+            if (actions.Click) {
                 console.log('actions.CLICK evaluates to true')
             } else {
                 console.log('actions.CLICK evaluates to false')

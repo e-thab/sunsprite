@@ -310,10 +310,6 @@ async function setCursor(src: string) {
 
 /* Run function {fn} once every frame */
 export function forever(fn: Action) {
-	// _ticker.add((time) => {
-	// 	if (paused) return
-	// 	fn(time.deltaMS / 1000) // delta: how long since previous frame in seconds
-	// })
 	_forevers.push((delta: number) => {
 		if (paused) return
 		fn(delta)
@@ -355,10 +351,6 @@ export function repeatUntil(condition: Predicate, fn: Action) {
 
 /* Run function {fn} after {seconds} seconds have passed */
 export function after(seconds: number, fn: Action) {
-	// const milliseconds = seconds * 1000
-	// scene.time.delayedCall(milliseconds, () => {
-	// 	fn()
-	// })
 	_afters.push({
 		elapsedMs: 0,
 		lifetimeMs: seconds * 1000,
@@ -368,13 +360,6 @@ export function after(seconds: number, fn: Action) {
 
 /* Run function {fn} once immediately, then every {seconds} seconds */
 export function every(seconds: number, fn: Action) {
-	// const milliseconds = seconds * 1000
-	// scene.time.addEvent({
-	// 	delay: milliseconds,
-	// 	callback: fn,
-	// 	loop: true
-	// })
-	// fn()
 	_everys.push({
 		elapsedMs: 0,
 		lifetimeMs: seconds * 1000,
@@ -404,6 +389,7 @@ export function onKeyPress(actions: KeyAction) {
 		// const actionKey = inputKey as keyof typeof actions
 		_keyPressActions.set(inputKey.toLowerCase(), action)
 	}
+	console.log(_keyPressActions)
 }
 
 /* Allows cleaner input key mapping for released key behavior */
@@ -439,35 +425,35 @@ function onMouseHold(actions: MouseHoldAction) {
 }
 
 const mouseInputEventNames: { [key: string]: string } = {
-	CLICK: PointerEvents.POINTER_DOWN,
-	DOUBLE_CLICK: PointerEvents.POINTER_DOUBLE,
-	ENTER: PointerEvents.POINTER_OVER,
-	EXIT: PointerEvents.POINTER_OUT,
-	LEFT_CLICK: PointerEvents.POINTER_DOWN_LEFT,
-	LEFT_RELEASE: PointerEvents.POINTER_UP_LEFT,
-	MIDDLE_CLICK: PointerEvents.POINTER_DOWN_MIDDLE,
-	MIDDLE_RELEASE: PointerEvents.POINTER_UP_MIDDLE,
-	MOVE: PointerEvents.POINTER_MOVE,
-	RELEASE: PointerEvents.POINTER_UP,
-	RIGHT_CLICK: PointerEvents.POINTER_DOWN_RIGHT,
-	RIGHT_RELEASE: PointerEvents.POINTER_UP_RIGHT,
-	SCROLL: PointerEvents.POINTER_WHEEL
+	Click: PointerEvents.POINTER_DOWN,
+	DoubleClick: PointerEvents.POINTER_DOUBLE,
+	Enter: PointerEvents.POINTER_OVER,
+	Exit: PointerEvents.POINTER_OUT,
+	LeftClick: PointerEvents.POINTER_DOWN_LEFT,
+	LeftRelease: PointerEvents.POINTER_UP_LEFT,
+	MiddleClick: PointerEvents.POINTER_DOWN_MIDDLE,
+	MiddleRelease: PointerEvents.POINTER_UP_MIDDLE,
+	Move: PointerEvents.POINTER_MOVE,
+	Release: PointerEvents.POINTER_UP,
+	RightClick: PointerEvents.POINTER_DOWN_RIGHT,
+	RightRelease: PointerEvents.POINTER_UP_RIGHT,
+	Scroll: PointerEvents.POINTER_WHEEL
 }
 
 // TODO: mouse hold events
 const mouseHoldEventNames: { [key: string]: string } = {
-	RIGHT: PointerEvents.POINTER_DOWN_RIGHT,
-	MIDDLE: PointerEvents.POINTER_DOWN_MIDDLE,
-	LEFT: PointerEvents.HOLD_LEFT,
+	Right: PointerEvents.POINTER_DOWN_RIGHT,
+	Middle: PointerEvents.POINTER_DOWN_MIDDLE,
+	Left: PointerEvents.HOLD_LEFT,
 }
 
 // TODO: Are these useful anymore?
-type MouseHoldEvent = 'LEFT' | 'RIGHT' | 'MIDDLE'
+type MouseHoldEvent = 'Left' | 'Right' | 'Middle'
 type MouseHoldAction = { [key in MouseHoldEvent]?: Action }
 
 function _registerMouseInputAction(eventName: string, action?: PointerAction) {
 	if (_mouseInputActions.get(eventName)) {
-		// Coalesce in case action entry is null
+		// Coalesce in case action entry is null but not undefined
 		scene.input.off(eventName, _mouseInputActions.get(eventName) ?? undefined)
 	}
 
@@ -679,8 +665,7 @@ class UserScene extends Scene {
 			Sprite, Rectangle, Label, Line, HLine, VLine, Vector2, /*Point,*/
 			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, after, every,
-			keyPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease,
-			onMouse,
+			keyPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			print, play, pause, setBackgroundColor,
 			Random: random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
@@ -733,7 +718,6 @@ class UserScene extends Scene {
 		}
 		
 		if (paused) return
-		// Maybe switch Timer.time to track time in milliseconds (or different props for timeSec, timeMs, etc)
 		timer.time += delta
 		timer.frame = _frame++
 		
@@ -747,8 +731,6 @@ class UserScene extends Scene {
 		_runPropUpdaters()
 	}
 }
-
-// scene = new UserScene()
 
 export async function runUserCode(code: string): Promise<void> {
 	clearOutput()
@@ -771,29 +753,9 @@ export async function runUserCode(code: string): Promise<void> {
 	
 	// Switch this to an internal addInput func that can modify innerHTML
 	print('<i>Running</i>', undefined, '#626f8b')
-	
-	//// Pixi stuff
 
-	// 	fpsRef.value = Math.round(app.ticker.FPS)
-	// 	FPS = app.ticker.FPS
-	// 	_clearKeysJustPressed(_frame)
-	// 	// whilePaused loops? or a flag to be able to run standard loops through pause?
+	// whilePaused loops? or a flag to be able to run standard loops through pause?
 		
-	// 	if (paused) return // Can pause from loops, but obviously not unpause. Would a workaround be useful?
-	// 	Timer.time += delta
-	// 	_frame++
-	// 	_runRepeats()
-	// 	_runAfters(delta)
-	// 	_runEverys(delta)
-	// 	_runRepeatUntils()
-	// })
-	
-	//// Phaser testing
-	// _resetTimeline()
-	// 	timeline = game.add.timeline({
-	// 	at: 0
-	// })
-
 	if (game) game.destroy(true)
 
 	scene = new UserScene(code)
@@ -833,76 +795,56 @@ function _resizeStage() {
 }
 
 export function setup() {
-	// const gameContainer = document.querySelector('#game-container') as HTMLElement
+	// TODO: Add 'group' codes like Shift that allows detecting either left or right shift
+	// TODO: Pass a way to detect modifier keys as action param(s)
+	const keyAlias: { [key: string]: string } = {
+		ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up',
+		Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4',
+		Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
+		KeyQ: 'Q', KeyW: 'W', KeyE: 'E', KeyR: 'R', KeyT: 'T', KeyY: 'Y',
+		KeyU: 'U', KeyI: 'I', KeyO: 'O', KeyP: 'P', KeyA: 'A', KeyS: 'S',
+		KeyD: 'D', KeyF: 'F', KeyG: 'G', KeyH: 'H', KeyJ: 'J', KeyK: 'K',
+		KeyL: 'L', KeyZ: 'Z', KeyX: 'X', KeyC: 'C', KeyV: 'V', KeyB: 'B',
+		KeyN: 'N', KeyM: 'M',
+	}
 
-	// await app.init({
-	// 	background: '#222',
-	// 	resizeTo: gameContainer, // Dynamically update this on resize
-	// 	antialias: true,
-	// 	autoDensity: true,
-  	// })
-
-	// const eventSystem = app.renderer.events
-	// eventSystem.cursorStyles.default = "url('src/assets/images/ui-cursors/small/pointer_c.png') 5 5, auto"
-	// eventSystem.cursorStyles.handOpen = "url('src/assets/images/ui-cursors/small/hand_open.png') 15 10, auto"
-	// eventSystem.cursorStyles.handClosed = "url('src/assets/images/ui-cursors/small/hand_closed.png') 10 10, auto"
-	// eventSystem.cursorStyles.handPoint = "url('src/assets/images/ui-cursors/small/hand_point.png') 10 4, auto"
-	// eventSystem.cursorStyles.question = "url('src/assets/images/ui-cursors/small/mark_question_pointer_b.png') 7 4, auto"
-	// eventSystem.cursorStyles.cross = "url('src/assets/images/ui-cursors/small/cross_large.png') 16 16, auto"
-	// eventSystem.cursorStyles.dot = "url('src/assets/images/ui-cursors/small/dot_large.png') 16 16, auto"
-	// const eventSystem = app.renderer.events;
-	// eventSystem.cursorStyles.default = () => { defaultIcon };
-	// eventSystem.setCursor('default');
-
-	// const el = document.querySelector('#game-container')
-	// console.log(el?.clientWidth)
-	// app.stage.hitArea = new PixiRect(0, 0, el?.clientWidth, el?.clientHeight)
-	// app.stage.cursor = 'custom'
-
-	// app.stage.eventMode = 'dynamic'
-	// console.log(app.stage.eventMode)
-
-	const keyAlias = new Map<string, string>([
-		[' ', 'space'],
-		['ArrowDown', 'down'],
-		['ArrowLeft', 'left'],
-		['ArrowRight', 'right'],
-		['ArrowUp', 'up']
-	])
-
-	function apiKeyCode(key: string): string | undefined {
-		if (keyAlias.get(key)) {
-			return keyAlias.get(key)
-		}
-		return key.toLowerCase()
+	function apiKeyCode(keyCode: string): string | undefined {
+		return (keyAlias[keyCode] ?? keyCode).toLowerCase()
 	}
 
 	// Key press/release registration
 	window.addEventListener('keydown', event => {
 		// Don't register game key press when code editor has focus
 		if (document.activeElement?.ariaRoleDescription === 'editor') return
+		
+		// pass a key object containing:
+		// event.altKey
+		// event.ctrlKey
+		// event.shiftKey
+		// event.key
 
-		const key = apiKeyCode(event.key)
+		const keyCode = apiKeyCode(event.code)
 
 		// Add specific key to keysJustPressed map
-		if (key && !keysPressed.includes(key) && !event.repeat) {
-			keysPressed.push(key)
-			keysJustPressed.set(key, _frame)
+		if (keyCode && !keysPressed.includes(keyCode) && !event.repeat) {
+			keysPressed.push(keyCode)
+			keysJustPressed.set(keyCode, _frame)
+			console.log('keysJustPressed', keysJustPressed)
 		}
 	})
 	window.addEventListener('keyup', event => {
 		// Don't register game key release when code editor has focus
 		if (document.activeElement?.ariaRoleDescription === 'editor') return
 
-		const key = apiKeyCode(event.key)
+		const keyCode = apiKeyCode(event.code)
 
 		// Add key to justReleased map and remove from pressed array
-		if (key && keysPressed.includes(key)) {
+		if (keyCode && keysPressed.includes(keyCode)) {
 			// Only add to map if it was being pressed. This prevents potential extra release events
 			// if releasing key after window regains focus
-			keysJustReleased.set(key, _frame)
+			keysJustReleased.set(keyCode, _frame)
 			// Remove key from keysPressed array
-			keysPressed.splice(keysPressed.indexOf(key), 1)
+			keysPressed.splice(keysPressed.indexOf(keyCode), 1)
 		}
 	})
 	window.addEventListener('contextmenu', event => {
