@@ -48,6 +48,10 @@ let _repeatUntils: RepeatableUntil[] = []
 let _afters: Delayable[] = []
 let _everys: Delayable[] = []
 
+let _shiftRepeating: boolean = false
+let _ctrlRepeating: boolean = false
+let _altRepeating: boolean = false
+
 const _keyPressActions: Map<string, Action> = new Map()
 const _keyReleaseActions: Map<string, Action> = new Map()
 const _keyHoldActions: Map<string, Action> = new Map()
@@ -522,12 +526,14 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 	const stampItem = document.createElement('div')
 	stampItem.className = 'output-stamp'
 
-	const time = new Date()
-	const hr = withLeadingZeroes(time.getHours(), 2)
-	const min = withLeadingZeroes(time.getMinutes(), 2)
-	const sec = withLeadingZeroes(time.getSeconds(), 2)
-	const milli = withLeadingZeroes(time.getMilliseconds(), 3)
-	stampItem.textContent = `${hr}:${min}:${sec}.${milli}`
+	// const time = new Date()
+	// const hr = withLeadingZeroes(time.getHours(), 2)
+	// const min = withLeadingZeroes(time.getMinutes(), 2)
+	// const sec = withLeadingZeroes(time.getSeconds(), 2)
+	// const milli = withLeadingZeroes(time.getMilliseconds(), 3)
+	// stampItem.textContent = `${hr}:${min}:${sec}.${milli}`
+
+	stampItem.textContent = `${withLeadingZeroes(timer.frame, 6)}`
 	
 	item.appendChild(stampItem)
 	item.appendChild(msgItem)
@@ -798,14 +804,12 @@ export function setup() {
 	// TODO: Add 'group' codes like Shift that allows detecting either left or right shift
 	// TODO: Pass a way to detect modifier keys as action param(s)
 	const keyAlias: { [key: string]: string } = {
+		Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4', Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
+		KeyQ: 'Q', KeyW: 'W', KeyE: 'E', KeyR: 'R', KeyT: 'T', KeyY: 'Y', KeyU: 'U', KeyI: 'I', KeyO: 'O', KeyP: 'P',
+		KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyF: 'F', KeyG: 'G', KeyH: 'H', KeyJ: 'J', KeyK: 'K', KeyL: 'L',
+		KeyZ: 'Z', KeyX: 'X', KeyC: 'C', KeyV: 'V', KeyB: 'B', KeyN: 'N', KeyM: 'M',
 		ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up',
-		Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4',
-		Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
-		KeyQ: 'Q', KeyW: 'W', KeyE: 'E', KeyR: 'R', KeyT: 'T', KeyY: 'Y',
-		KeyU: 'U', KeyI: 'I', KeyO: 'O', KeyP: 'P', KeyA: 'A', KeyS: 'S',
-		KeyD: 'D', KeyF: 'F', KeyG: 'G', KeyH: 'H', KeyJ: 'J', KeyK: 'K',
-		KeyL: 'L', KeyZ: 'Z', KeyX: 'X', KeyC: 'C', KeyV: 'V', KeyB: 'B',
-		KeyN: 'N', KeyM: 'M',
+		ControlLeft: 'CtrlLeft', ControlRight: 'CtrlRight',
 	}
 
 	function apiKeyCode(keyCode: string): string | undefined {
@@ -816,20 +820,57 @@ export function setup() {
 	window.addEventListener('keydown', event => {
 		// Don't register game key press when code editor has focus
 		if (document.activeElement?.ariaRoleDescription === 'editor') return
+
+		// Left/right shift can't really be separated the way I was originally thinking, because
+		// the keyup event doesn't trigger if one shift is released while the other is still held.
+		// Left/right shift should be consolidated into one code, just Shift. In order to reduce
+		// confusion I think the same should be done for Ctrl/Alt.
 		
 		// pass a key object containing:
 		// event.altKey
 		// event.ctrlKey
 		// event.shiftKey
-		// event.key
+		// event.key?
 
 		const keyCode = apiKeyCode(event.code)
+		// console.log('keydown', keyCode, keysPressed.includes(keyCode), event.repeat)
+
+		// let repeating = false
+		// if (keyCode === 'shiftleft' && event.repeat) {
+
+		// }
+		// if (event.repeat) {
+		// }
+
+		// const checkRepeat = () => {
+		// 	switch (keyCode) {
+		// 		case 'shiftleft':
+		// 			_shiftRepeating
+		// 			return 
+		// 	}
+		// }
 
 		// Add specific key to keysJustPressed map
-		if (keyCode && !keysPressed.includes(keyCode) && !event.repeat) {
+		if (keyCode && !keysPressed.includes(keyCode)) {
+			// console.log('register', keyCode)
+
 			keysPressed.push(keyCode)
 			keysJustPressed.set(keyCode, _frame)
-			console.log('keysJustPressed', keysJustPressed)
+			
+			if (keyCode === 'shiftleft' || keyCode === 'shiftright') {
+				keysPressed.push('shift')
+				keysJustPressed.set('shift', _frame)
+			}
+
+			else if (keyCode === 'ctrlleft' || keyCode === 'ctrlright') {
+				keysPressed.push('ctrl')
+				keysJustPressed.set('ctrl', _frame)
+			}
+
+			else if (keyCode === 'altleft' || keyCode === 'altright') {
+				keysPressed.push('alt')
+				keysJustPressed.set('alt', _frame)
+			}
 		}
 	})
 	window.addEventListener('keyup', event => {
@@ -837,14 +878,30 @@ export function setup() {
 		if (document.activeElement?.ariaRoleDescription === 'editor') return
 
 		const keyCode = apiKeyCode(event.code)
+		console.log('keyup', keyCode)
 
 		// Add key to justReleased map and remove from pressed array
 		if (keyCode && keysPressed.includes(keyCode)) {
+			// Remove key from keysPressed array
+			keysPressed.splice(keysPressed.indexOf(keyCode), 1)
 			// Only add to map if it was being pressed. This prevents potential extra release events
 			// if releasing key after window regains focus
 			keysJustReleased.set(keyCode, _frame)
-			// Remove key from keysPressed array
-			keysPressed.splice(keysPressed.indexOf(keyCode), 1)
+
+			// if (keyCode === 'shiftleft' || keyCode === 'shiftright') {
+			// 	keysPressed.splice(keysPressed.indexOf('shift'), 1)
+			// 	keysJustReleased.set('shift', _frame)
+			// }
+
+			// else if (keyCode === 'ctrlleft' || keyCode === 'ctrlright') {
+			// 	keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
+			// 	keysJustReleased.set('ctrl', _frame)
+			// }
+
+			// else if (keyCode === 'altleft' || keyCode === 'altright') {
+			// 	keysPressed.splice(keysPressed.indexOf('alt'), 1)
+			// 	keysJustReleased.set('alt', _frame)
+			// }
 		}
 	})
 	window.addEventListener('contextmenu', event => {

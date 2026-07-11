@@ -98,7 +98,7 @@ namespace LibVars {
         'Tab', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'BracketLeft', 'BracketRight', 'Backslash',
         'CapsLock', 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Semicolon', 'Quote', 'Enter',
         'ShiftLeft', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Comma', 'Period', 'Slash', 'ShiftRight',
-        'ControlLeft', 'AltLeft', 'Space', 'AltRight', 'ContextMenu', 'ControlRight',
+        'CtrlLeft', 'AltLeft', 'Space', 'AltRight', 'ContextMenu', 'CtrlRight',
 
         'Insert', 'Home', 'PageUp', 'Delete', 'End', 'PageDown',
         'Up', 'Down', 'Left', 'Right', 'ScrollLock', 'Pause',
@@ -106,7 +106,7 @@ namespace LibVars {
         'Numpad0', 'Numpad1', 'Numpad2', 'Numpad3', 'Numpad4', 'Numpad5', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9',
         'NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract', 'NumpadAdd', 'NumpadEnter', 'NumpadDecimal',
 
-        'Escape', 'Any'
+        'Escape', 'Any', 'Shift', 'Ctrl', 'Alt'
     ] as const
 }
 

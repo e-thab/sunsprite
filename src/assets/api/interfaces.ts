@@ -64,7 +64,7 @@ const keyCodes = [
 	'Numpad0', 'Numpad1', 'Numpad2', 'Numpad3', 'Numpad4', 'Numpad5', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9',
 	'NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract', 'NumpadAdd', 'NumpadEnter', 'NumpadDecimal',
 
-	'Escape', 'Any'
+	'Escape', 'Any', 'Shift', 'Ctrl', 'Alt'
 ] as const
 
 export type InputKey = typeof keyCodes[number]

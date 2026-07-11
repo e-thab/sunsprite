@@ -28,8 +28,6 @@ export default class Line extends
     _pointB: Point
     _color: string = '#fff'
     _thickness: number = 2 // Line thickness 1 seems to visually reduce the alpha, look into this
-
-    // ID is the same for all objects bc time created is always the same. TODO: Fix
     _id: string = getNextObjectId()
     // _updatingPointA: boolean = false
     // _updatingPointB: boolean = false
