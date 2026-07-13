@@ -509,23 +509,23 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 		return strNum
 	}
 	
-    // const item = document.createElement('div')
-    // item.className = 'output-item'
+    const item = document.createElement('div')
+    item.className = 'output-item'
 
-	// const msgItem = document.createElement('div')
-	// msgItem.className = 'output-msg'
+	const msgItem = document.createElement('div')
+	msgItem.className = 'output-msg'
 	
-	// msgItem.textContent = msg
-	// msgItem.innerHTML = msg  // Unsafe
+	msgItem.textContent = msg
+	msgItem.innerHTML = msg  // Unsafe
 
-	// if (bgColor) {
-	// 	msgItem.style.backgroundColor = bgColor
-	// }
-	// if (textColor) {
-	// 	msgItem.style.color = textColor
-	// }
-	const msgStyle = `${bgColor ? `background-color: ${bgColor};` : ''}; ${textColor ? `color: ${textColor};` : ''}`
-	const msgHtml = `<div class=output-msg style="${msgStyle}">${msg}</div>`
+	if (bgColor) {
+		msgItem.style.backgroundColor = bgColor
+	}
+	if (textColor) {
+		msgItem.style.color = textColor
+	}
+	// const msgStyle = `${bgColor ? `background-color: ${bgColor};` : ''}; ${textColor ? `color: ${textColor};` : ''}`
+	// const msgHtml = `<div class=output-msg style="${msgStyle}">${msg}</div>`
 	
 	const stampItem = document.createElement('div')
 	stampItem.className = 'output-stamp'
@@ -539,14 +539,14 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 	
 	stampItem.textContent = `${withLeadingZeroes(timer.frame, 6)}`
 	
-	// item.appendChild(stampItem)
-	// item.appendChild(msgItem)
+	item.appendChild(stampItem)
+	item.appendChild(msgItem)
 	
 	const panel = document.querySelector('#output-panel')
 	if (panel) {
-		const itemHtml = `<div class='output-item'></div>`
-		// panel.appendChild(item)
-		// panel.scrollTop = panel.scrollHeight
+		// const itemHtml = `<div class='output-item'></div>`
+		panel.appendChild(item)
+		panel.scrollTop = panel.scrollHeight
 	}
 }
 
@@ -815,6 +815,7 @@ export function setup() {
 		KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyF: 'F', KeyG: 'G', KeyH: 'H', KeyJ: 'J', KeyK: 'K', KeyL: 'L',
 		KeyZ: 'Z', KeyX: 'X', KeyC: 'C', KeyV: 'V', KeyB: 'B', KeyN: 'N', KeyM: 'M',
 		ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up',
+		ControlLeft: 'CtrlLeft', ControlRight: 'CtrlRight', Control: 'Ctrl'
 		// Rename to consolidate 
 		// ShiftLeft: 'Shift', ShiftRight: 'Shift',
 		// ControlLeft: 'Ctrl', ControlRight: 'Ctrl',
@@ -846,9 +847,164 @@ export function setup() {
 		// event.shiftKey
 		// event.key?
 
-		const keyCode = apiKeyCode(event.code)
-		// console.log('keydown', keyCode, keysPressed.includes(keyCode), event.repeat)
 
+		/* Test script:
+		// const bgColor = Random.color()
+		setBackgroundColor('#8b3a5b')
+		// print(bgColor)
+
+		const rectLShift = new Rectangle({
+			x: -160,
+			width: 120,
+			height: 60,
+		})
+		const rectLShiftActive = new Rectangle({
+			x: -160,
+			width: 120,
+			height: 60,
+			color: Colors.Peru,
+			visible: false
+		})
+		const textLShift = new Label({
+			x: -160,
+			text: 'L shift',
+			color: '#000'
+		})
+
+		const rectRShift = new Rectangle({
+			x: 160,
+			width: 120,
+			height: 60,
+		})
+		const rectRShiftActive = new Rectangle({
+			x: 160,
+			width: 120,
+			height: 60,
+			color: Colors.Peru,
+			visible: false
+		})
+		const textRShift = new Label({
+			x: 160,
+			text: 'R shift',
+			color: '#000'
+		})
+
+		const rectCShift = new Rectangle({
+			width: 120,
+			height: 60,
+		})
+		const rectCShiftActive = new Rectangle({
+			width: 120,
+			height: 60,
+			color: Colors.Peru,
+			visible: false
+		})
+		const textCShift = new Label({
+			text: 'Shift',
+			color: '#000'
+		})
+
+		const rectLCtrl = new Rectangle({
+			x: -120,
+			y: -80,
+			width: 90,
+			height: 60,
+		})
+		const rectLCtrlActive = new Rectangle({
+			x: -120,
+			y: -80,
+			width: 90,
+			height: 60,
+			color: Colors.Peru,
+			visible: false
+		})
+		const textLCtrl = new Label({
+			x: -120,
+			y: -80,
+			text: 'L ctrl',
+			color: '#000'
+		})
+
+		const rectRCtrl = new Rectangle({
+			x: 120,
+			y: -80,
+			width: 90,
+			height: 60,
+		})
+		const rectRCtrlActive = new Rectangle({
+			x: 120,
+			y: -80,
+			width: 90,
+			height: 60,
+			color: Colors.Peru,
+			visible: false
+		})
+		const textRCtrl = new Label({
+			x: 120,
+			y: -80,
+			text: 'R ctrl',
+			color: '#000'
+		})
+
+		const rectCCtrl = new Rectangle({
+			y: -80,
+			width: 90,
+			height: 60,
+		})
+		const rectCCtrlActive = new Rectangle({
+			y: -80,
+			width: 90,
+			height: 60,
+			color: Colors.Peru,
+			visible: false
+		})
+		const textCCtrl = new Label({
+			y: -80,
+			text: 'Ctrl',
+			color: '#000'
+		})
+
+		forever(delta => {
+			rectLShift.color = keyPressed('ShiftLeft') ? Colors.MediumSeaGreen : Colors.Gray
+			rectRShift.color = keyPressed('ShiftRight') ? Colors.MediumSeaGreen : Colors.Gray
+			rectCShift.color = keyPressed('Shift') ? Colors.MediumSeaGreen : Colors.Gray
+
+			rectLCtrl.color = keyPressed('CtrlLeft') ? Colors.MediumSeaGreen : Colors.Gray
+			rectRCtrl.color = keyPressed('CtrlRight') ? Colors.MediumSeaGreen : Colors.Gray
+			rectCCtrl.color = keyPressed('Ctrl') ? Colors.MediumSeaGreen : Colors.Gray
+		})
+
+		onKeyPress({
+			ShiftLeft: () => {
+				rectLShiftActive.show()
+				after(0.12, () => rectLShiftActive.hide())
+			},
+			ShiftRight: () => {
+				rectRShiftActive.show()
+				after(0.12, () => rectRShiftActive.hide())
+			},
+			Shift: () => {
+				rectCShiftActive.show()
+				after(0.12, () => rectCShiftActive.hide())
+			},
+			CtrlLeft: () => {
+				rectLCtrlActive.show()
+				after(0.12, () => rectLCtrlActive.hide())
+			},
+			CtrlRight: () => {
+				rectRCtrlActive.show()
+				after(0.12, () => rectRCtrlActive.hide())
+			},
+			Ctrl: () => {
+				rectCCtrlActive.show()
+				after(0.12, () => rectCCtrlActive.hide())
+			},
+		})
+		*/
+
+		const keyCode = apiKeyCode(event.code)
+		console.log(`down: ${keyCode}   shift?: ${event.getModifierState('Shift')}   ctrl?: ${event.getModifierState('Control')}`)
+		
 		// Add specific key to keysJustPressed map
 		if (keyCode && !keysPressed.includes(keyCode)) {
 			// console.log('register', keyCode)
@@ -856,29 +1012,32 @@ export function setup() {
 			keysPressed.push(keyCode)
 			keysJustPressed.set(keyCode, _frame)
 			
-			// if (keyCode === 'shiftleft' || keyCode === 'shiftright') {
-			// 	keysPressed.push('shift')
-			// 	keysJustPressed.set('shift', _frame)
-			// }
+			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keysPressed.includes('shift')) {
+				keysPressed.push('shift')
+				keysJustPressed.set('shift', _frame)
+			}
 
-			// else if (keyCode === 'ctrlleft' || keyCode === 'ctrlright') {
-			// 	keysPressed.push('ctrl')
-			// 	keysJustPressed.set('ctrl', _frame)
-			// }
+			else if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keysPressed.includes('ctrl')) {
+				keysPressed.push('ctrl')
+				keysJustPressed.set('ctrl', _frame)
+			}
 
-			// else if (keyCode === 'altleft' || keyCode === 'altright') {
-			// 	keysPressed.push('alt')
-			// 	keysJustPressed.set('alt', _frame)
-			// }
+			else if ((keyCode === 'altleft' || keyCode === 'altright') && keysPressed.includes('alt')) {
+				keysPressed.push('alt')
+				keysJustPressed.set('alt', _frame)
+			}
 		}
+		if (!event.repeat) console.log(keysPressed)
 	})
 	window.addEventListener('keyup', event => {
 		// Don't register game key release when code editor has focus
 		if (document.activeElement?.ariaRoleDescription === 'editor') return
 
 		const keyCode = apiKeyCode(event.code)
-		console.log('keyup', event.code, event.location)
-
+		// console.log('keyup', event.code, event.location)
+		// console.log('keyup', event.getModifierState('Shift'))
+		console.log(`up: ${keyCode}   shift?: ${event.getModifierState('Shift')}   ctrl?: ${event.getModifierState('Control')}`)
+		
 		// Add key to justReleased map and remove from pressed array
 		if (keyCode && keysPressed.includes(keyCode)) {
 			// Remove key from keysPressed array
@@ -887,15 +1046,21 @@ export function setup() {
 			// if releasing key after window regains focus
 			keysJustReleased.set(keyCode, _frame)
 
-			// if (keyCode === 'shiftleft' || keyCode === 'shiftright') {
-			// 	keysPressed.splice(keysPressed.indexOf('shift'), 1)
-			// 	keysJustReleased.set('shift', _frame)
-			// }
+			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !event.getModifierState('Shift')) {
+				console.log('release shift')
+				keysPressed.splice(keysPressed.indexOf('shift'), 1)
+				keysPressed.splice(keysPressed.indexOf('shiftleft'), 1)
+				keysPressed.splice(keysPressed.indexOf('shiftright'), 1)
+				keysJustReleased.set('shift', _frame)
+				console.log(keysJustReleased)
+			}
 
-			// else if (keyCode === 'ctrlleft' || keyCode === 'ctrlright') {
-			// 	keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
-			// 	keysJustReleased.set('ctrl', _frame)
-			// }
+			else if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !event.getModifierState('Control')) {
+				console.log('release ctrl')
+				keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
+				keysJustReleased.set('ctrl', _frame)
+				console.log(keysJustReleased)
+			}
 
 			// else if (keyCode === 'altleft' || keyCode === 'altright') {
 			// 	keysPressed.splice(keysPressed.indexOf('alt'), 1)

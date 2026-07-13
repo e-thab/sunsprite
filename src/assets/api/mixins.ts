@@ -472,8 +472,8 @@ export function Viewable<Base extends Class>(base: Base) {
 
         initViewable(props?: GameObjectProps) {
             if (props?.alpha != null) this.alpha = props.alpha
-            if (props?.layer) this.layer = props.layer
-            if (props?.visible) this.visible = props.visible
+            if (props?.layer != null) this.layer = props.layer
+            if (props?.visible != null) this.visible = props.visible
         }
 
         queueShow() {
@@ -519,6 +519,7 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         
         show() {
+            console.log('showing')
             if (this._refObj) this._refObj.visible = true
         }
 

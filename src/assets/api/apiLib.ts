@@ -87,8 +87,8 @@ namespace LibVars {
         'Backquote', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Minus', 'Equal', 'Backspace',
         'Tab', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'BracketLeft', 'BracketRight', 'Backslash',
         'CapsLock', 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Semicolon', 'Quote', 'Enter',
-        /*'ShiftLeft',*/ 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Comma', 'Period', 'Slash', /*'ShiftRight',*/
-        /*'ControlLeft', 'AltLeft',*/ 'Space', /*'AltRight', 'ContextMenu', 'ControlRight',*/
+        'ShiftLeft', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Comma', 'Period', 'Slash', 'ShiftRight',
+        'CtrlLeft', 'AltLeft', 'Space', 'AltRight', 'ContextMenu', 'CtrlRight',
 
         'Insert', 'Home', 'PageUp', 'Delete', 'End', 'PageDown',
         'Up', 'Down', 'Left', 'Right', 'ScrollLock', 'Pause',
