@@ -45,9 +45,6 @@ declare enum Colors ${
 }
 `
 
-const BACKSLASH = String.raw`'\\'`
-console.log(BACKSLASH)
-
 /** 
  * Added to the editor as a library, definitions are not added to the model
  * but general type information is still displayed. Internal.
@@ -86,25 +83,18 @@ namespace LibVars {
         'Left', 'Right', 'Middle', 'Any'
     ]
 
-    // export const keyCodes = [
-    //     "\`", "~", "1", "!", "2", "@", "3", "#", "4", "$", "5", "%", "6", "^", "7", "&", "8", "*", "9", "(", "0", ")", "-", "_", "=", "+",
-    //     "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "{", "]", "}", "\\\\", "|",
-    //     "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", ":", "'", "\\"",
-    //     "Z", "X", "C", "V", "B", "N", "M", ",", "<", ".", ">", "/", "?",
-    //     "UP", "DOWN", "LEFT", "RIGHT", "SHIFT", "CTRL", "ALT", "TAB", "ESC", "ENTER", "SPACE", "ANY"
-    // ] as const
     export const keyCodes = [
         'Backquote', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Minus', 'Equal', 'Backspace',
         'Tab', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'BracketLeft', 'BracketRight', 'Backslash',
         'CapsLock', 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Semicolon', 'Quote', 'Enter',
-        'ShiftLeft', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Comma', 'Period', 'Slash', 'ShiftRight',
-        'CtrlLeft', 'AltLeft', 'Space', 'AltRight', 'ContextMenu', 'CtrlRight',
+        /*'ShiftLeft',*/ 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Comma', 'Period', 'Slash', /*'ShiftRight',*/
+        /*'ControlLeft', 'AltLeft',*/ 'Space', /*'AltRight', 'ContextMenu', 'ControlRight',*/
 
         'Insert', 'Home', 'PageUp', 'Delete', 'End', 'PageDown',
         'Up', 'Down', 'Left', 'Right', 'ScrollLock', 'Pause',
 
         'Numpad0', 'Numpad1', 'Numpad2', 'Numpad3', 'Numpad4', 'Numpad5', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9',
-        'NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract', 'NumpadAdd', 'NumpadEnter', 'NumpadDecimal',
+        'NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract', 'NumpadAdd', /*'NumpadEnter',*/ 'NumpadDecimal',
 
         'Escape', 'Any', 'Shift', 'Ctrl', 'Alt'
     ] as const

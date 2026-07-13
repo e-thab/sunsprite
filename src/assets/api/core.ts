@@ -509,39 +509,44 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 		return strNum
 	}
 	
-    const item = document.createElement('div')
-    item.className = 'output-item'
+    // const item = document.createElement('div')
+    // item.className = 'output-item'
+
+	// const msgItem = document.createElement('div')
+	// msgItem.className = 'output-msg'
 	
-	const msgItem = document.createElement('div')
-	msgItem.className = 'output-msg'
 	// msgItem.textContent = msg
-	msgItem.innerHTML = msg  // Unsafe
-	if (bgColor) {
-		msgItem.style.backgroundColor = bgColor
-	}
-	if (textColor) {
-		msgItem.style.color = textColor
-	}
+	// msgItem.innerHTML = msg  // Unsafe
+
+	// if (bgColor) {
+	// 	msgItem.style.backgroundColor = bgColor
+	// }
+	// if (textColor) {
+	// 	msgItem.style.color = textColor
+	// }
+	const msgStyle = `${bgColor ? `background-color: ${bgColor};` : ''}; ${textColor ? `color: ${textColor};` : ''}`
+	const msgHtml = `<div class=output-msg style="${msgStyle}">${msg}</div>`
 	
 	const stampItem = document.createElement('div')
 	stampItem.className = 'output-stamp'
-
+	
 	// const time = new Date()
 	// const hr = withLeadingZeroes(time.getHours(), 2)
 	// const min = withLeadingZeroes(time.getMinutes(), 2)
 	// const sec = withLeadingZeroes(time.getSeconds(), 2)
 	// const milli = withLeadingZeroes(time.getMilliseconds(), 3)
 	// stampItem.textContent = `${hr}:${min}:${sec}.${milli}`
-
+	
 	stampItem.textContent = `${withLeadingZeroes(timer.frame, 6)}`
 	
-	item.appendChild(stampItem)
-	item.appendChild(msgItem)
+	// item.appendChild(stampItem)
+	// item.appendChild(msgItem)
 	
 	const panel = document.querySelector('#output-panel')
 	if (panel) {
-		panel.appendChild(item)
-		panel.scrollTop = panel.scrollHeight
+		const itemHtml = `<div class='output-item'></div>`
+		// panel.appendChild(item)
+		// panel.scrollTop = panel.scrollHeight
 	}
 }
 
@@ -804,12 +809,17 @@ export function setup() {
 	// TODO: Add 'group' codes like Shift that allows detecting either left or right shift
 	// TODO: Pass a way to detect modifier keys as action param(s)
 	const keyAlias: { [key: string]: string } = {
+		// Rename for simplicity
 		Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4', Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
 		KeyQ: 'Q', KeyW: 'W', KeyE: 'E', KeyR: 'R', KeyT: 'T', KeyY: 'Y', KeyU: 'U', KeyI: 'I', KeyO: 'O', KeyP: 'P',
 		KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyF: 'F', KeyG: 'G', KeyH: 'H', KeyJ: 'J', KeyK: 'K', KeyL: 'L',
 		KeyZ: 'Z', KeyX: 'X', KeyC: 'C', KeyV: 'V', KeyB: 'B', KeyN: 'N', KeyM: 'M',
 		ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up',
-		ControlLeft: 'CtrlLeft', ControlRight: 'CtrlRight',
+		// Rename to consolidate 
+		// ShiftLeft: 'Shift', ShiftRight: 'Shift',
+		// ControlLeft: 'Ctrl', ControlRight: 'Ctrl',
+		// AltLeft: 'Alt', AltRight: 'Alt',
+		// NumpadEnter: 'Enter'
 	}
 
 	function apiKeyCode(keyCode: string): string | undefined {
@@ -825,6 +835,10 @@ export function setup() {
 		// the keyup event doesn't trigger if one shift is released while the other is still held.
 		// Left/right shift should be consolidated into one code, just Shift. In order to reduce
 		// confusion I think the same should be done for Ctrl/Alt.
+		// Addend: Enter & NumpadEnter work the same way and will also be consolidated.
+		// Addend.2: Shift behavior is normal on Linux, but Enter still does this?
+		// Addend.3: Can't do further testing now on my laptop, kinda thinking I should remove
+		// Ctrl/Alt/Shift as action keys altogether and just let users check event.shiftKey etc.
 		
 		// pass a key object containing:
 		// event.altKey
@@ -835,21 +849,6 @@ export function setup() {
 		const keyCode = apiKeyCode(event.code)
 		// console.log('keydown', keyCode, keysPressed.includes(keyCode), event.repeat)
 
-		// let repeating = false
-		// if (keyCode === 'shiftleft' && event.repeat) {
-
-		// }
-		// if (event.repeat) {
-		// }
-
-		// const checkRepeat = () => {
-		// 	switch (keyCode) {
-		// 		case 'shiftleft':
-		// 			_shiftRepeating
-		// 			return 
-		// 	}
-		// }
-
 		// Add specific key to keysJustPressed map
 		if (keyCode && !keysPressed.includes(keyCode)) {
 			// console.log('register', keyCode)
@@ -857,20 +856,20 @@ export function setup() {
 			keysPressed.push(keyCode)
 			keysJustPressed.set(keyCode, _frame)
 			
-			if (keyCode === 'shiftleft' || keyCode === 'shiftright') {
-				keysPressed.push('shift')
-				keysJustPressed.set('shift', _frame)
-			}
+			// if (keyCode === 'shiftleft' || keyCode === 'shiftright') {
+			// 	keysPressed.push('shift')
+			// 	keysJustPressed.set('shift', _frame)
+			// }
 
-			else if (keyCode === 'ctrlleft' || keyCode === 'ctrlright') {
-				keysPressed.push('ctrl')
-				keysJustPressed.set('ctrl', _frame)
-			}
+			// else if (keyCode === 'ctrlleft' || keyCode === 'ctrlright') {
+			// 	keysPressed.push('ctrl')
+			// 	keysJustPressed.set('ctrl', _frame)
+			// }
 
-			else if (keyCode === 'altleft' || keyCode === 'altright') {
-				keysPressed.push('alt')
-				keysJustPressed.set('alt', _frame)
-			}
+			// else if (keyCode === 'altleft' || keyCode === 'altright') {
+			// 	keysPressed.push('alt')
+			// 	keysJustPressed.set('alt', _frame)
+			// }
 		}
 	})
 	window.addEventListener('keyup', event => {
@@ -878,7 +877,7 @@ export function setup() {
 		if (document.activeElement?.ariaRoleDescription === 'editor') return
 
 		const keyCode = apiKeyCode(event.code)
-		console.log('keyup', keyCode)
+		console.log('keyup', event.code, event.location)
 
 		// Add key to justReleased map and remove from pressed array
 		if (keyCode && keysPressed.includes(keyCode)) {
