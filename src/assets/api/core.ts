@@ -676,7 +676,7 @@ class UserScene extends Scene {
 			Sprite, Rectangle, Label, Line, HLine, VLine, Vector2, /*Point,*/
 			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, after, every,
-			keyPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
+			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			print, play, pause, setBackgroundColor,
 			Random: random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
@@ -1003,12 +1003,10 @@ export function setup() {
 		*/
 
 		const keyCode = apiKeyCode(event.code)
-		console.log(`down: ${keyCode}   shift?: ${event.getModifierState('Shift')}   ctrl?: ${event.getModifierState('Control')}`)
+		// console.log(`down: ${keyCode}   shift?: ${event.shiftKey}   ctrl?: ${event.ctrlKey}`)
 		
 		// Add specific key to keysJustPressed map
 		if (keyCode && !keysPressed.includes(keyCode)) {
-			// console.log('register', keyCode)
-
 			keysPressed.push(keyCode)
 			keysJustPressed.set(keyCode, _frame)
 			
@@ -1034,9 +1032,7 @@ export function setup() {
 		if (document.activeElement?.ariaRoleDescription === 'editor') return
 
 		const keyCode = apiKeyCode(event.code)
-		// console.log('keyup', event.code, event.location)
-		// console.log('keyup', event.getModifierState('Shift'))
-		console.log(`up: ${keyCode}   shift?: ${event.getModifierState('Shift')}   ctrl?: ${event.getModifierState('Control')}`)
+		console.log(`up: ${keyCode}   shift?: ${event.shiftKey}   ctrl?: ${event.ctrlKey}`)
 		
 		// Add key to justReleased map and remove from pressed array
 		if (keyCode && keysPressed.includes(keyCode)) {
@@ -1046,26 +1042,25 @@ export function setup() {
 			// if releasing key after window regains focus
 			keysJustReleased.set(keyCode, _frame)
 
-			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !event.getModifierState('Shift')) {
-				console.log('release shift')
+			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keyPressed('shiftleft') && !keyPressed('shiftright')) {
+				console.log('clear shift')
 				keysPressed.splice(keysPressed.indexOf('shift'), 1)
-				keysPressed.splice(keysPressed.indexOf('shiftleft'), 1)
-				keysPressed.splice(keysPressed.indexOf('shiftright'), 1)
 				keysJustReleased.set('shift', _frame)
-				console.log(keysJustReleased)
 			}
 
-			else if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !event.getModifierState('Control')) {
-				console.log('release ctrl')
+			if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keyPressed('ctrlleft') && !keyPressed('ctrlright')) {
+				console.log('clear ctrl')
 				keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
 				keysJustReleased.set('ctrl', _frame)
 				console.log(keysJustReleased)
 			}
 
-			// else if (keyCode === 'altleft' || keyCode === 'altright') {
-			// 	keysPressed.splice(keysPressed.indexOf('alt'), 1)
-			// 	keysJustReleased.set('alt', _frame)
-			// }
+			if ((keyCode === 'altleft' || keyCode === 'altright') && !keyPressed('altleft') && !keyPressed('altright')) {
+				console.log('clear alt')
+				keysPressed.splice(keysPressed.indexOf('alt'), 1)
+				keysJustReleased.set('alt', _frame)
+				console.log(keysJustReleased)
+			}
 		}
 	})
 	window.addEventListener('contextmenu', event => {

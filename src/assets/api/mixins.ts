@@ -519,7 +519,6 @@ export function Viewable<Base extends Class>(base: Base) {
         }
         
         show() {
-            console.log('showing')
             if (this._refObj) this._refObj.visible = true
         }
 
@@ -790,7 +789,17 @@ export function Interactable<Base extends Class>(base: Base) {
             if (props?.onMouseMove !== undefined) this.onMouseMove(props.onMouseMove)
             
             if (!('x' in this && 'y' in this)) return
+            // Default drag event that gets replaced once user assigns their own
 
+            // TODO: Investigate ondrag not being assigned when passed as a prop...
+            if (props?.onDrag === undefined) {
+                console.log('no drag')
+                this.onDrag((x, y) => {
+                    this.x = x
+                    this.y = y
+                })
+            }
+                
             // Capturing Phaser events here and emitting them as custom events for easier control
             // over sent params + auto converting pointer coords
             const getCenterOffset = (pointer: Phaser.Input.Pointer) => {
@@ -893,11 +902,6 @@ export function Interactable<Base extends Class>(base: Base) {
                 this._refObj.emit(PointerEvents.POINTER_WHEEL, deltaX, -deltaY)
             })
 
-            // Default drag event that gets replaced once user assigns their own
-            this.onDrag((x, y) => {
-                this.x = x
-                this.y = y
-            })
         }
 
         get cursor(): Cursor {
@@ -1104,7 +1108,9 @@ export function Interactable<Base extends Class>(base: Base) {
         /** Captures the pointer dragging the object. */
         onDrag(action?: PointerAction) {
             if (!this._refObj) return
+            console.log('ondrag')
             this._replacePointerListener(PointerEvents.DRAG, action)
+            console.log((this._refObj as Phaser.GameObjects.Sprite).listeners(PointerEvents.DRAG))
         }
 
 		/** Captures the beginning of the drag event. */
