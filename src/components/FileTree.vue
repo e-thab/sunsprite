@@ -123,40 +123,47 @@ const items = ref<TreeItem[]>([
         defaultExpanded: true,
         children: [
           {
-            label: 'labels.js',
+            label: 'input.js',
             icon: 'catppuccin:javascript',
             onSelect: (event) => {
               if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
             }
-          },
-          {
-            label: 'lines.js',
-            icon: 'catppuccin:javascript',
-            onSelect: (event) => {
-              if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-            }
-          },
-          {
-            label: 'rectangles.js',
-            icon: 'catppuccin:javascript',
-            onSelect: (event) => {
-              if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-            }
-          },
-          {
-            label: 'rectSpiral.js',
-            icon: 'catppuccin:javascript',
-            onSelect: (event) => {
-              if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-            }
-          },
-          {
-            label: 'sprites.js',
-            icon: 'catppuccin:javascript',
-            onSelect: (event) => {
-              if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-            }
-          },
+          }
+          // {
+          //   label: 'labels.js',
+          //   icon: 'catppuccin:javascript',
+          //   onSelect: (event) => {
+          //     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+          //   }
+          // },
+          // {
+          //   label: 'lines.js',
+          //   icon: 'catppuccin:javascript',
+          //   onSelect: (event) => {
+          //     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+          //   }
+          // },
+          // {
+          //   label: 'rectangles.js',
+          //   icon: 'catppuccin:javascript',
+          //   onSelect: (event) => {
+          //     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+          //   }
+          // },
+          // {
+          //   label: 'rectSpiral.js',
+          //   icon: 'catppuccin:javascript',
+          //   onSelect: (event) => {
+          //     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+          //   }
+          // },
+          // {
+          //   label: 'sprites.js',
+          //   icon: 'catppuccin:javascript',
+          //   onSelect: (event) => {
+          //     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+          //   }
+          // },
         ]
       },
 

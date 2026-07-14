@@ -799,7 +799,7 @@ export function Interactable<Base extends Class>(base: Base) {
                     this.y = y
                 })
             }
-                
+            
             // Capturing Phaser events here and emitting them as custom events for easier control
             // over sent params + auto converting pointer coords
             const getCenterOffset = (pointer: Phaser.Input.Pointer) => {

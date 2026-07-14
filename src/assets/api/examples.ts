@@ -6,8 +6,159 @@ const spritesJs = '// This is sprites.js'
 const rectanglesJs = '// This is rectangles.js'
 const linesJs = '// This is lines.js'
 const labelsJs = '// This is labels.js'
+const inputJs = 
+`setBackgroundColor('#8b3a5b')
 
-const rectSpiralJs = `setBackgroundColor('#00bd7e')
+const rectLShift = new Rectangle({
+    x: -160,
+    width: 120,
+    height: 60,
+})
+const rectLShiftActive = new Rectangle({
+    x: -160,
+    width: 120,
+    height: 60,
+    color: Colors.Peru,
+    visible: false
+})
+const textLShift = new Label({
+    x: -160,
+    text: 'L shift',
+    color: '#000'
+})
+
+const rectRShift = new Rectangle({
+    x: 160,
+    width: 120,
+    height: 60,
+})
+const rectRShiftActive = new Rectangle({
+    x: 160,
+    width: 120,
+    height: 60,
+    color: Colors.Peru,
+    visible: false
+})
+const textRShift = new Label({
+    x: 160,
+    text: 'R shift',
+    color: '#000'
+})
+
+const rectCShift = new Rectangle({
+    width: 120,
+    height: 60,
+})
+const rectCShiftActive = new Rectangle({
+    width: 120,
+    height: 60,
+    color: Colors.Peru,
+    visible: false
+})
+const textCShift = new Label({
+    text: 'Shift',
+    color: '#000'
+})
+
+const rectLCtrl = new Rectangle({
+    x: -120,
+    y: -80,
+    width: 90,
+    height: 60,
+})
+const rectLCtrlActive = new Rectangle({
+    x: -120,
+    y: -80,
+    width: 90,
+    height: 60,
+    color: Colors.Peru,
+    visible: false
+})
+const textLCtrl = new Label({
+    x: -120,
+    y: -80,
+    text: 'L ctrl',
+    color: '#000'
+})
+
+const rectRCtrl = new Rectangle({
+    x: 120,
+    y: -80,
+    width: 90,
+    height: 60,
+})
+const rectRCtrlActive = new Rectangle({
+    x: 120,
+    y: -80,
+    width: 90,
+    height: 60,
+    color: Colors.Peru,
+    visible: false
+})
+const textRCtrl = new Label({
+    x: 120,
+    y: -80,
+    text: 'R ctrl',
+    color: '#000'
+})
+
+const rectCCtrl = new Rectangle({
+    y: -80,
+    width: 90,
+    height: 60,
+})
+const rectCCtrlActive = new Rectangle({
+    y: -80,
+    width: 90,
+    height: 60,
+    color: Colors.Peru,
+    visible: false
+})
+const textCCtrl = new Label({
+    y: -80,
+    text: 'Ctrl',
+    color: '#000'
+})
+
+forever(delta => {
+    rectLShift.color = keyPressed('ShiftLeft') ? Colors.MediumSeaGreen : Colors.Gray
+    rectRShift.color = keyPressed('ShiftRight') ? Colors.MediumSeaGreen : Colors.Gray
+    rectCShift.color = keyPressed('Shift') ? Colors.MediumSeaGreen : Colors.Gray
+
+    rectLCtrl.color = keyPressed('CtrlLeft') ? Colors.MediumSeaGreen : Colors.Gray
+    rectRCtrl.color = keyPressed('CtrlRight') ? Colors.MediumSeaGreen : Colors.Gray
+    rectCCtrl.color = keyPressed('Ctrl') ? Colors.MediumSeaGreen : Colors.Gray
+})
+
+onKeyPress({
+    ShiftLeft: () => {
+        rectLShiftActive.show()
+        after(0.12, () => rectLShiftActive.hide())
+    },
+    ShiftRight: () => {
+        rectRShiftActive.show()
+        after(0.12, () => rectRShiftActive.hide())
+    },
+    Shift: () => {
+        rectCShiftActive.show()
+        after(0.12, () => rectCShiftActive.hide())
+    },
+    CtrlLeft: () => {
+        rectLCtrlActive.show()
+        after(0.12, () => rectLCtrlActive.hide())
+    },
+    CtrlRight: () => {
+        rectRCtrlActive.show()
+        after(0.12, () => rectRCtrlActive.hide())
+    },
+    Ctrl: () => {
+        rectCCtrlActive.show()
+        after(0.12, () => rectCCtrlActive.hide())
+    },
+})`
+
+const rectSpiralJs = 
+`setBackgroundColor('#00bd7e')
 const growSpeed = 40
 const moveSpeed = 1
 const rotSpeed = 1
@@ -45,7 +196,8 @@ const exampleCode: { [key: string]: string } = {
     'rectangles.js': rectanglesJs,
     'lines.js': linesJs,
     'labels.js': labelsJs,
-    'rectSpiral.js': rectSpiralJs
+    'rectSpiral.js': rectSpiralJs,
+    'input.js': inputJs,
 }
 
 export function getExampleCode(fileName: string = 'main.js'): string {
