@@ -509,26 +509,25 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 		return strNum
 	}
 	
-    const item = document.createElement('div')
-    item.className = 'output-item'
+    // const item = document.createElement('div')
+    // item.className = 'output-item'
 
-	const msgItem = document.createElement('div')
-	msgItem.className = 'output-msg'
+	// const msgItem = document.createElement('div')
+	// msgItem.className = 'output-msg'
 	
-	msgItem.textContent = msg
-	msgItem.innerHTML = msg  // Unsafe
+	// msgItem.textContent = msg
+	// msgItem.innerHTML = msg  // Unsafe
 
-	if (bgColor) {
-		msgItem.style.backgroundColor = bgColor
-	}
-	if (textColor) {
-		msgItem.style.color = textColor
-	}
-	// const msgStyle = `${bgColor ? `background-color: ${bgColor};` : ''}; ${textColor ? `color: ${textColor};` : ''}`
-	// const msgHtml = `<div class=output-msg style="${msgStyle}">${msg}</div>`
+	// if (bgColor) {
+	// 	msgItem.style.backgroundColor = bgColor
+	// }
+	// if (textColor) {
+	// 	msgItem.style.color = textColor
+	// }
+	const msgStyle = `${bgColor ? `background-color: ${bgColor};` : ''}; ${textColor ? `color: ${textColor};` : ''}`
 	
-	const stampItem = document.createElement('div')
-	stampItem.className = 'output-stamp'
+	// const stampItem = document.createElement('div')
+	// stampItem.className = 'output-stamp'
 	
 	// const time = new Date()
 	// const hr = withLeadingZeroes(time.getHours(), 2)
@@ -537,15 +536,20 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 	// const milli = withLeadingZeroes(time.getMilliseconds(), 3)
 	// stampItem.textContent = `${hr}:${min}:${sec}.${milli}`
 	
-	stampItem.textContent = `${withLeadingZeroes(timer.frame, 6)}`
+	// stampItem.textContent = `${withLeadingZeroes(timer.frame, 6)}`
 	
-	item.appendChild(stampItem)
-	item.appendChild(msgItem)
+	const msgHtml = `<div class="output-msg" style="${msgStyle}">${msg}</div>`
+	const stampHtml = `<div class="output-stamp">${withLeadingZeroes(timer.frame, 6)}</div>`
+	const itemHtml = `<div class="output-item">\n\t${stampHtml}\n\t${msgHtml}\n</div>`
+
+	// item.appendChild(stampItem)
+	// item.appendChild(msgItem)
 	
 	const panel = document.querySelector('#output-panel')
 	if (panel) {
-		// const itemHtml = `<div class='output-item'></div>`
-		panel.appendChild(item)
+		console.log(itemHtml)
+		panel.innerHTML = panel.innerHTML.concat(itemHtml)
+		// panel.appendChild(item)
 		panel.scrollTop = panel.scrollHeight
 	}
 }

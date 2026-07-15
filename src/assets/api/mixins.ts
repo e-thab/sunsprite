@@ -600,23 +600,6 @@ declare type ScrollAction = (
     (x: number, y: number) => void
 )
 
-declare type MouseAction = {
-	CLICK?: Action,
-	RELEASE?: Action,
-	DOUBLE_CLICK?: Action,
-	LEFT_CLICK?: Action,
-	LEFT_RELEASE?: Action,
-	RIGHT_CLICK?: Action,
-	RIGHT_RELEASE?: Action,
-	ENTER?: Action,
-	EXIT?: Action,
-	DRAG?: Action,
-	DRAG_START?: Action,
-	DRAG_END?: Action,
-	SCROLL?: Action,
-	MOVE?: Action,
-}
-
 declare enum CursorType {
     AUTO = 'auto',
     DEFAULT = 'default',
@@ -751,6 +734,7 @@ export function Interactable<Base extends Class>(base: Base) {
         _cursor?: Cursor
         _draggable: boolean = false
         _lastLeftClickTime: number = 0
+        _lastDragFrame: number = -1
         isInteractive: boolean = false
         
         constructor(...args: any[]) {
@@ -789,10 +773,9 @@ export function Interactable<Base extends Class>(base: Base) {
             if (props?.onMouseMove !== undefined) this.onMouseMove(props.onMouseMove)
             
             if (!('x' in this && 'y' in this)) return
-            // Default drag event that gets replaced once user assigns their own
 
-            // TODO: Investigate ondrag not being assigned when passed as a prop...
-            if (props?.onDrag === undefined) {
+            // Default drag event that gets replaced once user assigns their own
+            if (props?.onDrag === undefined && props?.onMouse?.Drag === undefined) {
                 console.log('no drag')
                 this.onDrag((x, y) => {
                     this.x = x
@@ -811,6 +794,7 @@ export function Interactable<Base extends Class>(base: Base) {
 
             // Emit custom left/right click events
             this._refObj?.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                if (paused) return
                 const { x, y } = getCenterOffset(pointer)
 
                 if (pointer.leftButtonDown()) {
@@ -840,6 +824,7 @@ export function Interactable<Base extends Class>(base: Base) {
             
             // Emit custom left/right release events
             this._refObj?.on(Phaser.Input.Events.POINTER_UP, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                if (paused) return
                 const { x, y } = getCenterOffset(pointer)
                 if (pointer.leftButtonReleased()) {
                     this._refObj.emit(PointerEvents.POINTER_UP_LEFT, x, y)
@@ -863,41 +848,50 @@ export function Interactable<Base extends Class>(base: Base) {
                 // starting the drag. i.e. the arguments are provided as
                 // x = pointerX - initialPointerOffsetX
                 // y = pointerY - initialPointerOffsetY
-                const { x, y } = getGamePoint({ x: localX, y: localY })
-                this._refObj.emit(PointerEvents.DRAG, x, y)
+                if (!paused && timer.frame > this._lastDragFrame) {
+                    const { x, y } = getGamePoint({ x: localX, y: localY })
+                    this._refObj.emit(PointerEvents.DRAG, x, y)
+                    this._lastDragFrame = timer.frame
+                }
             })
 
             // Custom drag start event
             this._refObj?.on(Phaser.Input.Events.DRAG_START, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                if (paused) return
                 const { x, y } = getCenterOffset(pointer)
                 this._refObj.emit(PointerEvents.DRAG_START, x, y)
             })
 
             // Custom drag end event
             this._refObj?.on(Phaser.Input.Events.DRAG_END, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                if (paused) return
                 const { x, y } = getCenterOffset(pointer)
                 this._refObj.emit(PointerEvents.DRAG_END, x, y)
             })
 
             // Custom pointer over / mouse enter event
             this._refObj?.on(Phaser.Input.Events.POINTER_OVER, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                if (paused) return
                 const { x, y } = getCenterOffset(pointer)
                 this._refObj.emit(PointerEvents.POINTER_OVER, x, y)
             })
 
             // Custom pointer out / mouse exit event
             this._refObj?.on(Phaser.Input.Events.POINTER_OUT, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                if (paused) return
                 const { x, y } = getCenterOffset(pointer)
                 this._refObj.emit(PointerEvents.POINTER_OUT, x, y)
             })
 
 			this._refObj?.on(Phaser.Input.Events.POINTER_MOVE, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+                if (paused) return
                 const { x, y } = getCenterOffset(pointer)
 				this._refObj.emit(PointerEvents.POINTER_MOVE, x, y)
 			})
 
             // Custom scroll event
             this._refObj?.on(Phaser.Input.Events.POINTER_WHEEL, (pointer: Phaser.Input.Pointer, deltaX: number, deltaY: number, deltaZ: number, ...rest: any[]) => {
+                if (paused) return
 				// deltaZ..?
                 this._refObj.emit(PointerEvents.POINTER_WHEEL, deltaX, -deltaY)
             })
