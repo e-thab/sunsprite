@@ -1,20 +1,21 @@
-import { ref } from 'vue';
+import { ref } from 'vue'
 
-import { AUTO, Game, LEFT, Scene, type Types } from 'phaser';
-import Phaser from 'phaser';
+import { AUTO, Game, LEFT, Scene, type Types } from 'phaser'
+import Phaser from 'phaser'
 
-import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent } from './interfaces';
+import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent } from './interfaces'
 import { Mouse } from './interfaces'
-import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility';
+import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
 
-import { Colors } from './Colors';
-import Sprite from './Sprite';
-import Rectangle from './Rectangle';
-import Label from './Label';
-import Line from './Line';
-import HLine from './HLine';
-import VLine from './VLine';
+import { Colors } from './Colors'
+import Sprite from './Sprite'
+import Rectangle from './Rectangle'
+import Circle from './Circle'
+import Label from './Label'
+import Line from './Line'
+import HLine from './HLine'
+import VLine from './VLine'
 // import Camera from './Camera';  --  needs phaser attention
 
 export const fpsRef = ref(0)
@@ -329,7 +330,6 @@ export function repeat(times: number, fn: Action) {
 		// then: undefined
 	}
 	_repeats.push(repeatable)
-	console.log(_repeats.length)
 
 	return {
 		then(thenFn: Action) {
@@ -393,7 +393,6 @@ export function onKeyPress(actions: KeyAction) {
 		// const actionKey = inputKey as keyof typeof actions
 		_keyPressActions.set(inputKey.toLowerCase(), action)
 	}
-	console.log(_keyPressActions)
 }
 
 /* Allows cleaner input key mapping for released key behavior */
@@ -547,7 +546,6 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 	
 	const panel = document.querySelector('#output-panel')
 	if (panel) {
-		console.log(itemHtml)
 		panel.innerHTML = panel.innerHTML.concat(itemHtml)
 		// panel.appendChild(item)
 		panel.scrollTop = panel.scrollHeight
@@ -677,7 +675,7 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Label, Line, HLine, VLine, Vector2, /*Point,*/
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, /*Point,*/
 			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
@@ -1007,7 +1005,7 @@ export function setup() {
 		*/
 
 		const keyCode = apiKeyCode(event.code)
-		// console.log(`down: ${keyCode}   shift?: ${event.shiftKey}   ctrl?: ${event.ctrlKey}`)
+		console.log(`down: ${keyCode}   shift?: ${event.shiftKey}   ctrl?: ${event.ctrlKey}`)
 		
 		// Add specific key to keysJustPressed map
 		if (keyCode && !keysPressed.includes(keyCode)) {
@@ -1029,7 +1027,6 @@ export function setup() {
 				keysJustPressed.set('alt', _frame)
 			}
 		}
-		if (!event.repeat) console.log(keysPressed)
 	})
 	window.addEventListener('keyup', event => {
 		// Don't register game key release when code editor has focus
@@ -1047,23 +1044,21 @@ export function setup() {
 			keysJustReleased.set(keyCode, _frame)
 
 			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keyPressed('shiftleft') && !keyPressed('shiftright')) {
-				console.log('clear shift')
+				// console.log('clear shift')
 				keysPressed.splice(keysPressed.indexOf('shift'), 1)
 				keysJustReleased.set('shift', _frame)
 			}
 
 			if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keyPressed('ctrlleft') && !keyPressed('ctrlright')) {
-				console.log('clear ctrl')
+				// console.log('clear ctrl')
 				keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
 				keysJustReleased.set('ctrl', _frame)
-				console.log(keysJustReleased)
 			}
 
 			if ((keyCode === 'altleft' || keyCode === 'altright') && !keyPressed('altleft') && !keyPressed('altright')) {
-				console.log('clear alt')
+				// console.log('clear alt')
 				keysPressed.splice(keysPressed.indexOf('alt'), 1)
 				keysJustReleased.set('alt', _frame)
-				console.log(keysJustReleased)
 			}
 		}
 	})

@@ -742,7 +742,7 @@ export function Interactable<Base extends Class>(base: Base) {
         }
 
         initInteractable(props?: GameObjectProps) {
-            if (props?.draggable) this.draggable = props.draggable
+            this.draggable = props?.draggable ?? false
             this._setInteractive()
             if (props?.cursor) this.cursor = props.cursor
 

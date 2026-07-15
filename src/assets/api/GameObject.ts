@@ -49,6 +49,7 @@ export default abstract class GameObject extends
         // }
     }
 
+    // TODO: move these position getters to a mixin, Boundable or something like that
     get left(): number {
         return this.x - this.width / 2
     }
