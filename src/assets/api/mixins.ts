@@ -6,7 +6,7 @@ import { pointFrom, type Point, type PointArg } from "./Point"
 import { screen, camera, timer, paused, getGamePoint, game, scene, PointerEvents } from "./core"
 
 import Phaser from "phaser"
-import type { Action, MouseInputAction, Optional, PointerAction } from "./interfaces"
+import type { Action, MouseInputAction, Optional, PointerAction, ReferenceObject } from "./interfaces"
 
 type Class<T = {}> = new (...args: any[]) => T
 
@@ -138,7 +138,7 @@ export const positionableApi = [
 
 export function Positionable<Base extends Class>(base: Base) {
     return class Positionable extends base {
-        _refObj?: any
+        _refObj?: ReferenceObject
         _x: number = 0
         _y: number = 0
         
@@ -288,7 +288,7 @@ export const sizableApi = [
 
 export function Sizable<Base extends Class>(base: Base) {
     return class Sizable extends base {
-        _refObj?: any
+        _refObj?: ReferenceObject
         _width: number = 0
         _height: number = 0
         _scale: number = 0
@@ -376,8 +376,8 @@ export const rotatableApi = [
 
 export function Rotatable<Base extends Class>(base: Base) {
     return class Rotatable extends base {
+        _refObj?: ReferenceObject
         _rotation: number = 0
-        _refObj?: any
 
         constructor(...args: any[]) {
             super()
@@ -461,7 +461,7 @@ export function Viewable<Base extends Class>(base: Base) {
         // - blend mode
         // - effects?
 
-        _refObj?: any
+        _refObj?: ReferenceObject
         _alpha: number = 1
         _layer: number = 0
         _visible: boolean = true
@@ -729,7 +729,7 @@ export function Interactable<Base extends Class>(base: Base) {
         // TODO (Interactable):
         // - more input events?
         // - drag cursor
-        _refObj?: any
+        _refObj?: ReferenceObject
         _eventActions: Map<string, PointerAction> = new Map()
         _cursor?: Cursor
         _draggable: boolean = false
@@ -776,7 +776,6 @@ export function Interactable<Base extends Class>(base: Base) {
 
             // Default drag event that gets replaced once user assigns their own
             if (props?.onDrag === undefined && props?.onMouse?.Drag === undefined) {
-                // console.log('on drag')
                 this.onDrag((x, y) => {
                     this.x = x
                     this.y = y
@@ -786,9 +785,17 @@ export function Interactable<Base extends Class>(base: Base) {
             // Capturing Phaser events here and emitting them as custom events for easier control
             // over sent params + auto converting pointer coords
             const getCenterOffset = (pointer: Phaser.Input.Pointer) => {
+                const x = 'getCenter' in this._refObj ? 
+                    this._refObj.getCenter().x :
+                    this._refObj.x
+
+                const y = 'getCenter' in this._refObj ? 
+                    this._refObj.getCenter().y :
+                    this._refObj.y
+                
                 return {
-                    x: pointer.x - this._refObj.getCenter().x,
-                    y: -(pointer.y - this._refObj.getCenter().y)
+                    x: pointer.x - x,
+                    y: -(pointer.y - y)
                 }
             }
 
@@ -1102,9 +1109,9 @@ export function Interactable<Base extends Class>(base: Base) {
         /** Captures the pointer dragging the object. */
         onDrag(action?: PointerAction) {
             if (!this._refObj) return
-            console.log('ondrag')
+            // console.log('ondrag')
             this._replacePointerListener(PointerEvents.DRAG, action)
-            console.log((this._refObj as Phaser.GameObjects.Sprite).listeners(PointerEvents.DRAG))
+            // console.log((this._refObj as Phaser.GameObjects.Sprite).listeners(PointerEvents.DRAG))
         }
 
 		/** Captures the beginning of the drag event. */
@@ -1156,7 +1163,6 @@ export function Interactable<Base extends Class>(base: Base) {
                 this._refObj.setInteractive()
                 this.isInteractive = true
             }
-            console.log(this._refObj, this._draggable)
             scene.input.setDraggable(this._refObj, this._draggable)
         }
 

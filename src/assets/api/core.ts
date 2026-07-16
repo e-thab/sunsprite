@@ -591,14 +591,14 @@ class UserScene extends Scene {
 		const gfx = this.add.graphics()
 		.fillStyle(0xFFFFFF)
 		.fillCircle(200, 200, 50)
+		.on('pointerover', () => console.log('p'))
 		
 		const hitArea = new Phaser.Geom.Circle(200, 200, 50)
 
 		gfx.setInteractive(hitArea, Phaser.Geom.Circle.Contains)
-		.on('pointerover', () => console.log('p'))
 
 		gfx.x += 200
-		gfx.fillCircle(gfx.x, gfx.y, 10)
+		// gfx.fillCircle(gfx.x, gfx.y, 10)
 
 		// Set poll always to allow cursors to change when pointer isn't moving
 		this.input.setPollAlways()

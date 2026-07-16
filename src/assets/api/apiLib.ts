@@ -745,6 +745,29 @@ class Label {
     color: string
 }`,
 
+// Circle
+`type CircleProps = GameObjectProps & {
+    color?: string
+    // outlineColor?: string
+    radius?: number
+}
+
+class Circle {
+    /**
+     * A basic circle shape. TODO: describe (better)
+     * @param options TODO: describe
+     */
+    constructor(options?: CircleProps)
+
+    ${gameObjectApi}
+
+    /** The fill color. */
+    color: string
+
+    /** The distance from the center of the circle to the edge. */
+    radius: number
+}`,
+
 // Vector2
 `/**
  * 
@@ -753,5 +776,3 @@ class Vector2 {
     // TODO: Vector2
 }`,
 ].join('\n')
-
-console.log(apiLib)

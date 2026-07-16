@@ -10,6 +10,14 @@ export type Optional<T> = T | undefined | null
 
 export type PointerAction = ((x: number, y: number) => void) | (() => void) | null
 
+export type ReferenceObject = 
+	| Phaser.GameObjects.Text
+	| Phaser.GameObjects.Line
+	| Phaser.GameObjects.Rectangle
+	| Phaser.GameObjects.Sprite
+	| Phaser.GameObjects.Graphics
+	| any // TEMP, 
+
 export interface Touchable {
 	left: number
 	right: number

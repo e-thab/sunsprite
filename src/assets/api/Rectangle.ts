@@ -24,11 +24,11 @@ export default class Rectangle extends GameObject {
         const rect = scene.add.rectangle() // Phaser Rectangle
         this._refObj = rect // Reference to Phaser object used in mixins
         this._rect = rect   // Reference to Phaser object used within this class (for readability)
-
-        console.log('rect', rect.input?.draggable)
-
+        
         this._color = props?.color ?? '#fff'
         this.color = this._color
+
+        rect.getCenter()
 
         // Set mixin props
         this.initMixins(props)

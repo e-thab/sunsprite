@@ -24,15 +24,15 @@ export default class Circle extends GameObject {
     constructor(props?: CircleProps) {
         super()
 
-        // TEMP: circle experimentation
-        // const rect = scene.add.rectangle() // Phaser Rectangle
+        const hitArea = new Phaser.Geom.Circle(0, 0, 50)
         const gfx = scene.add.graphics()
             .fillStyle(0xFFFFFF)
             .fillCircle(0, 0, 50)
+            .setInteractive(hitArea, Phaser.Geom.Circle.Contains)
             .on('pointerover', () => console.log('p'))
-
+        
         this._refObj = gfx // Reference to Phaser object used in mixins
-        this._graphics = gfx   // Reference to Phaser object used within this class (for readability)
+        this._graphics = gfx // Reference to Phaser object used within this class (for readability)
 
         this._color = props?.color ?? '#fff'
         this.color = this._color
@@ -58,6 +58,7 @@ export default class Circle extends GameObject {
         this._color = color
         // this._rect.fill(color)
         const phaserColor = Phaser.Display.Color.HexStringToColor(color).color
+        this._graphics.clear()
         this._graphics.fillCircle(this._graphics.x, this._graphics.y, this.radius)
     }
 
@@ -66,6 +67,7 @@ export default class Circle extends GameObject {
     }
     set radius(radius: number) {
         this._radius = radius
+        this._graphics.clear()
         this._graphics.fillCircle(this._graphics.x, this._graphics.y, radius)
     }
 }
