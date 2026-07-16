@@ -586,7 +586,20 @@ class UserScene extends Scene {
 	async create() {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
+
+		// TEMP!!
+		const gfx = this.add.graphics()
+		.fillStyle(0xFFFFFF)
+		.fillCircle(200, 200, 50)
 		
+		const hitArea = new Phaser.Geom.Circle(200, 200, 50)
+
+		gfx.setInteractive(hitArea, Phaser.Geom.Circle.Contains)
+		.on('pointerover', () => console.log('p'))
+
+		gfx.x += 200
+		gfx.fillCircle(gfx.x, gfx.y, 10)
+
 		// Set poll always to allow cursors to change when pointer isn't moving
 		this.input.setPollAlways()
 		this.input.setDefaultCursor('url(cursors/default.cur), default')
@@ -848,161 +861,6 @@ export function setup() {
 		// event.ctrlKey
 		// event.shiftKey
 		// event.key?
-
-
-		/* Test script:
-		// const bgColor = Random.color()
-		setBackgroundColor('#8b3a5b')
-		// print(bgColor)
-
-		const rectLShift = new Rectangle({
-			x: -160,
-			width: 120,
-			height: 60,
-		})
-		const rectLShiftActive = new Rectangle({
-			x: -160,
-			width: 120,
-			height: 60,
-			color: Colors.Peru,
-			visible: false
-		})
-		const textLShift = new Label({
-			x: -160,
-			text: 'L shift',
-			color: '#000'
-		})
-
-		const rectRShift = new Rectangle({
-			x: 160,
-			width: 120,
-			height: 60,
-		})
-		const rectRShiftActive = new Rectangle({
-			x: 160,
-			width: 120,
-			height: 60,
-			color: Colors.Peru,
-			visible: false
-		})
-		const textRShift = new Label({
-			x: 160,
-			text: 'R shift',
-			color: '#000'
-		})
-
-		const rectCShift = new Rectangle({
-			width: 120,
-			height: 60,
-		})
-		const rectCShiftActive = new Rectangle({
-			width: 120,
-			height: 60,
-			color: Colors.Peru,
-			visible: false
-		})
-		const textCShift = new Label({
-			text: 'Shift',
-			color: '#000'
-		})
-
-		const rectLCtrl = new Rectangle({
-			x: -120,
-			y: -80,
-			width: 90,
-			height: 60,
-		})
-		const rectLCtrlActive = new Rectangle({
-			x: -120,
-			y: -80,
-			width: 90,
-			height: 60,
-			color: Colors.Peru,
-			visible: false
-		})
-		const textLCtrl = new Label({
-			x: -120,
-			y: -80,
-			text: 'L ctrl',
-			color: '#000'
-		})
-
-		const rectRCtrl = new Rectangle({
-			x: 120,
-			y: -80,
-			width: 90,
-			height: 60,
-		})
-		const rectRCtrlActive = new Rectangle({
-			x: 120,
-			y: -80,
-			width: 90,
-			height: 60,
-			color: Colors.Peru,
-			visible: false
-		})
-		const textRCtrl = new Label({
-			x: 120,
-			y: -80,
-			text: 'R ctrl',
-			color: '#000'
-		})
-
-		const rectCCtrl = new Rectangle({
-			y: -80,
-			width: 90,
-			height: 60,
-		})
-		const rectCCtrlActive = new Rectangle({
-			y: -80,
-			width: 90,
-			height: 60,
-			color: Colors.Peru,
-			visible: false
-		})
-		const textCCtrl = new Label({
-			y: -80,
-			text: 'Ctrl',
-			color: '#000'
-		})
-
-		forever(delta => {
-			rectLShift.color = keyPressed('ShiftLeft') ? Colors.MediumSeaGreen : Colors.Gray
-			rectRShift.color = keyPressed('ShiftRight') ? Colors.MediumSeaGreen : Colors.Gray
-			rectCShift.color = keyPressed('Shift') ? Colors.MediumSeaGreen : Colors.Gray
-
-			rectLCtrl.color = keyPressed('CtrlLeft') ? Colors.MediumSeaGreen : Colors.Gray
-			rectRCtrl.color = keyPressed('CtrlRight') ? Colors.MediumSeaGreen : Colors.Gray
-			rectCCtrl.color = keyPressed('Ctrl') ? Colors.MediumSeaGreen : Colors.Gray
-		})
-
-		onKeyPress({
-			ShiftLeft: () => {
-				rectLShiftActive.show()
-				after(0.12, () => rectLShiftActive.hide())
-			},
-			ShiftRight: () => {
-				rectRShiftActive.show()
-				after(0.12, () => rectRShiftActive.hide())
-			},
-			Shift: () => {
-				rectCShiftActive.show()
-				after(0.12, () => rectCShiftActive.hide())
-			},
-			CtrlLeft: () => {
-				rectLCtrlActive.show()
-				after(0.12, () => rectLCtrlActive.hide())
-			},
-			CtrlRight: () => {
-				rectRCtrlActive.show()
-				after(0.12, () => rectRCtrlActive.hide())
-			},
-			Ctrl: () => {
-				rectCCtrlActive.show()
-				after(0.12, () => rectCCtrlActive.hide())
-			},
-		})
-		*/
 
 		const keyCode = apiKeyCode(event.code)
 		console.log(`down: ${keyCode}   shift?: ${event.shiftKey}   ctrl?: ${event.ctrlKey}`)

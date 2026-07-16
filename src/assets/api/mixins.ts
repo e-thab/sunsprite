@@ -776,7 +776,7 @@ export function Interactable<Base extends Class>(base: Base) {
 
             // Default drag event that gets replaced once user assigns their own
             if (props?.onDrag === undefined && props?.onMouse?.Drag === undefined) {
-                console.log('no drag')
+                // console.log('on drag')
                 this.onDrag((x, y) => {
                     this.x = x
                     this.y = y
@@ -1016,17 +1016,17 @@ export function Interactable<Base extends Class>(base: Base) {
             if (actions.Scroll !== undefined) this.onScroll(actions.Scroll)
             if (actions.Move !== undefined) this.onMouseMove(actions.Move)
 
-            if (actions.Click) {
-                console.log('actions.CLICK evaluates to true')
-            } else {
-                console.log('actions.CLICK evaluates to false')
-            }
+            // if (actions.Click) {
+            //     console.log('actions.CLICK evaluates to true')
+            // } else {
+            //     console.log('actions.CLICK evaluates to false')
+            // }
 
-            if (actions.hasOwnProperty('CLICK')) {
-                console.log('hasOwnProp evaluates to true')
-            } else {
-                console.log('hasOwnProp evaluates to false')
-            }
+            // if (actions.hasOwnProperty('CLICK')) {
+            //     console.log('hasOwnProp evaluates to true')
+            // } else {
+            //     console.log('hasOwnProp evaluates to false')
+            // }
 		}
 
         onMouseHold() {
@@ -1156,6 +1156,7 @@ export function Interactable<Base extends Class>(base: Base) {
                 this._refObj.setInteractive()
                 this.isInteractive = true
             }
+            console.log(this._refObj, this._draggable)
             scene.input.setDraggable(this._refObj, this._draggable)
         }
 

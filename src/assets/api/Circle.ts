@@ -24,13 +24,21 @@ export default class Circle extends GameObject {
     constructor(props?: CircleProps) {
         super()
 
+        // TEMP: circle experimentation
         // const rect = scene.add.rectangle() // Phaser Rectangle
-        const circle = scene.add.graphics().fillCircle(0, 0, 50)
-        this._refObj = circle // Reference to Phaser object used in mixins
-        this._graphics = circle   // Reference to Phaser object used within this class (for readability)
+        const gfx = scene.add.graphics()
+            .fillStyle(0xFFFFFF)
+            .fillCircle(0, 0, 50)
+            .on('pointerover', () => console.log('p'))
+
+        this._refObj = gfx // Reference to Phaser object used in mixins
+        this._graphics = gfx   // Reference to Phaser object used within this class (for readability)
 
         this._color = props?.color ?? '#fff'
         this.color = this._color
+
+        // console.log('circle', circle.input?.draggable)
+        // scene.input.setDraggable(circle, true)
 
         // Set mixin props
         this.initMixins(props)
