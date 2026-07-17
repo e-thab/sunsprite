@@ -18,7 +18,17 @@ import HLine from './HLine'
 import VLine from './VLine'
 // import Camera from './Camera';  --  needs phaser attention
 
-export const outputItems: HTMLElement[] = []
+export const outputItems: {
+	stamps: HTMLElement[],
+	msgs: HTMLElement[]
+} = {
+	stamps: [],
+	msgs: []
+}
+let _printIndex = 0
+const _outputLines = 100
+
+export const output: HTMLElement[] = []
 export const fpsRef = ref(0)
 export const mouseRef = ref({mouseX: 0, mouseY: 0})
 export const pausedRef = ref(false)
@@ -508,25 +518,44 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 
 		return strNum
 	}
-	
-    // const item = document.createElement('div')
-    // item.className = 'output-item'
 
-	// const msgItem = document.createElement('div')
-	// msgItem.className = 'output-msg'
-	
-	// msgItem.textContent = msg
-	// msgItem.innerHTML = msg  // Unsafe
+	if (_printIndex >= _outputLines - 1) {
+		for (let i=0; i < _outputLines-1; i++) {
+			const thisStamp = outputItems.stamps[i]
+			const nextStamp = outputItems.stamps[i+1]
+			
+			const thisMsg = outputItems.msgs[i]
+			const nextMsg = outputItems.msgs[i+1]
+			
+			if (!(thisStamp && nextStamp && thisMsg && nextMsg)) return
+			thisStamp.textContent = nextStamp.textContent
+			thisMsg.textContent = nextMsg.textContent
 
-	// if (bgColor) {
-	// 	msgItem.style.backgroundColor = bgColor
-	// }
-	// if (textColor) {
-	// 	msgItem.style.color = textColor
-	// }
-	const msgStyle = `${bgColor ? `background-color: ${bgColor};` : ''}; ${textColor ? `color: ${textColor};` : ''}`
+			thisStamp.style.backgroundColor = nextStamp.style.backgroundColor
+			thisMsg.style.backgroundColor = nextMsg.style.backgroundColor
+
+			thisStamp.style.color = nextStamp.style.color
+			thisMsg.style.color = nextMsg.style.color
+		}
+	}
+
+	const panel = document.getElementById('output-panel')
+	if (panel) panel.scrollTop = panel.scrollHeight
 	
-	// const stampItem = document.createElement('div')
+	const msgItem = outputItems.msgs[_printIndex]
+	const stampItem = outputItems.stamps[_printIndex]
+	if (_printIndex < _outputLines - 1) _printIndex++
+	if (!msgItem || !stampItem) return
+	
+	msgItem.textContent = msg
+
+	if (bgColor) {
+		msgItem.style.backgroundColor = bgColor
+	}
+	if (textColor) {
+		msgItem.style.color = textColor
+	}
+	
 	// stampItem.className = 'output-stamp'
 	
 	// const time = new Date()
@@ -536,33 +565,19 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 	// const milli = withLeadingZeroes(time.getMilliseconds(), 3)
 	// stampItem.textContent = `${hr}:${min}:${sec}.${milli}`
 	
-	// stampItem.textContent = `${withLeadingZeroes(timer.frame, 6)}`
-	
-	const msgHtml = `<div class="output-msg" style="${msgStyle}">${msg}</div>`
-	const stampHtml = `<div class="output-stamp">${withLeadingZeroes(timer.frame, 6)}</div>`
-	const itemHtml = `<div class="output-item">\n\t${stampHtml}\n\t${msgHtml}\n</div>`
-
-	// item.appendChild(stampItem)
-	// item.appendChild(msgItem)
-	
-	const panel = document.querySelector('#output-panel')
-	if (panel) {
-		panel.innerHTML = panel.innerHTML.concat(itemHtml)
-		// panel.appendChild(item)
-		panel.scrollTop = panel.scrollHeight
-	}
+	stampItem.textContent = `${withLeadingZeroes(timer.frame, 6)}`
+	// stampItem.textContent = `${timer.frame}`
 }
 
 function clearOutput() {
-	// const panel = document.querySelector('#output-panel')
-	console.log('starting clear', timer.frame)
-	const panel = document.getElementById('output-panel')
-	if (!panel?.children) return
-	
-	for (let item of panel?.children) {
-		(item as HTMLElement).innerText = ''
+	for (let i=0; i<_outputLines; i++) {
+		const { stamp, msg } = { stamp: outputItems.stamps[i], msg: outputItems.msgs[i] }
+		if (msg && stamp) {
+			msg.textContent = ''
+			stamp.textContent = ''
+		}
 	}
-	console.log('clear done', timer.frame)
+	_printIndex = 0
 }
 
 function mouseOverCanvas() {
@@ -593,18 +608,12 @@ class UserScene extends Scene {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
 
+		mouse._setPointer(this.input.activePointer)
+		camera = this.cameras.main
+
 		// Set poll always to allow cursors to change when pointer isn't moving
 		this.input.setPollAlways()
 		this.input.setDefaultCursor('url(cursors/default.cur), default')
-
-		mouse._setPointer(this.input.activePointer)
-		camera = this.cameras.main
-		timer.time = 0
-		timer.totalTime = 0
-		timer.frame = 0
-		_frame = 0
-		_nextObjectId = 0
-		_lastLeftClickTime = 0
 
 		/* 
 		 * Capturing Phaser pointer events
@@ -769,6 +778,13 @@ export async function runUserCode(code: string): Promise<void> {
 	_mouseHoldActions.clear()
 	_propUpdaters.clear()
 	// camera.goTo(0, 0)
+
+	timer.time = 0
+	timer.totalTime = 0
+	timer.frame = 0
+	_frame = 0
+	_nextObjectId = 0
+	_lastLeftClickTime = 0
 	
 	// Switch this to an internal addOutput func that can modify innerHTML
 	print('<i>Running</i>', undefined, '#626f8b')

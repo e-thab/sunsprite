@@ -31,8 +31,21 @@ onMounted(() => {
     if (!panel) return
     for (let i=0; i<100; i++) {
         const item = document.createElement('div')
-        item.innerText = i.toString()
-        outputItems.push(item)
+        item.className = 'output-item'
+
+        const msgItem = document.createElement('div')
+        msgItem.className = 'output-msg'
+        msgItem.textContent = 'msg ' + i
+
+        const stampItem = document.createElement('div')
+	    stampItem.className = 'output-stamp'
+        stampItem.textContent = 'stamp ' + i
+
+        outputItems.stamps.push(stampItem)
+        outputItems.msgs.push(msgItem)
+
+        item.appendChild(stampItem)
+        item.appendChild(msgItem)
         panel.appendChild(item)
     }
 })
