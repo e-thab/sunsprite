@@ -121,6 +121,8 @@ type Predicate = (...args: any[]) => boolean
 /** Returnable def */
 type Returnable<T> = T | (() => T)
 
+type Printable = { toString(): string }
+
 type MouseInputEvent = typeof LibVars.mouseInputEvents[number]
 type MouseInputAction = {
     [key in MouseInputEvent]?: Action | null
@@ -369,10 +371,22 @@ declare function onKeyHold(actions: KeyAction): void
 declare function onMouse(actions: MouseInputAction): void
 
 /**
- * Display a message in the output panel.
+ * Display a normal message in the output panel.
  * @param msg The message to display.
  */
-declare function print(msg: string): void
+declare function print(...msg: Printable[]): void
+
+/**
+ * Display a warning message in the output panel.
+ * @param msg The warning message to display.
+ */
+declare function warn(...msg: Printable[]): void
+
+/**
+ * Display an error message in the output panel.
+ * @param msg The error message to display.
+ */
+declare function error(...msg: Printable[]): void
 
 /**
  * Pause engine processing. Must be manually un-paused using the UI button for now.

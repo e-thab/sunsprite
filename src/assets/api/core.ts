@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { AUTO, Game, LEFT, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
-import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent } from './interfaces'
+import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable } from './interfaces'
 import { Mouse } from './interfaces'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
@@ -496,29 +496,110 @@ function clearStage() {
 	// app.stage.removeChildren()
 }
 
-export function warn() {
-	// TODO: warn()
+function withLeadingZeroes(num: number, length: number) {
+	let strNum = num.toString()
+
+	if (strNum.length >= length) {
+		return strNum
+	}
+	while (strNum.length < length) {
+		strNum = '0' + strNum
+	}
+
+	return strNum
 }
 
-export function print(msg: string, bgColor: string | undefined = undefined, textColor: string | undefined = undefined) {
+function scrollOutput() {
+	const panel = document.getElementById('output-panel')
+	if (panel) panel.scrollTop = panel.scrollHeight
+}
+
+export function log(...args: any[]) {
+	console.log(args)
+}
+
+export function error(...args: Printable[]) {
+	// TODO: error()
+	console.log(args)
+
+	let msg = ''
+	for (let arg of args) {
+		msg += arg.toString()
+	}
+	
+	const items = _getNextOutputItems()
+	if (items) {
+		items.stampItem.textContent = withLeadingZeroes(timer.frame, 6)
+		items.stampItem.style.color = '#777'
+		items.stampItem.style.backgroundColor = '#583232' //'#c76352'
+		
+		items.msgItem.textContent = msg
+		// items.msgItem.style.color = '#333'
+		items.msgItem.style.backgroundColor = '#8b4949' //'#ff7860'
+	}
+	scrollOutput()
+}
+
+export function warn(...args: Printable[]) {
+	// TODO: warn()
+	console.log(args)
+
+	let msg = ''
+	for (let arg of args) {
+		msg += arg.toString()
+	}
+	const items = _getNextOutputItems()
+
+	if (items) {
+		items.stampItem.textContent = withLeadingZeroes(timer.frame, 6)
+		// items.stampItem.style.color = '#333'
+		items.stampItem.style.backgroundColor = '#d1ae4e'
+
+		items.msgItem.textContent = msg
+		// items.msgItem.style.color = '#333'
+		items.msgItem.style.backgroundColor = '#ffd561'
+	}
+	scrollOutput()
+}
+
+export function print(...args: Printable[]) {
 	// TODO: allow other msg types
 	// TODO: allow arbitrary number of msg args
 	// TODO: count repeated messages instead of showing them all (chrome console style)
-    console.log(msg)
+    console.log(args)
 
-	function withLeadingZeroes(num: number, length: number) {
-		let strNum = num.toString()
-
-		if (strNum.length >= length) {
-			return strNum
-		}
-		while (strNum.length < length) {
-			strNum = '0' + strNum
-		}
-
-		return strNum
+	let msg = ''
+	for (let arg of args) {
+		msg += arg.toString()
 	}
 
+	const items = _getNextOutputItems()
+	if (items) {
+		items.stampItem.textContent = withLeadingZeroes(timer.frame, 6)
+		items.stampItem.style.color = Colors.NordTextDim
+		items.stampItem.style.backgroundColor = Colors.NordBgDark
+		
+		items.msgItem.textContent = msg
+		items.msgItem.style.color = Colors.NordTextBright
+		items.msgItem.style.backgroundColor = Colors.NordBgNeutral
+	}
+	scrollOutput()
+}
+
+function printStartMsg() {
+	const items = _getNextOutputItems()
+	if (items) {
+		items.stampItem.textContent = withLeadingZeroes(timer.frame, 6)
+		items.stampItem.style.color = Colors.NordTextDim
+		items.stampItem.style.backgroundColor = Colors.NordBgDark
+
+		items.msgItem.innerHTML = '<i>Running</i>'
+		items.msgItem.style.color = '#626f8b'
+		items.msgItem.style.backgroundColor = Colors.NordBgNeutral
+	}
+}
+
+function _getNextOutputItems(): { stampItem: HTMLElement, msgItem: HTMLElement } | undefined {
 	if (_printIndex >= _outputLines - 1) {
 		for (let i=0; i < _outputLines-1; i++) {
 			const thisStamp = outputItems.stamps[i]
@@ -527,36 +608,30 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 			const thisMsg = outputItems.msgs[i]
 			const nextMsg = outputItems.msgs[i+1]
 			
-			if (!(thisStamp && nextStamp && thisMsg && nextMsg)) return
-			thisStamp.textContent = nextStamp.textContent
-			thisMsg.textContent = nextMsg.textContent
-
-			thisStamp.style.backgroundColor = nextStamp.style.backgroundColor
-			thisMsg.style.backgroundColor = nextMsg.style.backgroundColor
-
-			thisStamp.style.color = nextStamp.style.color
-			thisMsg.style.color = nextMsg.style.color
+			if (thisStamp && nextStamp && thisMsg && nextMsg) {		
+				thisStamp.innerHTML = nextStamp.innerHTML
+				thisStamp.style.color = nextStamp.style.color
+				thisStamp.style.backgroundColor = nextStamp.style.backgroundColor
+				
+				thisMsg.innerHTML = nextMsg.innerHTML
+				thisMsg.style.color = nextMsg.style.color
+				thisMsg.style.backgroundColor = nextMsg.style.backgroundColor
+			} else {
+				continue
+			}
 		}
 	}
-
-	const panel = document.getElementById('output-panel')
-	if (panel) panel.scrollTop = panel.scrollHeight
 	
-	const msgItem = outputItems.msgs[_printIndex]
 	const stampItem = outputItems.stamps[_printIndex]
-	if (_printIndex < _outputLines - 1) _printIndex++
-	if (!msgItem || !stampItem) return
+	const msgItem = outputItems.msgs[_printIndex]
 	
-	msgItem.textContent = msg
+	if (_printIndex < _outputLines - 1) {
+		_printIndex++
+	}
 
-	if (bgColor) {
-		msgItem.style.backgroundColor = bgColor
+	if (stampItem && msgItem) {
+		return { stampItem, msgItem }
 	}
-	if (textColor) {
-		msgItem.style.color = textColor
-	}
-	
-	// stampItem.className = 'output-stamp'
 	
 	// const time = new Date()
 	// const hr = withLeadingZeroes(time.getHours(), 2)
@@ -564,9 +639,6 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 	// const sec = withLeadingZeroes(time.getSeconds(), 2)
 	// const milli = withLeadingZeroes(time.getMilliseconds(), 3)
 	// stampItem.textContent = `${hr}:${min}:${sec}.${milli}`
-	
-	stampItem.textContent = `${withLeadingZeroes(timer.frame, 6)}`
-	// stampItem.textContent = `${timer.frame}`
 }
 
 function clearOutput() {
@@ -694,7 +766,7 @@ class UserScene extends Scene {
 			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			print, play, pause, setBackgroundColor,
+			print, warn, error, play, pause, setBackgroundColor,
 			Random: random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -787,7 +859,8 @@ export async function runUserCode(code: string): Promise<void> {
 	_lastLeftClickTime = 0
 	
 	// Switch this to an internal addOutput func that can modify innerHTML
-	print('<i>Running</i>', undefined, '#626f8b')
+	// print('<i>Running</i>', undefined, '#626f8b')
+	printStartMsg()
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
 	

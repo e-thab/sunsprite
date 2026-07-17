@@ -7,7 +7,7 @@ export type Action = (...args: any[]) => void
 export type Predicate = (...args: any[]) => boolean
 export type Returnable<T> = T | (() => T)
 export type Optional<T> = T | undefined | null
-
+export type Printable = { toString(): string }
 export type PointerAction = ((x: number, y: number) => void) | (() => void) | null
 
 export type ReferenceObject = 

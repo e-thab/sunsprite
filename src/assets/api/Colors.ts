@@ -153,4 +153,14 @@ export enum Colors {
 
     // Custom
     Jade = "#00bd7e",
+
+    // Nord
+    NordBgDarker = '#23252b',
+    NordBgDark = '#252a33',
+    NordBgNeutral = '#2e3440',
+    NordBgLight = '#353b48',
+    NordTextDim = '#4a546a',
+    NordTextBright = '#d8dee9',
+    NordScrollNeutral = '#434c5e',
+    NordScrollLight = '#4c566a',
 }
