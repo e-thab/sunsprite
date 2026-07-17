@@ -18,6 +18,7 @@ import HLine from './HLine'
 import VLine from './VLine'
 // import Camera from './Camera';  --  needs phaser attention
 
+export const outputItems: HTMLElement[] = []
 export const fpsRef = ref(0)
 export const mouseRef = ref({mouseX: 0, mouseY: 0})
 export const pausedRef = ref(false)
@@ -553,10 +554,15 @@ export function print(msg: string, bgColor: string | undefined = undefined, text
 }
 
 function clearOutput() {
-	const panel = document.querySelector('#output-panel')
-	while (panel?.firstChild) {
-		panel.removeChild(panel.firstChild)
+	// const panel = document.querySelector('#output-panel')
+	console.log('starting clear', timer.frame)
+	const panel = document.getElementById('output-panel')
+	if (!panel?.children) return
+	
+	for (let item of panel?.children) {
+		(item as HTMLElement).innerText = ''
 	}
+	console.log('clear done', timer.frame)
 }
 
 function mouseOverCanvas() {
@@ -586,19 +592,6 @@ class UserScene extends Scene {
 	async create() {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
-
-		// TEMP!!
-		const gfx = this.add.graphics()
-		.fillStyle(0xFFFFFF)
-		.fillCircle(200, 200, 50)
-		.on('pointerover', () => console.log('p'))
-		
-		const hitArea = new Phaser.Geom.Circle(200, 200, 50)
-
-		gfx.setInteractive(hitArea, Phaser.Geom.Circle.Contains)
-
-		gfx.x += 200
-		// gfx.fillCircle(gfx.x, gfx.y, 10)
 
 		// Set poll always to allow cursors to change when pointer isn't moving
 		this.input.setPollAlways()
@@ -777,11 +770,11 @@ export async function runUserCode(code: string): Promise<void> {
 	_propUpdaters.clear()
 	// camera.goTo(0, 0)
 	
-	// Switch this to an internal addInput func that can modify innerHTML
+	// Switch this to an internal addOutput func that can modify innerHTML
 	print('<i>Running</i>', undefined, '#626f8b')
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
-		
+	
 	if (game) game.destroy(true)
 
 	scene = new UserScene(code)

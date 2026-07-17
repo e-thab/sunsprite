@@ -3,10 +3,13 @@ import type { GameObjectProps } from "./mixins"
 import { allPositionables, scene } from "./core"
 import Phaser from 'phaser'
 
+function getPhaserColor(colorString: string) {
+    return Phaser.Display.Color.HexStringToColor(colorString).color
+}
+
 /**
  * Circle class
  */
-
 type CircleProps = GameObjectProps & {
     color?: string
     // outlineColor?: string
@@ -17,18 +20,20 @@ export default class Circle extends GameObject {
     // readonly _rect: Phaser.GameObjects.Rectangle
     readonly _graphics: Phaser.GameObjects.Graphics
     _color: string
+    _phaserColor: number = 0xFFFFFF
     _radius: number = 50
+    _hitArea: Phaser.Geom.Circle
 
     // What should happen when supplying contradictory size/place properties?
     // Just pick one to overwrite and push a warning to the output panel?
     constructor(props?: CircleProps) {
         super()
 
-        const hitArea = new Phaser.Geom.Circle(0, 0, 50)
+        this._hitArea = new Phaser.Geom.Circle(0, 0, 50)
         const gfx = scene.add.graphics()
-            .fillStyle(0xFFFFFF)
+            .fillStyle(this._phaserColor)
             .fillCircle(0, 0, 50)
-            .setInteractive(hitArea, Phaser.Geom.Circle.Contains)
+            .setInteractive(this._hitArea, Phaser.Geom.Circle.Contains)
             .on('pointerover', () => console.log('p'))
         
         this._refObj = gfx // Reference to Phaser object used in mixins
@@ -56,10 +61,15 @@ export default class Circle extends GameObject {
         // May move color logic to a mixin
         // Also need to implement support for CSS color names for phaser objects
         this._color = color
-        // this._rect.fill(color)
-        const phaserColor = Phaser.Display.Color.HexStringToColor(color).color
-        this._graphics.clear()
-        this._graphics.fillCircle(this._graphics.x, this._graphics.y, this.radius)
+        this._updateFill()
+    }
+
+    get alpha() {
+        return this._graphics.alpha
+    }
+    set alpha(alpha: number) {
+        this._alpha = alpha
+        this._graphics.setAlpha(alpha)
     }
 
     get radius() {
@@ -67,7 +77,13 @@ export default class Circle extends GameObject {
     }
     set radius(radius: number) {
         this._radius = radius
+        this._hitArea.radius = radius
+        this._updateFill()
+    }
+
+    _updateFill() {
         this._graphics.clear()
-        this._graphics.fillCircle(this._graphics.x, this._graphics.y, radius)
+        this._graphics.fillStyle(getPhaserColor(this.color), this._alpha)
+        this._graphics.fillCircle(0, 0, this._radius)
     }
 }

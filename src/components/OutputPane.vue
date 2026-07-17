@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { outputItems } from '@/assets/api/core';
+import { styleText } from 'util';
+import { onMounted, ref } from 'vue';
 
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
@@ -23,6 +25,17 @@ function activateTab(tab: OutputTab) {
 }
 
 defineEmits([ 'collapseOutput' ])
+
+onMounted(() => {
+    const panel = document.getElementById('output-panel')
+    if (!panel) return
+    for (let i=0; i<100; i++) {
+        const item = document.createElement('div')
+        item.innerText = i.toString()
+        outputItems.push(item)
+        panel.appendChild(item)
+    }
+})
 </script>
 
 
