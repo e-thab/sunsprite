@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { outputItems } from '@/assets/api/core';
-import { styleText } from 'util';
+import { outputItems, clearOutput } from '@/assets/api/core';
 import { onMounted, ref } from 'vue';
 
 type OutputTab = 'output' | 'info' | 'watch'
@@ -24,7 +23,7 @@ function activateTab(tab: OutputTab) {
     activeTab.value = tab
 }
 
-defineEmits([ 'collapseOutput' ])
+const emit = defineEmits([ 'collapseOutput', 'ready' ])
 
 onMounted(() => {
     const panel = document.getElementById('output-panel')
@@ -48,6 +47,9 @@ onMounted(() => {
         item.appendChild(msgItem)
         panel.appendChild(item)
     }
+    // First run on load doesn't display output, need to wait to run code until panel is ready
+    // clearOutput()
+    // emit('ready')
 })
 </script>
 
@@ -102,6 +104,7 @@ onMounted(() => {
     color: var(--nord-text-bright);
     height: 24px;
     /* border-bottom: 1px solid var(--nord-scroll-neutral); */
+    user-select: none;
 }
 
 .output-header-item {

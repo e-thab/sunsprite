@@ -641,7 +641,7 @@ function _getNextOutputItems(): { stampItem: HTMLElement, msgItem: HTMLElement }
 	// stampItem.textContent = `${hr}:${min}:${sec}.${milli}`
 }
 
-function clearOutput() {
+export function clearOutput() {
 	for (let i=0; i<_outputLines; i++) {
 		const { stamp, msg } = { stamp: outputItems.stamps[i], msg: outputItems.msgs[i] }
 		if (msg && stamp) {

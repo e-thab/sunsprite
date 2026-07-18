@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
-import { resizeStage, print } from '@/assets/api/core';
+import { resizeStage, print, clearOutput } from '@/assets/api/core';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useFileStore } from '@/stores/fileStore';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
@@ -32,8 +32,18 @@ const paneSize: { [index: string]: number } = {
 }
 
 function onCanvasReady() {
-  resizeStage()
-  // runActiveUserCode()
+	console.log('canvas ready')
+  	resizeStage()
+}
+
+// function onOutputReady() {
+// 	console.log('output ready')
+// }
+
+function onEditorReady() {
+	console.log('editor ready')
+	runActiveUserCode()
+	editor.value.updateSaveMsg()
 }
 
 function runActiveUserCode() {
@@ -116,7 +126,11 @@ onMounted(() => {
 
     <!-- Center pane: Code editor -->
     <pane id="code-pane" v-show="!fsStore.fullscreen" size="44">
-      <CodeEditor ref="editor" class="inner-pane"/>
+      <CodeEditor
+	  	ref="editor"
+		class="inner-pane"
+		@ready="onEditorReady"
+	/>
     </pane>
 
     <!-- Right side pane: Nested game/output splitpanes -->
@@ -180,6 +194,7 @@ onMounted(() => {
   color: var(--nord-text-bright);
   background-color: var(--nord-background-dark);
   font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+  user-select: none;
 }
 
 .panel-wrapper {

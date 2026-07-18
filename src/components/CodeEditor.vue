@@ -217,6 +217,7 @@ function updateSaveMsg(checkCode?: string) {
 	}
 }
 
+const emit = defineEmits(['ready'])
 defineExpose({ runActiveUserCode, setCode, getCode, updateSaveMsg })
 
 onMounted(() => {
@@ -240,8 +241,7 @@ onMounted(() => {
 
 	fileStore.activate('main.js')
 	code.value = fileStore.getLocalCode('main.js') ?? getExampleCode()
-	runActiveUserCode()
-	updateSaveMsg()
+	emit('ready')
 })
 
 // TODO: 
@@ -260,7 +260,7 @@ onMounted(() => {
 				<div id="save-msg" @click="saveCurrentCode"></div>
 			</div>
 			<div id="file-name">{{ fileStore.activeFileName }}</div>
-			<img class="img-button"  style="justify-self: end; padding-right: 10px;" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" />
+			<img class="img-button" style="justify-self: end; padding-right: 10px;" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" />
 			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
 		</div>
 		<div id="code-container" class="editor">
@@ -300,6 +300,7 @@ onMounted(() => {
 	grid-template-columns: 1fr 1fr 1fr;
 	justify-items: center;
 	/* border-bottom: 20px; */
+	user-select: none;
 }
 
 #file-name {
