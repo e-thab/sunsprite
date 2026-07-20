@@ -31,21 +31,6 @@ const paneSize: { [index: string]: number } = {
   'output-v-pane': 20
 }
 
-function onCanvasReady() {
-	console.log('canvas ready')
-  	resizeStage()
-}
-
-// function onOutputReady() {
-// 	console.log('output ready')
-// }
-
-function onEditorReady() {
-	console.log('editor ready')
-	runActiveUserCode()
-	editor.value.updateSaveMsg()
-}
-
 function runActiveUserCode() {
   // Run the code currently in the code editor
   editor.value.runActiveUserCode()
@@ -100,7 +85,33 @@ function loadScript(fileName: string) {
   editor.value.updateSaveMsg()
 }
 
-onMounted(() => {
+// const readyComponents = {
+//   output: false,
+//   editor: false,
+//   canvas: false,
+// }
+
+// function allComponentsReady() {
+//   return readyComponents.output && readyComponents.editor && readyComponents.canvas
+// }
+
+function onCanvasReady() {
+	// console.log('canvas ready')
+  // readyComponents.canvas = true
+  resizeStage()
+}
+
+function onOutputReady() {
+  // readyComponents.output = true
+	// console.log('output ready')
+}
+
+function onEditorReady() {
+	// console.log('editor ready')
+  // readyComponents.editor = true
+}
+
+onMounted(async () => {
   const canvas = document.getElementById('canvas-v-pane')
   if (!canvas) return
 
@@ -108,6 +119,21 @@ onMounted(() => {
     resizeStage()
   })
   .observe(canvas)
+
+  // await new Promise((resolve) => {
+  //   const interval = setInterval(() => {
+  //     if (allComponentsReady()) {
+  //       clearInterval(interval)
+  //       resolve(true)
+  //     } else {
+  //       console.log('not yet')
+  //     }
+  //   }, 100)
+  // })
+  
+  // console.log('components ready')
+  runActiveUserCode()
+	editor.value.updateSaveMsg()
 })
 </script>
 
@@ -154,7 +180,10 @@ onMounted(() => {
 
         <!-- Bottom left pane: Output -->
         <pane id="output-v-pane" v-show="!fsStore.fullscreen" :size="100-canvasHeight">
-          <OutputPane @collapse-output="collapseOutput" />
+          <OutputPane
+            @collapse-output="collapseOutput" 
+            @ready="onOutputReady"
+          />
         </pane>
       </splitpanes>
     </pane>

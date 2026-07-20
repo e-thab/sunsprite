@@ -47,9 +47,9 @@ onMounted(() => {
         item.appendChild(msgItem)
         panel.appendChild(item)
     }
-    // First run on load doesn't display output, need to wait to run code until panel is ready
-    // clearOutput()
-    // emit('ready')
+    
+    clearOutput()
+    emit('ready')
 })
 </script>
 

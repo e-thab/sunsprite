@@ -530,12 +530,12 @@ export function error(...args: Printable[]) {
 	const items = _getNextOutputItems()
 	if (items) {
 		items.stampItem.textContent = withLeadingZeroes(timer.frame, 6)
-		items.stampItem.style.color = '#777'
-		items.stampItem.style.backgroundColor = '#583232' //'#c76352'
+		items.stampItem.style.color = '#e64f56'
+		// items.stampItem.style.backgroundColor = '#583232' //'#c76352'
 		
 		items.msgItem.textContent = msg
-		// items.msgItem.style.color = '#333'
-		items.msgItem.style.backgroundColor = '#8b4949' //'#ff7860'
+		items.msgItem.style.color = '#ff727a'
+		// items.msgItem.style.backgroundColor = '#8b4949' //'#ff7860'
 	}
 	scrollOutput()
 }
@@ -552,12 +552,12 @@ export function warn(...args: Printable[]) {
 
 	if (items) {
 		items.stampItem.textContent = withLeadingZeroes(timer.frame, 6)
-		// items.stampItem.style.color = '#333'
-		items.stampItem.style.backgroundColor = '#d1ae4e'
+		items.stampItem.style.color = '#e9c155'
+		// items.stampItem.style.backgroundColor = '#d1ae4e'
 
 		items.msgItem.textContent = msg
-		// items.msgItem.style.color = '#333'
-		items.msgItem.style.backgroundColor = '#ffd561'
+		items.msgItem.style.color = '#ffe291'
+		// items.msgItem.style.backgroundColor = '#ffd561'
 	}
 	scrollOutput()
 }
@@ -779,22 +779,84 @@ class UserScene extends Scene {
 		
 		const keys = Object.keys(api)
 		const values = Object.values(api)
+
+		// Trying some ways to get error line/col within user script from stack trace
+		// function tryCompileDynamicCode(codeBody) {
+		// 	try {
+		// 		// If syntax is perfect, this compiles smoothly
+		// 		return new Function(this.JScode);
+		// 	} catch (syntaxError) {
+		// 		if (syntaxError instanceof SyntaxError) {
+		// 		console.error("❌ Construction Syntax Error caught!");
+				
+		// 		// Some engines provide the raw offset line directly inside syntaxError.lineNumber
+		// 		// If missing, we read the error stack line or fall back to checking line-by-line
+		// 		console.error(`Message: ${syntaxError.message}`);
+		// 		console.error(`Stack trace details:\n`, syntaxError.stack);
+		// 		}
+		// 		throw syntaxError;
+		// 	}
+		// }
+
+		// // Example: Missing closing parenthesis on line 2
+		// tryCompileDynamicCode(`
+		// 	console.log("Starting..." 
+		// 	const val = 100;
+		// `);
+
+		const fn = new Function(
+			...keys,
+			`
+			return async function userScript() {
+				// try {
+					${this.JScode}
+				// } catch (e) {
+				// 	// console.log(e.stack)
+				// 	throw new Error(e.message)
+				// }
+			}
+			`
+		)
+		
+		// const factory = new Function(codeString)
+		const run = fn(...values)
 		
 		// Another problem post-phaser: user code errors prevent reloading of the game sometimes?
 		try {
-			const fn = new Function(
-			...keys,
-			`
-			return (async () => {
-				${this.JScode}
-			})()
-			`
-			)
-			await fn(...values)
-		} catch (err: any) {
-			print(err.toString())
+			// const fn = new Function(
+			// 	...keys,
+			// 	`
+			// 	return (async () => {
+			// 		${this.JScode}
+			// 	})()
+			// 	`
+			// )
+			// await fn(...values)
+			await run()
+		} catch (e: any) {
+			const err = (e as Error)
+			console.log('stack', err.stack)
+			const match = err.stack?.match(/<anonymous>:(\d+):(\d+)/)
+			console.log('match', match)
+			if (match && match[1]) {
+				const errorLineNumber = parseInt(match[1], 10)
+				const editorLine = errorLineNumber
+
+				console.log(`err at line: ${editorLine}`)
+			}
+
+			error(err.toString())
 			console.error('User code error:', err)
 		}
+		// const fn = new Function(
+		// 	...keys,
+		// 	`
+		// 	return (async () => {
+		// 		${this.JScode}
+		// 	})()
+		// 	`
+		// )
+		// await fn(...values)
 	}
 	
 	update(time: number, delta: number) {
@@ -1017,6 +1079,15 @@ export function setup() {
 	// 		// resizeStage()
 	// 		updatePositions()
 	// 	})
+	// })
+	
+	// window.addEventListener('error', (errorEvent) => {
+	// 	console.log(errorEvent)
+
+	// 	const { lineno, colno } = errorEvent;
+	// 	console.log(`Error thrown at: ${lineno}:${colno}`);
+
+	// 	errorEvent.preventDefault()
 	// })
 
 	// app.stage.eventMode = 'dynamic'
