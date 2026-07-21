@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { outputItems, clearOutput } from '@/assets/api/core';
 import { onMounted, ref } from 'vue';
+import Output from '@/assets/api/output';
 
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
@@ -32,7 +32,8 @@ onMounted(() => {
         const item = document.createElement('div')
         item.className = 'output-item'
 
-        const msgItem = document.createElement('div')
+        // Should I use <pre>? too powerful?
+        const msgItem = document.createElement('pre')
         msgItem.className = 'output-msg'
         msgItem.textContent = 'msg ' + i
 
@@ -40,15 +41,15 @@ onMounted(() => {
 	    stampItem.className = 'output-stamp'
         stampItem.textContent = 'stamp ' + i
 
-        outputItems.stamps.push(stampItem)
-        outputItems.msgs.push(msgItem)
+        Output.items.stamps.push(stampItem)
+        Output.items.msgs.push(msgItem)
 
         item.appendChild(stampItem)
         item.appendChild(msgItem)
         panel.appendChild(item)
     }
-    
-    clearOutput()
+
+    Output.clear()
     emit('ready')
 })
 </script>
@@ -139,6 +140,7 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    background-color: var(--nord-background-neutral);
 }
 
 .output-item {
@@ -150,15 +152,19 @@ onMounted(() => {
 
 .output-msg {
     padding: 0 .25em;
+    flex: 1 1 auto;
     color: var(--nord-text-bright);
     background-color: var(--nord-background-neutral);
-    flex: 1 1 auto;
 }
 
 .output-stamp {
-    color: var(--nord-text-dim);
     border-right: 1px solid var(--nord-scroll-neutral);
     padding: 0 .25em;
+    color: var(--nord-text-dim);
+    background-color: var(--nord-background-dark);
+    text-align: center;
+    min-width: 22px;
+    user-select: none;
 }
 
 .info-panel {

@@ -75,207 +75,238 @@ const fileStore = useFileStore()
 // icon: 'catppuccin:svg'
 
 const items = ref<TreeItem[]>([
-  // {
-  //   label: 'Images',
-  //   defaultExpanded: true,
-  //   children: [
-  //     {
-  //       label: 'Animals',
-  //       defaultExpanded: false,
-  //       children: [
-  //         {
-  //           label: 'elephant.png',
-  //           icon: '/images/elephant.png'
-  //         }
-  //       ]
-  //     },
-  //     {
-  //       label: 'Cards',
-  //       defaultExpanded: false,
-  //       children: [
-  //         {}
-  //       ]
-  //     },
-  //   ]
-  // },
+	{
+		label: 'images',
+		defaultExpanded: false,
+		children: [
+			{
+				label: 'animals',
+				defaultExpanded: false,
+				children: [
+					{
+						label: 'elephant.png',
+						icon: './images/animals/elephant.png'
+					},
+					{
+						label: 'giraffe.png',
+						icon: './images/animals/giraffe.png'
+					},
+					{
+						label: 'hippo.png',
+						icon: './images/animals/hippo.png'
+					},
+					{
+						label: 'monkey.png',
+						icon: './images/animals/monkey.png'
+					},
+				]
+			},
+			{
+				label: 'cards',
+				defaultExpanded: false,
+				children: [
+					{
+						label: 'back.png',
+						icon: './images/animals/back.png'
+					},
+					{
+						label: 'clubs_02.png',
+						icon: './images/animals/clubs_02.png'
+					},
+					{
+						label: 'clubs_03.png',
+						icon: './images/animals/clubs_03.png'
+					},
+					{
+						label: 'clubs_04.png',
+						icon: './images/animals/clubs_04.png'
+					},
+					{
+						label: 'clubs_05.png',
+						icon: './images/animals/clubs_05.png'
+					},
+				]
+			},
+		]
+	},
 
-  // {
-  //   label: 'Sounds',
-  //   defaultExpanded: true,
-  //   children: [
-  //     {
-  //       label: 'sound.wav',
-  //       icon: 'catppuccin:audio'
-  //     },
-  //   ]
-  // },
+	// {
+	//   label: 'Sounds',
+	//   defaultExpanded: true,
+	//   children: [
+	//     {
+	//       label: 'sound.wav',
+	//       icon: 'catppuccin:audio'
+	//     },
+	//   ]
+	// },
 
-  {
-    label: 'Scripts',
-    defaultExpanded: true,
-    children: [
-      // {
-      //   label: 'main.ts',
-      //   icon: 'catppuccin:typescript'
-      // },
-      {
-        label: 'Examples',
-        defaultExpanded: true,
-        children: [
-          {
-            label: 'input.js',
-            icon: 'catppuccin:javascript',
-            onSelect: (event) => {
-              if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-            }
-          }
-          // {
-          //   label: 'labels.js',
-          //   icon: 'catppuccin:javascript',
-          //   onSelect: (event) => {
-          //     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-          //   }
-          // },
-          // {
-          //   label: 'lines.js',
-          //   icon: 'catppuccin:javascript',
-          //   onSelect: (event) => {
-          //     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-          //   }
-          // },
-          // {
-          //   label: 'rectangles.js',
-          //   icon: 'catppuccin:javascript',
-          //   onSelect: (event) => {
-          //     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-          //   }
-          // },
-          // {
-          //   label: 'rectSpiral.js',
-          //   icon: 'catppuccin:javascript',
-          //   onSelect: (event) => {
-          //     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-          //   }
-          // },
-          // {
-          //   label: 'sprites.js',
-          //   icon: 'catppuccin:javascript',
-          //   onSelect: (event) => {
-          //     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-          //   }
-          // },
-        ]
-      },
+	{
+		label: 'scripts',
+		defaultExpanded: true,
+		children: [
+			// {
+			//   label: 'main.ts',
+			//   icon: 'catppuccin:typescript'
+			// },
+			{
+				label: 'examples',
+				defaultExpanded: true,
+				children: [
+					{
+						label: 'input.js',
+						icon: 'catppuccin:javascript',
+						onSelect: (event) => {
+							if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+						}
+					}
+					// {
+					//   label: 'labels.js',
+					//   icon: 'catppuccin:javascript',
+					//   onSelect: (event) => {
+					//     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+					//   }
+					// },
+					// {
+					//   label: 'lines.js',
+					//   icon: 'catppuccin:javascript',
+					//   onSelect: (event) => {
+					//     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+					//   }
+					// },
+					// {
+					//   label: 'rectangles.js',
+					//   icon: 'catppuccin:javascript',
+					//   onSelect: (event) => {
+					//     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+					//   }
+					// },
+					// {
+					//   label: 'rectSpiral.js',
+					//   icon: 'catppuccin:javascript',
+					//   onSelect: (event) => {
+					//     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+					//   }
+					// },
+					// {
+					//   label: 'sprites.js',
+					//   icon: 'catppuccin:javascript',
+					//   onSelect: (event) => {
+					//     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+					//   }
+					// },
+				]
+			},
 
-      {
-        label: 'temp.js',
-        icon: 'catppuccin:javascript',
-        onSelect: (event) => {
-          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-        }
-      },
+			{
+				label: 'temp.js',
+				icon: 'catppuccin:javascript',
+				onSelect: (event) => {
+					if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+				}
+			},
 
-      {
-        label: 'main.js',
-        icon: 'catppuccin:javascript',
-        onSelect: (event) => {
-          if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-        }
-      },
-    ]
-  },
-  // {
-  //   label: 'app/',
-  //   defaultExpanded: true,
-  //   children: [
-  //     {
-  //       label: 'composables/',
-  //       children: [
-  //         {
-  //           label: 'useAuth.js',
-  //           icon: 'catppuccin:javascript'
-  //         },
-  //         {
-  //           label: 'useUser.ts',
-  //           icon: 'catppuccin:typescript'
-  //         }
-  //       ]
-  //     },
-  //     {
-  //       label: 'components/',
-  //       defaultExpanded: false,
-  //       children: [
-  //         {
-  //           label: 'Card.vue',
-  //           icon: 'catppuccin:vue'
-  //         },
-  //         {
-  //           label: 'Button.vue',
-  //           icon: 'catppuccin:vue'
-  //         }
-  //       ]
-  //     },
-  //   ]
-  // },
-  // {
-  //   label: 'app.vue',
-  //   icon: 'catppuccin:vue'
-  // },
-  // {
-  //   label: 'nuxt.config.ts',
-  //   icon: 'catppuccin:nuxt'
-  // },
+			{
+				label: 'main.js',
+				icon: 'catppuccin:javascript',
+				onSelect: (event) => {
+					if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+				}
+			},
+		]
+	},
+	// {
+	//   label: 'app/',
+	//   defaultExpanded: true,
+	//   children: [
+	//     {
+	//       label: 'composables/',
+	//       children: [
+	//         {
+	//           label: 'useAuth.js',
+	//           icon: 'catppuccin:javascript'
+	//         },
+	//         {
+	//           label: 'useUser.ts',
+	//           icon: 'catppuccin:typescript'
+	//         }
+	//       ]
+	//     },
+	//     {
+	//       label: 'components/',
+	//       defaultExpanded: false,
+	//       children: [
+	//         {
+	//           label: 'Card.vue',
+	//           icon: 'catppuccin:vue'
+	//         },
+	//         {
+	//           label: 'Button.vue',
+	//           icon: 'catppuccin:vue'
+	//         }
+	//       ]
+	//     },
+	//   ]
+	// },
+	// {
+	//   label: 'app.vue',
+	//   icon: 'catppuccin:vue'
+	// },
+	// {
+	//   label: 'nuxt.config.ts',
+	//   icon: 'catppuccin:nuxt'
+	// },
 ])
 
 const emit = defineEmits<{
-  selectScript: [fileName: string]
+	selectScript: [fileName: string]
 }>()
 
 const selected = ref({
-  label: 'main.js',
-  icon: 'catppuccin:javascript',
-  onSelect: (event: any) => {
-    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-  }
-  // onSelect: (event: any) => {
-  //   if (event.target) {
-  //     const innerText = (event.target as HTMLElement).innerText
-  //     const withoutStar = innerText.charAt(-1) === '*' ? innerText.slice(0, -1) : innerText
-  //     emit('selectScript', withoutStar)
-  //   }
-  // }
+	label: 'main.js',
+	icon: 'catppuccin:javascript',
+	onSelect: (event: any) => {
+		if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+	}
+	// onSelect: (event: any) => {
+	//   if (event.target) {
+	//     const innerText = (event.target as HTMLElement).innerText
+	//     const withoutStar = innerText.charAt(-1) === '*' ? innerText.slice(0, -1) : innerText
+	//     emit('selectScript', withoutStar)
+	//   }
+	// }
 })
 </script>
 
 <template>
-    <!-- <VueTreeDnd
+	<!-- <VueTreeDnd
         :component="TreeItemRenderer"
         v-model="tree"
         @move="moveHandler"
     /> -->
 
-    <!-- <div class="panel-wrapper">
+	<!-- <div class="panel-wrapper">
         <div class="panel-bar">
             <span>Files</span>
         </div>
         <Tree :value="nodes" class="file-tree" />
     </div> -->
 
-    <div class="panel-wrapper">
-        <div class="panel-bar" style="justify-content: center;">
-            <div>Files</div>
-        </div>
-        <div class="file-tree">
-            <UTree v-model="selected" :items="items" class="file-tree" />
-        </div>
-    </div>
+	<div class="panel-wrapper">
+		<div class="panel-bar" style="justify-content: center;">
+			<div>Files</div>
+		</div>
+		<div class="file-tree">
+			<UTree v-model="selected" :items="items" class="file-tree" />
+		</div>
+	</div>
 </template>
 
 <style scoped>
 .file-tree {
-    /* height: 100%; */
-    /* width: 100%; */
-    /* flex: 1 1 auto; */
-    background-color: var(--nord-background-neutral);
+	/* height: 100%; */
+	/* width: 100%; */
+	/* flex: 1 1 auto; */
+	background-color: var(--nord-background-neutral);
 }
 </style>

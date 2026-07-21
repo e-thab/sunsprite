@@ -160,6 +160,7 @@ export enum Colors {
     NordBgNeutral = '#2e3440',
     NordBgLight = '#353b48',
     NordTextDim = '#4a546a',
+    NordTextNeutral = '#626f8b',
     NordTextBright = '#d8dee9',
     NordScrollNeutral = '#434c5e',
     NordScrollLight = '#4c566a',

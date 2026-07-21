@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
-import { resizeStage, print, clearOutput } from '@/assets/api/core';
+import { resizeStage } from '@/assets/api/core';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useFileStore } from '@/stores/fileStore';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
@@ -10,6 +10,7 @@ import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
 import OutputPane from '@/components/OutputPane.vue';
 import { getExampleCode } from '@/assets/api/examples';
+import Output from '@/assets/api/output'
 
 const editor = ref()
 const fsStore = useFullscreenStore()
@@ -38,7 +39,7 @@ function runActiveUserCode() {
 
 async function toggleFullscreen() {
   // Toggle fullscreen state (pinia store) when pressing fullscreen button
-  print('fullscreen')
+  Output.print('fullscreen')
   if (fsStore.toggle()) {
     splitterDisplay.value = 'none'
     canvasWidth.value = 100

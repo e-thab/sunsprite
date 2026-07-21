@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useFullscreenStore } from '@/stores/fullscreen';
-import { print } from '@/assets/api/core';
+import Output from '@/assets/api/output';
 const fsStore = useFullscreenStore()
 </script>
 
@@ -9,9 +9,9 @@ const fsStore = useFullscreenStore()
         <!-- <span>Header</span> -->
         <!-- <span>Span two</span> -->
         <!-- <span>Span three</span> -->
-        <img class="img-button" @click="print('home')" title="Home" src="/src/assets/images/game-icons/home.png" />
-        <img class="img-button" @click="print('logo')" id="logo" title="Sunsprite" src="/src/assets/sun.svg" />
-        <img class="img-button" @click="print('profile')" title="Profile" src="/src/assets/images/game-icons/multiplayer.png" />
+        <img class="img-button" @click="Output.print('home')" title="Home" src="/src/assets/images/game-icons/home.png" />
+        <img class="img-button" @click="Output.print('logo')" id="logo" title="Sunsprite" src="/src/assets/sun.svg" />
+        <img class="img-button" @click="Output.print('profile')" title="Profile" src="/src/assets/images/game-icons/multiplayer.png" />
     </div>
 </template>
 

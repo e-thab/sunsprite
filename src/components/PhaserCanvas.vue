@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 // import { /*mouseRef, fpsRef,*/ /*pause, play, pausedRef, print*/ } from '@/assets/api/core'
-import { game, setup, mouseRef, resizeStage, pause, play, pausedRef, print } from '@/assets/api/core'
+import { game, setup, mouseRef, resizeStage, pause, play, pausedRef } from '@/assets/api/core'
 import { useFullscreenStore } from '@/stores/fullscreen'
+import Output from '@/assets/api/output'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
 // const canvas = ref<HTMLCanvasElement | null>(null)
@@ -73,10 +74,10 @@ onMounted(async () => {
       
       <!-- Sound -->
       <!-- Icon should change based on volume -->
-      <img @click="print('sound')" class="img-button" title="Volume" src="@/assets/images/game-icons/audioOn.png" />
+      <img @click="Output.print('sound')" class="img-button" title="Volume" src="@/assets/images/game-icons/audioOn.png" />
       
       <!-- Settings -->
-      <img @click="print('settings')" class="img-button" title="Settings" src="@/assets/images/game-icons/gear.png" />
+      <img @click="Output.print('settings')" class="img-button" title="Settings" src="@/assets/images/game-icons/gear.png" />
 
       <!-- Fullscreen (maximize) -->
       <img v-show="!fsStore.fullscreen" @click="$emit('fullscreen')" class="img-button" title="Fullscreen" src="@/assets/images/game-icons/larger.png" />

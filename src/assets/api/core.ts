@@ -1,12 +1,13 @@
 import { ref } from 'vue'
 
-import { AUTO, Game, LEFT, Scene, type Types } from 'phaser'
+import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
 import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable } from './interfaces'
 import { Mouse } from './interfaces'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
+import Output from './output'
 
 import { Colors } from './Colors'
 import Sprite from './Sprite'
@@ -18,17 +19,16 @@ import HLine from './HLine'
 import VLine from './VLine'
 // import Camera from './Camera';  --  needs phaser attention
 
-export const outputItems: {
-	stamps: HTMLElement[],
-	msgs: HTMLElement[]
-} = {
-	stamps: [],
-	msgs: []
-}
-let _printIndex = 0
-const _outputLines = 100
+// export const outputItems: {
+// 	stamps: HTMLElement[],
+// 	msgs: HTMLElement[]
+// } = {
+// 	stamps: [],
+// 	msgs: []
+// }
+// let _printIndex = 0
+// const _outputLines = 100
 
-export const output: HTMLElement[] = []
 export const fpsRef = ref(0)
 export const mouseRef = ref({mouseX: 0, mouseY: 0})
 export const pausedRef = ref(false)
@@ -496,160 +496,8 @@ function clearStage() {
 	// app.stage.removeChildren()
 }
 
-function withLeadingZeroes(num: number, length: number) {
-	let strNum = num.toString()
-
-	if (strNum.length >= length) {
-		return strNum
-	}
-	while (strNum.length < length) {
-		strNum = '0' + strNum
-	}
-
-	return strNum
-}
-
-function scrollOutput() {
-	const panel = document.getElementById('output-panel')
-	if (panel) panel.scrollTop = panel.scrollHeight
-}
-
 export function log(...args: any[]) {
 	console.log(args)
-}
-
-export function error(...args: Printable[]) {
-	// TODO: error()
-	console.log(args)
-
-	let msg = ''
-	for (let arg of args) {
-		msg += arg.toString()
-	}
-	
-	const items = _getNextOutputItems()
-	if (items) {
-		items.stampItem.textContent = withLeadingZeroes(timer.frame, 6)
-		items.stampItem.style.color = '#e64f56'
-		// items.stampItem.style.backgroundColor = '#583232' //'#c76352'
-		
-		items.msgItem.textContent = msg
-		items.msgItem.style.color = '#ff727a'
-		// items.msgItem.style.backgroundColor = '#8b4949' //'#ff7860'
-	}
-	scrollOutput()
-}
-
-export function warn(...args: Printable[]) {
-	// TODO: warn()
-	console.log(args)
-
-	let msg = ''
-	for (let arg of args) {
-		msg += arg.toString()
-	}
-	const items = _getNextOutputItems()
-
-	if (items) {
-		items.stampItem.textContent = withLeadingZeroes(timer.frame, 6)
-		items.stampItem.style.color = '#e9c155'
-		// items.stampItem.style.backgroundColor = '#d1ae4e'
-
-		items.msgItem.textContent = msg
-		items.msgItem.style.color = '#ffe291'
-		// items.msgItem.style.backgroundColor = '#ffd561'
-	}
-	scrollOutput()
-}
-
-export function print(...args: Printable[]) {
-	// TODO: allow other msg types
-	// TODO: allow arbitrary number of msg args
-	// TODO: count repeated messages instead of showing them all (chrome console style)
-    console.log(args)
-
-	let msg = ''
-	for (let arg of args) {
-		msg += arg.toString()
-	}
-
-	const items = _getNextOutputItems()
-	if (items) {
-		items.stampItem.textContent = withLeadingZeroes(timer.frame, 6)
-		items.stampItem.style.color = Colors.NordTextDim
-		items.stampItem.style.backgroundColor = Colors.NordBgDark
-		
-		items.msgItem.textContent = msg
-		items.msgItem.style.color = Colors.NordTextBright
-		items.msgItem.style.backgroundColor = Colors.NordBgNeutral
-	}
-	scrollOutput()
-}
-
-function printStartMsg() {
-	const items = _getNextOutputItems()
-	if (items) {
-		items.stampItem.textContent = withLeadingZeroes(timer.frame, 6)
-		items.stampItem.style.color = Colors.NordTextDim
-		items.stampItem.style.backgroundColor = Colors.NordBgDark
-
-		items.msgItem.innerHTML = '<i>Running</i>'
-		items.msgItem.style.color = '#626f8b'
-		items.msgItem.style.backgroundColor = Colors.NordBgNeutral
-	}
-}
-
-function _getNextOutputItems(): { stampItem: HTMLElement, msgItem: HTMLElement } | undefined {
-	if (_printIndex >= _outputLines - 1) {
-		for (let i=0; i < _outputLines-1; i++) {
-			const thisStamp = outputItems.stamps[i]
-			const nextStamp = outputItems.stamps[i+1]
-			
-			const thisMsg = outputItems.msgs[i]
-			const nextMsg = outputItems.msgs[i+1]
-			
-			if (thisStamp && nextStamp && thisMsg && nextMsg) {		
-				thisStamp.innerHTML = nextStamp.innerHTML
-				thisStamp.style.color = nextStamp.style.color
-				thisStamp.style.backgroundColor = nextStamp.style.backgroundColor
-				
-				thisMsg.innerHTML = nextMsg.innerHTML
-				thisMsg.style.color = nextMsg.style.color
-				thisMsg.style.backgroundColor = nextMsg.style.backgroundColor
-			} else {
-				continue
-			}
-		}
-	}
-	
-	const stampItem = outputItems.stamps[_printIndex]
-	const msgItem = outputItems.msgs[_printIndex]
-	
-	if (_printIndex < _outputLines - 1) {
-		_printIndex++
-	}
-
-	if (stampItem && msgItem) {
-		return { stampItem, msgItem }
-	}
-	
-	// const time = new Date()
-	// const hr = withLeadingZeroes(time.getHours(), 2)
-	// const min = withLeadingZeroes(time.getMinutes(), 2)
-	// const sec = withLeadingZeroes(time.getSeconds(), 2)
-	// const milli = withLeadingZeroes(time.getMilliseconds(), 3)
-	// stampItem.textContent = `${hr}:${min}:${sec}.${milli}`
-}
-
-export function clearOutput() {
-	for (let i=0; i<_outputLines; i++) {
-		const { stamp, msg } = { stamp: outputItems.stamps[i], msg: outputItems.msgs[i] }
-		if (msg && stamp) {
-			msg.textContent = ''
-			stamp.textContent = ''
-		}
-	}
-	_printIndex = 0
 }
 
 function mouseOverCanvas() {
@@ -766,7 +614,7 @@ class UserScene extends Scene {
 			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, after, every,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			print, warn, error, play, pause, setBackgroundColor,
+			print: Output.print, warn: Output.warn, error: Output.error, play, pause, setBackgroundColor,
 			Random: random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -804,35 +652,35 @@ class UserScene extends Scene {
 		// 	const val = 100;
 		// `);
 
-		const fn = new Function(
-			...keys,
-			`
-			return async function userScript() {
-				// try {
-					${this.JScode}
-				// } catch (e) {
-				// 	// console.log(e.stack)
-				// 	throw new Error(e.message)
-				// }
-			}
-			`
-		)
+		// const fn = new Function(
+		// 	...keys,
+		// 	`
+		// 	return async function userScript() {
+		// 		// try {
+		// 			${this.JScode}
+		// 		// } catch (e) {
+		// 		// 	// console.log(e.stack)
+		// 		// 	throw new Error(e.message)
+		// 		// }
+		// 	}
+		// 	`
+		// )
 		
 		// const factory = new Function(codeString)
-		const run = fn(...values)
+		// const run = fn(...values)
 		
 		// Another problem post-phaser: user code errors prevent reloading of the game sometimes?
 		try {
-			// const fn = new Function(
-			// 	...keys,
-			// 	`
-			// 	return (async () => {
-			// 		${this.JScode}
-			// 	})()
-			// 	`
-			// )
-			// await fn(...values)
-			await run()
+			const fn = new Function(
+				...keys,
+				`
+				return (async () => {
+					${this.JScode}
+				})()
+				`
+			)
+			await fn(...values)
+			// await run()
 		} catch (e: any) {
 			const err = (e as Error)
 			console.log('stack', err.stack)
@@ -845,7 +693,7 @@ class UserScene extends Scene {
 				console.log(`err at line: ${editorLine}`)
 			}
 
-			error(err.toString())
+			Output.error(err.toString())
 			console.error('User code error:', err)
 		}
 		// const fn = new Function(
@@ -895,7 +743,7 @@ class UserScene extends Scene {
 }
 
 export async function runUserCode(code: string): Promise<void> {
-	clearOutput()
+	Output.clear()
 	play()
 
 	_forevers = []
@@ -922,7 +770,7 @@ export async function runUserCode(code: string): Promise<void> {
 	
 	// Switch this to an internal addOutput func that can modify innerHTML
 	// print('<i>Running</i>', undefined, '#626f8b')
-	printStartMsg()
+	Output.printStartMsg()
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
 	
