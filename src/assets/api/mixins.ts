@@ -6,7 +6,7 @@ import { pointFrom, type Point, type PointArg } from "./Point"
 import { screen, camera, timer, paused, getGamePoint, game, scene, PointerEvents } from "./core"
 
 import Phaser from "phaser"
-import type { Action, MouseInputAction, Optional, PointerAction, ReferenceObject } from "./interfaces"
+import type { Action, MouseInputAction, Optional, PointerAction, ReferenceObject } from "./types"
 
 type Class<T = {}> = new (...args: any[]) => T
 

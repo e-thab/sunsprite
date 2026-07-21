@@ -1,7 +1,7 @@
 // Calculate distance from a line only on the axis perpendicular to it.
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
-import type { Returnable } from "./interfaces";
+import type { Returnable } from "./types";
 import { _clearPropUpdater, _registerPropUpdater, getNextObjectId, scene, screen } from "./core";
 import { pointFrom, type Point, type PointArg } from "./Point";
 import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins";

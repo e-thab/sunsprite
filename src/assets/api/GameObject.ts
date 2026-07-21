@@ -1,4 +1,4 @@
-import type { Touchable } from "./interfaces"
+import type { Touchable } from "./types"
 import { Sizable, Positionable, Rotatable, Viewable, Interactable, Timeable, type GameObjectProps } from "./mixins"
 import type { Point } from './Point'
 

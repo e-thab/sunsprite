@@ -1,6 +1,6 @@
 import { Colors } from "./Colors"
 import { timer } from "./core"
-import type { Printable } from "./interfaces"
+import type { Printable } from "./types"
 
 const Output = {
     items: {
