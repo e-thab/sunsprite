@@ -7,19 +7,14 @@ const Output = {
         stamps: [] as HTMLElement[],
         msgs: [] as HTMLElement[],
     },
-    print, warn, error, clear, printStartMsg
+    print, warn, error, clear, printStartMsg, reset
 }
 export default Output
 
-// export const outputItems: {
-// 	stamps: HTMLElement[],
-// 	msgs: HTMLElement[]
-// } = {
-// 	stamps: [],
-// 	msgs: []
-// }
-let _printIndex = 0
-const _outputLines = 100
+let printIndex = 0
+let lastOut = ''
+let consecutiveMsgs = 0
+const outputLines = 100
 
 function getCurrentStampTitle(): string {
     return [
@@ -72,7 +67,7 @@ function error(...args: Printable[]) {
         msg += arg.toString()
     }
 
-    const items = _getNextOutputItems()
+    const items = nextOutputItem(msg)
     if (items) {
         // items.stampItem.textContent = getCurrentStampTime()
         items.stampItem.textContent = '⚠'
@@ -95,7 +90,7 @@ function warn(...args: Printable[]) {
     for (let arg of args) {
         msg += arg.toString()
     }
-    const items = _getNextOutputItems()
+    const items = nextOutputItem(msg)
 
     if (items) {
         // items.stampItem.textContent = getCurrentStampTime()
@@ -122,39 +117,88 @@ export function print(...args: Printable[]) {
         msg += arg.toString()
     }
 
-    const items = _getNextOutputItems()
+    const items = nextOutputItem(msg)
     if (items) {
         // items.stampItem.textContent = getCurrentStampTime()
-        items.stampItem.textContent = '●'
+        // items.stampItem.textContent = '●'
         items.stampItem.title = getCurrentStampTitle()
         items.stampItem.style.color = Colors.NordTextDim
         // items.stampItem.style.backgroundColor = Colors.NordBgDark
 
-        items.msgItem.textContent = msg
+        // items.msgItem.textContent = msg
         items.msgItem.style.color = Colors.NordTextBright
         // items.msgItem.style.backgroundColor = Colors.NordBgNeutral
+
+        addOutputItem(items, '●', msg)
     }
-    scrollOutput()
+    // scrollOutput()
 }
 
 function printStartMsg() {
-    const items = _getNextOutputItems()
+    const items = nextOutputItem()
     if (items) {
-        // items.stampItem.textContent = getCurrentStampTime()
-        items.stampItem.textContent = '☀'
         items.stampItem.style.color = Colors.NordTextDim
-        items.stampItem.title = getCurrentStampTitle()
         items.stampItem.style.backgroundColor = Colors.NordBgDark
 
+        
         items.msgItem.innerHTML = `<i>Running @ ${getCurrentStampTime()}</i>`
         items.msgItem.style.color = Colors.NordTextNeutral
         items.msgItem.style.backgroundColor = Colors.NordBgNeutral
+
+        addOutputItem(items, '☀', undefined)
     }
+    lastOut = ''
 }
 
-function _getNextOutputItems(): { stampItem: HTMLElement, msgItem: HTMLElement } | undefined {
-    if (_printIndex >= _outputLines - 1) {
-        for (let i = 0; i < _outputLines - 1; i++) {
+function addOutputItem(items: { stampItem: HTMLElement, msgItem: HTMLElement }, stampText?: string, msgText?: string) {
+    items.stampItem.title = getCurrentStampTitle()
+    if (msgText === lastOut) {
+        items.stampItem.textContent = (++consecutiveMsgs).toString()
+    } else if (stampText) {
+        items.stampItem.textContent = stampText
+    }
+
+    if (msgText && msgText !== lastOut) {
+        items.msgItem.textContent = msgText
+        lastOut = msgText
+        consecutiveMsgs = 1
+    }
+    console.log(lastOut)
+    scrollOutput()
+}
+
+function getMaxStampWidth(): number {
+    const widths = Output.items.stamps.map(item => item.clientWidth)
+    return Math.max(...widths)
+}
+
+// ?
+function getLastItemIndex(): number {
+    const msgs = Output.items.msgs
+    for (let i = 0; i < msgs.length; i++) {
+        if (msgs[i]?.textContent) {
+            continue
+        } else {
+            return i - 1
+        }
+    }
+    return msgs.length - 1
+}
+
+function nextOutputItem(msgText?: string): { stampItem: HTMLElement, msgItem: HTMLElement } | undefined {
+    // const nextIndex = getLastItemIndex()
+    const nextIndex = msgText === lastOut ? printIndex - 1 : printIndex
+    const stampItem = Output.items.stamps[nextIndex]
+    const msgItem = Output.items.msgs[nextIndex]
+
+    if (msgText === lastOut) {
+        if (stampItem && msgItem) {
+            return { stampItem, msgItem }
+        }
+    }
+    
+    if (printIndex >= outputLines - 1) {
+        for (let i = 0; i < outputLines - 1; i++) {
             const thisStamp = Output.items.stamps[i]
             const nextStamp = Output.items.stamps[i + 1]
 
@@ -166,6 +210,7 @@ function _getNextOutputItems(): { stampItem: HTMLElement, msgItem: HTMLElement }
                 thisStamp.title = nextStamp.title
                 thisStamp.style.color = nextStamp.style.color
                 thisStamp.style.backgroundColor = nextStamp.style.backgroundColor
+                thisStamp.style.minWidth = '22'
 
                 thisMsg.innerHTML = nextMsg.innerHTML
                 thisMsg.style.color = nextMsg.style.color
@@ -176,11 +221,15 @@ function _getNextOutputItems(): { stampItem: HTMLElement, msgItem: HTMLElement }
         }
     }
 
-    const stampItem = Output.items.stamps[_printIndex]
-    const msgItem = Output.items.msgs[_printIndex]
+    // Trying to get longest stamp to determine width of all stamp items
+    const stampWidth = getMaxStampWidth().toString() + 'px'
+    for (const stamp of Output.items.stamps) {
+        stamp.style.minWidth = stampWidth
+    }
+    console.log(stampWidth)
 
-    if (_printIndex < _outputLines - 1) {
-        _printIndex++
+    if (printIndex < outputLines - 1) {
+        printIndex++
     }
 
     if (stampItem && msgItem) {
@@ -189,7 +238,7 @@ function _getNextOutputItems(): { stampItem: HTMLElement, msgItem: HTMLElement }
 }
 
 function clear() {
-    for (let i = 0; i < _outputLines; i++) {
+    for (let i = 0; i < outputLines; i++) {
         const { stamp, msg } = {
             stamp: Output.items.stamps[i],
             msg: Output.items.msgs[i]
@@ -200,5 +249,10 @@ function clear() {
             stamp.textContent = ''
         }
     }
-    _printIndex = 0
+    printIndex = 0
+}
+
+function reset() {
+    clear()
+    printStartMsg()
 }

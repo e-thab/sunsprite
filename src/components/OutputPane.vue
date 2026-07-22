@@ -26,7 +26,7 @@ function activateTab(tab: OutputTab) {
 const emit = defineEmits([ 'collapseOutput', 'ready' ])
 
 onMounted(() => {
-    const panel = document.getElementById('output-item-container')
+    const panel = document.getElementById('output-panel')
     if (!panel) return
     for (let i=0; i<100; i++) {
         const item = document.createElement('div')
@@ -34,6 +34,7 @@ onMounted(() => {
 
         const stampItem = document.createElement('div')
         stampItem.className = 'output-stamp'
+        stampItem.style.minWidth = '22'
         // stampItem.textContent = 'stamp ' + i
 
         // Should I use <pre>? too powerful?
@@ -72,7 +73,7 @@ onMounted(() => {
             />
         </div>
 
-        <div class="output-start-header">
+        <!-- <div class="output-start-header">
             <div class="output-item">
                 <div class="output-stamp-start">
                     ☀
@@ -81,7 +82,7 @@ onMounted(() => {
                     <i>Running @ {time}</i>
                 </div>
             </div>
-        </div>
+        </div> -->
         <!-- Ouput panel: shows print/warn/err output -->
         <div v-show="isTabActive('output')" class="output-panel" id="output-panel" ref="panel">
             <div id="output-item-container">
