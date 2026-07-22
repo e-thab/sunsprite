@@ -26,20 +26,21 @@ function activateTab(tab: OutputTab) {
 const emit = defineEmits([ 'collapseOutput', 'ready' ])
 
 onMounted(() => {
-    const panel = document.getElementById('output-panel')
+    const panel = document.getElementById('output-item-container')
     if (!panel) return
     for (let i=0; i<100; i++) {
         const item = document.createElement('div')
         item.className = 'output-item'
 
+        const stampItem = document.createElement('div')
+        stampItem.className = 'output-stamp'
+        // stampItem.textContent = 'stamp ' + i
+
         // Should I use <pre>? too powerful?
         const msgItem = document.createElement('pre')
         msgItem.className = 'output-msg'
-        msgItem.textContent = 'msg ' + i
-
-        const stampItem = document.createElement('div')
-	    stampItem.className = 'output-stamp'
-        stampItem.textContent = 'stamp ' + i
+        // msgItem.style.fontFamily = 'Fira Code'
+        // msgItem.textContent = 'msg ' + i
 
         Output.items.stamps.push(stampItem)
         Output.items.msgs.push(msgItem)
@@ -71,9 +72,22 @@ onMounted(() => {
             />
         </div>
 
+        <div class="output-start-header">
+            <div class="output-item">
+                <div class="output-stamp-start">
+                    ☀
+                </div>
+                <div class="output-msg-start">
+                    <i>Running @ {time}</i>
+                </div>
+            </div>
+        </div>
         <!-- Ouput panel: shows print/warn/err output -->
         <div v-show="isTabActive('output')" class="output-panel" id="output-panel" ref="panel">
-            <!-- Output items are inserted here -->
+            <div id="output-item-container">
+                <!-- Output items are inserted here -->
+
+            </div>
         </div>
 
         <!-- Info panel: shows  -->
@@ -145,7 +159,7 @@ onMounted(() => {
 
 .output-item {
     display: flex;
-    font-family: 'Courier New', Courier, monospace;
+    /* font-family: 'Courier New', Courier, monospace; */
     /* justify-content: space-between; */
     /* border-bottom: 1px dashed #252a33; */
 }
@@ -155,6 +169,15 @@ onMounted(() => {
     flex: 1 1 auto;
     color: var(--nord-text-bright);
     background-color: var(--nord-background-neutral);
+    font-family: 'Fira Code';
+}
+
+.output-msg-start {
+    padding: 0 .25em;
+    flex: 1 1 auto;
+    color: #626f8b;
+    background-color: var(--nord-background-neutral);
+    font-family: 'Fira Code';
 }
 
 .output-stamp {
@@ -165,6 +188,25 @@ onMounted(() => {
     text-align: center;
     min-width: 22px;
     user-select: none;
+    font-family: 'Fira Code';
+}
+
+.output-stamp-start {
+    border-right: 1px solid var(--nord-scroll-neutral);
+    padding: 0 .25em;
+    color: var(--nord-text-dim);
+    background-color: var(--nord-background-dark);
+    text-align: center;
+    min-width: 22px;
+    user-select: none;
+    font-family: 'Fira Code';
+}
+
+.output-start-header {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--nord-background-neutral);
+    border-bottom: 1px solid var(--nord-scroll-neutral);
 }
 
 .info-panel {

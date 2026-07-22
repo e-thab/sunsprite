@@ -79,7 +79,8 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 
 	editor.updateOptions({
 		codeLens: false,
-		definitionLinkOpensInPeek: true
+		definitionLinkOpensInPeek: true,
+		// fontFamily: 'Fira Code'
 	})
 }
 
