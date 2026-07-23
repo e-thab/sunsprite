@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import Output from '@/assets/api/output';
+import type { OutputItem } from '@/assets/api/output';
 
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
@@ -28,9 +29,11 @@ const emit = defineEmits([ 'collapseOutput', 'ready' ])
 onMounted(() => {
     const panel = document.getElementById('output-panel')
     if (!panel) return
+
+    const outputItems: OutputItem[] = []
     for (let i=0; i<100; i++) {
-        const item = document.createElement('div')
-        item.className = 'output-item'
+        const itemElement = document.createElement('div')
+        itemElement.className = 'output-item'
 
         const stampItem = document.createElement('div')
         stampItem.className = 'output-stamp'
@@ -43,15 +46,13 @@ onMounted(() => {
         // msgItem.style.fontFamily = 'Fira Code'
         // msgItem.textContent = 'msg ' + i
 
-        Output.items.stamps.push(stampItem)
-        Output.items.msgs.push(msgItem)
-
-        item.appendChild(stampItem)
-        item.appendChild(msgItem)
-        panel.appendChild(item)
+        outputItems.push({ stamp: stampItem, msg: msgItem })
+        itemElement.appendChild(stampItem)
+        itemElement.appendChild(msgItem)
+        panel.appendChild(itemElement)
     }
 
-    Output.clear()
+    Output.init(outputItems)
     emit('ready')
 })
 </script>

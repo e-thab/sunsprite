@@ -2,30 +2,31 @@ import { Colors } from "./Colors"
 import { timer } from "./core"
 import type { Printable } from "./types"
 
-type OutputItem = { stampItem: HTMLElement, msgItem: HTMLElement }
+export type OutputItem = { stamp: HTMLElement, msg: HTMLElement }
 
 const Output = {
-    items: {
-        stamps: [] as HTMLElement[],
-        msgs: [] as HTMLElement[],
-    },
-    print, warn, error, clear, printStartMsg, reset
+    items: [] as OutputItem[],
+    print, warn, error, clear, printStartMsg, reset, init
 }
 export default Output
 
 let printIndex = 0
 let lastMsg = ''
-let consecutiveMsgs = 0
-
-let lastOutputItem: OutputItem
-let nextOutputItem: OutputItem
+let consecutiveMsgs = 1
+let totalMsgCount = 0
 
 const outputLines = 100
+
+function init(outputItems: OutputItem[]) {
+    Output.items = outputItems.slice()
+    reset()
+}
 
 function getCurrentStampTitle(): string {
     return [
         `Time: ${getCurrentStampTime()}`,
-        `Frame: ${timer.frame}`
+        `Frame: ${timer.frame}`,
+        `Msg ${totalMsgCount}`
     ].join('\n')
 }
 
@@ -65,7 +66,6 @@ function scrollOutput() {
 }
 
 function error(...args: Printable[]) {
-    // TODO: error()
     console.log('err:', ...args)
 
     let msg = ''
@@ -73,25 +73,17 @@ function error(...args: Printable[]) {
         msg += arg.toString()
     }
 
-    const item = msg === lastMsg ? nextOutputItem : lastOutputItem
-    if (item) {
-        // item.stampItem.textContent = getCurrentStampTime()
-        // item.stampItem.textContent = '⚠'
-        // item.stampItem.title = getCurrentStampTitle()
-        item.stampItem.style.color = '#e64f56'
-        // item.stampItem.style.backgroundColor = '#583232' //'#c76352'
+    addOutputItem(msg, (item) => {
+        item.stamp.textContent = '⚠'
+        item.stamp.title = getCurrentStampTitle()
+        item.stamp.style.color = '#e64f56'
 
-        // item.msgItem.textContent = msg
-        item.msgItem.style.color = '#ff727a'
-        // item.msgItem.style.backgroundColor = '#8b4949' //'#ff7860'
-
-        addOutputItem(item, '⚠', msg)
-    }
-    // scrollOutput()
+        item.msg.textContent = msg
+        item.msg.style.color = '#ff727a'
+    })
 }
 
 function warn(...args: Printable[]) {
-    // TODO: warn()
     console.log('warn:', ...args)
 
     let msg = ''
@@ -99,26 +91,17 @@ function warn(...args: Printable[]) {
         msg += arg.toString()
     }
 
-    const item = msg === lastMsg ? nextOutputItem : lastOutputItem
-    if (item) {
-        // item.stampItem.textContent = getCurrentStampTime()
-        // item.stampItem.textContent = '⚠'
-        // item.stampItem.title = getCurrentStampTitle()
-        item.stampItem.style.color = '#e9c155'
-        // item.stampItem.style.backgroundColor = '#d1ae4e'
+    addOutputItem(msg, (item) => {
+        item.stamp.textContent = '⚠'
+        item.stamp.title = getCurrentStampTitle()
+        item.stamp.style.color = '#e9c155'
 
-        // item.msgItem.textContent = msg
-        item.msgItem.style.color = '#ffe291'
-        // item.msgItem.style.backgroundColor = '#ffd561'
-
-        addOutputItem(item, '⚠', msg)
-    }
-    // scrollOutput()
+        item.msg.textContent = msg
+        item.msg.style.color = '#ffe291'
+    })
 }
 
 export function print(...args: Printable[]) {
-    // TODO: allow other msg types
-    // TODO: allow arbitrary number of msg args
     // TODO: count repeated messages instead of showing them all (chrome console style)
     console.log('print:', ...args)
 
@@ -127,169 +110,107 @@ export function print(...args: Printable[]) {
         msg += arg.toString()
     }
 
-    const item = msg === lastMsg ? nextOutputItem : lastOutputItem
-    if (item) {
-        // item.stampItem.textContent = getCurrentStampTime()
-        // item.stampItem.textContent = '●'
-        item.stampItem.title = getCurrentStampTitle()
-        item.stampItem.style.color = Colors.NordTextDim
-        // item.stampItem.style.backgroundColor = Colors.NordBgDark
+    addOutputItem(msg, (item) => {
+        item.stamp.textContent = '●'
+        item.stamp.title = getCurrentStampTitle()
+        item.stamp.style.color = Colors.NordTextDim
+        // item.stamp.style.backgroundColor = Colors.NordBgDark
 
-        // item.msgItem.textContent = msg
-        item.msgItem.style.color = Colors.NordTextBright
-        // item.msgItem.style.backgroundColor = Colors.NordBgNeutral
-
-        addOutputItem(item, '●', msg)
-    }
-    // scrollOutput()
+        item.msg.textContent = msg
+        item.msg.style.color = Colors.NordTextBright
+        // item.msg.style.backgroundColor = Colors.NordBgNeutral
+    })
+    
 }
 
 function printStartMsg() {
-    const item = nextOutputItem
-    if (item) {
-        item.stampItem.style.color = Colors.NordTextDim
-        item.stampItem.style.backgroundColor = Colors.NordBgDark
-
+    const content = `<i>Running @ ${getCurrentStampTime()}</i>`
+    addOutputItem(content, (item) => {
+        item.stamp.textContent = '☀'
+        item.stamp.title = getCurrentStampTitle()
+        item.stamp.style.color = Colors.NordTextDim
+        item.stamp.style.backgroundColor = Colors.NordBgDark
         
-        item.msgItem.innerHTML = `<i>Running @ ${getCurrentStampTime()}</i>`
-        item.msgItem.style.color = Colors.NordTextNeutral
-        item.msgItem.style.backgroundColor = Colors.NordBgNeutral
-
-        addOutputItem(item, '☀', undefined)
-    }
-    lastMsg = ''
+        item.msg.innerHTML = content
+        item.msg.style.color = Colors.NordTextNeutral
+        item.msg.style.backgroundColor = Colors.NordBgNeutral
+    })
 }
 
-function addOutputItem(item: OutputItem, stampText?: string, msgText?: string) {
-    if (printIndex >= outputLines - 1) {
-        printIndex = outputLines - 1
-        shiftItemsUp()
+function addOutputItem(msgContent: string, updateItem: (item: OutputItem) => void) {
+    // Find index of next output item
+    let index = printIndex
+    if (msgContent === lastMsg) {
+        if (printIndex < outputLines - 1) {
+            // If same msg as last time and not at the last item, use previous index
+            index = printIndex - 1
+        }
     } else {
-        printIndex++
+        if (printIndex < outputLines - 1) {
+            // If different msg and not at last item, increment index for next call
+            printIndex++
+        } else {
+            // If different msg and at last item, set index to last and shift items
+            printIndex = outputLines - 1
+            shiftItemsUp()
+        }
     }
 
-    const nextStamp = Output.items.stamps[printIndex]
-    const nextMsg = Output.items.msgs[printIndex]
-    if (!nextStamp || !nextMsg) return
-    nextOutputItem = {
-        stampItem: nextStamp,
-        msgItem: nextMsg
-    }
-    lastOutputItem = item
+    const item = Output.items[index]
+    if (!item) return
 
-    item.stampItem.title = getCurrentStampTitle()
-    if (msgText === lastMsg) {
-        item.stampItem.textContent = (++consecutiveMsgs).toString()
-    } else if (stampText) {
-        item.stampItem.textContent = stampText
-    }
+    updateItem(item)
 
-    if (msgText && msgText !== lastMsg) {
-        item.msgItem.textContent = msgText
-        lastMsg = msgText
+    if (msgContent === lastMsg) {
+        item.stamp.textContent = (++consecutiveMsgs).toString()
+    } else {
+        lastMsg = msgContent
         consecutiveMsgs = 1
     }
-    console.log(lastMsg)
+    
+    totalMsgCount++
     scrollOutput()
 }
 
 function shiftItemsUp() {
-    for (let i = 0; i < outputLines - 1; i++) {
-        const thisStamp = Output.items.stamps[i]
-        const nextStamp = Output.items.stamps[i + 1]
+    for (let i = 0; i < outputLines - 1; i++) { 
+        const thisItem = Output.items[i]
+        const nextItem = Output.items[i + 1]
 
-        const thisMsg = Output.items.msgs[i]
-        const nextMsg = Output.items.msgs[i + 1]
-
-        if (thisStamp && nextStamp && thisMsg && nextMsg) {
-            thisStamp.innerHTML = nextStamp.innerHTML
-            thisStamp.title = nextStamp.title
-            thisStamp.style.color = nextStamp.style.color
-            thisStamp.style.backgroundColor = nextStamp.style.backgroundColor
+        if (thisItem && nextItem) {
+            thisItem.stamp.innerHTML = nextItem.stamp.innerHTML
+            thisItem.stamp.title = nextItem.stamp.title
+            thisItem.stamp.style.color = nextItem.stamp.style.color
+            thisItem.stamp.style.backgroundColor = nextItem.stamp.style.backgroundColor
             // thisStamp.style.minWidth = '22'
 
-            thisMsg.innerHTML = nextMsg.innerHTML
-            thisMsg.style.color = nextMsg.style.color
-            thisMsg.style.backgroundColor = nextMsg.style.backgroundColor
-        } else {
-            continue
+            thisItem.msg.innerHTML = nextItem.msg.innerHTML
+            thisItem.msg.style.color = nextItem.msg.style.color
+            thisItem.msg.style.backgroundColor = nextItem.msg.style.backgroundColor
         }
     }
 }
 
 function getMaxStampWidth(): number {
-    const widths = Output.items.stamps.map(item => item.clientWidth)
+    const widths = Output.items.map(item => item.stamp.clientWidth)
     return Math.max(...widths)
 }
 
-function _nextOutputItem(msgText?: string): OutputItem | undefined {
-    // const nextIndex = getLastItemIndex()
-    // const nextIndex = msgText === lastOut ? printIndex - 1 : printIndex
-
-    const stampItem = Output.items.stamps[printIndex]
-    const msgItem = Output.items.msgs[printIndex]
-
-    if (msgText === lastMsg) {
-        if (stampItem && msgItem) {
-            return { stampItem, msgItem }
-        }
-    }
-    
-    // if (printIndex >= outputLines - 1) {
-    //     printIndex = outputLines - 1
-    //     for (let i = 0; i < outputLines - 1; i++) {
-    //         const thisStamp = Output.items.stamps[i]
-    //         const nextStamp = Output.items.stamps[i + 1]
-
-    //         const thisMsg = Output.items.msgs[i]
-    //         const nextMsg = Output.items.msgs[i + 1]
-
-    //         if (thisStamp && nextStamp && thisMsg && nextMsg) {
-    //             thisStamp.innerHTML = nextStamp.innerHTML
-    //             thisStamp.title = nextStamp.title
-    //             thisStamp.style.color = nextStamp.style.color
-    //             thisStamp.style.backgroundColor = nextStamp.style.backgroundColor
-    //             // thisStamp.style.minWidth = '22'
-
-    //             thisMsg.innerHTML = nextMsg.innerHTML
-    //             thisMsg.style.color = nextMsg.style.color
-    //             thisMsg.style.backgroundColor = nextMsg.style.backgroundColor
-    //         } else {
-    //             continue
-    //         }
-    //     }
-    // } else {
-    //     printIndex++
-    // }
-
-    // Trying to get longest stamp to determine width of all stamp items
-    // const stampWidth = getMaxStampWidth().toString() + 'px'
-    // for (const stamp of Output.items.stamps) {
-    //     stamp.style.minWidth = stampWidth
-    // }
-    // console.log(stampWidth)
-
-    if (stampItem && msgItem) {
-        return { stampItem, msgItem }
-    }
-}
-
 function clear() {
-    for (let i = 0; i < outputLines; i++) {
-        const { stamp, msg } = {
-            stamp: Output.items.stamps[i],
-            msg: Output.items.msgs[i]
-        }
-
-        if (msg && stamp) {
-            msg.textContent = ''
-            stamp.textContent = ''
-        }
+    for (const item of Output.items) {
+        item.stamp.innerHTML = ''
+        item.msg.innerHTML = ''
     }
     printIndex = 0
+    totalMsgCount = 0
 }
 
 function reset() {
+    lastMsg = ''
+    printIndex = 0
+    consecutiveMsgs = 1
+    totalMsgCount = 0
+
     clear()
     printStartMsg()
 }
