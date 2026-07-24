@@ -113,27 +113,27 @@ function onEditorReady() {
 }
 
 onMounted(async () => {
-  const canvas = document.getElementById('canvas-v-pane')
-  if (!canvas) return
+	const canvas = document.getElementById('canvas-v-pane')
+	if (!canvas) return
 
-  new ResizeObserver(() => {
-    resizeStage()
-  })
-  .observe(canvas)
+	new ResizeObserver(() => {
+	resizeStage()
+	})
+	.observe(canvas)
 
-  // await new Promise((resolve) => {
-  //   const interval = setInterval(() => {
-  //     if (allComponentsReady()) {
-  //       clearInterval(interval)
-  //       resolve(true)
-  //     } else {
-  //       console.log('not yet')
-  //     }
-  //   }, 100)
-  // })
-  
-  // console.log('components ready')
-  runActiveUserCode()
+	// await new Promise((resolve) => {
+	//   const interval = setInterval(() => {
+	//     if (allComponentsReady()) {
+	//       clearInterval(interval)
+	//       resolve(true)
+	//     } else {
+	//       console.log('not yet')
+	//     }
+	//   }, 100)
+	// })
+
+	// console.log('components ready')
+	runActiveUserCode()
 	editor.value.updateSaveMsg()
 })
 </script>
@@ -153,11 +153,11 @@ onMounted(async () => {
 
     <!-- Center pane: Code editor -->
     <pane id="code-pane" v-show="!fsStore.fullscreen" size="44">
-      <CodeEditor
-	  	ref="editor"
-		class="inner-pane"
-		@ready="onEditorReady"
-	/>
+		<CodeEditor
+			ref="editor"
+			class="inner-pane"
+			@ready="onEditorReady"
+		/>
     </pane>
 
     <!-- Right side pane: Nested game/output splitpanes -->
@@ -171,12 +171,12 @@ onMounted(async () => {
 
         <!-- Top right pane: Game view -->
         <pane id="canvas-v-pane":size="canvasHeight">
-          <PhaserCanvas
-            @ready="onCanvasReady"
-            @run-game="runActiveUserCode"
-            @fullscreen="toggleFullscreen"
-            class="inner-pane"
-          />
+			<PhaserCanvas
+				@ready="onCanvasReady"
+				@run-game="runActiveUserCode"
+				@fullscreen="toggleFullscreen"
+				class="inner-pane"
+			/>
         </pane>
 
         <!-- Bottom left pane: Output -->
