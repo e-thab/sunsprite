@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
-import { resizeStage } from '@/assets/api/core';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useFileStore } from '@/stores/fileStore';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
@@ -13,6 +12,7 @@ import { getExampleCode } from '@/assets/api/examples';
 import Output from '@/assets/api/output'
 
 const editor = ref()
+const canvas = ref()
 const fsStore = useFullscreenStore()
 const fileStore = useFileStore()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
@@ -33,8 +33,8 @@ const paneSize: { [index: string]: number } = {
 }
 
 function runActiveUserCode() {
-  // Run the code currently in the code editor
-  editor.value.runActiveUserCode()
+  // Run the code currently in the code editor, inside the sandboxed game iframe
+  canvas.value.runCode(editor.value.getCode())
 }
 
 async function toggleFullscreen() {
@@ -49,7 +49,6 @@ async function toggleFullscreen() {
     canvasWidth.value = paneSize['right-pane'] ?? 0
     canvasHeight.value = paneSize['canvas-v-pane'] ?? 0
   }
-  resizeStage()
 }
 
 type EventPane = { el: HTMLElement, size: number }
@@ -67,13 +66,11 @@ const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
 
 function resizeSplitpanes(event: ResizeEvent) {
   storePaneSizes(event)
-  resizeStage()
 }
 
 async function collapseOutput() {
   canvasHeightBeforeCollapse.value = canvasHeight.value
   canvasHeight.value = 100
-  resizeStage()
 }
 
 function loadScript(fileName: string) {
@@ -99,7 +96,6 @@ function loadScript(fileName: string) {
 function onCanvasReady() {
 	// console.log('canvas ready')
   // readyComponents.canvas = true
-  resizeStage()
 }
 
 function onOutputReady() {
@@ -113,14 +109,6 @@ function onEditorReady() {
 }
 
 onMounted(async () => {
-	const canvas = document.getElementById('canvas-v-pane')
-	if (!canvas) return
-
-	new ResizeObserver(() => {
-	resizeStage()
-	})
-	.observe(canvas)
-
 	// await new Promise((resolve) => {
 	//   const interval = setInterval(() => {
 	//     if (allComponentsReady()) {
@@ -141,7 +129,6 @@ onMounted(async () => {
 <template>
   <splitpanes
     :push-other-panes="false"
-    @resize="resizeStage"
     @resized="resizeSplitpanes"
   >
 
@@ -165,13 +152,13 @@ onMounted(async () => {
       <splitpanes
         horizontal
         :push-other-panes="false"
-        @resize="resizeStage"
         @resized="resizeSplitpanes"
       >
 
         <!-- Top right pane: Game view -->
         <pane id="canvas-v-pane":size="canvasHeight">
 			<PhaserCanvas
+				ref="canvas"
 				@ready="onCanvasReady"
 				@run-game="runActiveUserCode"
 				@fullscreen="toggleFullscreen"

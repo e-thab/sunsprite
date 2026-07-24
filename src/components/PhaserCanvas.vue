@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-// import { /*mouseRef, fpsRef,*/ /*pause, play, pausedRef, print*/ } from '@/assets/api/core'
-import { game, setup, mouseRef, resizeStage, pause, play, pausedRef } from '@/assets/api/core'
 import { useFullscreenStore } from '@/stores/fullscreen'
 import Output from '@/assets/api/output'
-// import { AUTO, Game, Scene, type Types } from 'phaser'
+import type { ParentToSandboxMessage, SandboxToParentMessage } from '@/assets/api/sandboxProtocol'
 
-// const canvas = ref<HTMLCanvasElement | null>(null)
+const frame = ref<HTMLIFrameElement | null>(null)
+// 0 means "no iframe mounted yet"; runCode() bumps this to force a fresh iframe per run
+const frameKey = ref(0)
+const pendingCode = ref<string | null>(null)
+
+const mouse = ref({ mouseX: 0, mouseY: 0 })
+const paused = ref(false)
+
 const fps = ref()
 const fpsColor = ref()
 const fsStore = useFullscreenStore()
 
-function updateFpsInterval() {
-  fps.value = Math.round(game.loop.actualFps)
-
+function updateFpsColor() {
   if (fps.value >= 55) {
     fpsColor.value = 'SpringGreen'
   } else if (fps.value >= 30) {
@@ -27,24 +30,78 @@ function updateFpsInterval() {
   }
 }
 
+function postToFrame(message: ParentToSandboxMessage) {
+  frame.value?.contentWindow?.postMessage(message, '*')
+}
+
+/** Runs {code} in a freshly created sandbox iframe, discarding any previous run's state/loops. */
+function runCode(code: string) {
+  pendingCode.value = code
+  frameKey.value++
+}
+
+function play() {
+  postToFrame({ type: 'sunsprite:play' })
+}
+
+function pause() {
+  postToFrame({ type: 'sunsprite:pause' })
+}
+
+defineExpose({ runCode })
+
 const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
 onMounted(async () => {
-    setup()
+  window.addEventListener('message', (event: MessageEvent<SandboxToParentMessage>) => {
+    // Only trust messages from the currently-live sandbox iframe
+    if (!frame.value || event.source !== frame.value.contentWindow) return
 
-    resizeStage()
-    // new Promise(resolve => setTimeout(resolve, 250)).then(() => {
-    //   resizeStage()
-    // })
+    const message = event.data
+    switch (message.type) {
+      case 'sunsprite:ready':
+        if (pendingCode.value !== null) {
+          postToFrame({ type: 'sunsprite:run', code: pendingCode.value })
+          pendingCode.value = null
+        }
+        break
+      case 'sunsprite:mouse':
+        mouse.value.mouseX = Math.round(message.x)
+        mouse.value.mouseY = Math.round(message.y)
+        break
+      case 'sunsprite:paused':
+        paused.value = message.paused
+        break
+      case 'sunsprite:fps':
+        fps.value = message.fps
+        updateFpsColor()
+        break
+      case 'sunsprite:output':
+        if (message.kind === 'printStartMsg') Output.printStartMsg()
+        else if (message.kind === 'clear') Output.clear()
+        else if (message.msg !== undefined) Output[message.kind](message.msg)
+        break
+    }
+  })
 
-    // Prevent right click opening context menu
-    const gameContainer = document.getElementById('game-container')
-    gameContainer?.addEventListener('contextmenu', event => {
-      event.preventDefault()
-    })
+  // The real keyboard listeners live in the parent (not the sandboxed iframe) so we can check
+  // whether the Monaco editor has focus before forwarding key events into the game.
+  window.addEventListener('keydown', event => {
+    if (document.activeElement?.ariaRoleDescription === 'editor') return
+    postToFrame({ type: 'sunsprite:keydown', code: event.code })
+  })
+  window.addEventListener('keyup', event => {
+    if (document.activeElement?.ariaRoleDescription === 'editor') return
+    postToFrame({ type: 'sunsprite:keyup', code: event.code })
+  })
+  window.addEventListener('contextmenu', () => {
+    postToFrame({ type: 'sunsprite:contextmenu' })
+  })
+  window.addEventListener('blur', () => {
+    postToFrame({ type: 'sunsprite:blur' })
+  })
 
-    window.setInterval(updateFpsInterval, 250)
-    emit('ready')
+  emit('ready')
 })
 </script>
 
@@ -52,30 +109,30 @@ onMounted(async () => {
   <div class="panel-wrapper">
     <div class="panel-bar">
       <!-- Play -->
-      <img v-show="pausedRef" @click="play" class="img-button" title="Play" src="@/assets/images/game-icons/right.png" />
+      <img v-show="paused" @click="play" class="img-button" title="Play" src="@/assets/images/game-icons/right.png" />
 
       <!-- Pause -->
-      <img v-show="!pausedRef" @click="pause" class="img-button" title="Pause" src="@/assets/images/game-icons/pause.png" />
+      <img v-show="!paused" @click="pause" class="img-button" title="Pause" src="@/assets/images/game-icons/pause.png" />
 
       <!-- Restart / Run code -->
       <img @click="$emit('runGame')" class="img-button" title="Restart" src="@/assets/images/game-icons/return.png" />
-      
+
       <!-- Screenshot -->
       <!-- <img @click="print('screenshot')" class="img-button" title="Screenshot" src="@/assets/images/game-icons/export.png" /> -->
-      
+
       <!-- mouseX/Y -->
       <div class="coords">
-        <span style="font-size: 12px;">mouse X: {{ mouseRef.mouseX }}</span>
-        <span style="font-size: 12px;">mouse Y: {{ mouseRef.mouseY }}</span>
+        <span style="font-size: 12px;">mouse X: {{ mouse.mouseX }}</span>
+        <span style="font-size: 12px;">mouse Y: {{ mouse.mouseY }}</span>
       </div>
-      
+
       <!-- FPS indicator -->
       <span style="font-size: 12px; width: 4em;">FPS: <span class="fps-number">{{ fps }}</span></span>
-      
+
       <!-- Sound -->
       <!-- Icon should change based on volume -->
       <img @click="Output.print('sound')" class="img-button" title="Volume" src="@/assets/images/game-icons/audioOn.png" />
-      
+
       <!-- Settings -->
       <img @click="Output.print('settings')" class="img-button" title="Settings" src="@/assets/images/game-icons/gear.png" />
 
@@ -85,7 +142,19 @@ onMounted(async () => {
       <!-- Fullscreen (minimize) -->
       <img v-show="fsStore.fullscreen" @click="$emit('fullscreen')" class="img-button" title="Shrink" src="@/assets/images/game-icons/smaller.png" />
     </div>
-    <div id="game-container" class="canvas"></div>
+    <div id="game-container" class="canvas">
+      <!-- sandbox="allow-scripts" (no allow-same-origin) gives this frame an opaque origin, so
+           user code inside it can't reach this app's DOM, cookies, or storage. A fresh iframe
+           (:key bump) is mounted on every run so a previous run's loops/timers are fully discarded. -->
+      <iframe
+        v-if="frameKey > 0"
+        :key="frameKey"
+        ref="frame"
+        class="game-frame"
+        sandbox="allow-scripts"
+        src="/sandbox.html"
+      ></iframe>
+    </div>
   </div>
 </template>
 
@@ -107,5 +176,12 @@ onMounted(async () => {
   justify-content: center;
   background-color: #353b48; /* Magenta for debugging; update this from core whenever bg color is set */
   /* background-color: magenta;  */
+}
+
+.game-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
 }
 </style>

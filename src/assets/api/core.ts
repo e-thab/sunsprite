@@ -223,6 +223,11 @@ function _releaseAllKeys() {
 	keysPressed = []
 }
 
+/** Exported alias; called by the sandbox message bridge on blur/contextmenu forwarded from the parent */
+export function releaseAllKeys() {
+	_releaseAllKeys()
+}
+
 export function getGamePoint(point: Point): Point {
 	return {
 		x: point.x - screen.right,
@@ -635,7 +640,7 @@ class UserScene extends Scene {
 		// 		return new Function(this.JScode);
 		// 	} catch (syntaxError) {
 		// 		if (syntaxError instanceof SyntaxError) {
-		// 		console.error("❌ Construction Syntax Error caught!");
+		// 		console.error("Construction Syntax Error caught!");
 				
 		// 		// Some engines provide the raw offset line directly inside syntaxError.lineNumber
 		// 		// If missing, we read the error stack line or fall back to checking line-by-line
@@ -812,137 +817,81 @@ function _resizeStage() {
 	updatePositions()
 }
 
-export function setup() {
-	// TODO: Add 'group' codes like Shift that allows detecting either left or right shift
-	// TODO: Pass a way to detect modifier keys as action param(s)
-	const keyAlias: { [key: string]: string } = {
-		// Rename for simplicity
-		Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4', Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
-		KeyQ: 'Q', KeyW: 'W', KeyE: 'E', KeyR: 'R', KeyT: 'T', KeyY: 'Y', KeyU: 'U', KeyI: 'I', KeyO: 'O', KeyP: 'P',
-		KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyF: 'F', KeyG: 'G', KeyH: 'H', KeyJ: 'J', KeyK: 'K', KeyL: 'L',
-		KeyZ: 'Z', KeyX: 'X', KeyC: 'C', KeyV: 'V', KeyB: 'B', KeyN: 'N', KeyM: 'M',
-		ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up',
-		ControlLeft: 'CtrlLeft', ControlRight: 'CtrlRight', Control: 'Ctrl'
-		// Rename to consolidate 
-		// ShiftLeft: 'Shift', ShiftRight: 'Shift',
-		// ControlLeft: 'Ctrl', ControlRight: 'Ctrl',
-		// AltLeft: 'Alt', AltRight: 'Alt',
-		// NumpadEnter: 'Enter'
-	}
+// TODO: Add 'group' codes like Shift that allows detecting either left or right shift
+// TODO: Pass a way to detect modifier keys as action param(s)
+const keyAlias: { [key: string]: string } = {
+	// Rename for simplicity
+	Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4', Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
+	KeyQ: 'Q', KeyW: 'W', KeyE: 'E', KeyR: 'R', KeyT: 'T', KeyY: 'Y', KeyU: 'U', KeyI: 'I', KeyO: 'O', KeyP: 'P',
+	KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyF: 'F', KeyG: 'G', KeyH: 'H', KeyJ: 'J', KeyK: 'K', KeyL: 'L',
+	KeyZ: 'Z', KeyX: 'X', KeyC: 'C', KeyV: 'V', KeyB: 'B', KeyN: 'N', KeyM: 'M',
+	ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up',
+	ControlLeft: 'CtrlLeft', ControlRight: 'CtrlRight', Control: 'Ctrl'
+	// Rename to consolidate
+	// ShiftLeft: 'Shift', ShiftRight: 'Shift',
+	// ControlLeft: 'Ctrl', ControlRight: 'Ctrl',
+	// AltLeft: 'Alt', AltRight: 'Alt',
+	// NumpadEnter: 'Enter'
+}
 
-	function apiKeyCode(keyCode: string): string | undefined {
-		return (keyAlias[keyCode] ?? keyCode).toLowerCase()
-	}
+function apiKeyCode(keyCode: string): string | undefined {
+	return (keyAlias[keyCode] ?? keyCode).toLowerCase()
+}
 
-	// Key press/release registration
-	window.addEventListener('keydown', event => {
-		// Don't register game key press when code editor has focus
-		if (document.activeElement?.ariaRoleDescription === 'editor') return
+/**
+ * Key press/release registration. The real browser keydown/keyup listeners live in the
+ * parent app (which owns the code editor and can check for editor focus); the parent
+ * forwards raw event.code values in over postMessage to these handlers.
+ */
+export function handleKeyDown(rawCode: string) {
+	const keyCode = apiKeyCode(rawCode)
 
-		// Left/right shift can't really be separated the way I was originally thinking, because
-		// the keyup event doesn't trigger if one shift is released while the other is still held.
-		// Left/right shift should be consolidated into one code, just Shift. In order to reduce
-		// confusion I think the same should be done for Ctrl/Alt.
-		// Addend: Enter & NumpadEnter work the same way and will also be consolidated.
-		// Addend.2: Shift behavior is normal on Linux, but Enter still does this?
-		// Addend.3: Can't do further testing now on my laptop, kinda thinking I should remove
-		// Ctrl/Alt/Shift as action keys altogether and just let users check event.shiftKey etc.
-		
-		// pass a key object containing:
-		// event.altKey
-		// event.ctrlKey
-		// event.shiftKey
-		// event.key?
+	// Add specific key to keysJustPressed map
+	if (keyCode && !keysPressed.includes(keyCode)) {
+		keysPressed.push(keyCode)
+		keysJustPressed.set(keyCode, _frame)
 
-		const keyCode = apiKeyCode(event.code)
-		console.log(`down: ${keyCode}   shift?: ${event.shiftKey}   ctrl?: ${event.ctrlKey}`)
-		
-		// Add specific key to keysJustPressed map
-		if (keyCode && !keysPressed.includes(keyCode)) {
-			keysPressed.push(keyCode)
-			keysJustPressed.set(keyCode, _frame)
-			
-			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keysPressed.includes('shift')) {
-				keysPressed.push('shift')
-				keysJustPressed.set('shift', _frame)
-			}
-
-			else if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keysPressed.includes('ctrl')) {
-				keysPressed.push('ctrl')
-				keysJustPressed.set('ctrl', _frame)
-			}
-
-			else if ((keyCode === 'altleft' || keyCode === 'altright') && keysPressed.includes('alt')) {
-				keysPressed.push('alt')
-				keysJustPressed.set('alt', _frame)
-			}
+		if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keysPressed.includes('shift')) {
+			keysPressed.push('shift')
+			keysJustPressed.set('shift', _frame)
 		}
-	})
-	window.addEventListener('keyup', event => {
-		// Don't register game key release when code editor has focus
-		if (document.activeElement?.ariaRoleDescription === 'editor') return
 
-		const keyCode = apiKeyCode(event.code)
-		console.log(`up: ${keyCode}   shift?: ${event.shiftKey}   ctrl?: ${event.ctrlKey}`)
-		
-		// Add key to justReleased map and remove from pressed array
-		if (keyCode && keysPressed.includes(keyCode)) {
-			// Remove key from keysPressed array
-			keysPressed.splice(keysPressed.indexOf(keyCode), 1)
-			// Only add to map if it was being pressed. This prevents potential extra release events
-			// if releasing key after window regains focus
-			keysJustReleased.set(keyCode, _frame)
-
-			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keyPressed('shiftleft') && !keyPressed('shiftright')) {
-				// console.log('clear shift')
-				keysPressed.splice(keysPressed.indexOf('shift'), 1)
-				keysJustReleased.set('shift', _frame)
-			}
-
-			if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keyPressed('ctrlleft') && !keyPressed('ctrlright')) {
-				// console.log('clear ctrl')
-				keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
-				keysJustReleased.set('ctrl', _frame)
-			}
-
-			if ((keyCode === 'altleft' || keyCode === 'altright') && !keyPressed('altleft') && !keyPressed('altright')) {
-				// console.log('clear alt')
-				keysPressed.splice(keysPressed.indexOf('alt'), 1)
-				keysJustReleased.set('alt', _frame)
-			}
+		else if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keysPressed.includes('ctrl')) {
+			keysPressed.push('ctrl')
+			keysJustPressed.set('ctrl', _frame)
 		}
-	})
-	window.addEventListener('contextmenu', event => {
-		// Prevent opening the context menu from holding down pressed keys
-		// Note: this probably doesn't matter since context menu events were disabled
-		// on the game canvas, but I'll leave it here for now.
-		_releaseAllKeys()
-	})
-	window.addEventListener('blur', event => {
-		// Prevent window losing focus from holding down pressed keys
-		_releaseAllKeys()
-	})
-	// window.addEventListener('resize', async () => {
-	// 	new Promise(resolve => setTimeout(resolve, 100)).then(() => {
-	// 		// resizeStage()
-	// 		updatePositions()
-	// 	})
-	// })
-	
-	// window.addEventListener('error', (errorEvent) => {
-	// 	console.log(errorEvent)
 
-	// 	const { lineno, colno } = errorEvent;
-	// 	console.log(`Error thrown at: ${lineno}:${colno}`);
+		else if ((keyCode === 'altleft' || keyCode === 'altright') && keysPressed.includes('alt')) {
+			keysPressed.push('alt')
+			keysJustPressed.set('alt', _frame)
+		}
+	}
+}
 
-	// 	errorEvent.preventDefault()
-	// })
+export function handleKeyUp(rawCode: string) {
+	const keyCode = apiKeyCode(rawCode)
 
-	// app.stage.eventMode = 'dynamic'
-	// app.stage.on('globalmousemove', event => {
-	// 	mouseX = Math.round(event.globalX - app.screen.width / 2)
-	// 	mouseY = Math.round(app.screen.height / 2 - event.globalY)
-	// 	mouseRef.value = { mouseX, mouseY }
-	// })
-	// runUserCode(startCode)
+	// Add key to justReleased map and remove from pressed array
+	if (keyCode && keysPressed.includes(keyCode)) {
+		// Remove key from keysPressed array
+		keysPressed.splice(keysPressed.indexOf(keyCode), 1)
+		// Only add to map if it was being pressed. This prevents potential extra release events
+		// if releasing key after window regains focus
+		keysJustReleased.set(keyCode, _frame)
+
+		if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keyPressed('shiftleft') && !keyPressed('shiftright')) {
+			keysPressed.splice(keysPressed.indexOf('shift'), 1)
+			keysJustReleased.set('shift', _frame)
+		}
+
+		if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keyPressed('ctrlleft') && !keyPressed('ctrlright')) {
+			keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
+			keysJustReleased.set('ctrl', _frame)
+		}
+
+		if ((keyCode === 'altleft' || keyCode === 'altright') && !keyPressed('altleft') && !keyPressed('altright')) {
+			keysPressed.splice(keysPressed.indexOf('alt'), 1)
+			keysJustReleased.set('alt', _frame)
+		}
+	}
 }

@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, handleError } from 'vue'
 
 import { useFileStore } from '@/stores/fileStore'
-import { runUserCode } from '@/assets/api/core'
 import { getExampleCode } from '@/assets/api/examples'
 
 // CodeMirror
@@ -194,10 +193,6 @@ function saveCurrentCode() {
 	updateSaveMsg(code.value)
 }
 
-function runActiveUserCode() {
-	runUserCode(code.value)
-}
-
 function updateSaveMsg(checkCode?: string) {
 	const saveElement = document.getElementById('save-msg')
 	if (!saveElement) return
@@ -219,7 +214,7 @@ function updateSaveMsg(checkCode?: string) {
 }
 
 const emit = defineEmits(['ready'])
-defineExpose({ runActiveUserCode, setCode, getCode, updateSaveMsg })
+defineExpose({ setCode, getCode, updateSaveMsg })
 
 onMounted(() => {
 	self.MonacoEnvironment = {

@@ -1,6 +1,7 @@
 import { Colors } from "./Colors"
 import { timer } from "./core"
 import type { Printable } from "./types"
+import type { SandboxToParentMessage } from "./sandboxProtocol"
 
 export type OutputItem = { stamp: HTMLElement, msg: HTMLElement }
 
@@ -9,6 +10,23 @@ const Output = {
     print, warn, error, clear, printStartMsg, reset, init
 }
 export default Output
+
+// When this module runs inside the sandboxed game iframe, it has no DOM output panel
+// of its own (that lives in the parent app's OutputPane.vue) -- forward calls out instead
+// of touching Output.items/DOM directly.
+const inSandboxFrame = window.self !== window.top
+
+function postToParent(message: SandboxToParentMessage) {
+    window.parent.postMessage(message, '*')
+}
+
+function joinArgs(args: Printable[]): string {
+    let msg = ''
+    for (const arg of args) {
+        msg += arg.toString()
+    }
+    return msg
+}
 
 let printIndex = 0
 let lastMsg = ''
@@ -66,9 +84,11 @@ function scrollOutput() {
 function error(...args: Printable[]) {
     console.log('err:', ...args)
 
-    let msg = ''
-    for (let arg of args) {
-        msg += arg.toString()
+    const msg = joinArgs(args)
+
+    if (inSandboxFrame) {
+        postToParent({ type: 'sunsprite:output', kind: 'error', msg })
+        return
     }
 
     addOutputItem(msg, (item) => {
@@ -83,9 +103,11 @@ function error(...args: Printable[]) {
 function warn(...args: Printable[]) {
     console.log('warn:', ...args)
 
-    let msg = ''
-    for (let arg of args) {
-        msg += arg.toString()
+    const msg = joinArgs(args)
+
+    if (inSandboxFrame) {
+        postToParent({ type: 'sunsprite:output', kind: 'warn', msg })
+        return
     }
 
     addOutputItem(msg, (item) => {
@@ -100,9 +122,11 @@ function warn(...args: Printable[]) {
 export function print(...args: Printable[]) {
     console.log('print:', ...args)
 
-    let msg = ''
-    for (let arg of args) {
-        msg += arg.toString()
+    const msg = joinArgs(args)
+
+    if (inSandboxFrame) {
+        postToParent({ type: 'sunsprite:output', kind: 'print', msg })
+        return
     }
 
     addOutputItem(msg, (item) => {
@@ -118,6 +142,11 @@ export function print(...args: Printable[]) {
 }
 
 function printStartMsg() {
+    if (inSandboxFrame) {
+        postToParent({ type: 'sunsprite:output', kind: 'printStartMsg' })
+        return
+    }
+
     const content = `<i>Running @ ${getCurrentStampTime()}</i>`
     addOutputItem(content, (item) => {
         item.stamp.textContent = '☀'
@@ -213,6 +242,11 @@ function getMinWidth(): string {
 }
 
 function clear() {
+    if (inSandboxFrame) {
+        postToParent({ type: 'sunsprite:output', kind: 'clear' })
+        return
+    }
+
     for (const item of Output.items) {
         item.stamp.innerHTML = ''
         item.msg.innerHTML = ''

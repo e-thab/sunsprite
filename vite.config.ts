@@ -21,6 +21,24 @@ export default defineConfig(({ command }) => {
       },
     },
     base: '/',
+    server: {
+      // The sandboxed game iframe (sandbox.html) runs with an opaque "null" origin
+      // (sandbox="allow-scripts" without allow-same-origin), so its module-script
+      // fetches are cross-origin even though they're served from this same dev
+      // server. Without this, the browser blocks them with a CORS error.
+      cors: true,
+    },
+    preview: {
+      cors: true,
+    },
+    build: {
+      rollupOptions: {
+        input: {
+          main: fileURLToPath(new URL('./index.html', import.meta.url)),
+          sandbox: fileURLToPath(new URL('./sandbox.html', import.meta.url)),
+        },
+      },
+    },
     // optimizeDeps: {
     //   include: [
     //     `${prefix}/language/json/json.worker`,
