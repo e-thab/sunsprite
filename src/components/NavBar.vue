@@ -1,7 +1,20 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router';
 import { useFullscreenStore } from '@/stores/fullscreen';
-import Output from '@/assets/api/output';
+import { useAuthStore } from '@/stores/authStore';
+import SignInModal from './SignInModal.vue';
+
 const fsStore = useFullscreenStore()
+const authStore = useAuthStore()
+const router = useRouter()
+
+function onProfileClick() {
+    if (authStore.isAuthenticated) {
+        router.push('/account')
+    } else {
+        authStore.openSignIn()
+    }
+}
 </script>
 
 <template>
@@ -9,10 +22,12 @@ const fsStore = useFullscreenStore()
         <!-- <span>Header</span> -->
         <!-- <span>Span two</span> -->
         <!-- <span>Span three</span> -->
-        <img class="img-button" @click="Output.print('home')" title="Home" src="/src/assets/images/game-icons/home.png" />
-        <img class="img-button" @click="Output.print('logo')" id="logo" title="Sunsprite" src="/src/assets/sun.svg" />
-        <img class="img-button" @click="Output.print('profile')" title="Profile" src="/src/assets/images/game-icons/multiplayer.png" />
+        <img class="img-button" @click="router.push('/')" title="Home" src="/src/assets/images/game-icons/home.png" />
+        <img class="img-button" @click="router.push('/')" id="logo" title="Sunsprite" src="/src/assets/sun.svg" />
+        <img v-if="authStore.isAuthenticated" class="img-button" @click="router.push('/projects')" title="My Projects" src="/src/assets/images/game-icons/menuList.png" />
+        <img class="img-button" @click="onProfileClick" title="Profile" src="/src/assets/images/game-icons/multiplayer.png" />
     </div>
+    <SignInModal />
 </template>
 
 <style scoped>

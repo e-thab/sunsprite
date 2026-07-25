@@ -12,6 +12,10 @@ import OutputPane from '@/components/OutputPane.vue';
 import { getExampleCode } from '@/assets/api/examples';
 import Output from '@/assets/api/output'
 
+const props = defineProps<{
+  projectId?: string
+}>()
+
 const editor = ref()
 const fsStore = useFullscreenStore()
 const fileStore = useFileStore()
@@ -133,6 +137,17 @@ onMounted(async () => {
 	// })
 
 	// console.log('components ready')
+
+	// Project mode: correct the active file if CodeEditor's own default
+	// ('main.js') isn't one of this project's scripts (e.g. it was renamed).
+	if (props.projectId && !fileStore.scripts.some((s) => s.name === fileStore.activeFileName)) {
+		const firstScript = fileStore.scripts[0]?.name
+		if (firstScript) {
+			fileStore.activate(firstScript)
+			editor.value.setCode(fileStore.getLocalCode(firstScript) ?? '')
+		}
+	}
+
 	runActiveUserCode()
 	editor.value.updateSaveMsg()
 })

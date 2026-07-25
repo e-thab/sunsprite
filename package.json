@@ -19,6 +19,7 @@
     "@fsegurai/codemirror-theme-nord": "^6.2.3",
     "@nuxt/ui": "^4.6.1",
     "@primeuix/themes": "^2.0.3",
+    "@supabase/supabase-js": "^2.110.8",
     "@tabler/icons": "^3.41.1",
     "codemirror": "^6.0.2",
     "monaco-editor": "^0.55.1",

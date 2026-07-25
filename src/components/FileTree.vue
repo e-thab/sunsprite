@@ -63,10 +63,19 @@ import { onMounted, ref } from 'vue'
 //     ]
 // },
 // ])
+import { computed } from 'vue'
 import type { TreeItem } from '@nuxt/ui'
 import { useFileStore } from '@/stores/fileStore'
 
 const fileStore = useFileStore()
+
+const emit = defineEmits<{
+	selectScript: [fileName: string]
+}>()
+
+function selectHandler(event: any) {
+	if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+}
 
 // https://icones.js.org/collection/tabler
 // https://icones.js.org/collection/catppuccin
@@ -74,7 +83,7 @@ const fileStore = useFileStore()
 // icon: 'catppuccin:image'
 // icon: 'catppuccin:svg'
 
-const items = ref<TreeItem[]>([
+const guestItems: TreeItem[] = [
 	{
 		label: 'images',
 		defaultExpanded: false,
@@ -256,26 +265,69 @@ const items = ref<TreeItem[]>([
 	//   label: 'nuxt.config.ts',
 	//   icon: 'catppuccin:nuxt'
 	// },
-])
+]
 
-const emit = defineEmits<{
-	selectScript: [fileName: string]
-}>()
+const items = computed<TreeItem[]>(() => {
+	if (!fileStore.projectId) return guestItems
+
+	return [
+		{
+			label: 'scripts',
+			defaultExpanded: true,
+			children: fileStore.scripts.map((script) => ({
+				label: script.name,
+				icon: 'catppuccin:javascript',
+				onSelect: selectHandler,
+			})),
+		},
+	]
+})
 
 const selected = ref({
 	label: 'main.js',
 	icon: 'catppuccin:javascript',
-	onSelect: (event: any) => {
-		if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-	}
-	// onSelect: (event: any) => {
-	//   if (event.target) {
-	//     const innerText = (event.target as HTMLElement).innerText
-	//     const withoutStar = innerText.charAt(-1) === '*' ? innerText.slice(0, -1) : innerText
-	//     emit('selectScript', withoutStar)
-	//   }
-	// }
+	onSelect: selectHandler,
 })
+
+async function addScript() {
+	const name = window.prompt('New script name (e.g. game.js):')
+	if (!name) return
+
+	if (fileStore.scripts.some((script) => script.name === name)) {
+		window.alert('A script with that name already exists.')
+		return
+	}
+
+	await fileStore.createScript(name)
+}
+
+async function renameActiveScript() {
+	const current = fileStore.activeFileName
+	const name = window.prompt('Rename script:', current)
+	if (!name || name === current) return
+
+	if (fileStore.scripts.some((script) => script.name === name)) {
+		window.alert('A script with that name already exists.')
+		return
+	}
+
+	await fileStore.renameScript(current, name)
+}
+
+async function deleteActiveScript() {
+	const current = fileStore.activeFileName
+
+	if (fileStore.scripts.length <= 1) {
+		window.alert("Can't delete the last script in a project.")
+		return
+	}
+	if (!window.confirm(`Delete "${current}"? This can't be undone.`)) return
+
+	await fileStore.deleteScript(current)
+
+	const next = fileStore.scripts[0]?.name
+	if (next) emit('selectScript', next)
+}
 </script>
 
 <template>
@@ -293,11 +345,17 @@ const selected = ref({
     </div> -->
 
 	<div class="panel-wrapper">
-		<div class="panel-bar" style="justify-content: center;">
+		<div class="panel-bar">
+			<div v-if="fileStore.projectId" class="spacer" />
 			<div>Files</div>
+			<button v-if="fileStore.projectId" class="tree-action" title="New script" @click="addScript">+</button>
 		</div>
 		<div class="file-tree">
 			<UTree v-model="selected" :items="items" class="file-tree" />
+		</div>
+		<div v-if="fileStore.projectId" class="panel-bar script-actions">
+			<button class="tree-action" title="Rename active script" @click="renameActiveScript">Rename</button>
+			<button class="tree-action" title="Delete active script" @click="deleteActiveScript">Delete</button>
 		</div>
 	</div>
 </template>
@@ -308,5 +366,26 @@ const selected = ref({
 	/* width: 100%; */
 	/* flex: 1 1 auto; */
 	background-color: var(--nord-background-neutral);
+}
+
+.spacer {
+	width: 1.5em;
+}
+
+.tree-action {
+	background: none;
+	border: none;
+	color: var(--nord-text-bright);
+	cursor: pointer;
+	font-size: 0.85em;
+}
+
+.tree-action:hover {
+	color: white;
+}
+
+.script-actions {
+	justify-content: center;
+	gap: 1em;
 }
 </style>
