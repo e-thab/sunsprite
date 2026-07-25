@@ -9,6 +9,7 @@ export const useAuthStore = defineStore('auth', () => {
     const isAuthenticated = computed(() => !!session.value)
 
     const showSignInModal = ref(false)
+    const showSignUpModal = ref(false)
     let readyResolve: () => void
     const ready = new Promise<void>((resolve) => { readyResolve = resolve })
     let initialized = false
@@ -19,6 +20,14 @@ export const useAuthStore = defineStore('auth', () => {
 
     function closeSignIn() {
         showSignInModal.value = false
+    }
+
+    function openSignUp() {
+        showSignUpModal.value = true
+    }
+
+    function closeSignUp() {
+        showSignUpModal.value = false
     }
 
     async function init() {
@@ -60,9 +69,12 @@ export const useAuthStore = defineStore('auth', () => {
         user,
         isAuthenticated,
         showSignInModal,
+        showSignUpModal,
         ready,
         openSignIn,
         closeSignIn,
+        openSignUp,
+        closeSignUp,
         init,
         signIn,
         signUp,

@@ -13,7 +13,6 @@ const router = useRouter()
 const fileStore = useFileStore()
 
 const status = ref<'loading' | 'ready' | 'not-found' | 'error'>('loading')
-const projectName = ref('')
 const errorMessage = ref('')
 
 async function load(id: string) {
@@ -36,7 +35,7 @@ async function load(id: string) {
     return
   }
 
-  projectName.value = data.name
+  fileStore.setProjectName(data.name)
 
   try {
     await fileStore.loadProject(id)
@@ -54,11 +53,6 @@ onUnmounted(() => fileStore.exitProject())
 
 <template>
   <div class="project-view">
-    <div v-if="status === 'ready'" class="project-header">
-      <button class="back-link" @click="router.push('/projects')">&larr; Projects</button>
-      <span class="project-name">{{ projectName }}</span>
-    </div>
-
     <EditorView v-if="status === 'ready'" :project-id="props.id" class="content" />
 
     <div v-else class="status-pane">
@@ -76,32 +70,6 @@ onUnmounted(() => fileStore.exitProject())
   height: 100%;
   display: flex;
   flex-direction: column;
-}
-
-.project-header {
-  display: flex;
-  align-items: center;
-  gap: 1em;
-  padding: 0.4em 0.75em;
-  color: var(--nord-text-bright);
-  background-color: var(--nord-background-dark);
-  flex-shrink: 0;
-}
-
-.back-link {
-  background: none;
-  border: none;
-  color: var(--nord-text-bright);
-  cursor: pointer;
-  font-size: 0.9em;
-}
-
-.back-link:hover {
-  color: white;
-}
-
-.project-name {
-  font-weight: bold;
 }
 
 .content {

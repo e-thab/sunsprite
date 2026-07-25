@@ -19,6 +19,8 @@
   --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
   --vt-c-text-dark-1: var(--vt-c-white);
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+
+  --sun-c-jade: #00bd7e;
 }
 
 /* Codemirror theme colors: Nord */
@@ -63,9 +65,31 @@
   --color-text: var(--vt-c-text-dark-2);
 }
 
+/* Nuxt vars */
 :root {
-  --ui-primary: white;
+  /* Primary palette */
+  --ui-primary: var(--sun-c-jade);
+
+  /* Background */
+  --ui-bg: var(--nord-background-darker);
+  --ui-bg-muted: var(--nord-background-dark);
   --ui-bg-elevated: var(--nord-background-dark);
+  --ui-bg-accented: var(--nord-background-neutral);
+  --ui-bg-inverted: var(--nord-text-bright);
+
+  /* Text */
+  --ui-text-dimmed: var(--nord-scroll-neutral);
+  --ui-text-muted: var(--nord-scroll-light);
+  --ui-text-toned: var(--nord-text-dim);
+  --ui-text: var(--nord-text-bright);
+  --ui-text-highlighted: white;
+  --ui-text-inverted: var(--nord-background-darker);
+
+  /* Border */
+  --ui-border: var(--nord-background-neutral);
+  --ui-border-muted: var(--nord-background-neutral); /* ? */
+  --ui-border-accented: var(--nord-background-neutral); /* ? */
+  --ui-border-inverted: white; /* ? */
 }
 
 *,

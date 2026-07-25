@@ -24,6 +24,7 @@ export const useFileStore = defineStore('files', () => {
     // Project (cloud) mode: when projectId is set, getLocalCode/saveCode/etc.
     // read and write `scripts` (backed by Supabase) instead of localStorage.
     const projectId = ref<string | null>(null)
+    const projectName = ref<string | null>(null)
     const scripts = ref<ScriptRecord[]>([])
 
     function clear() {
@@ -118,7 +119,12 @@ export const useFileStore = defineStore('files', () => {
 
     function exitProject() {
         projectId.value = null
+        projectName.value = null
         scripts.value = []
+    }
+
+    function setProjectName(name: string) {
+        projectName.value = name
     }
 
     async function createScript(name: string, content: string = '') {
@@ -164,6 +170,7 @@ export const useFileStore = defineStore('files', () => {
         activeFileName,
         activeFileIsSaved,
         projectId,
+        projectName,
         scripts,
         activate,
         savedThisSession,
@@ -171,6 +178,7 @@ export const useFileStore = defineStore('files', () => {
         getTimeSaved,
         saveCode,
         loadProject,
+        setProjectName,
         exitProject,
         createScript,
         renameScript,

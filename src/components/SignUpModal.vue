@@ -14,6 +14,16 @@ const errorMessage = ref('')
 const loading = ref(false)
 const awaitingConfirmation = ref(false)
 
+function reset() {
+  displayName.value = ''
+  email.value = ''
+  password.value = ''
+  confirmPassword.value = ''
+  errorMessage.value = ''
+  loading.value = false
+  awaitingConfirmation.value = false
+}
+
 async function onSubmit() {
   errorMessage.value = ''
 
@@ -33,6 +43,8 @@ async function onSubmit() {
     if (needsEmailConfirmation) {
       awaitingConfirmation.value = true
     } else {
+      authStore.closeSignUp()
+      reset()
       router.push('/account')
     }
   } catch (err) {
@@ -41,19 +53,29 @@ async function onSubmit() {
     loading.value = false
   }
 }
+
+function goToSignIn() {
+  authStore.closeSignUp()
+  reset()
+  authStore.openSignIn()
+}
+
+function onUpdateOpen(open: boolean) {
+  if (!open) {
+    authStore.closeSignUp()
+    reset()
+  }
+}
 </script>
 
 <template>
-  <div class="signup-view">
-    <div class="signup-card">
-      <h1>Create an account</h1>
-
+  <UModal :open="authStore.showSignUpModal" title="Create an account" @update:open="onUpdateOpen">
+    <template #body>
       <div v-if="awaitingConfirmation" class="confirmation-message">
         <p>Almost there! Check <strong>{{ email }}</strong> for a confirmation link to finish signing up.</p>
-        <UButton variant="ghost" @click="router.push('/')">Back to Sunsprite</UButton>
+        <UButton variant="ghost" @click="onUpdateOpen(false)">Close</UButton>
       </div>
-
-      <form v-else class="signup-form" @submit.prevent="onSubmit">
+      <form v-else class="sign-up-form" @submit.prevent="onSubmit">
         <UFormField label="Display name (optional)">
           <UInput v-model="displayName" autocomplete="nickname" class="full-width" />
         </UFormField>
@@ -68,40 +90,16 @@ async function onSubmit() {
         </UFormField>
         <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
         <UButton type="submit" block :loading="loading">Sign up</UButton>
-        <button type="button" class="signin-link" @click="router.push('/')">
+        <button type="button" class="signin-link" @click="goToSignIn">
           Already have an account? Sign in
         </button>
       </form>
-    </div>
-  </div>
+    </template>
+  </UModal>
 </template>
 
 <style scoped>
-.signup-view {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--nord-background-neutral);
-  color: var(--nord-text-bright);
-}
-
-.signup-card {
-  width: 100%;
-  max-width: 360px;
-  padding: 2em;
-  border-radius: 8px;
-  background-color: var(--nord-background-dark);
-}
-
-.signup-card h1 {
-  font-size: 1.3em;
-  margin-bottom: 1em;
-  text-align: center;
-}
-
-.signup-form,
+.sign-up-form,
 .confirmation-message {
   display: flex;
   flex-direction: column;

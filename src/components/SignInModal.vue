@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
 const authStore = useAuthStore()
-const router = useRouter()
 
 const email = ref('')
 const password = ref('')
@@ -34,7 +32,7 @@ async function onSubmit() {
 function goToSignUp() {
   authStore.closeSignIn()
   reset()
-  router.push('/signup')
+  authStore.openSignUp()
 }
 
 function onUpdateOpen(open: boolean) {
@@ -48,7 +46,7 @@ function onUpdateOpen(open: boolean) {
 <template>
   <UModal :open="authStore.showSignInModal" title="Sign in" @update:open="onUpdateOpen">
     <template #body>
-      <form class="sign-in-form" @submit.prevent="onSubmit">
+      <form class="signin-form" @submit.prevent="onSubmit">
         <UFormField label="Email">
           <UInput v-model="email" type="email" autocomplete="email" required class="full-width" />
         </UFormField>
@@ -66,7 +64,7 @@ function onUpdateOpen(open: boolean) {
 </template>
 
 <style scoped>
-.sign-in-form {
+.signin-form {
   display: flex;
   flex-direction: column;
   gap: 1em;
