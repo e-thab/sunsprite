@@ -46,6 +46,7 @@ async function saveProfile() {
     errorMessage.value = error.message
   } else {
     savedMessage.value = 'Saved'
+    authStore.setDisplayName(displayName.value || null)
   }
   saving.value = false
 }

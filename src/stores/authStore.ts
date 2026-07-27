@@ -10,6 +10,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     const showSignInModal = ref(false)
     const showSignUpModal = ref(false)
+    const displayName = ref<string | null>(null)
     let readyResolve: () => void
     const ready = new Promise<void>((resolve) => { readyResolve = resolve })
     let initialized = false
@@ -30,16 +31,37 @@ export const useAuthStore = defineStore('auth', () => {
         showSignUpModal.value = false
     }
 
+    async function fetchProfile() {
+        if (!user.value) {
+            displayName.value = null
+            return
+        }
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', user.value.id)
+            .maybeSingle()
+
+        if (!error) displayName.value = data?.display_name ?? null
+    }
+
+    function setDisplayName(name: string | null) {
+        displayName.value = name
+    }
+
     async function init() {
         if (initialized) return
         initialized = true
 
         const { data } = await supabase.auth.getSession()
         session.value = data.session
+        await fetchProfile()
         readyResolve()
 
         supabase.auth.onAuthStateChange((_event, newSession) => {
             session.value = newSession
+            fetchProfile()
         })
     }
 
@@ -70,6 +92,7 @@ export const useAuthStore = defineStore('auth', () => {
         isAuthenticated,
         showSignInModal,
         showSignUpModal,
+        displayName,
         ready,
         openSignIn,
         closeSignIn,
@@ -79,5 +102,6 @@ export const useAuthStore = defineStore('auth', () => {
         signIn,
         signUp,
         signOut,
+        setDisplayName,
     }
 })

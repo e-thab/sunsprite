@@ -11,28 +11,42 @@ const authStore = useAuthStore()
 const fileStore = useFileStore()
 const router = useRouter()
 
-function onProfileClick() {
-    if (authStore.isAuthenticated) {
-        router.push('/account')
-    } else {
-        authStore.openSignIn()
-    }
+async function onSignOut() {
+    await authStore.signOut()
+    router.push('/')
 }
+
+const accountMenuItems = [
+    [
+        { label: 'My Account', onSelect: () => router.push('/account') },
+        { label: 'My Projects', onSelect: () => router.push('/projects') },
+    ],
+    [
+        { label: 'Sign Out', onSelect: onSignOut },
+    ],
+]
 </script>
 
 <template>
     <div v-if="!fsStore.fullscreen" id="nav-header" class="bar">
         <div class="left-group">
-            <img class="img-button" @click="router.push('/')" title="Home" src="/src/assets/images/game-icons/home.png" />
+            <!-- <img class="img-button" @click="router.push('/')" title="Home" src="/src/assets/images/game-icons/home.png" /> -->
             <img class="img-button" @click="router.push('/')" id="logo" title="Sunsprite" src="/src/assets/sun.svg" />
-            <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
-                <button class="back-link" @click="router.push('/projects')">&larr; Projects</button>
-                <span class="project-name">{{ fileStore.projectName }}</span>
-            </div>
         </div>
+
+        <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
+            <!-- <button class="back-link" @click="router.push('/projects')">&larr; Projects</button> -->
+            <span class="project-name">{{ fileStore.projectName }}</span>
+        </div>
+
         <div class="right-group">
             <img v-if="authStore.isAuthenticated" class="img-button" @click="router.push('/projects')" title="My Projects" src="/src/assets/images/game-icons/menuList.png" />
-            <img class="img-button" @click="onProfileClick" title="Profile" src="/src/assets/images/game-icons/multiplayer.png" />
+
+            <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
+                <button class="account-button">{{ authStore.displayName || authStore.user?.email }}</button>
+            </UDropdownMenu>
+            <button v-else class="account-button" @click="authStore.openSignIn">Sign In</button>
+            <!-- <UButton v-else ></UButton> -->
         </div>
     </div>
     <SignInModal />
@@ -46,8 +60,10 @@ function onProfileClick() {
     padding: 0 0.5em 0 0.5em;
     justify-content: space-between;
     user-select: none;
+    background-color: var(--nord-background-light);
 }
 
+.center-group,
 .left-group,
 .right-group {
     display: flex;
@@ -87,5 +103,18 @@ img {
 .project-name {
     font-weight: bold;
     font-size: 0.9em;
+}
+
+.account-button {
+    background: none;
+    border: none;
+    color: var(--nord-text-bright);
+    cursor: pointer;
+    font-size: 0.9em;
+    padding: 0;
+}
+
+.account-button:hover {
+    color: white;
 }
 </style>

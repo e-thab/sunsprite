@@ -60,7 +60,7 @@ onMounted(() => projectStore.fetchProjects())
       <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
 
       <p v-if="!projectStore.loading && projectStore.projects.length === 0" class="empty-message">
-        No projects yet — create one to get started.
+        No projects yet. Create one now to get started!
       </p>
 
       <ul class="project-list">
