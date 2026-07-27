@@ -216,18 +216,6 @@ onMounted(async () => {
   overflow: visible;
 }
 
-.img-button {
-  display: block;
-  height: 24px;
-  transition: 0.15s;
-  filter: brightness(0.8)
-}
-.img-button:hover {
-  /* background: radial-gradient(rgba(255, 255, 255, 0.07), transparent); */
-  filter: brightness(1);
-  cursor: pointer;
-}
-
 .panel-bar {
   display: flex;
 	height: 24px;

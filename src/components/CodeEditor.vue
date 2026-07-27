@@ -138,31 +138,8 @@ monaco.typescript.javascriptDefaults.addExtraLib(apiLib, libUri)
 const code = ref('')
 const fileStore = useFileStore()
 
-// const isSaved = ref(true)
-const saveColor = computed(() => {
-	const rootStyles = window.getComputedStyle(document.documentElement)
-	const nordTextBright = rootStyles.getPropertyValue('--nord-text-bright').trim()
-	const nordTextDim = rootStyles.getPropertyValue('--nord-text-dim').trim()
-
-	return fileStore.activeFileIsSaved ? nordTextDim : nordTextBright
-})
-const saveCursor = computed(() => {
-	return fileStore.activeFileIsSaved ? 'default' : 'pointer'
-})
-
-const saveBtnFilter = computed(() => {
-	return fileStore.activeFileIsSaved ? 'brightness(0.3) sepia(1) saturate(0.8) hue-rotate(180deg)' : 'brightness(0.8) sepia(0) saturate(0.8) hue-rotate(180deg)'
-})
-const saveBtnHoverFilter = computed(() => {
-	return fileStore.activeFileIsSaved ? 'brightness(0.3) sepia(1) saturate(0.8) hue-rotate(180deg)' : 'brightness(1) sepia(0) saturate(0.8) hue-rotate(180deg)'
-})
-
-const saveMsgFilter = computed(() => {
-	return fileStore.activeFileIsSaved ? '' : 'brightness(0.8)'
-})
-const saveMsgHoverFilter = computed(() => {
-	return fileStore.activeFileIsSaved ? '' : 'brightness(1)'
-})
+const saveStatusText = ref('')
+const saveStatusColor = computed(() => fileStore.activeFileIsSaved ? 'neutral' : 'warning')
 
 // const extensions = [
 // 	js,
@@ -199,22 +176,17 @@ function runActiveUserCode() {
 }
 
 function updateSaveMsg(checkCode?: string) {
-	const saveElement = document.getElementById('save-msg')
-	if (!saveElement) return
-
 	const activeFile = fileStore.activeFileName
 	const currentCode = checkCode ?? code.value
 	const savedCode = fileStore.getLocalCode(activeFile)
 
 	fileStore.activeFileIsSaved = currentCode === savedCode
 	if (fileStore.activeFileIsSaved) {
-		if (fileStore.savedThisSession(activeFile)) {
-			saveElement.innerText = `Saved ${fileStore.getTimeSaved(activeFile)}`
-		} else {
-			saveElement.innerText = 'Unchanged'
-		}
+		saveStatusText.value = fileStore.savedThisSession(activeFile)
+			? `Saved ${fileStore.getTimeSaved(activeFile)}`
+			: 'Unchanged'
 	} else {
-		saveElement.innerText = 'Save'
+		saveStatusText.value = 'Save'
 	}
 }
 
@@ -256,13 +228,16 @@ onMounted(() => {
 <template>
 	<div class="panel-wrapper">
 		<div id="editor-bar">
-			<div style="display: inline-flex; justify-self: start; padding-left: 10px;">
-				<img id="save-btn" class="img-button" @click="saveCurrentCode" title="Save" src="/src/assets/images/game-icons/save.png" />
-				<div id="save-msg" @click="saveCurrentCode"></div>
+			<div class="save-group">
+				<UTooltip text="Save">
+					<UButton icon="tabler:device-floppy" variant="ghost" color="neutral" size="xs" @click="saveCurrentCode" />
+				</UTooltip>
+				<UBadge :color="saveStatusColor" variant="subtle" class="save-badge" @click="saveCurrentCode">{{ saveStatusText }}</UBadge>
 			</div>
 			<div id="file-name">{{ fileStore.activeFileName }}</div>
-			<img class="img-button" style="justify-self: end; padding-right: 10px;" @click="resetCode" title="Reset code to default" src="/src/assets/images/game-icons/previous.png" />
-			<!-- <button @click="runActiveUserCode" class="run-button">Run</button> -->
+			<UTooltip text="Reset code to default" class="reset-group">
+				<UButton icon="tabler:arrow-back-up" variant="ghost" color="neutral" size="xs" @click="resetCode" />
+			</UTooltip>
 		</div>
 		<div id="code-container" class="editor">
 			<!-- <codemirror
@@ -299,8 +274,9 @@ onMounted(() => {
 #editor-bar {
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr;
+	align-items: center;
 	justify-items: center;
-	/* border-bottom: 20px; */
+	padding: 0 10px;
 	user-select: none;
 }
 
@@ -308,36 +284,18 @@ onMounted(() => {
 	color: var(--nord-text-bright);
 }
 
-.run-button {
-	height: 100%;
-	width: 50px;
+.save-group {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5em;
+	justify-self: start;
 }
 
-#save-msg {
-	/* flex: 1 1 auto; */
-	padding-left: 10px;
-	color: v-bind(saveColor);
-	filter: v-bind(saveMsgFilter);
-	transition: color 0.25s ease-in;
-	cursor: v-bind(saveCursor);
-}
-#save-msg:hover {
-	filter: v-bind(saveMsgHoverFilter);
+.save-badge {
+	cursor: pointer;
 }
 
-#save-btn {
-	filter: v-bind(saveBtnFilter);
-	transition: all 0.25s ease-in;
-	cursor: v-bind(saveCursor);
-	/* filter: saturate(1); */
-	/* filter: hue-rotate(180deg); */
-	/* filter: brightness(0.4) */
+.reset-group {
+	justify-self: end;
 }
-#save-btn:hover {
-	filter: v-bind(saveBtnHoverFilter)
-}
-
-/* .save-info {
-
-} */
 </style>

@@ -30,23 +30,24 @@ const accountMenuItems = [
 <template>
     <div v-if="!fsStore.fullscreen" id="nav-header" class="bar">
         <div class="left-group">
-            <!-- <img class="img-button" @click="router.push('/')" title="Home" src="/src/assets/images/game-icons/home.png" /> -->
-            <img class="img-button" @click="router.push('/')" id="logo" title="Sunsprite" src="/src/assets/sun.svg" />
+            <UButton variant="ghost" color="neutral" class="logo-button" @click="() => { router.push('/') }">
+                <img id="logo" title="Sunsprite" src="/src/assets/sun.svg" />
+            </UButton>
         </div>
 
         <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
-            <!-- <button class="back-link" @click="router.push('/projects')">&larr; Projects</button> -->
             <span class="project-name">{{ fileStore.projectName }}</span>
         </div>
 
         <div class="right-group">
-            <img v-if="authStore.isAuthenticated" class="img-button" @click="router.push('/projects')" title="My Projects" src="/src/assets/images/game-icons/menuList.png" />
+            <UTooltip v-if="authStore.isAuthenticated" text="My Projects">
+                <UButton icon="tabler:folder" variant="ghost" color="neutral" @click="() => { router.push('/projects') }" />
+            </UTooltip>
 
             <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
-                <button class="account-button">{{ authStore.displayName || authStore.user?.email }}</button>
+                <UButton variant="link" color="neutral">{{ authStore.displayName || authStore.user?.email }}</UButton>
             </UDropdownMenu>
-            <button v-else class="account-button" @click="authStore.openSignIn">Sign In</button>
-            <!-- <UButton v-else ></UButton> -->
+            <UButton v-else variant="link" color="neutral" @click="authStore.openSignIn">Sign In</UButton>
         </div>
     </div>
     <SignInModal />
@@ -71,12 +72,12 @@ const accountMenuItems = [
     gap: 0.5em;
 }
 
-img {
-    height: 2em;
+.logo-button {
+    padding: 0.2em;
 }
 
 #logo {
-    filter: brightness(1);
+    height: 1.6em;
 }
 
 .project-header {
@@ -87,34 +88,8 @@ img {
     color: var(--nord-text-bright);
 }
 
-.back-link {
-    background: none;
-    border: none;
-    color: var(--nord-text-bright);
-    cursor: pointer;
-    font-size: 0.85em;
-    padding: 0;
-}
-
-.back-link:hover {
-    color: white;
-}
-
 .project-name {
     font-weight: bold;
     font-size: 0.9em;
-}
-
-.account-button {
-    background: none;
-    border: none;
-    color: var(--nord-text-bright);
-    cursor: pointer;
-    font-size: 0.9em;
-    padding: 0;
-}
-
-.account-button:hover {
-    color: white;
 }
 </style>

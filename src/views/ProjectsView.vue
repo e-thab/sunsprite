@@ -51,30 +51,40 @@ onMounted(() => projectStore.fetchProjects())
 
 <template>
   <div class="projects-view">
-    <div class="projects-card">
-      <div class="projects-header">
-        <h1>My Projects</h1>
-        <UButton :loading="creating" @click="onCreate">New Project</UButton>
-      </div>
+    <UCard class="projects-card">
+      <template #header>
+        <div class="projects-header">
+          <h1>My Projects</h1>
+          <UButton :loading="creating" @click="onCreate">New Project</UButton>
+        </div>
+      </template>
 
-      <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+      <UAlert v-if="errorMessage" color="error" variant="subtle" :description="errorMessage" class="spaced" />
 
-      <p v-if="!projectStore.loading && projectStore.projects.length === 0" class="empty-message">
-        No projects yet. Create one now to get started!
-      </p>
+      <UAlert
+        v-if="!projectStore.loading && projectStore.projects.length === 0"
+        color="neutral"
+        variant="subtle"
+        description="No projects yet. Create one now to get started!"
+        class="spaced"
+      />
 
       <ul class="project-list">
         <li v-for="project in projectStore.projects" :key="project.id" class="project-row">
-          <button class="project-link" @click="router.push(`/projects/${project.id}`)">
+          <UButton variant="link" @click="() => { router.push(`/projects/${project.id}`) }">
             {{ project.name }}
-          </button>
+          </UButton>
           <div class="project-row-actions">
-            <button class="row-action" title="Rename" @click="onRename(project.id, project.name)">Rename</button>
-            <button class="row-action" title="Delete" @click="onDelete(project.id, project.name)">Delete</button>
+            <UTooltip text="Rename">
+              <UButton icon="tabler:pencil" variant="ghost" color="neutral" size="sm" @click="onRename(project.id, project.name)" />
+            </UTooltip>
+            <UTooltip text="Delete">
+              <UButton icon="tabler:trash" variant="ghost" color="error" size="sm" @click="onDelete(project.id, project.name)" />
+            </UTooltip>
           </div>
         </li>
       </ul>
-    </div>
+    </UCard>
   </div>
 </template>
 
@@ -86,37 +96,27 @@ onMounted(() => projectStore.fetchProjects())
   align-items: flex-start;
   justify-content: center;
   background-color: var(--nord-background-neutral);
-  color: var(--nord-text-bright);
   padding-top: 4em;
 }
 
 .projects-card {
   width: 100%;
   max-width: 480px;
-  padding: 2em;
-  border-radius: 8px;
-  background-color: var(--nord-background-dark);
 }
 
 .projects-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1em;
+  width: 100%;
 }
 
 .projects-header h1 {
   font-size: 1.3em;
 }
 
-.error-message {
-  color: #bf616a;
-  font-size: 0.9em;
+.spaced {
   margin-bottom: 1em;
-}
-
-.empty-message {
-  color: var(--nord-text-dim);
 }
 
 .project-list {
@@ -130,38 +130,13 @@ onMounted(() => projectStore.fetchProjects())
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5em 0.75em;
+  padding: 0.25em 0.75em;
   border-radius: 6px;
-  background-color: var(--nord-background-light);
-}
-
-.project-link {
-  background: none;
-  border: none;
-  color: var(--nord-text-bright);
-  cursor: pointer;
-  font-size: 1em;
-  text-align: left;
-}
-
-.project-link:hover {
-  color: white;
+  background-color: var(--ui-bg-elevated);
 }
 
 .project-row-actions {
   display: flex;
-  gap: 0.75em;
-}
-
-.row-action {
-  background: none;
-  border: none;
-  color: var(--nord-text-dim);
-  cursor: pointer;
-  font-size: 0.85em;
-}
-
-.row-action:hover {
-  color: var(--nord-text-bright);
+  gap: 0.25em;
 }
 </style>

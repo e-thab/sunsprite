@@ -57,9 +57,9 @@ onUnmounted(() => fileStore.exitProject())
 
     <div v-else class="status-pane">
       <p v-if="status === 'loading'">Loading project&hellip;</p>
-      <p v-else-if="status === 'not-found'">This project doesn't exist, or you don't have access to it.</p>
-      <p v-else>{{ errorMessage }}</p>
-      <button v-if="status !== 'loading'" @click="router.push('/projects')">Back to Projects</button>
+      <UAlert v-else-if="status === 'not-found'" color="warning" variant="subtle" description="This project doesn't exist, or you don't have access to it." />
+      <UAlert v-else color="error" variant="subtle" :description="errorMessage" />
+      <UButton v-if="status !== 'loading'" variant="ghost" @click="() => { router.push('/projects') }">Back to Projects</UButton>
     </div>
   </div>
 </template>

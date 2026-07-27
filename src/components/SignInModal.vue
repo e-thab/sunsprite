@@ -53,11 +53,11 @@ function onUpdateOpen(open: boolean) {
         <UFormField label="Password">
           <UInput v-model="password" type="password" autocomplete="current-password" required class="full-width" />
         </UFormField>
-        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+        <UAlert v-if="errorMessage" color="error" variant="subtle" :description="errorMessage" />
         <UButton type="submit" block :loading="loading">Sign in</UButton>
-        <button type="button" class="signup-link" @click="goToSignUp">
+        <UButton type="button" variant="link" block @click="goToSignUp">
           Don't have an account? Sign up
-        </button>
+        </UButton>
       </form>
     </template>
   </UModal>
@@ -72,23 +72,5 @@ function onUpdateOpen(open: boolean) {
 
 .full-width {
   width: 100%;
-}
-
-.error-message {
-  color: #bf616a;
-  font-size: 0.9em;
-}
-
-.signup-link {
-  background: none;
-  border: none;
-  color: var(--nord-text-bright);
-  cursor: pointer;
-  font-size: 0.85em;
-  text-align: center;
-}
-
-.signup-link:hover {
-  color: white;
 }
 </style>

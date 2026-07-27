@@ -6,22 +6,14 @@ import type { OutputItem } from '@/assets/api/output';
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
 
+const tabItems = [
+    { label: 'Output', value: 'output' },
+    { label: 'Info', value: 'info' },
+    { label: 'Watch', value: 'watch' },
+]
+
 function isTabActive(tab: OutputTab) {
     return tab === activeTab.value
-}
-
-function getTabColor(tab: OutputTab) {
-    const activeColor = window.getComputedStyle(document.getElementById('nav-header') as Element).backgroundColor
-    const inactiveColor = window.getComputedStyle(document.querySelector('.output-wrapper') as Element).backgroundColor
-    return tab === activeTab.value ? activeColor : inactiveColor
-}
-
-function getTabHoverBrightness(tab: OutputTab) {
-    return tab === activeTab.value ? 1.0 : 1.2
-}
-
-function activateTab(tab: OutputTab) {
-    activeTab.value = tab
 }
 
 const emit = defineEmits([ 'collapseOutput', 'ready' ])
@@ -63,15 +55,11 @@ onMounted(() => {
         <!-- Header tabs -->
         <!-- TODO: Have output tab flash when another tab is focused and a new print/warn/err appears -->
         <div class="output-header">
-            <div @click="activateTab('output')" class="output-header-item output-tab">Output</div>
-            <div @click="activateTab('info')" class="output-header-item info-tab">Info</div>
-            <div @click="activateTab('watch')" class="output-header-item watch-tab">Watch</div>
-            
-            <img 
-                @click="$emit('collapseOutput')"
-                src="/src/assets/images/game-icons/down.png"
-                id="collapse-button"
-            />
+            <UTabs v-model="activeTab" :items="tabItems" :content="false" size="xs" class="output-tabs" />
+
+            <UTooltip text="Collapse">
+                <UButton icon="tabler:chevron-down" variant="ghost" color="neutral" size="xs" @click="$emit('collapseOutput')" />
+            </UTooltip>
         </div>
 
         <!-- <div class="output-start-header">
@@ -116,40 +104,15 @@ onMounted(() => {
 
 .output-header {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     color: var(--nord-text-bright);
     height: 24px;
-    /* border-bottom: 1px solid var(--nord-scroll-neutral); */
     user-select: none;
 }
 
-.output-header-item {
-    flex-grow: 1;
-    text-align: center;
-    font-weight: 500;
-    transition: 0.2s;
-}
-
-.output-tab {
-    background-color: v-bind(getTabColor('output'));
-}
-.output-tab:hover {
-    filter: brightness(v-bind(getTabHoverBrightness('output')));
-}
-
-.info-tab {
-    background-color: v-bind(getTabColor('info'));
-}
-.info-tab:hover {
-    filter: brightness(v-bind(getTabHoverBrightness('info')));
-}
-
-.watch-tab {
-    background-color: v-bind(getTabColor('watch'));
-}
-.watch-tab:hover {
-    filter: brightness(v-bind(getTabHoverBrightness('watch')));
+.output-tabs {
+    flex: 1 1 auto;
 }
 
 .output-panel {
@@ -227,14 +190,4 @@ onMounted(() => {
     display: flex;
 }
 
-#collapse-button {
-    background-color: var(--nord-background-dark);
-    height: 24px;
-    transition: 0.2s;
-}
-#collapse-button:hover {
-    /* background-color: transparent; */
-    filter: brightness(1.2);
-    cursor: pointer;
-}
 </style>

@@ -61,25 +61,30 @@ onMounted(loadProfile)
 
 <template>
   <div class="account-view">
-    <div class="account-card">
-      <h1>Account</h1>
-
-      <p class="email">{{ authStore.user?.email }}</p>
-
-      <template v-if="!loading">
-        <UFormField label="Display name">
-          <UInput v-model="displayName" class="full-width" @keyup.enter="saveProfile" />
-        </UFormField>
-        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-        <p v-if="savedMessage" class="saved-message">{{ savedMessage }}</p>
-        <UButton block :loading="saving" @click="saveProfile">Save</UButton>
+    <UCard class="account-card">
+      <template #header>
+        <h1>Account</h1>
+        <p class="email">{{ authStore.user?.email }}</p>
       </template>
 
-      <div class="account-actions">
-        <UButton variant="ghost" @click="router.push('/projects')">My Projects</UButton>
-        <UButton variant="ghost" color="error" @click="onSignOut">Sign out</UButton>
+      <div class="account-body">
+        <template v-if="!loading">
+          <UFormField label="Display name">
+            <UInput v-model="displayName" class="full-width" @keyup.enter="saveProfile" />
+          </UFormField>
+          <UAlert v-if="errorMessage" color="error" variant="subtle" :description="errorMessage" />
+          <UAlert v-if="savedMessage" color="success" variant="subtle" :description="savedMessage" />
+          <UButton block :loading="saving" @click="saveProfile">Save</UButton>
+        </template>
       </div>
-    </div>
+
+      <template #footer>
+        <div class="account-actions">
+          <UButton variant="ghost" @click="router.push('/projects')">My Projects</UButton>
+          <UButton variant="ghost" color="error" @click="onSignOut">Sign out</UButton>
+        </div>
+      </template>
+    </UCard>
   </div>
 </template>
 
@@ -91,18 +96,11 @@ onMounted(loadProfile)
   align-items: center;
   justify-content: center;
   background-color: var(--nord-background-neutral);
-  color: var(--nord-text-bright);
 }
 
 .account-card {
   width: 100%;
   max-width: 360px;
-  padding: 2em;
-  border-radius: 8px;
-  background-color: var(--nord-background-dark);
-  display: flex;
-  flex-direction: column;
-  gap: 1em;
 }
 
 .account-card h1 {
@@ -112,26 +110,22 @@ onMounted(loadProfile)
 
 .email {
   text-align: center;
-  color: var(--nord-text-dim);
+  color: var(--ui-text-muted);
+  margin-top: 0.25em;
+}
+
+.account-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
 }
 
 .full-width {
   width: 100%;
 }
 
-.error-message {
-  color: #bf616a;
-  font-size: 0.9em;
-}
-
-.saved-message {
-  color: #a3be8c;
-  font-size: 0.9em;
-}
-
 .account-actions {
   display: flex;
   justify-content: space-between;
-  margin-top: 1em;
 }
 </style>

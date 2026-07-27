@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 // import { /*mouseRef, fpsRef,*/ /*pause, play, pausedRef, print*/ } from '@/assets/api/core'
 import { game, setup, mouseRef, resizeStage, pause, play, pausedRef } from '@/assets/api/core'
 import { useFullscreenStore } from '@/stores/fullscreen'
@@ -29,6 +29,16 @@ function updateFpsInterval() {
 
 const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
+const playPauseIcon = computed(() => pausedRef.value ? 'tabler:player-play' : 'tabler:player-pause')
+const playPauseTooltip = computed(() => pausedRef.value ? 'Play' : 'Pause')
+function togglePlayPause() {
+  if (pausedRef.value) play()
+  else pause()
+}
+
+const fullscreenIcon = computed(() => fsStore.fullscreen ? 'tabler:minimize' : 'tabler:maximize')
+const fullscreenTooltip = computed(() => fsStore.fullscreen ? 'Shrink' : 'Fullscreen')
+
 onMounted(async () => {
     setup()
 
@@ -51,39 +61,40 @@ onMounted(async () => {
 <template>
   <div class="panel-wrapper">
     <div class="panel-bar">
-      <!-- Play -->
-      <img v-show="pausedRef" @click="play" class="img-button" title="Play" src="@/assets/images/game-icons/right.png" />
-
-      <!-- Pause -->
-      <img v-show="!pausedRef" @click="pause" class="img-button" title="Pause" src="@/assets/images/game-icons/pause.png" />
+      <!-- Play / Pause -->
+      <UTooltip :text="playPauseTooltip">
+        <UButton :icon="playPauseIcon" variant="ghost" color="neutral" size="xs" @click="togglePlayPause" />
+      </UTooltip>
 
       <!-- Restart / Run code -->
-      <img @click="$emit('runGame')" class="img-button" title="Restart" src="@/assets/images/game-icons/return.png" />
-      
-      <!-- Screenshot -->
-      <!-- <img @click="print('screenshot')" class="img-button" title="Screenshot" src="@/assets/images/game-icons/export.png" /> -->
-      
+      <UTooltip text="Restart">
+        <UButton icon="tabler:refresh" variant="ghost" color="neutral" size="xs" @click="$emit('runGame')" />
+      </UTooltip>
+
       <!-- mouseX/Y -->
-      <div class="coords">
-        <span style="font-size: 12px;">mouse X: {{ mouseRef.mouseX }}</span>
-        <span style="font-size: 12px;">mouse Y: {{ mouseRef.mouseY }}</span>
-      </div>
-      
+      <UBadge color="neutral" variant="subtle" class="coords-badge">
+        <span>mouse X: {{ mouseRef.mouseX }}</span>
+        <span>mouse Y: {{ mouseRef.mouseY }}</span>
+      </UBadge>
+
       <!-- FPS indicator -->
-      <span style="font-size: 12px; width: 4em;">FPS: <span class="fps-number">{{ fps }}</span></span>
-      
+      <UBadge color="neutral" variant="subtle">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
+
       <!-- Sound -->
       <!-- Icon should change based on volume -->
-      <img @click="Output.print('sound')" class="img-button" title="Volume" src="@/assets/images/game-icons/audioOn.png" />
-      
+      <UTooltip text="Volume">
+        <UButton icon="tabler:volume" variant="ghost" color="neutral" size="xs" @click="Output.print('sound')" />
+      </UTooltip>
+
       <!-- Settings -->
-      <img @click="Output.print('settings')" class="img-button" title="Settings" src="@/assets/images/game-icons/gear.png" />
+      <UTooltip text="Settings">
+        <UButton icon="tabler:settings" variant="ghost" color="neutral" size="xs" @click="Output.print('settings')" />
+      </UTooltip>
 
-      <!-- Fullscreen (maximize) -->
-      <img v-show="!fsStore.fullscreen" @click="$emit('fullscreen')" class="img-button" title="Fullscreen" src="@/assets/images/game-icons/larger.png" />
-
-      <!-- Fullscreen (minimize) -->
-      <img v-show="fsStore.fullscreen" @click="$emit('fullscreen')" class="img-button" title="Shrink" src="@/assets/images/game-icons/smaller.png" />
+      <!-- Fullscreen toggle -->
+      <UTooltip :text="fullscreenTooltip">
+        <UButton :icon="fullscreenIcon" variant="ghost" color="neutral" size="xs" @click="$emit('fullscreen')" />
+      </UTooltip>
     </div>
     <div id="game-container" class="canvas"></div>
   </div>
@@ -94,10 +105,10 @@ onMounted(async () => {
   color: v-bind(fpsColor)
 }
 
-.coords {
-  justify-items: center;
+.coords-badge {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 0.5em;
   width: 180px;
 }
 

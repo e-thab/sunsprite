@@ -72,7 +72,12 @@ function onUpdateOpen(open: boolean) {
   <UModal :open="authStore.showSignUpModal" title="Create an account" @update:open="onUpdateOpen">
     <template #body>
       <div v-if="awaitingConfirmation" class="confirmation-message">
-        <p>Almost there! Check <strong>{{ email }}</strong> for a confirmation link to finish signing up.</p>
+        <UAlert
+          color="success"
+          variant="subtle"
+          title="Almost there!"
+          :description="`Check ${email} for a confirmation link to finish signing up.`"
+        />
         <UButton variant="ghost" @click="onUpdateOpen(false)">Close</UButton>
       </div>
       <form v-else class="sign-up-form" @submit.prevent="onSubmit">
@@ -88,11 +93,11 @@ function onUpdateOpen(open: boolean) {
         <UFormField label="Confirm password">
           <UInput v-model="confirmPassword" type="password" autocomplete="new-password" required class="full-width" />
         </UFormField>
-        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+        <UAlert v-if="errorMessage" color="error" variant="subtle" :description="errorMessage" />
         <UButton type="submit" block :loading="loading">Sign up</UButton>
-        <button type="button" class="signin-link" @click="goToSignIn">
+        <UButton type="button" variant="link" block @click="goToSignIn">
           Already have an account? Sign in
-        </button>
+        </UButton>
       </form>
     </template>
   </UModal>
@@ -108,23 +113,5 @@ function onUpdateOpen(open: boolean) {
 
 .full-width {
   width: 100%;
-}
-
-.error-message {
-  color: #bf616a;
-  font-size: 0.9em;
-}
-
-.signin-link {
-  background: none;
-  border: none;
-  color: var(--nord-text-bright);
-  cursor: pointer;
-  font-size: 0.85em;
-  text-align: center;
-}
-
-.signin-link:hover {
-  color: white;
 }
 </style>

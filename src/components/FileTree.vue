@@ -348,14 +348,20 @@ async function deleteActiveScript() {
 		<div class="panel-bar">
 			<div v-if="fileStore.projectId" class="spacer" />
 			<div>Files</div>
-			<button v-if="fileStore.projectId" class="tree-action" title="New script" @click="addScript">+</button>
+			<UTooltip v-if="fileStore.projectId" text="New script">
+				<UButton icon="tabler:plus" variant="ghost" color="neutral" size="xs" @click="addScript" />
+			</UTooltip>
 		</div>
 		<div class="file-tree">
 			<UTree v-model="selected" :items="items" class="file-tree" />
 		</div>
 		<div v-if="fileStore.projectId" class="panel-bar script-actions">
-			<button class="tree-action" title="Rename active script" @click="renameActiveScript">Rename</button>
-			<button class="tree-action" title="Delete active script" @click="deleteActiveScript">Delete</button>
+			<UTooltip text="Rename active script">
+				<UButton icon="tabler:pencil" variant="ghost" color="neutral" size="xs" @click="renameActiveScript" />
+			</UTooltip>
+			<UTooltip text="Delete active script">
+				<UButton icon="tabler:trash" variant="ghost" color="error" size="xs" @click="deleteActiveScript" />
+			</UTooltip>
 		</div>
 	</div>
 </template>
@@ -370,18 +376,6 @@ async function deleteActiveScript() {
 
 .spacer {
 	width: 1.5em;
-}
-
-.tree-action {
-	background: none;
-	border: none;
-	color: var(--nord-text-bright);
-	cursor: pointer;
-	font-size: 0.85em;
-}
-
-.tree-action:hover {
-	color: white;
 }
 
 .script-actions {
