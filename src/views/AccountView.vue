@@ -80,6 +80,7 @@ onMounted(loadProfile)
 
       <template #footer>
         <div class="account-actions">
+          <!-- @vue-expect-error -->
           <UButton variant="ghost" @click="router.push('/projects')">My Projects</UButton>
           <UButton variant="ghost" color="error" @click="onSignOut">Sign out</UButton>
         </div>

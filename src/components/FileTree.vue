@@ -346,9 +346,9 @@ async function deleteActiveScript() {
 
 	<div class="panel-wrapper">
 		<div class="panel-bar">
-			<div v-if="fileStore.projectId" class="spacer" />
+			<div class="spacer"></div>
 			<div>Files</div>
-			<UTooltip v-if="fileStore.projectId" text="New script">
+			<UTooltip v-if="fileStore.projectId" text="New script" style="flex: 0 1 auto;">
 				<UButton icon="tabler:plus" variant="ghost" color="neutral" size="xs" @click="addScript" />
 			</UTooltip>
 		</div>
@@ -376,6 +376,7 @@ async function deleteActiveScript() {
 
 .spacer {
 	width: 1.5em;
+	flex: 0 1 auto;
 }
 
 .script-actions {

@@ -104,11 +104,11 @@ onMounted(() => {
 
 .output-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: var(--nord-text-bright);
-    height: 24px;
-    user-select: none;
+    /* justify-content: space-between; */
+    /* align-items: center; */
+    /* color: var(--nord-text-bright); */
+    /* height: 24px; */
+    /* user-select: none; */
 }
 
 .output-tabs {

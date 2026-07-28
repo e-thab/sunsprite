@@ -18,11 +18,24 @@ async function onSignOut() {
 
 const accountMenuItems = [
     [
-        { label: 'My Account', onSelect: () => router.push('/account') },
-        { label: 'My Projects', onSelect: () => router.push('/projects') },
+        {
+            label: 'My Account',
+            icon: 'material-symbols:person',
+            onSelect: () => router.push('/account')
+        },
+        {
+            label: 'My Projects',
+            icon: 'material-symbols:shapes',
+            onSelect: () => router.push('/projects')
+        },
     ],
     [
-        { label: 'Sign Out', onSelect: onSignOut },
+        {
+            label: 'Sign Out',
+            icon: 'material-symbols:logout',
+            color: 'error',
+            onSelect: onSignOut
+        },
     ],
 ]
 </script>
@@ -40,13 +53,15 @@ const accountMenuItems = [
         </div>
 
         <div class="right-group">
+            <!-- @vue-expect-error -->
+            <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
+                <UButton variant="link" color="neutral">{{ authStore.displayName || authStore.user?.email }}</UButton>
+            </UDropdownMenu>
+            
             <UTooltip v-if="authStore.isAuthenticated" text="My Projects">
                 <UButton icon="tabler:folder" variant="ghost" color="neutral" @click="() => { router.push('/projects') }" />
             </UTooltip>
 
-            <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
-                <UButton variant="link" color="neutral">{{ authStore.displayName || authStore.user?.email }}</UButton>
-            </UDropdownMenu>
             <UButton v-else variant="link" color="neutral" @click="authStore.openSignIn">Sign In</UButton>
         </div>
     </div>

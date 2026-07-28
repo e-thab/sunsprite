@@ -72,13 +72,13 @@ onMounted(async () => {
       </UTooltip>
 
       <!-- mouseX/Y -->
-      <UBadge color="neutral" variant="subtle" class="coords-badge">
+      <UBadge color="neutral" variant="soft" class="coords-badge">
         <span>mouse X: {{ mouseRef.mouseX }}</span>
         <span>mouse Y: {{ mouseRef.mouseY }}</span>
       </UBadge>
 
       <!-- FPS indicator -->
-      <UBadge color="neutral" variant="subtle">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
+      <UBadge color="neutral" variant="soft">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
 
       <!-- Sound -->
       <!-- Icon should change based on volume -->

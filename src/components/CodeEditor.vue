@@ -230,28 +230,19 @@ onMounted(() => {
 		<div id="editor-bar">
 			<div class="save-group">
 				<UTooltip text="Save">
-					<UButton icon="tabler:device-floppy" variant="ghost" color="neutral" size="xs" @click="saveCurrentCode" />
+					<UButton icon="tabler:device-floppy" variant="ghost" :color="saveStatusColor" size="xs" @click="saveCurrentCode">{{ saveStatusText }}</UButton>
 				</UTooltip>
-				<UBadge :color="saveStatusColor" variant="subtle" class="save-badge" @click="saveCurrentCode">{{ saveStatusText }}</UBadge>
 			</div>
+
 			<div id="file-name">{{ fileStore.activeFileName }}</div>
-			<UTooltip text="Reset code to default" class="reset-group">
-				<UButton icon="tabler:arrow-back-up" variant="ghost" color="neutral" size="xs" @click="resetCode" />
-			</UTooltip>
+
+			<div class="reset-group">
+				<UTooltip text="Reset code to default">
+					<UButton icon="tabler:arrow-back-up" label="Reset" variant="ghost" color="neutral" size="xs" @click="resetCode" />
+				</UTooltip>
+			</div>
 		</div>
 		<div id="code-container" class="editor">
-			<!-- <codemirror
-				v-model="code"
-				placeholder="/* ... */"
-				:indent-with-tab="true"
-				:tab-size="4"
-				:extensions="extensions"
-				:autofocus="true"
-				:style="{
-					maxHeight: '100%'
-				}",
-				@change="updateSaveMsg"
-			/> -->
 			<CodeEditor
 				v-model:value="code"
 				language="javascript"
@@ -274,26 +265,26 @@ onMounted(() => {
 #editor-bar {
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr;
-	align-items: center;
-	justify-items: center;
-	padding: 0 10px;
+	/* display: flex; */
+	/* align-items: end; */
+	/* justify-items: center; */
+	/* padding: 0 10px; */
 	user-select: none;
+	max-height: 24px;
 }
 
 #file-name {
 	color: var(--nord-text-bright);
+	justify-self: center;
 }
 
 .save-group {
 	display: inline-flex;
-	align-items: center;
-	gap: 0.5em;
+	/* align-items: center; */
+	/* gap: 0.5em; */
 	justify-self: start;
 }
 
-.save-badge {
-	cursor: pointer;
-}
 
 .reset-group {
 	justify-self: end;
