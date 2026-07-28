@@ -9,7 +9,6 @@ import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
 import OutputPane from '@/components/OutputPane.vue';
-import { getExampleCode } from '@/assets/api/examples';
 import Output from '@/assets/api/output'
 
 const props = defineProps<{
@@ -81,12 +80,12 @@ async function collapseOutput() {
 }
 
 function loadScript(fileName: string) {
-  // First, save active file 
+  // First, save active file
   fileStore.saveCode(fileStore.activeFileName, editor.value.getCode())
   fileStore.activate(fileName)
 
   // Then open requested
-  editor.value.setCode(fileStore.getLocalCode(fileName) ?? getExampleCode(fileName))
+  editor.value.switchToScript(fileName)
   editor.value.updateSaveMsg()
 }
 
@@ -144,7 +143,7 @@ onMounted(async () => {
 		const firstScript = fileStore.scripts[0]?.name
 		if (firstScript) {
 			fileStore.activate(firstScript)
-			editor.value.setCode(fileStore.getLocalCode(firstScript) ?? '')
+			editor.value.switchToScript(firstScript)
 		}
 	}
 

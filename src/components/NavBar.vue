@@ -23,7 +23,13 @@ async function onSignOut() {
 const themeMenuItems = computed(() => [
     themeStore.themes.map((t) => ({
         label: t.label,
-        icon: t.id === themeStore.currentId ? 'tabler:check' : 'tabler:palette',
+        icon: (() => {
+            if (t.id === themeStore.currentId) {
+                return 'tabler:check'
+            } else {
+                return t.isLight ? 'tabler:sun-filled' : 'tabler:moon-filled'
+            }
+        })(),
         onSelect: () => themeStore.setTheme(t.id),
     })),
 ])
@@ -66,22 +72,21 @@ const accountMenuItems = [
 
         <div class="right-group">
             <UDropdownMenu :items="themeMenuItems">
-                <UTooltip text="Theme">
+                <UTooltip text="Theme" ignore-non-keyboard-focus>
                     <UButton icon="tabler:palette" variant="ghost" color="neutral" />
                 </UTooltip>
-            </UDropdownMenu>
-
-            <!-- @vue-expect-error -->
-            <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
-                <UButton variant="link" color="neutral">{{ authStore.displayName || authStore.user?.email }}</UButton>
             </UDropdownMenu>
             
             <UTooltip v-if="authStore.isAuthenticated" text="My Projects">
                 <UButton icon="tabler:folder" variant="ghost" color="neutral" @click="() => { router.push('/projects') }" />
             </UTooltip>
+            <UButton v-else variant="ghost" color="neutral" @click="authStore.openSignIn">Sign In</UButton>
 
-            <UButton v-else variant="link" color="neutral" @click="authStore.openSignIn">Sign In</UButton>
-        </div>
+            <!-- @vue-expect-error -->
+            <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
+                <UButton variant="ghost" color="neutral">{{ authStore.displayName || authStore.user?.email }}</UButton>
+            </UDropdownMenu>
+            </div>
     </div>
     <SignInModal />
     <SignUpModal />

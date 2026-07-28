@@ -1,6 +1,7 @@
 import * as ts from 'typescript'
 import { useFileStore } from '@/stores/fileStore'
 import { getExampleCode } from './examples'
+import { resolveSpecifierToName } from './scriptResolution'
 
 // Lets project/guest scripts `import`/`export` between each other. Real ESM
 // semantics (live bindings, default/named/namespace imports) via a Blob URL
@@ -14,14 +15,6 @@ import { getExampleCode } from './examples'
 
 const IMPORT_HELPER = '__sunspriteImport'
 const API_GLOBAL = '__sunspriteApi'
-
-function resolveSpecifierToName(specifier: string): string {
-    let name = specifier.trim()
-    if (name.startsWith('./')) name = name.slice(2)
-    else if (name.startsWith('/')) name = name.slice(1)
-    if (!/\.[a-zA-Z0-9]+$/.test(name)) name += '.js'
-    return name
-}
 
 function resolveScriptContent(name: string): string | undefined {
     const fileStore = useFileStore()

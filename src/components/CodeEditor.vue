@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, handleError } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, handleError } from 'vue'
 
 import { useFileStore } from '@/stores/fileStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { runUserCode } from '@/assets/api/core'
 import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
+import { resolveSpecifierToName, listImportSpecifiers } from '@/assets/api/scriptResolution'
 
 // CodeMirror
 // import { Codemirror } from 'vue-codemirror'
@@ -46,9 +47,12 @@ for (const palette of themes) {
 	monaco.editor.defineTheme(monacoThemeName(palette.id), buildMonacoThemeData(palette))
 }
 
+const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const editorInstance = ref<monaco.editor.IStandaloneCodeEditor>()
 
 function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
+	editorInstance.value = editor
 	monaco.editor.setTheme(monacoThemeName(themeStore.currentId))
 
 	// TODO: Look into setting up CodeLens, maybe for running specific sections of the code..?
@@ -67,6 +71,21 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 		)
 	}
 
+	// Attach whichever script is (already) active — set synchronously in
+	// this component's onMounted, or corrected by EditorView before Monaco
+	// finished initializing — regardless of which happened first. Imported
+	// scripts' models must exist *before* the active model is attached: the
+	// TS worker's first diagnostics pass runs as soon as setModel happens,
+	// and nothing re-triggers it later just because an unrelated model got
+	// registered — so attaching first left imports permanently flagged as
+	// unresolved until the user edited the content (forcing a recheck).
+	const activeModel = ensureModel(fileStore.activeFileName)
+	if (activeModel) {
+		const importedNames = ensureImportedModels(activeModel.getValue())
+		editor.setModel(activeModel)
+		refreshDiagnostics(activeModel, importedNames)
+	}
+
 	editor.updateOptions({
 		codeLens: false,
 		definitionLinkOpensInPeek: true,
@@ -79,6 +98,7 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 }
 
 import { apiLib, apiModel } from '@/assets/api/apiLib'
+import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
 const libUri = 'file:///lib.ts'
 
@@ -100,13 +120,6 @@ const libUri = 'file:///lib.ts'
 monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
 	noSemanticValidation: false,
 	noSyntaxValidation: false,
-	// "Cannot find module" (2792 under this project's moduleResolution
-	// setting; 2307 is the same complaint under other settings) — Monaco
-	// only ever sees one script's source at a time, so it has no way to
-	// resolve imports of other project scripts (see moduleRunner.ts, which
-	// resolves + runs them correctly at runtime and reports genuinely
-	// missing imports there).
-	diagnosticCodesToIgnore: [2307, 2792],
 })
 
 // Disable DOM-based JS default completion suggestions
@@ -132,7 +145,6 @@ monaco.typescript.javascriptDefaults.addExtraLib(apiLib, libUri)
 
 ////////////////////////////////////////////
 
-const code = ref('')
 const fileStore = useFileStore()
 
 const saveStatusText = ref('')
@@ -141,43 +153,163 @@ const saveStatusColor = computed(() => fileStore.activeFileIsSaved ? 'neutral' :
 const activeMonacoTheme = computed(() => monacoThemeName(themeStore.currentId))
 watch(activeMonacoTheme, (name) => monaco.editor.setTheme(name))
 
-// const extensions = [
-// 	js,
-//     js.language.data.of({
-// 		autocomplete: completions
-//     }),
-// 	wordHover,
-//     // oneDark,
-// 	nord,
-// ]
+// One persistent Monaco model per script (keyed by resolved name, e.g.
+// "helper.js"), at a stable file:///name.js URI — this is what lets
+// Monaco's own TS/JS language service resolve imports between project
+// scripts (real "cannot find module" errors, real hover types,
+// autocomplete on real exports) instead of only ever seeing one file.
+type ModelEntry = { model: monaco.editor.ITextModel, scriptId?: string }
+const modelEntries = new Map<string, ModelEntry>()
+
+// Same content source moduleRunner.ts reads at runtime, so the editor and
+// the actual game execution always agree on what a script resolves to.
+// In project mode a script that genuinely doesn't exist resolves to
+// undefined (no phantom model, so Monaco correctly flags a real typo);
+// guest mode always has example-code fallback content.
+function resolveContent(name: string): string | undefined {
+	const local = fileStore.getLocalCode(name)
+	if (local !== undefined) return local
+	if (!fileStore.projectId) return getExampleCode(name)
+	return undefined
+}
+
+function ensureModel(name: string): monaco.editor.ITextModel | undefined {
+	const existing = modelEntries.get(name)
+	if (existing) return existing.model
+
+	const content = resolveContent(name)
+	if (content === undefined) return undefined
+
+	const model = monaco.editor.createModel(content, 'javascript', monaco.Uri.parse('file:///' + name))
+	const scriptId = fileStore.projectId ? fileStore.scripts.find((s) => s.name === name)?.id : undefined
+	modelEntries.set(name, { model, scriptId })
+	return model
+}
+
+// Walks a script's top-level imports and makes sure a model exists for each
+// target — recursing into newly-created ones — so a whole import chain
+// gets real models even for files the user hasn't opened yet. Returns the
+// resolved names so callers can address the exact set of models involved.
+function ensureImportedModels(source: string, visited: Set<string> = new Set()): Set<string> {
+	for (const specifier of listImportSpecifiers(source)) {
+		const name = resolveSpecifierToName(specifier)
+		if (visited.has(name)) continue
+		visited.add(name)
+
+		const alreadyExisted = modelEntries.has(name)
+		const model = ensureModel(name)
+		if (model && !alreadyExisted) ensureImportedModels(model.getValue(), visited)
+	}
+	return visited
+}
+
+// NOTE: this only pre-warms the model (content + import graph); actually
+// attaching it happens in handleMount, via the :key="fileStore.activeFileName"
+// remount below — see the long comment on that binding for why.
+function switchToScript(name: string) {
+	const model = ensureModel(name)
+	if (model) ensureImportedModels(model.getValue())
+}
+
+// Model creation is synchronous, but the TS worker's diagnostics scheduling
+// still races it: monaco.editor.createModel() fires onDidCreateModel
+// synchronously, which — for the very first model created — synchronously
+// creates the worker and eagerly snapshots `editor.getModels()` for its
+// initial sync, all before this function's own later-created import-target
+// models exist. That first validation pass is permanently wrong (nothing
+// re-checks later just because an unrelated model appeared), which is why
+// only editing the content — the one thing that legitimately re-triggers
+// validation — ever cleared it. A fixed setTimeout "fix" here just
+// re-races the same problem on a delay; the deterministic fix is to await
+// the worker's own getJavaScriptWorker(...uris) call, which resolves only
+// once those exact URIs are actually synced, then force a fresh
+// content-change event so validation reruns against a worker that's
+// genuinely caught up.
+async function refreshDiagnostics(model: monaco.editor.ITextModel, relatedNames: Iterable<string>) {
+	const relatedUris = [...relatedNames]
+		.map((name) => modelEntries.get(name)?.model.uri)
+		.filter((uri): uri is monaco.Uri => uri !== undefined)
+	const getWorker = await monaco.typescript.getJavaScriptWorker()
+	await getWorker(model.uri, ...relatedUris)
+	if (!model.isDisposed()) model.setValue(model.getValue())
+}
+
+// Project scripts renamed/deleted via FileTree.vue: Monaco models can't be
+// renamed in place, so a rename carries the live (possibly unsaved)
+// content over to a fresh model at the new URI; a deletion just disposes
+// the orphaned one. One place owns this instead of threading it through
+// every fileStore.renameScript/deleteScript call site.
+watch(() => fileStore.scripts.map((s) => ({ id: s.id, name: s.name })), () => {
+	if (!fileStore.projectId) return
+
+	for (const [name, entry] of [...modelEntries]) {
+		if (!entry.scriptId) continue
+
+		const current = fileStore.scripts.find((s) => s.id === entry.scriptId)
+		if (!current) {
+			entry.model.dispose()
+			modelEntries.delete(name)
+			continue
+		}
+		if (current.name !== name) {
+			const wasActive = editorInstance.value?.getModel() === entry.model
+			const renamed = monaco.editor.createModel(entry.model.getValue(), 'javascript', monaco.Uri.parse('file:///' + current.name))
+			entry.model.dispose()
+			modelEntries.delete(name)
+			modelEntries.set(current.name, { model: renamed, scriptId: entry.scriptId })
+			if (wasActive) editorInstance.value?.setModel(renamed)
+		}
+	}
+}, { deep: true })
+
+// Switching projects (or leaving one for the guest sandbox): project-backed
+// models from the *previous* project are stale and must not bleed into
+// the next one — guest-mode models (no scriptId) are left alone.
+watch(() => fileStore.projectId, () => {
+	for (const [name, entry] of [...modelEntries]) {
+		if (!entry.scriptId) continue
+		entry.model.dispose()
+		modelEntries.delete(name)
+	}
+})
+
+onBeforeUnmount(() => {
+	for (const entry of modelEntries.values()) entry.model.dispose()
+	modelEntries.clear()
+})
 
 function getCode(): string {
-	return code.value
+	return modelEntries.get(fileStore.activeFileName)?.model.getValue() ?? ''
 }
 
 function setCode(newCode: string) {
-	code.value = newCode
+	modelEntries.get(fileStore.activeFileName)?.model.setValue(newCode)
 }
 
 function resetCode() {
 	if (!confirm(`Reset ${fileStore.activeFileName} to default?`)) return
-	code.value = getExampleCode(fileStore.activeFileName)
+	setCode(getExampleCode(fileStore.activeFileName))
 	updateSaveMsg()
 }
 
 function saveCurrentCode() {
 	if (fileStore.activeFileIsSaved) return
-	fileStore.saveCode(fileStore.activeFileName, code.value)
-	updateSaveMsg(code.value)
+	fileStore.saveCode(fileStore.activeFileName, getCode())
+	updateSaveMsg(getCode())
 }
 
 function runActiveUserCode() {
-	runUserCode(code.value)
+	runUserCode(getCode())
+}
+
+function onEditorChange(value: string) {
+	updateSaveMsg(value)
+	ensureImportedModels(value)
 }
 
 function updateSaveMsg(checkCode?: string) {
 	const activeFile = fileStore.activeFileName
-	const currentCode = checkCode ?? code.value
+	const currentCode = checkCode ?? getCode()
 	const savedCode = fileStore.getLocalCode(activeFile)
 
 	fileStore.activeFileIsSaved = currentCode === savedCode
@@ -191,7 +323,7 @@ function updateSaveMsg(checkCode?: string) {
 }
 
 const emit = defineEmits(['ready'])
-defineExpose({ runActiveUserCode, setCode, getCode, updateSaveMsg })
+defineExpose({ runActiveUserCode, setCode, getCode, updateSaveMsg, switchToScript })
 
 onMounted(() => {
 	self.MonacoEnvironment = {
@@ -213,7 +345,7 @@ onMounted(() => {
 	}
 
 	fileStore.activate('main.js')
-	code.value = fileStore.getLocalCode('main.js') ?? getExampleCode()
+	ensureModel('main.js')
 	emit('ready')
 })
 
@@ -237,19 +369,31 @@ onMounted(() => {
 			<div id="file-name">{{ fileStore.activeFileName }}</div>
 
 			<div class="reset-group">
-				<UTooltip text="Reset code to default">
+				<!-- TODO: Right now I'm only checking if the user is signed in to decide how to display reset,
+					ideally it will only exist in the sandbox view. Come back to this. -->
+				<UTooltip v-if="!authStore.isAuthenticated" text="Reset code to default">
 					<UButton icon="tabler:arrow-back-up" label="Reset" variant="ghost" color="neutral" size="xs" @click="resetCode" />
 				</UTooltip>
 			</div>
 		</div>
 		<div id="code-container" class="editor">
+			<!-- :key forces a full remount on file switch rather than calling
+			     editorInstance.setModel() on the live instance. Calling setModel
+			     a second time — from any later event (click, setTimeout, whatever),
+			     not the initial synchronous mount — reliably hung the entire tab
+			     in this Monaco version/environment, root cause not identified
+			     despite ruling out model identity, FileTree-specific triggering,
+			     the extra-lib size, layout thrashing, and worker-creation
+			     failures. Full remount reuses the *initial* mount path, which is
+			     proven reliable, at the cost of recreating the editor (and its
+			     workers) on every file switch. -->
 			<CodeEditor
-				v-model:value="code"
+				:key="fileStore.activeFileName"
 				language="javascript"
 				:theme="activeMonacoTheme"
 				:options="editorOptions"
 				@editorDidMount="handleMount"
-				@change="updateSaveMsg"
+				@change="onEditorChange"
 				@error="handleErr"
 			/>
 		</div>
