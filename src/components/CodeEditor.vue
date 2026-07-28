@@ -274,6 +274,7 @@ watch(() => fileStore.projectId, () => {
 })
 
 onBeforeUnmount(() => {
+	fileStore.registerSaveAllHandler(null)
 	for (const entry of modelEntries.values()) entry.model.dispose()
 	modelEntries.clear()
 })
@@ -293,9 +294,20 @@ function resetCode() {
 }
 
 function saveCurrentCode() {
-	if (fileStore.activeFileIsSaved) return
+	if (!fileStore.isDirty(fileStore.activeFileName)) return
 	fileStore.saveCode(fileStore.activeFileName, getCode())
 	updateSaveMsg(getCode())
+}
+
+// Saves every script with an in-memory model that differs from its
+// last-saved content — not just the active one — so the NavBar's "Save
+// All" button covers edits made before switching away from a file.
+async function saveAll() {
+	for (const [name, entry] of modelEntries) {
+		if (!fileStore.isDirty(name)) continue
+		fileStore.saveCode(name, entry.model.getValue())
+	}
+	updateSaveMsg()
 }
 
 function runActiveUserCode() {
@@ -312,7 +324,9 @@ function updateSaveMsg(checkCode?: string) {
 	const currentCode = checkCode ?? getCode()
 	const savedCode = fileStore.getLocalCode(activeFile)
 
-	fileStore.activeFileIsSaved = currentCode === savedCode
+	if (currentCode === savedCode) fileStore.markClean(activeFile)
+	else fileStore.markDirty(activeFile)
+
 	if (fileStore.activeFileIsSaved) {
 		saveStatusText.value = fileStore.savedThisSession(activeFile)
 			? `Saved ${fileStore.getTimeSaved(activeFile)}`
@@ -346,6 +360,7 @@ onMounted(() => {
 
 	fileStore.activate('main.js')
 	ensureModel('main.js')
+	fileStore.registerSaveAllHandler(saveAll)
 	emit('ready')
 })
 

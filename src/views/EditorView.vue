@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage } from '@/assets/api/core';
 import { useFullscreenStore } from '@/stores/fullscreen';
@@ -80,11 +81,10 @@ async function collapseOutput() {
 }
 
 function loadScript(fileName: string) {
-  // First, save active file
-  fileStore.saveCode(fileStore.activeFileName, editor.value.getCode())
+  // Switching scripts no longer saves the outgoing one — edits stay in its
+  // Monaco model (kept alive in CodeEditor.vue's modelEntries) until an
+  // explicit save, so nothing is lost by just activating the new file.
   fileStore.activate(fileName)
-
-  // Then open requested
   editor.value.switchToScript(fileName)
   editor.value.updateSaveMsg()
 }
@@ -149,6 +149,26 @@ onMounted(async () => {
 
 	runActiveUserCode()
 	editor.value.updateSaveMsg()
+
+	window.addEventListener('beforeunload', onBeforeUnload)
+})
+
+onBeforeUnmount(() => {
+	window.removeEventListener('beforeunload', onBeforeUnload)
+})
+
+function onBeforeUnload(event: BeforeUnloadEvent) {
+	if (!fileStore.hasUnsavedChanges) return
+	event.preventDefault()
+	// Chrome requires returnValue to be set for the native prompt to show.
+	event.returnValue = ''
+}
+
+// In-app navigation (e.g. to /projects or /account) isn't caught by
+// beforeunload, so it needs its own confirmation.
+onBeforeRouteLeave(() => {
+	if (!fileStore.hasUnsavedChanges) return true
+	return window.confirm('You have unsaved changes. Leave without saving?')
 })
 </script>
 

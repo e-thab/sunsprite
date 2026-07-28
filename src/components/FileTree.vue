@@ -73,8 +73,13 @@ const emit = defineEmits<{
 	selectScript: [fileName: string]
 }>()
 
-function selectHandler(event: any) {
-	if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+// Reads the script name from the item's own data rather than the clicked
+// element's rendered text — the label slot appends a "*" for unsaved
+// files, which would otherwise get emitted as part of the file name. The
+// template invokes this with (event, item) even though TreeItem.onSelect's
+// declared type only requires the event, so item is typed optional here.
+function selectHandler(_event: any, item?: TreeItem) {
+	if (item?.label) emit('selectScript', item.label)
 }
 
 // https://icones.js.org/collection/tabler
@@ -165,9 +170,7 @@ const guestItems: TreeItem[] = [
 					{
 						label: 'input.js',
 						icon: 'catppuccin:javascript',
-						onSelect: (event) => {
-							if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-						}
+						onSelect: () => emit('selectScript', 'input.js'),
 					}
 					// {
 					//   label: 'labels.js',
@@ -210,17 +213,13 @@ const guestItems: TreeItem[] = [
 			{
 				label: 'temp.js',
 				icon: 'catppuccin:javascript',
-				onSelect: (event) => {
-					if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-				}
+				onSelect: () => emit('selectScript', 'temp.js'),
 			},
 
 			{
 				label: 'main.js',
 				icon: 'catppuccin:javascript',
-				onSelect: (event) => {
-					if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-				}
+				onSelect: () => emit('selectScript', 'main.js'),
 			},
 		]
 	},
@@ -301,8 +300,11 @@ async function addScript() {
 	await fileStore.createScript(name)
 }
 
-async function renameActiveScript() {
-	const current = fileStore.activeFileName
+function scriptName(item: TreeItem): string {
+	return item.label ?? ''
+}
+
+async function renameScript(current: string) {
 	const name = window.prompt('Rename script:', current)
 	if (!name || name === current) return
 
@@ -314,19 +316,20 @@ async function renameActiveScript() {
 	await fileStore.renameScript(current, name)
 }
 
-async function deleteActiveScript() {
-	const current = fileStore.activeFileName
-
+async function deleteScript(name: string) {
 	if (fileStore.scripts.length <= 1) {
 		window.alert("Can't delete the last script in a project.")
 		return
 	}
-	if (!window.confirm(`Delete "${current}"? This can't be undone.`)) return
+	if (!window.confirm(`Delete "${name}"? This can't be undone.`)) return
 
-	await fileStore.deleteScript(current)
+	const wasActive = fileStore.activeFileName === name
+	await fileStore.deleteScript(name)
 
-	const next = fileStore.scripts[0]?.name
-	if (next) emit('selectScript', next)
+	if (wasActive) {
+		const next = fileStore.scripts[0]?.name
+		if (next) emit('selectScript', next)
+	}
 }
 </script>
 
@@ -347,21 +350,33 @@ async function deleteActiveScript() {
 	<div class="panel-wrapper">
 		<div class="panel-bar">
 			<div class="spacer"></div>
+			
 			<div>Files</div>
+
 			<UTooltip v-if="fileStore.projectId" text="New script" style="flex: 0 1 auto;">
 				<UButton icon="tabler:plus" variant="ghost" color="neutral" size="xs" @click="addScript" />
 			</UTooltip>
+			<div v-else class="spacer"></div>
 		</div>
+
 		<div class="file-tree">
-			<UTree v-model="selected" :items="items" class="file-tree" />
-		</div>
-		<div v-if="fileStore.projectId" class="panel-bar script-actions">
-			<UTooltip text="Rename active script">
-				<UButton icon="tabler:pencil" variant="ghost" color="neutral" size="xs" @click="renameActiveScript" />
-			</UTooltip>
-			<UTooltip text="Delete active script">
-				<UButton icon="tabler:trash" variant="ghost" color="error" size="xs" @click="deleteActiveScript" />
-			</UTooltip>
+			<UTree v-model="selected" :items="items" class="file-tree">
+				<template #item-label="{ item }">
+					{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span>
+				</template>
+
+				<template v-if="fileStore.projectId" #item-trailing="{ item }">
+					<div v-if="!item.children" class="item-actions">
+						<UTooltip text="Rename script">
+							<UButton icon="tabler:pencil" variant="ghost" color="neutral" size="xs" @click.stop="renameScript(scriptName(item))" />
+						</UTooltip>
+
+						<UTooltip text="Delete script">
+							<UButton icon="tabler:trash" variant="ghost" color="error" size="xs" @click.stop="deleteScript(scriptName(item))" />
+						</UTooltip>
+					</div>
+				</template>
+			</UTree>
 		</div>
 	</div>
 </template>
@@ -379,8 +394,14 @@ async function deleteActiveScript() {
 	flex: 0 1 auto;
 }
 
-.script-actions {
-	justify-content: center;
-	gap: 1em;
+.dirty-marker {
+	color: var(--theme-warning);
+	margin-left: 0.15em;
+}
+
+.item-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.15em;
 }
 </style>

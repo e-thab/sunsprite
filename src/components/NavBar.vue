@@ -68,6 +68,15 @@ const accountMenuItems = [
 
         <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
             <span class="project-name">{{ fileStore.projectName }}</span>
+            <UTooltip text="Save all files">
+                <UButton
+                    icon="tabler:device-floppy"
+                    variant="ghost"
+                    size="xs"
+                    :color="fileStore.hasUnsavedChanges ? 'warning' : 'neutral'"
+                    @click="fileStore.saveAll"
+                >{{ fileStore.hasUnsavedChanges ? 'Save All' : 'Saved' }}</UButton>
+            </UTooltip>
         </div>
 
         <div class="right-group">

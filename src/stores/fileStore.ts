@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { supabase } from "@/assets/utils/supabase";
 import { getExampleCode } from "@/assets/api/examples";
 
@@ -18,8 +18,47 @@ type ScriptRecord = {
 
 export const useFileStore = defineStore('files', () => {
     const activeFileName = ref('main.js')
-    const activeFileIsSaved = ref(true)
     const filesSavedThisSession = ref<string[]>([])
+
+    // Files are only persisted (localStorage/Supabase) on an explicit save —
+    // navigating between scripts just keeps editing the in-memory Monaco
+    // model. This tracks which script names currently differ from their
+    // last-saved content, purely by name (CodeEditor.vue is the one that
+    // actually knows the live content, via markDirty/markClean).
+    const dirtyFiles = ref<Set<string>>(new Set())
+    const activeFileIsSaved = computed(() => !dirtyFiles.value.has(activeFileName.value))
+    const hasUnsavedChanges = computed(() => dirtyFiles.value.size > 0)
+
+    function isDirty(fileName: string): boolean {
+        return dirtyFiles.value.has(fileName)
+    }
+
+    function markDirty(fileName: string) {
+        if (dirtyFiles.value.has(fileName)) return
+        dirtyFiles.value = new Set(dirtyFiles.value).add(fileName)
+    }
+
+    function markClean(fileName: string) {
+        if (!dirtyFiles.value.has(fileName)) return
+        const next = new Set(dirtyFiles.value)
+        next.delete(fileName)
+        dirtyFiles.value = next
+    }
+
+    // CodeEditor.vue owns the live Monaco models (fileStore doesn't know
+    // script content beyond what's already saved), so "save everything" has
+    // to be delegated to whichever CodeEditor instance is currently mounted.
+    // NavBar's save-all button lives outside the editor route entirely, so a
+    // store-level handoff is the only way for it to reach the editor.
+    let saveAllHandler: (() => Promise<void>) | null = null
+
+    function registerSaveAllHandler(handler: (() => Promise<void>) | null) {
+        saveAllHandler = handler
+    }
+
+    async function saveAll() {
+        await saveAllHandler?.()
+    }
 
     // Project (cloud) mode: when projectId is set, getLocalCode/saveCode/etc.
     // read and write `scripts` (backed by Supabase) instead of localStorage.
@@ -68,10 +107,12 @@ export const useFileStore = defineStore('files', () => {
     // }
 
     function saveCode(fileName: string, content: string) {
-        if (getLocalCode(fileName) === content) return
+        if (getLocalCode(fileName) === content) {
+            markClean(fileName)
+            return
+        }
 
         const saveTime = new Date().toLocaleTimeString()
-        if (fileName === 'main.js') activeFileIsSaved.value = true
 
         if (projectId.value) {
             const script = findScript(fileName)
@@ -88,6 +129,7 @@ export const useFileStore = defineStore('files', () => {
         }
 
         if (!savedThisSession(fileName)) filesSavedThisSession.value.push(fileName)
+        markClean(fileName)
     }
 
     // ---- Project (cloud) mode ----
@@ -96,7 +138,7 @@ export const useFileStore = defineStore('files', () => {
         projectId.value = id
         scripts.value = []
         filesSavedThisSession.value = []
-        activeFileIsSaved.value = true
+        dirtyFiles.value = new Set()
 
         const { data, error } = await supabase
             .from('scripts')
@@ -121,6 +163,7 @@ export const useFileStore = defineStore('files', () => {
         projectId.value = null
         projectName.value = null
         scripts.value = []
+        dirtyFiles.value = new Set()
     }
 
     function setProjectName(name: string) {
@@ -154,6 +197,10 @@ export const useFileStore = defineStore('files', () => {
 
         script.name = newName
         if (activeFileName.value === oldName) activeFileName.value = newName
+        if (isDirty(oldName)) {
+            markClean(oldName)
+            markDirty(newName)
+        }
     }
 
     async function deleteScript(name: string) {
@@ -164,11 +211,13 @@ export const useFileStore = defineStore('files', () => {
         if (error) throw error
 
         scripts.value = scripts.value.filter((s) => s.id !== script.id)
+        markClean(name)
     }
 
     return {
         activeFileName,
         activeFileIsSaved,
+        hasUnsavedChanges,
         projectId,
         projectName,
         scripts,
@@ -177,6 +226,11 @@ export const useFileStore = defineStore('files', () => {
         getLocalCode,
         getTimeSaved,
         saveCode,
+        isDirty,
+        markDirty,
+        markClean,
+        registerSaveAllHandler,
+        saveAll,
         loadProject,
         setProjectName,
         exitProject,
