@@ -399,9 +399,27 @@ async function deleteScript(name: string) {
 	margin-left: 0.15em;
 }
 
+/* Nuxt UI's tree-item link is `position: relative`, which is what these
+   coordinates anchor to — taking the actions out of flow (rather than
+   relying on the trailing slot's own flex/margin-auto behavior) also frees
+   the label to use the row's full width instead of sharing it, so the
+   filename doesn't truncate just because these buttons exist. */
 .item-actions {
 	display: flex;
 	align-items: center;
 	gap: 0.15em;
+	position: absolute;
+	right: 0.5em;
+	top: 50%;
+	transform: translateY(-50%);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.1s;
+}
+
+:deep([data-slot="link"]:hover) .item-actions,
+:deep([data-slot="link"]:focus-within) .item-actions {
+	opacity: 1;
+	pointer-events: auto;
 }
 </style>
