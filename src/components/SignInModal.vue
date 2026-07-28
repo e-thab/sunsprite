@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
+import { useThemeStore } from '@/stores/themeStore'
 
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 const email = ref('')
 const password = ref('')
@@ -21,6 +23,7 @@ async function onSubmit() {
   loading.value = true
   try {
     await authStore.signIn(email.value, password.value)
+    await themeStore.init()
     reset()
   } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : 'Failed to sign in'

@@ -1,20 +1,32 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useAuthStore } from '@/stores/authStore';
 import { useFileStore } from '@/stores/fileStore';
+import { useThemeStore } from '@/stores/themeStore';
 import SignInModal from './SignInModal.vue';
 import SignUpModal from './SignUpModal.vue';
 
 const fsStore = useFullscreenStore()
 const authStore = useAuthStore()
 const fileStore = useFileStore()
+const themeStore = useThemeStore()
 const router = useRouter()
 
 async function onSignOut() {
     await authStore.signOut()
+    await themeStore.init()
     router.push('/')
 }
+
+const themeMenuItems = computed(() => [
+    themeStore.themes.map((t) => ({
+        label: t.label,
+        icon: t.id === themeStore.currentId ? 'tabler:check' : 'tabler:palette',
+        onSelect: () => themeStore.setTheme(t.id),
+    })),
+])
 
 const accountMenuItems = [
     [
@@ -53,6 +65,12 @@ const accountMenuItems = [
         </div>
 
         <div class="right-group">
+            <UDropdownMenu :items="themeMenuItems">
+                <UTooltip text="Theme">
+                    <UButton icon="tabler:palette" variant="ghost" color="neutral" />
+                </UTooltip>
+            </UDropdownMenu>
+
             <!-- @vue-expect-error -->
             <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
                 <UButton variant="link" color="neutral">{{ authStore.displayName || authStore.user?.email }}</UButton>
@@ -76,7 +94,7 @@ const accountMenuItems = [
     padding: 0 0.5em 0 0.5em;
     justify-content: space-between;
     user-select: none;
-    background-color: var(--nord-background-light);
+    background-color: var(--theme-bg-light);
 }
 
 .center-group,
@@ -100,7 +118,7 @@ const accountMenuItems = [
     align-items: center;
     gap: 0.6em;
     margin-left: 0.5em;
-    color: var(--nord-text-bright);
+    color: var(--theme-text-bright);
 }
 
 .project-name {

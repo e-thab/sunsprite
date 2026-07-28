@@ -62,16 +62,6 @@ onMounted(() => {
             </UTooltip>
         </div>
 
-        <!-- <div class="output-start-header">
-            <div class="output-item">
-                <div class="output-stamp-start">
-                    ☀
-                </div>
-                <div class="output-msg-start">
-                    <i>Running @ {time}</i>
-                </div>
-            </div>
-        </div> -->
         <!-- Ouput panel: shows print/warn/err output -->
         <div v-show="isTabActive('output')" class="output-panel" id="output-panel" ref="panel">
             <div id="output-item-container">
@@ -99,14 +89,14 @@ onMounted(() => {
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background-color: var(--nord-background-dark);
+    background-color: var(--theme-bg-dark);
 }
 
 .output-header {
     display: flex;
     /* justify-content: space-between; */
     /* align-items: center; */
-    /* color: var(--nord-text-bright); */
+    /* color: var(--theme-text-bright); */
     /* height: 24px; */
     /* user-select: none; */
 }
@@ -119,7 +109,7 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    background-color: var(--nord-background-neutral);
+    background-color: var(--theme-bg-neutral);
 }
 
 .output-item {
@@ -132,46 +122,37 @@ onMounted(() => {
 .output-msg {
     padding: 0 .25em;
     flex: 1 1 auto;
-    color: var(--nord-text-bright);
-    background-color: var(--nord-background-neutral);
-    font-family: 'Fira Code';
-}
-
-.output-msg-start {
-    padding: 0 .25em;
-    flex: 1 1 auto;
-    color: #626f8b;
-    background-color: var(--nord-background-neutral);
+    color: var(--theme-text-bright);
+    background-color: var(--theme-bg-neutral);
     font-family: 'Fira Code';
 }
 
 .output-stamp {
-    border-right: 1px solid var(--nord-scroll-neutral);
+    border-right: 1px solid var(--theme-scroll-neutral);
     padding: 0 .25em;
-    color: var(--nord-text-dim);
-    background-color: var(--nord-background-dark);
+    color: var(--theme-text-dim);
+    background-color: var(--theme-bg-dark);
     text-align: center;
     min-width: 22px;
     user-select: none;
     font-family: 'Fira Code';
 }
 
-.output-stamp-start {
-    border-right: 1px solid var(--nord-scroll-neutral);
-    padding: 0 .25em;
-    color: var(--nord-text-dim);
-    background-color: var(--nord-background-dark);
-    text-align: center;
-    min-width: 22px;
-    user-select: none;
-    font-family: 'Fira Code';
+/* Severity/kind modifiers, applied alongside .output-msg/.output-stamp so
+   error/warn/start messages stay theme-reactive instead of hardcoding
+   colors as inline styles (which freeze at whatever theme was active when
+   the message was printed). */
+.output-item--error {
+    color: var(--theme-error);
 }
 
-.output-start-header {
-    display: flex;
-    flex-direction: column;
-    background-color: var(--nord-background-neutral);
-    border-bottom: 1px solid var(--nord-scroll-neutral);
+.output-item--warn {
+    color: var(--theme-warning);
+}
+
+.output-item--start {
+    color: var(--theme-scroll-light);
+    font-style: italic;
 }
 
 .info-panel {

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, handleError } from 'vue'
+import { computed, onMounted, ref, watch, handleError } from 'vue'
 
 import { useFileStore } from '@/stores/fileStore'
+import { useThemeStore } from '@/stores/themeStore'
 import { runUserCode } from '@/assets/api/core'
 import { getExampleCode } from '@/assets/api/examples'
+import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
 
 // CodeMirror
 // import { Codemirror } from 'vue-codemirror'
@@ -38,29 +40,17 @@ const editorOptions: EditorOptions = {
   automaticLayout: true,
 }
 
-// Theme TODO
-monaco.editor.defineTheme('nord', {
-    base: 'vs-dark',
-    inherit: true,
-    rules: [],
-	colors: {
-		'editor.background': '#2e3440',
-		'editor.lineHighlightBackground': '#ffffff08',
-		'editorLineNumber.foreground': '#d8dee944',
-		'editorLineNumber.activeForeground': '#d8dee9',
-		'editorWidget.background': '#252a33',
-		'dropdown.background': '#252a33',
-		'scrollbar.shadow': '#00000044',
-		
-		// 'editor.lineHighlightBorder': '#ffffff08',
-		// 'editor.foreground': '#ff00ff',
-		// 'editor.inactiveSelectionBackground': '#ff00ff',
-	}
-});
+// Define a Monaco theme for every app palette, sourced from the same
+// data that drives the app's CSS variables (src/assets/theme/themes.ts).
+for (const palette of themes) {
+	monaco.editor.defineTheme(monacoThemeName(palette.id), buildMonacoThemeData(palette))
+}
+
+const themeStore = useThemeStore()
 
 function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
-	monaco.editor.setTheme('nord')
-	
+	monaco.editor.setTheme(monacoThemeName(themeStore.currentId))
+
 	// TODO: Look into setting up CodeLens, maybe for running specific sections of the code..?
 
 	// Add the API lib as a model, this allows peeking definitions, but still needs work.
@@ -140,6 +130,9 @@ const fileStore = useFileStore()
 
 const saveStatusText = ref('')
 const saveStatusColor = computed(() => fileStore.activeFileIsSaved ? 'neutral' : 'warning')
+
+const activeMonacoTheme = computed(() => monacoThemeName(themeStore.currentId))
+watch(activeMonacoTheme, (name) => monaco.editor.setTheme(name))
 
 // const extensions = [
 // 	js,
@@ -246,7 +239,7 @@ onMounted(() => {
 			<CodeEditor
 				v-model:value="code"
 				language="javascript"
-				theme="nord"
+				:theme="activeMonacoTheme"
 				:options="editorOptions"
 				@editorDidMount="handleMount"
 				@change="updateSaveMsg"
@@ -274,7 +267,7 @@ onMounted(() => {
 }
 
 #file-name {
-	color: var(--nord-text-bright);
+	color: var(--theme-text-bright);
 	justify-self: center;
 }
 

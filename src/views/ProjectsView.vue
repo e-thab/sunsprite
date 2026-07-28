@@ -95,7 +95,7 @@ onMounted(() => projectStore.fetchProjects())
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  background-color: var(--nord-background-neutral);
+  background-color: var(--theme-bg-neutral);
   padding-top: 4em;
 }
 

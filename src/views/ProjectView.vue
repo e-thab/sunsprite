@@ -84,6 +84,6 @@ onUnmounted(() => fileStore.exitProject())
   align-items: center;
   justify-content: center;
   gap: 1em;
-  color: var(--nord-text-bright);
+  color: var(--theme-text-bright);
 }
 </style>

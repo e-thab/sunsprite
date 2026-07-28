@@ -371,7 +371,7 @@ async function deleteActiveScript() {
 	/* height: 100%; */
 	/* width: 100%; */
 	/* flex: 1 1 auto; */
-	background-color: var(--nord-background-neutral);
+	background-color: var(--theme-bg-neutral);
 }
 
 .spacer {

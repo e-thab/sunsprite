@@ -1,4 +1,3 @@
-import { Colors } from "./Colors"
 import { timer } from "./core"
 import type { Printable } from "./types"
 
@@ -73,10 +72,10 @@ function error(...args: Printable[]) {
 
     addOutputItem(msg, (item) => {
         item.stamp.textContent = '⚠'
-        item.stamp.style.color = '#e64f56'
+        item.stamp.className = 'output-stamp output-item--error'
 
         item.msg.textContent = msg
-        item.msg.style.color = '#ff727a'
+        item.msg.className = 'output-msg output-item--error'
     })
 }
 
@@ -90,10 +89,10 @@ function warn(...args: Printable[]) {
 
     addOutputItem(msg, (item) => {
         item.stamp.textContent = '⚠'
-        item.stamp.style.color = '#e9c155'
+        item.stamp.className = 'output-stamp output-item--warn'
 
         item.msg.textContent = msg
-        item.msg.style.color = '#ffe291'
+        item.msg.className = 'output-msg output-item--warn'
     })
 }
 
@@ -107,26 +106,22 @@ export function print(...args: Printable[]) {
 
     addOutputItem(msg, (item) => {
         item.stamp.textContent = '●'
-        item.stamp.style.color = Colors.NordTextDim
-        // item.stamp.style.backgroundColor = Colors.NordBgDark
+        item.stamp.className = 'output-stamp'
 
         item.msg.textContent = msg
-        item.msg.style.color = Colors.NordTextBright
-        // item.msg.style.backgroundColor = Colors.NordBgNeutral
+        item.msg.className = 'output-msg'
     })
-    
+
 }
 
 function printStartMsg() {
-    const content = `<i>Running @ ${getCurrentStampTime()}</i>`
+    const content = `Running @ ${getCurrentStampTime()}`
     addOutputItem(content, (item) => {
         item.stamp.textContent = '☀'
-        item.stamp.style.color = Colors.NordTextDim
-        item.stamp.style.backgroundColor = Colors.NordBgDark
-        
-        item.msg.innerHTML = content
-        item.msg.style.color = Colors.NordTextNeutral
-        item.msg.style.backgroundColor = Colors.NordBgNeutral
+        item.stamp.className = 'output-stamp'
+
+        item.msg.textContent = content
+        item.msg.className = 'output-msg output-item--start'
     })
 }
 
@@ -191,12 +186,10 @@ function shiftItemsUp() {
         if (thisItem && nextItem) {
             thisItem.stamp.innerHTML = nextItem.stamp.innerHTML
             thisItem.stamp.title = nextItem.stamp.title
-            thisItem.stamp.style.color = nextItem.stamp.style.color
-            thisItem.stamp.style.backgroundColor = nextItem.stamp.style.backgroundColor
-            
+            thisItem.stamp.className = nextItem.stamp.className
+
             thisItem.msg.innerHTML = nextItem.msg.innerHTML
-            thisItem.msg.style.color = nextItem.msg.style.color
-            thisItem.msg.style.backgroundColor = nextItem.msg.style.backgroundColor
+            thisItem.msg.className = nextItem.msg.className
 
             thisItem.stamp.style.minWidth = minWidth
             nextItem.stamp.style.minWidth = minWidth

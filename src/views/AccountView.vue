@@ -80,8 +80,7 @@ onMounted(loadProfile)
 
       <template #footer>
         <div class="account-actions">
-          <!-- @vue-expect-error -->
-          <UButton variant="ghost" @click="router.push('/projects')">My Projects</UButton>
+          <UButton variant="ghost" @click="() => { router.push('/projects') }">My Projects</UButton>
           <UButton variant="ghost" color="error" @click="onSignOut">Sign out</UButton>
         </div>
       </template>
@@ -96,7 +95,7 @@ onMounted(loadProfile)
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--nord-background-neutral);
+  background-color: var(--theme-bg-neutral);
 }
 
 .account-card {
