@@ -1,69 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-// import VueTreeDnd from 'vue-tree-dnd';
-// import TreeItemRenderer from './TreeItemRenderer.vue';
-
-// const tree = ref([
-//     {
-//         id: 1,
-//         name: 'Item 1',
-//         expanded: true,
-//         children: [
-//             {
-//                 id: 2,
-//                 name: 'Item 2',
-//                 expanded: true,
-//                 children: [
-//                     {
-//                         id: 3,
-//                         name: 'Item 3',
-//                         expanded: false,
-//                         children: []
-//                     }
-//                 ]
-//             }
-//         ]
-//     }
-// ])
-// const moveHandler = (event: any) => {
-//     console.log(event)
-// }
-// import 'primeicons/primeicons.css'
-// import Tree from 'primevue/tree'
-// import type { TreeNode } from 'primevue/treenode'
-
-// const nodes = ref<TreeNode[]>([
-//     {
-//     key: '0',
-//     label: 'Documents',
-//     data: 'Documents Folder',
-//     icon: 'pi pi-fw pi-inbox',
-//     // expandedIcon: 'pi pi-fw pi-cog',
-//     // collapsedIcon: 'pi pi-fw pi-home',
-//     children: [
-//         {
-//             key: '0-0',
-//             label: 'Work',
-//             data: 'Work Folder',
-//             icon: 'pi pi-fw pi-cog',
-//             // expandedIcon: 'pi pi-fw pi-inbox',
-//             // collapsedIcon: 'pi-chevron-circle-left',
-//             children: [
-//                 { key: '0-0-0', label: 'Expenses.doc', icon: 'pi pi-fw pi-file', data: 'Expenses Document' },
-//                 { key: '0-0-1', label: 'Resume.doc', icon: 'pi pi-fw pi-file', data: 'Resume Document' }
-//             ]
-//         },
-//         {
-//             key: '0-1',
-//             label: 'Home',
-//             data: 'Home Folder',
-//             icon: 'pi pi-fw pi-home',
-//             children: [{ key: '0-1-0', label: 'Invoices.txt', icon: 'pi pi-fw pi-file', data: 'Invoices for this month' }]
-//         }
-//     ]
-// },
-// ])
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { TreeItem } from '@nuxt/ui'
 import { useFileStore } from '@/stores/fileStore'
 
@@ -354,7 +290,7 @@ async function deleteScript(name: string) {
 			<div>Files</div>
 
 			<UTooltip v-if="fileStore.projectId" text="New script" style="flex: 0 1 auto;">
-				<UButton icon="tabler:plus" variant="ghost" color="neutral" size="xs" @click="addScript" />
+				<UButton icon="tabler:script-plus" variant="ghost" color="neutral" size="xs" @click="addScript" />
 			</UTooltip>
 			<div v-else class="spacer"></div>
 		</div>
@@ -368,11 +304,11 @@ async function deleteScript(name: string) {
 				<template v-if="fileStore.projectId" #item-trailing="{ item }">
 					<div v-if="!item.children" class="item-actions">
 						<UTooltip text="Rename script">
-							<UButton icon="tabler:pencil" variant="ghost" color="neutral" size="xs" @click.stop="renameScript(scriptName(item))" />
+							<UButton icon="tabler:pencil-filled" variant="ghost" color="neutral" size="xs" @click.stop="renameScript(scriptName(item))" />
 						</UTooltip>
 
 						<UTooltip text="Delete script">
-							<UButton icon="tabler:trash" variant="ghost" color="error" size="xs" @click.stop="deleteScript(scriptName(item))" />
+							<UButton icon="tabler:trash-filled" variant="ghost" color="error" size="xs" @click.stop="deleteScript(scriptName(item))" />
 						</UTooltip>
 					</div>
 				</template>

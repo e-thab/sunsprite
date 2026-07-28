@@ -29,7 +29,7 @@ function updateFpsInterval() {
 
 const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
-const playPauseIcon = computed(() => pausedRef.value ? 'tabler:player-play' : 'tabler:player-pause')
+const playPauseIcon = computed(() => pausedRef.value ? 'tabler:player-play-filled' : 'tabler:player-pause-filled')
 const playPauseTooltip = computed(() => pausedRef.value ? 'Play' : 'Pause')
 function togglePlayPause() {
   if (pausedRef.value) play()
@@ -56,6 +56,8 @@ onMounted(async () => {
     window.setInterval(updateFpsInterval, 250)
     emit('ready')
 })
+
+// TODO: use tabler:refresh-alert icon when the code running doesn't match saved project
 </script>
 
 <template>
@@ -86,14 +88,14 @@ onMounted(async () => {
         <UButton icon="tabler:volume" variant="ghost" color="neutral" size="xs" @click="Output.print('sound')" />
       </UTooltip>
 
-      <!-- Settings -->
-      <UTooltip text="Settings">
-        <UButton icon="tabler:settings" variant="ghost" color="neutral" size="xs" @click="Output.print('settings')" />
-      </UTooltip>
-
       <!-- Fullscreen toggle -->
       <UTooltip :text="fullscreenTooltip">
         <UButton :icon="fullscreenIcon" variant="ghost" color="neutral" size="xs" @click="$emit('fullscreen')" />
+      </UTooltip>
+
+      <!-- Settings -->
+      <UTooltip text="Settings">
+        <UButton icon="tabler:settings-filled" variant="ghost" color="neutral" size="xs" @click="Output.print('settings')" />
       </UTooltip>
     </div>
     <div id="game-container" class="canvas"></div>
