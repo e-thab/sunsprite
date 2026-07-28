@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useAuthStore } from '@/stores/authStore';
 import { useFileStore } from '@/stores/fileStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { useProjectStore } from '@/stores/projectStore';
+import { timeAgo } from '@/assets/utils/timeAgo';
 import SignInModal from './SignInModal.vue';
 import SignUpModal from './SignUpModal.vue';
 
@@ -12,13 +14,69 @@ const fsStore = useFullscreenStore()
 const authStore = useAuthStore()
 const fileStore = useFileStore()
 const themeStore = useThemeStore()
+const projectStore = useProjectStore()
 const router = useRouter()
+
+// projectStore.projects is already ordered by updated_at desc (see
+// fetchProjects); NavBar is mounted once at the app root, so this needs its
+// own fetch/refresh rather than relying on ProjectsView having run it.
+onMounted(() => {
+    if (authStore.isAuthenticated) projectStore.fetchProjects()
+})
+watch(() => authStore.isAuthenticated, (isAuthenticated) => {
+    if (isAuthenticated) projectStore.fetchProjects()
+})
+
+// Refetch whenever the dropdown opens rather than trusting the one-time
+// mount fetch to still be current — a script saved (or a project
+// renamed/deleted) anywhere else in the app since then won't have touched
+// this store otherwise, since NavBar has no other way to hear about it.
+function onProjectMenuOpenChange(open: boolean) {
+    if (open) projectStore.fetchProjects()
+}
 
 async function onSignOut() {
     await authStore.signOut()
     await themeStore.init()
     router.push('/')
 }
+
+async function onCreateProject() {
+    const name = window.prompt('Project name:')
+    if (!name) return
+
+    try {
+        const project = await projectStore.createProject(name)
+        router.push(`/projects/${project.id}`)
+    } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Failed to create project')
+    }
+}
+
+const recentProjects = computed(() => projectStore.projects.slice(0, 6))
+
+const projectMenuItems = computed(() => [
+    recentProjects.value.length > 0
+        ? recentProjects.value.map((p) => ({
+            label: p.name,
+            description: timeAgo(p.updatedAt),
+            icon: 'material-symbols:shapes',
+            onSelect: () => router.push(`/projects/${p.id}`),
+        }))
+        : [{ label: 'No projects yet', disabled: true }],
+    [
+        {
+            label: 'New Project',
+            icon: 'tabler:plus',
+            onSelect: onCreateProject,
+        },
+        {
+            label: 'All Projects',
+            icon: 'tabler:folder-filled',
+            onSelect: () => router.push('/projects'),
+        },
+    ],
+])
 
 const themeMenuItems = computed(() => [
     themeStore.themes.map((t) => ({
@@ -70,7 +128,7 @@ const accountMenuItems = [
             <span class="project-name">{{ fileStore.projectName }}</span>
             <UTooltip text="Save all files">
                 <UButton
-                    icon="tabler:device-floppy"
+                    icon="tabler:device-floppy-filled"
                     variant="ghost"
                     size="xs"
                     :color="fileStore.hasUnsavedChanges ? 'warning' : 'neutral'"
@@ -82,13 +140,15 @@ const accountMenuItems = [
         <div class="right-group">
             <UDropdownMenu :items="themeMenuItems">
                 <UTooltip text="Theme" ignore-non-keyboard-focus>
-                    <UButton icon="tabler:palette" variant="ghost" color="neutral" />
+                    <UButton icon="tabler:palette-filled" variant="ghost" color="neutral" />
                 </UTooltip>
             </UDropdownMenu>
             
-            <UTooltip v-if="authStore.isAuthenticated" text="My Projects">
-                <UButton icon="tabler:folder" variant="ghost" color="neutral" @click="() => { router.push('/projects') }" />
-            </UTooltip>
+            <UDropdownMenu v-if="authStore.isAuthenticated" :items="projectMenuItems" @update:open="onProjectMenuOpenChange">
+                <UTooltip text="My Projects" ignore-non-keyboard-focus>
+                    <UButton icon="tabler:folder-filled" variant="ghost" color="neutral" />
+                </UTooltip>
+            </UDropdownMenu>
             <UButton v-else variant="ghost" color="neutral" @click="authStore.openSignIn">Sign In</UButton>
 
             <!-- @vue-expect-error -->

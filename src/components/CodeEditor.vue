@@ -377,7 +377,7 @@ onMounted(() => {
 		<div id="editor-bar">
 			<div class="save-group">
 				<UTooltip text="Save">
-					<UButton icon="tabler:device-floppy" variant="ghost" :color="saveStatusColor" size="xs" @click="saveCurrentCode">{{ saveStatusText }}</UButton>
+					<UButton icon="tabler:device-floppy-filled" variant="ghost" :color="saveStatusColor" size="xs" @click="saveCurrentCode">{{ saveStatusText }}</UButton>
 				</UTooltip>
 			</div>
 

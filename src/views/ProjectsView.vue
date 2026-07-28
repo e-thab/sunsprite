@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/projectStore'
+import { formatDate } from '@/assets/utils/timeAgo'
 
 const projectStore = useProjectStore()
 const router = useRouter()
@@ -71,9 +72,12 @@ onMounted(() => projectStore.fetchProjects())
 
       <ul class="project-list">
         <li v-for="project in projectStore.projects" :key="project.id" class="project-row">
-          <UButton variant="link" @click="() => { router.push(`/projects/${project.id}`) }">
-            {{ project.name }}
-          </UButton>
+          <div class="project-row-info">
+            <UButton variant="link" @click="() => { router.push(`/projects/${project.id}`) }">
+              {{ project.name }}
+            </UButton>
+            <span class="project-updated">Last edited {{ formatDate(project.updatedAt) }}</span>
+          </div>
           <div class="project-row-actions">
             <UTooltip text="Rename">
               <UButton icon="tabler:pencil" variant="ghost" color="neutral" size="sm" @click="onRename(project.id, project.name)" />
@@ -133,6 +137,18 @@ onMounted(() => projectStore.fetchProjects())
   padding: 0.25em 0.75em;
   border-radius: 6px;
   background-color: var(--ui-bg-elevated);
+}
+
+.project-row-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.project-updated {
+  font-size: 0.75em;
+  color: var(--theme-text-dim);
 }
 
 .project-row-actions {
