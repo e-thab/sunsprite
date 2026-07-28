@@ -100,6 +100,13 @@ const libUri = 'file:///lib.ts'
 monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
 	noSemanticValidation: false,
 	noSyntaxValidation: false,
+	// "Cannot find module" (2792 under this project's moduleResolution
+	// setting; 2307 is the same complaint under other settings) — Monaco
+	// only ever sees one script's source at a time, so it has no way to
+	// resolve imports of other project scripts (see moduleRunner.ts, which
+	// resolves + runs them correctly at runtime and reports genuinely
+	// missing imports there).
+	diagnosticCodesToIgnore: [2307, 2792],
 })
 
 // Disable DOM-based JS default completion suggestions

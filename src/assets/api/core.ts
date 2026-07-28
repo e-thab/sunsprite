@@ -8,6 +8,7 @@ import { Mouse } from './types'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
 import Output from './output'
+import { runEntryModule } from './moduleRunner'
 
 import { Colors } from './Colors'
 import Sprite from './Sprite'
@@ -624,9 +625,6 @@ class UserScene extends Scene {
 			round: Math.round,
 			PI: Math.PI,
 		}
-		
-		const keys = Object.keys(api)
-		const values = Object.values(api)
 
 		// Trying some ways to get error line/col within user script from stack trace
 		// function tryCompileDynamicCode(codeBody) {
@@ -671,40 +669,12 @@ class UserScene extends Scene {
 		
 		// Another problem post-phaser: user code errors prevent reloading of the game sometimes?
 		try {
-			const fn = new Function(
-				...keys,
-				`
-				return (async () => {
-					${this.JScode}
-				})()
-				`
-			)
-			await fn(...values)
-			// await run()
+			await runEntryModule(this.JScode, api)
 		} catch (e: any) {
 			const err = (e as Error)
-			console.log('stack', err.stack)
-			const match = err.stack?.match(/<anonymous>:(\d+):(\d+)/)
-			console.log('match', match)
-			if (match && match[1]) {
-				const errorLineNumber = parseInt(match[1], 10)
-				const editorLine = errorLineNumber
-
-				console.log(`err at line: ${editorLine}`)
-			}
-
 			Output.error(err.toString())
 			console.error('User code error:', err)
 		}
-		// const fn = new Function(
-		// 	...keys,
-		// 	`
-		// 	return (async () => {
-		// 		${this.JScode}
-		// 	})()
-		// 	`
-		// )
-		// await fn(...values)
 	}
 	
 	update(time: number, delta: number) {
