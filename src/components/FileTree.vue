@@ -2,12 +2,24 @@
 import { computed, ref } from 'vue'
 import type { TreeItem } from '@nuxt/ui'
 import { useFileStore } from '@/stores/fileStore'
+import { imagePath, animalFiles, cardFiles } from '@/assets/api/gameAssets'
 
 const fileStore = useFileStore()
 
 const emit = defineEmits<{
 	selectScript: [fileName: string]
+	previewImage: [path: string, label: string]
 }>()
+
+function imageLeaf(category: string, fileName: string): TreeItem {
+	const path = imagePath(category, fileName)
+	return {
+		label: fileName,
+		thumbnail: path,
+		path,
+		onSelect: () => emit('previewImage', path, fileName),
+	}
+}
 
 // Reads the script name from the item's own data rather than the clicked
 // element's rendered text — the label slot appends a "*" for unsaved
@@ -32,50 +44,12 @@ const guestItems: TreeItem[] = [
 			{
 				label: 'animals',
 				defaultExpanded: false,
-				children: [
-					{
-						label: 'elephant.png',
-						icon: './images/animals/elephant.png'
-					},
-					{
-						label: 'giraffe.png',
-						icon: './images/animals/giraffe.png'
-					},
-					{
-						label: 'hippo.png',
-						icon: './images/animals/hippo.png'
-					},
-					{
-						label: 'monkey.png',
-						icon: './images/animals/monkey.png'
-					},
-				]
+				children: animalFiles.map((f) => imageLeaf('animals', f)),
 			},
 			{
 				label: 'cards',
 				defaultExpanded: false,
-				children: [
-					{
-						label: 'back.png',
-						icon: './images/animals/back.png'
-					},
-					{
-						label: 'clubs_02.png',
-						icon: './images/animals/clubs_02.png'
-					},
-					{
-						label: 'clubs_03.png',
-						icon: './images/animals/clubs_03.png'
-					},
-					{
-						label: 'clubs_04.png',
-						icon: './images/animals/clubs_04.png'
-					},
-					{
-						label: 'clubs_05.png',
-						icon: './images/animals/clubs_05.png'
-					},
-				]
+				children: cardFiles.map((f) => imageLeaf('cards', f)),
 			},
 		]
 	},
@@ -296,7 +270,13 @@ async function deleteScript(name: string) {
 		</div>
 
 		<div class="file-tree">
-			<UTree v-model="selected" :items="items" expanded-icon="tabler:folder-open-filled" collapsed-icon="tabler:folder-filled" class="file-tree">
+			<UTree v-model="selected" :items="items" class="file-tree">
+				<template #item-leading="{ item, expanded }">
+					<img v-if="item.thumbnail" :src="item.thumbnail" class="thumbnail-icon" alt="" />
+					<UIcon v-else-if="item.icon" :name="item.icon" class="leading-icon" />
+					<UIcon v-else-if="item.children?.length" :name="expanded ? 'tabler:folder-open-filled' : 'tabler:folder-filled'" class="leading-icon" />
+				</template>
+
 				<template #item-label="{ item }">
 					{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span>
 				</template>
@@ -333,6 +313,21 @@ async function deleteScript(name: string) {
 .dirty-marker {
 	color: var(--theme-warning);
 	margin-left: 0.15em;
+}
+
+.thumbnail-icon {
+	width: 1.25rem;
+	height: 1.25rem;
+	flex-shrink: 0;
+	object-fit: contain;
+	border-radius: 0.2rem;
+	background-color: var(--theme-bg-dark);
+}
+
+.leading-icon {
+	width: 1.25rem;
+	height: 1.25rem;
+	flex-shrink: 0;
 }
 
 /* Nuxt UI's tree-item link is `position: relative`, which is what these

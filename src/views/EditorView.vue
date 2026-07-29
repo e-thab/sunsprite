@@ -13,6 +13,7 @@ import FileTree from '@/components/FileTree.vue';
 import AssetLibrary from '@/components/AssetLibrary.vue';
 import OutputPane from '@/components/OutputPane.vue';
 import DocsPanel from '@/components/DocsPanel.vue';
+import ImagePreviewModal from '@/components/ImagePreviewModal.vue';
 import Output from '@/assets/api/output'
 
 const props = defineProps<{
@@ -24,6 +25,17 @@ const fsStore = useFullscreenStore()
 const fileStore = useFileStore()
 const docsStore = useDocsStore()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
+
+// FileTree (guest sandbox) and AssetLibrary (project mode) both emit this on
+// clicking an image; they're siblings here, so this is the shared owner
+// rather than reaching for a store for something this locally scoped.
+const previewImagePath = ref<string | null>(null)
+const previewImageLabel = ref<string>('')
+
+function previewImage(path: string, label: string) {
+  previewImagePath.value = path
+  previewImageLabel.value = label
+}
 
 const canvasWidth = ref(44)
 const canvasHeight = ref(80)
@@ -259,11 +271,11 @@ onBeforeRouteLeave(() => {
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" :size="explorerPaneWidth">
       <splitpanes horizontal :push-other-panes="false">
         <pane id="file-tree-v-pane" size="65">
-          <FileTree ref="fileTree" @select-script="loadScript" />
+          <FileTree ref="fileTree" @select-script="loadScript" @preview-image="previewImage" />
         </pane>
 
         <pane id="asset-library-v-pane" size="35">
-          <AssetLibrary />
+          <AssetLibrary @preview-image="previewImage" />
         </pane>
       </splitpanes>
     </pane>
@@ -311,6 +323,12 @@ onBeforeRouteLeave(() => {
       </splitpanes>
     </pane>
   </splitpanes>
+
+  <ImagePreviewModal
+    :path="previewImagePath"
+    :label="previewImageLabel"
+    @close="previewImagePath = null"
+  />
 </template>
 
 <style>
