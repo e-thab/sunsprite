@@ -9,6 +9,7 @@ import { useFileStore } from '@/stores/fileStore';
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
+import AssetLibrary from '@/components/AssetLibrary.vue';
 import OutputPane from '@/components/OutputPane.vue';
 import Output from '@/assets/api/output'
 
@@ -179,10 +180,17 @@ onBeforeRouteLeave(() => {
     @resized="resizeSplitpanes"
   >
 
-    <!-- Left side pane: File explorer -->
+    <!-- Left side pane: File explorer + built-in asset library -->
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" size="12">
-      <!-- <span>Files</span> -->
-      <FileTree ref="fileTree" @select-script="loadScript" />
+      <splitpanes horizontal :push-other-panes="false">
+        <pane id="file-tree-v-pane" size="65">
+          <FileTree ref="fileTree" @select-script="loadScript" />
+        </pane>
+
+        <pane id="asset-library-v-pane" size="35">
+          <AssetLibrary />
+        </pane>
+      </splitpanes>
     </pane>
 
     <!-- Center pane: Code editor -->
