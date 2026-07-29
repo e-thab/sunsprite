@@ -6,10 +6,10 @@ const props = defineProps<{
 	label?: string
 }>()
 
-const emit = defineEmits<{ close: [] }>()
+defineEmits<{ close: [] }>()
 
-const MIN_SCALE = 0.25
-const MAX_SCALE = 8
+const MIN_SCALE = 0.1
+const MAX_SCALE = 32
 const WHEEL_ZOOM_STEP = 1.15
 const BUTTON_ZOOM_STEP = 1.3
 
@@ -70,56 +70,58 @@ function onPointerMove(event: PointerEvent) {
 function onPointerUp() {
 	isDragging.value = false
 }
-
-function onUpdateOpen(open: boolean) {
-	if (!open) emit('close')
-}
 </script>
 
 <template>
-	<UModal :open="!!path" :title="label ?? 'Image preview'" fullscreen @update:open="onUpdateOpen">
-		<template #body>
-			<div
-				class="image-viewer"
-				:class="{ dragging: isDragging }"
-				@wheel="onWheel"
-				@pointerdown="onPointerDown"
-				@pointermove="onPointerMove"
-				@pointerup="onPointerUp"
-				@pointerleave="onPointerUp"
-				@dblclick="resetView"
-			>
-				<img
-					v-if="path"
-					:src="path"
-					class="preview-image"
-					:style="{ transform: `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${scale})` }"
-					draggable="false"
-					alt=""
-				/>
-			</div>
+	<div class="panel-wrapper">
+		<div class="panel-bar">
+			<div></div>
+			<div>{{ label ?? 'Image preview' }}</div>
+			<UTooltip text="Close">
+				<UButton icon="tabler:x" variant="ghost" color="neutral" size="xs" @click="$emit('close')" />
+			</UTooltip>
+		</div>
 
-			<div class="viewer-controls">
-				<UTooltip text="Zoom out">
-					<UButton icon="tabler:zoom-out" variant="ghost" color="neutral" size="sm" @click="zoomBy(1 / BUTTON_ZOOM_STEP)" />
-				</UTooltip>
-				<span class="zoom-level">{{ Math.round(scale * 100) }}%</span>
-				<UTooltip text="Zoom in">
-					<UButton icon="tabler:zoom-in" variant="ghost" color="neutral" size="sm" @click="zoomBy(BUTTON_ZOOM_STEP)" />
-				</UTooltip>
-				<UTooltip text="Reset">
-					<UButton icon="tabler:zoom-reset" variant="ghost" color="neutral" size="sm" @click="resetView" />
-				</UTooltip>
-			</div>
-		</template>
-	</UModal>
+		<div
+			class="image-viewer"
+			:class="{ dragging: isDragging }"
+			@wheel="onWheel"
+			@pointerdown="onPointerDown"
+			@pointermove="onPointerMove"
+			@pointerup="onPointerUp"
+			@pointerleave="onPointerUp"
+			@dblclick="resetView"
+		>
+			<img
+				v-if="path"
+				:src="path"
+				class="preview-image"
+				:style="{ transform: `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${scale})` }"
+				draggable="false"
+				alt=""
+			/>
+		</div>
+
+		<div class="viewer-controls">
+			<UTooltip text="Zoom out">
+				<UButton icon="tabler:zoom-out" variant="ghost" color="neutral" size="sm" @click="zoomBy(1 / BUTTON_ZOOM_STEP)" />
+			</UTooltip>
+			<span class="zoom-level">{{ Math.round(scale * 100) }}%</span>
+			<UTooltip text="Zoom in">
+				<UButton icon="tabler:zoom-in" variant="ghost" color="neutral" size="sm" @click="zoomBy(BUTTON_ZOOM_STEP)" />
+			</UTooltip>
+			<UTooltip text="Reset">
+				<UButton icon="tabler:zoom-reset" variant="ghost" color="neutral" size="sm" @click="resetView" />
+			</UTooltip>
+		</div>
+	</div>
 </template>
 
 <style scoped>
 .image-viewer {
 	position: relative;
-	width: 100%;
-	height: 75vh;
+	flex: 1 1 auto;
+	min-height: 0;
 	overflow: hidden;
 	background-color: var(--theme-bg-darker);
 	background-image:
@@ -129,7 +131,6 @@ function onUpdateOpen(open: boolean) {
 		linear-gradient(-45deg, transparent 75%, var(--theme-bg-dark) 75%);
 	background-size: 20px 20px;
 	background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-	border-radius: 0.5rem;
 	cursor: grab;
 	touch-action: none;
 }
@@ -152,7 +153,9 @@ function onUpdateOpen(open: boolean) {
 	align-items: center;
 	justify-content: center;
 	gap: 0.5em;
-	margin-top: 0.75em;
+	flex-shrink: 0;
+	padding: 0.5em;
+	background-color: var(--theme-bg-neutral);
 }
 
 .zoom-level {

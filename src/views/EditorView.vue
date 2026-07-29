@@ -37,6 +37,13 @@ function previewImage(path: string, label: string) {
   previewImageLabel.value = label
 }
 
+// Tracks the explorer pane's live rendered width so the image preview
+// overlay can start exactly at its right edge — it covers everything else
+// (docs/code/right panes) while leaving the file tree/asset library
+// visible and clickable underneath, so picking another image while a
+// preview is open just works.
+const explorerPixelWidth = ref(0)
+
 const canvasWidth = ref(44)
 const canvasHeight = ref(80)
 const canvasHeightBeforeCollapse = ref(80)
@@ -203,12 +210,21 @@ function onEditorReady() {
 
 onMounted(async () => {
 	const canvas = document.getElementById('canvas-v-pane')
-	if (!canvas) return
+	if (canvas) {
+		new ResizeObserver(() => {
+		resizeStage()
+		})
+		.observe(canvas)
+	}
 
-	new ResizeObserver(() => {
-	resizeStage()
-	})
-	.observe(canvas)
+	const explorer = document.getElementById('explorer-pane')
+	if (explorer) {
+		explorerPixelWidth.value = explorer.clientWidth
+		new ResizeObserver((entries) => {
+			explorerPixelWidth.value = entries[0]?.contentRect.width ?? 0
+		})
+		.observe(explorer)
+	}
 
 	// await new Promise((resolve) => {
 	//   const interval = setInterval(() => {
@@ -259,6 +275,7 @@ onBeforeRouteLeave(() => {
 </script>
 
 <template>
+  <div class="editor-root">
   <splitpanes
     :push-other-panes="false"
     @resize="resizeStage"
@@ -325,10 +342,14 @@ onBeforeRouteLeave(() => {
   </splitpanes>
 
   <ImagePreviewModal
+    v-if="previewImagePath"
     :path="previewImagePath"
     :label="previewImageLabel"
+    class="image-preview-overlay"
+    :style="{ left: explorerPixelWidth + 'px', width: `calc(100% - ${explorerPixelWidth}px)` }"
     @close="previewImagePath = null"
   />
+  </div>
 </template>
 
 <style>
@@ -339,6 +360,23 @@ onBeforeRouteLeave(() => {
 
 #code-pane {
   overflow: visible;
+}
+
+.editor-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Docks over the docs/code/right panes only — left edge tracks the
+   explorer pane's live width so the file tree/asset library stay visible
+   and clickable underneath, letting the user pick another image while a
+   preview is already open. */
+.image-preview-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 20;
 }
 
 .panel-bar {
