@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useAuthStore } from '@/stores/authStore';
 import { useFileStore } from '@/stores/fileStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useDocsStore } from '@/stores/docsStore';
 import { timeAgo } from '@/assets/utils/timeAgo';
 import SignInModal from './SignInModal.vue';
 import SignUpModal from './SignUpModal.vue';
@@ -15,7 +16,14 @@ const authStore = useAuthStore()
 const fileStore = useFileStore()
 const themeStore = useThemeStore()
 const projectStore = useProjectStore()
+const docsStore = useDocsStore()
 const router = useRouter()
+const route = useRoute()
+
+// Docs toggles a pane inside EditorView (rendered on the home/guest route
+// and the loaded-project route) — showing it elsewhere would just flip
+// unused state with nothing on screen to reflect it.
+const isEditorRoute = computed(() => route.name === 'home' || route.name === 'project')
 
 // projectStore.projects is already ordered by updated_at desc (see
 // fetchProjects); NavBar is mounted once at the app root, so this needs its
@@ -71,7 +79,7 @@ const projectMenuItems = computed(() => [
             onSelect: onCreateProject,
         },
         {
-            label: 'All Projects',
+            label: 'My Projects',
             icon: 'tabler:folder-filled',
             onSelect: () => router.push('/projects'),
         },
@@ -120,8 +128,12 @@ const accountMenuItems = [
     <div v-if="!fsStore.fullscreen" id="nav-header" class="bar">
         <div class="left-group">
             <UButton variant="ghost" color="neutral" class="logo-button" @click="() => { router.push('/') }">
-                <img id="logo" title="Sunsprite" src="/src/assets/sun.svg" />
+                <img id="logo" title="Sunsprite" src="/src/assets/sun.svg"></img>
             </UButton>
+
+            <UTooltip v-if="isEditorRoute" text="Docs">
+                <UButton icon="tabler:book-filled" variant="ghost" :color="docsStore.isOpen ? 'primary' : 'neutral'" @click="docsStore.toggle">Docs</UButton>
+            </UTooltip>
         </div>
 
         <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
@@ -140,20 +152,20 @@ const accountMenuItems = [
         <div class="right-group">
             <UDropdownMenu :items="themeMenuItems">
                 <UTooltip text="Theme" ignore-non-keyboard-focus>
-                    <UButton icon="tabler:palette-filled" variant="ghost" color="neutral" />
+                    <UButton icon="tabler:palette-filled" variant="ghost" color="neutral">Theme</UButton>
                 </UTooltip>
             </UDropdownMenu>
             
             <UDropdownMenu v-if="authStore.isAuthenticated" :items="projectMenuItems" @update:open="onProjectMenuOpenChange">
                 <UTooltip text="My Projects" ignore-non-keyboard-focus>
-                    <UButton icon="tabler:folder-filled" variant="ghost" color="neutral" />
+                    <UButton icon="tabler:folder-filled" variant="ghost" color="neutral">Projects</UButton>
                 </UTooltip>
             </UDropdownMenu>
             <UButton v-else variant="ghost" color="neutral" @click="authStore.openSignIn">Sign In</UButton>
 
             <!-- @vue-expect-error -->
             <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
-                <UButton variant="ghost" color="neutral">{{ authStore.displayName || authStore.user?.email }}</UButton>
+                <UButton icon="tabler:user-filled" variant="ghost" color="neutral">{{ authStore.displayName || authStore.user?.email }}</UButton>
             </UDropdownMenu>
             </div>
     </div>

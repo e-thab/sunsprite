@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, type Ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage } from '@/assets/api/core';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useFileStore } from '@/stores/fileStore';
+import { useDocsStore } from '@/stores/docsStore';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
 import AssetLibrary from '@/components/AssetLibrary.vue';
 import OutputPane from '@/components/OutputPane.vue';
+import DocsPanel from '@/components/DocsPanel.vue';
 import Output from '@/assets/api/output'
 
 const props = defineProps<{
@@ -20,21 +22,87 @@ const props = defineProps<{
 const editor = ref()
 const fsStore = useFullscreenStore()
 const fileStore = useFileStore()
+const docsStore = useDocsStore()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
 
 const canvasWidth = ref(44)
 const canvasHeight = ref(80)
 const canvasHeightBeforeCollapse = ref(80)
 
+// explorer/code need to be refs (not static `size` props) so opening/
+// closing the docs pane can restore them after splitpanes' own forced
+// re-equalize (see onDocsPaneAdd/onDocsPaneRemove below).
+const explorerPaneWidth = ref(12)
+const codePaneWidth = ref(44)
+const docsPaneWidth = ref(0)
+
 const paneSize: { [index: string]: number } = {
   // Column panes (left - middle - right)
   'explorer-pane': 12,
   'code-pane': 44,
   'right-pane': 44,
+  'docs-pane': 20,
 
   // Right side nested row panes (top right - bottom right)
   'canvas-v-pane': 80,
   'output-v-pane': 20
+}
+
+// splitpanes unconditionally redistributes every pane's size equally
+// whenever a pane is added or removed (its own equalize-after-add/remove
+// step doesn't consider prior sizes at all) — so opening the docs pane
+// clobbers the explorer/code/right widths the user already had. Restore
+// them here, taking the docs pane's width only out of the code editor's
+// share so the file tree and game/output panes are never affected.
+// splitpanes only re-reads a pane's `:size` prop when Vue's own patching
+// sees it change — but the target we're restoring to is often the exact
+// number the ref already held (nothing here ever touched it; only
+// splitpanes' internal state drifted via equalize), so writing the same
+// value back is a no-op vnode-diff-wise and the stale equalized width just
+// stays on screen. Multiple synchronous writes to the same ref within one
+// tick don't help either — Vue batches them and only the final value at
+// flush time reaches the child, so a same-tick "nudge away and back"
+// collapses right back into a no-op. Actually spanning two ticks (via
+// nextTick) is what forces a genuine, detectable change.
+async function forceSetSize(sizeRef: Ref<number>, value: number) {
+  if (sizeRef.value === value) {
+    sizeRef.value = value + 0.001
+    await nextTick()
+  }
+  sizeRef.value = value
+}
+
+async function onDocsPaneAdd() {
+  // paneSize['code-pane'] has to reflect the shrink too (not just the live
+  // ref) — onDocsPaneRemove reclaims space by reading this cache, and if
+  // it still held the pre-open width because only the ref was ever
+  // updated, closing without an intervening drag would double-count and
+  // hand code-pane more width than it's actually owed.
+  const shrunkCodeWidth = (paneSize['code-pane'] ?? 0) - (paneSize['docs-pane'] ?? 0)
+  paneSize['code-pane'] = shrunkCodeWidth
+
+  await forceSetSize(explorerPaneWidth, paneSize['explorer-pane'] ?? 0)
+  await forceSetSize(canvasWidth, paneSize['right-pane'] ?? 0)
+  await forceSetSize(docsPaneWidth, paneSize['docs-pane'] ?? 0)
+  await forceSetSize(codePaneWidth, shrunkCodeWidth)
+}
+
+async function onDocsPaneRemove() {
+  // Restoring code-pane to its pre-open cached width (like explorer/right)
+  // would only be correct if docs was never resized — dragging its
+  // splitter against the code editor updates paneSize['docs-pane'] and
+  // paneSize['code-pane'] (via storePaneSizes) but never reconciles that
+  // the freed space needs to land somewhere once docs is gone, leaving a
+  // gap the width of whatever docs had grown to. Reclaim docs' *current*
+  // width into code-pane specifically, since that's the only neighbor
+  // onDocsPaneAdd ever takes space from.
+  const reclaimedCodeWidth = (paneSize['code-pane'] ?? 0) + (paneSize['docs-pane'] ?? 0)
+  paneSize['code-pane'] = reclaimedCodeWidth
+
+  await forceSetSize(explorerPaneWidth, paneSize['explorer-pane'] ?? 0)
+  await forceSetSize(canvasWidth, paneSize['right-pane'] ?? 0)
+  await forceSetSize(codePaneWidth, reclaimedCodeWidth)
+  await forceSetSize(docsPaneWidth, 0)
 }
 
 function runActiveUserCode() {
@@ -58,9 +126,14 @@ async function toggleFullscreen() {
 }
 
 type EventPane = { el: HTMLElement, size: number }
-type ResizeEvent = { prevPane: EventPane, nextPane: EventPane }
+type ResizeEvent = { prevPane?: EventPane, nextPane?: EventPane }
 
 const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
+  // Adding/removing a pane (see onDocsPaneAdd/onDocsPaneRemove) also fires
+  // `resized`, but without prevPane/nextPane — only a real splitter drag
+  // has those, which is the only case that should update this bookkeeping.
+  if (!prevPane || !nextPane) return
+
   paneSize[`${prevPane.el.id}`] = prevPane.size
   paneSize[`${nextPane.el.id}`] = nextPane.size
 
@@ -178,10 +251,12 @@ onBeforeRouteLeave(() => {
     :push-other-panes="false"
     @resize="resizeStage"
     @resized="resizeSplitpanes"
+    @pane-add="onDocsPaneAdd"
+    @pane-remove="onDocsPaneRemove"
   >
 
     <!-- Left side pane: File explorer + built-in asset library -->
-    <pane id="explorer-pane" v-show="!fsStore.fullscreen" size="12">
+    <pane id="explorer-pane" v-show="!fsStore.fullscreen" :size="explorerPaneWidth">
       <splitpanes horizontal :push-other-panes="false">
         <pane id="file-tree-v-pane" size="65">
           <FileTree ref="fileTree" @select-script="loadScript" />
@@ -193,8 +268,13 @@ onBeforeRouteLeave(() => {
       </splitpanes>
     </pane>
 
+    <!-- Docs pane: toggled from the NavBar, closable from its own header -->
+    <pane v-if="docsStore.isOpen" id="docs-pane" v-show="!fsStore.fullscreen" :size="docsPaneWidth">
+      <DocsPanel @close="docsStore.close()" />
+    </pane>
+
     <!-- Center pane: Code editor -->
-    <pane id="code-pane" v-show="!fsStore.fullscreen" size="44">
+    <pane id="code-pane" v-show="!fsStore.fullscreen" :size="codePaneWidth">
 		<CodeEditor
 			ref="editor"
 			class="inner-pane"
@@ -224,7 +304,7 @@ onBeforeRouteLeave(() => {
         <!-- Bottom left pane: Output -->
         <pane id="output-v-pane" v-show="!fsStore.fullscreen" :size="100-canvasHeight">
           <OutputPane
-            @collapse-output="collapseOutput" 
+            @collapse-output="collapseOutput"
             @ready="onOutputReady"
           />
         </pane>

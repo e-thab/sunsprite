@@ -41,7 +41,7 @@ export const themes: ThemePalette[] = [
         backgroundNeutral: '#2e3440',
         backgroundLight: '#353b48',
         border: '#434c5e',
-        textDim: '#495369',
+        textDim: '#6a758d',
         textBright: '#d8dee9',
         textHighlighted: '#eceff4',
         scrollNeutral: '#434c5e',

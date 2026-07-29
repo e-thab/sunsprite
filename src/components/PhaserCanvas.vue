@@ -37,7 +37,7 @@ function togglePlayPause() {
 }
 
 const fullscreenIcon = computed(() => fsStore.fullscreen ? 'tabler:minimize' : 'tabler:maximize')
-const fullscreenTooltip = computed(() => fsStore.fullscreen ? 'Shrink' : 'Fullscreen')
+const fullscreenTooltip = computed(() => fsStore.fullscreen ? 'Minimize' : 'Maximize')
 
 onMounted(async () => {
     setup()
@@ -73,15 +73,6 @@ onMounted(async () => {
         <UButton icon="tabler:refresh" variant="ghost" color="neutral" size="xs" @click="$emit('runGame')" />
       </UTooltip>
 
-      <!-- mouseX/Y -->
-      <UBadge color="neutral" variant="soft" class="coords-badge">
-        <span>mouse X: {{ mouseRef.mouseX }}</span>
-        <span>mouse Y: {{ mouseRef.mouseY }}</span>
-      </UBadge>
-
-      <!-- FPS indicator -->
-      <UBadge color="neutral" variant="soft">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
-
       <!-- Sound -->
       <!-- Icon should change based on volume -->
       <UTooltip text="Volume">
@@ -97,6 +88,15 @@ onMounted(async () => {
       <UTooltip text="Settings">
         <UButton icon="tabler:settings-filled" variant="ghost" color="neutral" size="xs" @click="Output.print('settings')" />
       </UTooltip>
+      
+      <!-- mouseX/Y -->
+      <UBadge color="neutral" variant="soft" class="coords-badge">
+        <span>mouse X: {{ mouseRef.mouseX }}</span>
+        <span>mouse Y: {{ mouseRef.mouseY }}</span>
+      </UBadge>
+
+      <!-- FPS indicator -->
+      <UBadge color="neutral" variant="soft">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
     </div>
     <div id="game-container" class="canvas"></div>
   </div>

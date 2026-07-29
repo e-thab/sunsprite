@@ -153,7 +153,7 @@ const items: TreeItem[] = [
 				<template #item-leading="{ item, expanded }">
 					<img v-if="item.thumbnail" :src="item.thumbnail" class="thumbnail-icon" alt="" />
 					<UIcon v-else-if="item.icon" :name="item.icon" class="leading-icon" />
-					<UIcon v-else-if="item.children?.length" :name="expanded ? 'tabler:folder-open' : 'tabler:folder'" class="leading-icon" />
+					<UIcon v-else-if="item.children?.length" :name="expanded ? 'tabler:folder-open-filled' : 'tabler:folder-filled'" class="leading-icon" />
 				</template>
 
 				<template #item-trailing="{ item }">

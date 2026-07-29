@@ -296,7 +296,7 @@ async function deleteScript(name: string) {
 		</div>
 
 		<div class="file-tree">
-			<UTree v-model="selected" :items="items" class="file-tree">
+			<UTree v-model="selected" :items="items" expanded-icon="tabler:folder-open-filled" collapsed-icon="tabler:folder-filled" class="file-tree">
 				<template #item-label="{ item }">
 					{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span>
 				</template>
