@@ -7,6 +7,7 @@ import { runUserCode } from '@/assets/api/core'
 import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
 import { resolveSpecifierToName, listImportSpecifiers } from '@/assets/api/scriptResolution'
+import { ModuleDetectionKind } from 'typescript'
 
 // CodeMirror
 // import { Codemirror } from 'vue-codemirror'
@@ -131,7 +132,18 @@ monaco.typescript.javascriptDefaults.setCompilerOptions({
 	allowJs: true,
 	checkJs: true,
 	target: monaco.typescript.ScriptTarget.ES2020,
-	strictNullChecks: true
+	strictNullChecks: true,
+	// Without this, a script with no top-level import/export is treated as a
+	// "global script" rather than a module, so its declarations silently leak
+	// into every other open script's scope in the language service (no
+	// "cannot find name" diagnostic, phantom autocomplete) even though
+	// moduleRunner.ts genuinely isolates each script at runtime. Forcing
+	// module semantics keeps the editor's view of cross-script visibility
+	// consistent with actual execution: real imports required between
+	// project scripts. The ambient Sunsprite API (apiLib/apiModel below) is
+	// deliberately exempt via `declare global`, so it stays available
+	// without an import.
+	moduleDetection: ModuleDetectionKind.Force
 })
 
 monaco.typescript.javascriptDefaults.addExtraLib(apiModel, modelUri)

@@ -166,7 +166,6 @@ function addOutputItem(msgContent: string, updateItem: (item: OutputItem) => voi
     
     // Adjust all stamp widths to match widest
     const minWidth = getMinWidth()
-    console.log(minWidth)
     for (const item of Output.items) {
         item.stamp.style.width = minWidth
         item.msg.style.width = minWidth
