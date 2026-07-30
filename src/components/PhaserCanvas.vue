@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-// import { /*mouseRef, fpsRef,*/ /*pause, play, pausedRef, print*/ } from '@/assets/api/core'
 import { game, setup, mouseRef, resizeStage, pause, play, pausedRef } from '@/assets/api/core'
 import { useFullscreenStore } from '@/stores/fullscreen'
+import { useFileStore } from '@/stores/fileStore'
 import Output from '@/assets/api/output'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
 // const canvas = ref<HTMLCanvasElement | null>(null)
 const fps = ref()
 const fpsColor = ref()
-const fsStore = useFullscreenStore()
+const fullscreenStore = useFullscreenStore()
+const fileStore = useFileStore()
 
 function updateFpsInterval() {
   fps.value = Math.round(game.loop.actualFps)
@@ -36,8 +37,8 @@ function togglePlayPause() {
   else pause()
 }
 
-const fullscreenIcon = computed(() => fsStore.fullscreen ? 'tabler:minimize' : 'tabler:maximize')
-const fullscreenTooltip = computed(() => fsStore.fullscreen ? 'Minimize' : 'Maximize')
+const fullscreenIcon = computed(() => fullscreenStore.fullscreen ? 'tabler:minimize' : 'tabler:maximize')
+const fullscreenTooltip = computed(() => fullscreenStore.fullscreen ? 'Minimize' : 'Maximize')
 
 onMounted(async () => {
     setup()
@@ -65,28 +66,30 @@ onMounted(async () => {
     <div class="panel-bar">
       <!-- Play / Pause -->
       <UTooltip :text="playPauseTooltip">
-        <UButton :icon="playPauseIcon" variant="ghost" color="neutral" size="xs" @click="togglePlayPause" />
+        <UButton :icon="playPauseIcon" variant="soft" color="neutral" label="Pause" size="xs" @click="togglePlayPause" />
       </UTooltip>
 
       <!-- Restart / Run code -->
-      <UTooltip text="Restart">
-        <UButton icon="tabler:refresh" variant="ghost" color="neutral" size="xs" @click="$emit('runGame')" />
-      </UTooltip>
+      <UChip inset color="warning" :show="fileStore.hasUnsavedChanges">
+        <UTooltip text="Restart">
+          <UButton icon="tabler:refresh" variant="soft" color="neutral" label="Restart" size="xs" @click="$emit('runGame')" />
+        </UTooltip>
+      </UChip>
 
       <!-- Sound -->
       <!-- Icon should change based on volume -->
       <UTooltip text="Volume">
-        <UButton icon="tabler:volume" variant="ghost" color="neutral" size="xs" @click="Output.print('sound')" />
+        <UButton icon="tabler:volume" variant="soft" color="neutral" label="Volume" size="xs" @click="Output.print('sound')" />
       </UTooltip>
 
       <!-- Fullscreen toggle -->
       <UTooltip :text="fullscreenTooltip">
-        <UButton :icon="fullscreenIcon" variant="ghost" color="neutral" size="xs" @click="$emit('fullscreen')" />
+        <UButton :icon="fullscreenIcon" variant="soft" color="neutral" label="Fullscreen" size="xs" @click="$emit('fullscreen')" />
       </UTooltip>
 
       <!-- Settings -->
       <UTooltip text="Settings">
-        <UButton icon="tabler:settings-filled" variant="ghost" color="neutral" size="xs" @click="Output.print('settings')" />
+        <UButton icon="tabler:settings-filled" variant="soft" color="neutral" label="Settings" size="xs" @click="Output.print('settings')" />
       </UTooltip>
       
       <!-- mouseX/Y -->

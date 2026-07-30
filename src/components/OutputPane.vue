@@ -58,7 +58,7 @@ onMounted(() => {
             <UTabs v-model="activeTab" :items="tabItems" :content="false" size="xs" class="output-tabs" />
 
             <UTooltip text="Collapse">
-                <UButton icon="tabler:chevron-down" variant="ghost" color="neutral" size="xs" @click="$emit('collapseOutput')" />
+                <UButton icon="tabler:chevron-down" variant="soft" color="neutral" size="xs" @click="$emit('collapseOutput')" />
             </UTooltip>
         </div>
 

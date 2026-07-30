@@ -2,7 +2,7 @@
 import { computed, provide, reactive, ref } from 'vue'
 import { docsSections } from '@/assets/docs/docsContent'
 import { filterDocsSections } from '@/assets/docs/docsSearch'
-import { docsExpandStateKey } from './docsExpandState'
+import { docsExpandStateKey } from '../assets/docs/docsExpandState.ts'
 import DocsSectionItem from './DocsSectionItem.vue'
 
 defineEmits<{ close: [] }>()

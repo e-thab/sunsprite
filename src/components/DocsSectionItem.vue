@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { inject } from 'vue'
 import type { DocSection } from '@/assets/docs/docsContent'
-import { docsExpandStateKey } from './docsExpandState'
+import { docsExpandStateKey } from '../assets/docs/docsExpandState'
 
 defineProps<{
 	section: DocSection
