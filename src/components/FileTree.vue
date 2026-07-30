@@ -702,18 +702,18 @@ async function onDropOnRoot() {
 	position: absolute;
 	inset: 0;
 	border-radius: 0.25rem;
-	/* Being position:absolute means this paints above the label's plain
-	   text regardless of DOM order — without this, .drag-over's background
-	   color covers the row's own name while it's the active drop target.
-	   Matches the same z-[-1] trick the row button's own ::before hover
-	   background already uses, so it layers consistently with that. */
-	z-index: -1;
 }
 
+/* Needs to stay the topmost element in the row — it's what dragstart/
+   dragover/drop are actually bound to, and giving it a negative z-index to
+   avoid covering the label text (tried previously) also pulled it out of
+   the hit-testing order, silently breaking drag-and-drop entirely. A
+   translucent fill keeps it on top for events while still letting the text
+   read through underneath, instead of fighting over paint order. */
 .tree-row-dnd.drag-over {
 	outline: 2px solid var(--theme-accent, var(--theme-scroll-light));
 	outline-offset: -1px;
-	background-color: var(--theme-bg-light);
+	background-color: color-mix(in srgb, var(--theme-bg-light) 55%, transparent);
 }
 
 /* Only ever spliced into a *folder's* own children (see
