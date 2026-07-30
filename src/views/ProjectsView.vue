@@ -18,7 +18,7 @@ async function onCreate() {
   errorMessage.value = ''
   try {
     const project = await projectStore.createProject(name)
-    router.push(`/projects/${project.id}`)
+    router.push(`/projects/${project.slug}`)
   } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : 'Failed to create project'
   } finally {
@@ -73,7 +73,7 @@ onMounted(() => projectStore.fetchProjects())
       <ul class="project-list">
         <li v-for="project in projectStore.projects" :key="project.id" class="project-row">
           <div class="project-row-info">
-            <UButton variant="link" @click="() => { router.push(`/projects/${project.id}`) }">
+            <UButton variant="link" @click="() => { router.push(`/projects/${project.slug}`) }">
               {{ project.name }}
             </UButton>
             <span class="project-updated">Last edited {{ formatDate(project.updatedAt) }}</span>

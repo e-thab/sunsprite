@@ -2,30 +2,58 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { supabase } from '@/assets/utils/supabase'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
-const displayName = ref('')
+const usernamePattern = /^[a-z0-9_]{3,20}$/
+
+const username = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const errorMessage = ref('')
+const usernameError = ref<string | undefined>(undefined)
 const loading = ref(false)
+const checkingUsername = ref(false)
 const awaitingConfirmation = ref(false)
 
 function reset() {
-  displayName.value = ''
+  username.value = ''
   email.value = ''
   password.value = ''
   confirmPassword.value = ''
   errorMessage.value = ''
+  usernameError.value = undefined
   loading.value = false
+  checkingUsername.value = false
   awaitingConfirmation.value = false
+}
+
+async function checkUsername() {
+  usernameError.value = undefined
+  if (!username.value) return
+
+  if (!usernamePattern.test(username.value)) {
+    usernameError.value = 'Lowercase letters, numbers, and underscores only (3-20 characters)'
+    return
+  }
+
+  checkingUsername.value = true
+  const { data, error } = await supabase.rpc('is_username_taken', { check_username: username.value })
+  checkingUsername.value = false
+
+  if (!error && data) usernameError.value = 'That username is taken'
 }
 
 async function onSubmit() {
   errorMessage.value = ''
+
+  if (!usernamePattern.test(username.value)) {
+    usernameError.value = 'Lowercase letters, numbers, and underscores only (3-20 characters)'
+    return
+  }
 
   if (password.value !== confirmPassword.value) {
     errorMessage.value = 'Passwords do not match'
@@ -37,7 +65,7 @@ async function onSubmit() {
     const { needsEmailConfirmation } = await authStore.signUp(
       email.value,
       password.value,
-      displayName.value || undefined,
+      username.value,
     )
 
     if (needsEmailConfirmation) {
@@ -81,8 +109,16 @@ function onUpdateOpen(open: boolean) {
         <UButton variant="ghost" @click="onUpdateOpen(false)">Close</UButton>
       </div>
       <form v-else class="sign-up-form" @submit.prevent="onSubmit">
-        <UFormField label="Display name (optional)">
-          <UInput v-model="displayName" autocomplete="nickname" class="full-width" />
+        <UFormField label="Username" :error="usernameError" help="Lowercase letters, numbers, underscores">
+          <UInput
+            v-model="username"
+            autocomplete="username"
+            spellcheck="false"
+            required
+            class="full-width"
+            :loading="checkingUsername"
+            @blur="checkUsername"
+          />
         </UFormField>
         <UFormField label="Email">
           <UInput v-model="email" type="email" autocomplete="email" required class="full-width" />

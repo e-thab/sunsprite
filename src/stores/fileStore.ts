@@ -3,6 +3,28 @@ import { computed, ref } from "vue";
 import { supabase } from "@/assets/utils/supabase";
 import { getExampleCode } from "@/assets/api/examples";
 
+function publicUrlForKey(objectKey: string): string {
+    return `${import.meta.env.VITE_R2_PUBLIC_BASE_URL}/${objectKey}`
+}
+
+// supabase-js surfaces a non-2xx Edge Function response as a FunctionsHttpError
+// whose real JSON body (our { error: string } shape) lives on .context, a raw
+// Response — not on .message, which is just a generic "non-2xx" string.
+async function functionErrorMessage(error: unknown): Promise<string> {
+    if (error && typeof error === 'object' && 'context' in error) {
+        const context = (error as { context: unknown }).context
+        if (context instanceof Response) {
+            try {
+                const body = await context.json()
+                if (body?.error) return body.error
+            } catch {
+                // fall through to the generic message below
+            }
+        }
+    }
+    return error instanceof Error ? error.message : 'Request failed'
+}
+
 type codeSaveData = {
     fileName: string
     content: string
@@ -25,11 +47,23 @@ type FolderRecord = {
     position: number
 }
 
-// A folder/script blended and sorted by position, for rendering one ordered
-// list per tree level regardless of which kind each row is.
+type ImageRecord = {
+    id: string
+    name: string
+    objectKey: string
+    publicUrl: string
+    contentType: string
+    size: number
+    folderId: string | null
+    position: number
+}
+
+// A folder/script/image blended and sorted by position, for rendering one
+// ordered list per tree level regardless of which kind each row is.
 export type TreeNode =
     | { kind: 'folder', id: string, name: string, position: number }
     | { kind: 'script', id: string, name: string, position: number }
+    | { kind: 'image', id: string, name: string, position: number, publicUrl: string }
 
 export const useFileStore = defineStore('files', () => {
     const activeFileName = ref('main.js')
@@ -85,6 +119,7 @@ export const useFileStore = defineStore('files', () => {
     const projectName = ref<string | null>(null)
     const scripts = ref<ScriptRecord[]>([])
     const folders = ref<FolderRecord[]>([])
+    const images = ref<ImageRecord[]>([])
 
     function clear() {
         // Debugging
@@ -161,7 +196,10 @@ export const useFileStore = defineStore('files', () => {
         const containedScripts: TreeNode[] = scripts.value
             .filter((s) => s.folderId === folderId)
             .map((s) => ({ kind: 'script' as const, id: s.id, name: s.name, position: s.position }))
-        return [...subfolders, ...containedScripts].sort((a, b) => a.position - b.position)
+        const containedImages: TreeNode[] = images.value
+            .filter((img) => img.folderId === folderId)
+            .map((img) => ({ kind: 'image' as const, id: img.id, name: img.name, position: img.position, publicUrl: img.publicUrl }))
+        return [...subfolders, ...containedScripts, ...containedImages].sort((a, b) => a.position - b.position)
     }
 
     // Appends after the current last sibling (folders and scripts share one
@@ -225,6 +263,7 @@ export const useFileStore = defineStore('files', () => {
 
         folders.value = folders.value.filter((f) => !removedFolderIds.has(f.id))
         scripts.value = scripts.value.filter((s) => !(s.folderId !== null && removedFolderIds.has(s.folderId)))
+        images.value = images.value.filter((img) => !(img.folderId !== null && removedFolderIds.has(img.folderId)))
     }
 
     // Reparent/reorder a script — the drag-drop target's folder (null for
@@ -261,15 +300,18 @@ export const useFileStore = defineStore('files', () => {
         projectId.value = id
         scripts.value = []
         folders.value = []
+        images.value = []
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
 
-        const [{ data: folderRows, error: folderError }, { data: scriptRows, error: scriptError }] = await Promise.all([
+        const [{ data: folderRows, error: folderError }, { data: scriptRows, error: scriptError }, { data: imageRows, error: imageError }] = await Promise.all([
             supabase.from('folders').select('id, name, parent_id, position').eq('project_id', id).order('position'),
             supabase.from('scripts').select('id, name, content, folder_id, position, updated_at').eq('project_id', id).order('position'),
+            supabase.from('images').select('id, name, object_key, content_type, size, folder_id, position').eq('project_id', id).order('position'),
         ])
         if (folderError) throw folderError
         if (scriptError) throw scriptError
+        if (imageError) throw imageError
 
         if (folderRows.length === 0 && scriptRows.length === 0) {
             const scriptsFolderId = await createFolder('scripts')
@@ -289,6 +331,16 @@ export const useFileStore = defineStore('files', () => {
                 position: row.position,
                 saveTime: new Date(row.updated_at).toLocaleTimeString(),
             }))
+            images.value = imageRows.map((row) => ({
+                id: row.id,
+                name: row.name,
+                objectKey: row.object_key,
+                publicUrl: publicUrlForKey(row.object_key),
+                contentType: row.content_type,
+                size: row.size,
+                folderId: row.folder_id,
+                position: row.position,
+            }))
         }
     }
 
@@ -297,6 +349,7 @@ export const useFileStore = defineStore('files', () => {
         projectName.value = null
         scripts.value = []
         folders.value = []
+        images.value = []
         dirtyFiles.value = new Set()
     }
 
@@ -351,6 +404,88 @@ export const useFileStore = defineStore('files', () => {
         markClean(name)
     }
 
+    // ---- Images ----
+
+    async function uploadImage(file: File, folderId: string | null = null) {
+        if (!projectId.value) throw new Error('No active project')
+
+        const { data: signed, error: signError } = await supabase.functions.invoke('r2-sign-upload', {
+            body: { projectId: projectId.value, fileName: file.name, contentType: file.type, size: file.size },
+        })
+        if (signError) throw new Error(await functionErrorMessage(signError))
+
+        const putRes = await fetch(signed.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
+        if (!putRes.ok) throw new Error('Failed to upload image to storage')
+
+        const position = nextPosition(folderId)
+        const { data: row, error: insertError } = await supabase
+            .from('images')
+            .insert({
+                project_id: projectId.value,
+                folder_id: folderId,
+                name: file.name,
+                object_key: signed.objectKey,
+                content_type: file.type,
+                size: file.size,
+                position,
+            })
+            .select('id, name, object_key, content_type, size, folder_id, position')
+            .single()
+
+        if (insertError) {
+            // The object is already sitting in R2 at this point — clean it up
+            // rather than leave it orphaned since there's no DB row for it.
+            await supabase.functions.invoke('r2-delete', { body: { objectKey: signed.objectKey } }).catch(() => {})
+            if (insertError.code === '23505') throw new Error('A file with that name already exists in this project.')
+            throw insertError
+        }
+
+        images.value.push({
+            id: row.id,
+            name: row.name,
+            objectKey: row.object_key,
+            publicUrl: signed.publicUrl,
+            contentType: row.content_type,
+            size: row.size,
+            folderId: row.folder_id,
+            position: row.position,
+        })
+    }
+
+    async function renameImage(id: string, newName: string) {
+        const image = images.value.find((img) => img.id === id)
+        if (!image) throw new Error('Image not found')
+
+        const { error } = await supabase.from('images').update({ name: newName }).eq('id', id)
+        if (error) throw error
+
+        image.name = newName
+    }
+
+    async function deleteImage(id: string) {
+        const image = images.value.find((img) => img.id === id)
+        if (!image) return
+
+        const { error: deleteError } = await supabase.functions.invoke('r2-delete', { body: { objectKey: image.objectKey } })
+        if (deleteError) throw new Error(await functionErrorMessage(deleteError))
+
+        const { error } = await supabase.from('images').delete().eq('id', id)
+        if (error) throw error
+
+        images.value = images.value.filter((img) => img.id !== id)
+    }
+
+    async function moveImage(id: string, folderId: string | null, position: number) {
+        const image = images.value.find((img) => img.id === id)
+        if (!image) return
+
+        const { error } = await supabase.from('images').update({ folder_id: folderId, position }).eq('id', id)
+        if (error) throw error
+
+        image.folderId = folderId
+        image.position = position
+    }
+
     return {
         activeFileName,
         activeFileIsSaved,
@@ -359,6 +494,7 @@ export const useFileStore = defineStore('files', () => {
         projectName,
         scripts,
         folders,
+        images,
         activate,
         savedThisSession,
         getLocalCode,
@@ -384,5 +520,9 @@ export const useFileStore = defineStore('files', () => {
         deleteFolder,
         moveScript,
         moveFolder,
+        uploadImage,
+        renameImage,
+        deleteImage,
+        moveImage,
     }
 })

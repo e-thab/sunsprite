@@ -6,13 +6,13 @@ import { useThemeStore } from '@/stores/themeStore'
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 
-const email = ref('')
+const identifier = ref('')
 const password = ref('')
 const errorMessage = ref('')
 const loading = ref(false)
 
 function reset() {
-  email.value = ''
+  identifier.value = ''
   password.value = ''
   errorMessage.value = ''
   loading.value = false
@@ -22,7 +22,7 @@ async function onSubmit() {
   errorMessage.value = ''
   loading.value = true
   try {
-    await authStore.signIn(email.value, password.value)
+    await authStore.signIn(identifier.value, password.value)
     await themeStore.init()
     reset()
   } catch (err) {
@@ -50,8 +50,8 @@ function onUpdateOpen(open: boolean) {
   <UModal :open="authStore.showSignInModal" title="Sign in" @update:open="onUpdateOpen">
     <template #body>
       <form class="signin-form" @submit.prevent="onSubmit">
-        <UFormField label="Email">
-          <UInput v-model="email" type="email" autocomplete="email" required class="full-width" />
+        <UFormField label="Email or username">
+          <UInput v-model="identifier" type="text" autocomplete="username" required class="full-width" />
         </UFormField>
         <UFormField label="Password">
           <UInput v-model="password" type="password" autocomplete="current-password" required class="full-width" />

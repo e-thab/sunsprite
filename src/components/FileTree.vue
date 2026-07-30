@@ -1,12 +1,23 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { TreeItem } from '@nuxt/ui'
+import { useToast } from '@nuxt/ui/composables'
 import { useFileStore, type TreeNode } from '@/stores/fileStore'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
 import { imagePath, animalFiles, cardFiles } from '@/assets/api/gameAssets'
 
 const fileStore = useFileStore()
 const treeSelectionStore = useTreeSelectionStore()
+const toast = useToast()
+
+async function copyImageUrl(path: string) {
+	await navigator.clipboard.writeText(path)
+	toast.add({
+		title: 'Copied to clipboard',
+		description: path,
+		icon: 'tabler:copy-filled',
+	})
+}
 
 const emit = defineEmits<{
 	selectScript: [fileName: string]
@@ -40,22 +51,22 @@ function selectHandler(_event: any, item?: TreeItem) {
 // icon: 'catppuccin:svg'
 
 const guestItems: TreeItem[] = [
-	{
-		label: 'images',
-		defaultExpanded: false,
-		children: [
-			{
-				label: 'animals',
-				defaultExpanded: false,
-				children: animalFiles.map((f) => imageLeaf('animals', f)),
-			},
-			{
-				label: 'cards',
-				defaultExpanded: false,
-				children: cardFiles.map((f) => imageLeaf('cards', f)),
-			},
-		]
-	},
+	// {
+	// 	label: 'images',
+	// 	defaultExpanded: false,
+	// 	children: [
+	// 		{
+	// 			label: 'animals',
+	// 			defaultExpanded: false,
+	// 			children: animalFiles.map((f) => imageLeaf('animals', f)),
+	// 		},
+	// 		{
+	// 			label: 'cards',
+	// 			defaultExpanded: false,
+	// 			children: cardFiles.map((f) => imageLeaf('cards', f)),
+	// 		},
+	// 	]
+	// },
 
 	// {
 	//   label: 'Sounds',
@@ -76,58 +87,58 @@ const guestItems: TreeItem[] = [
 			//   label: 'main.ts',
 			//   icon: 'catppuccin:typescript'
 			// },
-			{
-				label: 'examples',
-				defaultExpanded: true,
-				children: [
-					{
-						label: 'input.js',
-						icon: 'catppuccin:javascript',
-						onSelect: () => emit('selectScript', 'input.js'),
-					}
-					// {
-					//   label: 'labels.js',
-					//   icon: 'catppuccin:javascript',
-					//   onSelect: (event) => {
-					//     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-					//   }
-					// },
-					// {
-					//   label: 'lines.js',
-					//   icon: 'catppuccin:javascript',
-					//   onSelect: (event) => {
-					//     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-					//   }
-					// },
-					// {
-					//   label: 'rectangles.js',
-					//   icon: 'catppuccin:javascript',
-					//   onSelect: (event) => {
-					//     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-					//   }
-					// },
-					// {
-					//   label: 'rectSpiral.js',
-					//   icon: 'catppuccin:javascript',
-					//   onSelect: (event) => {
-					//     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-					//   }
-					// },
-					// {
-					//   label: 'sprites.js',
-					//   icon: 'catppuccin:javascript',
-					//   onSelect: (event) => {
-					//     if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-					//   }
-					// },
-				]
-			},
+			// {
+			// 	label: 'examples',
+			// 	defaultExpanded: true,
+			// 	children: [
+			// 		{
+			// 			label: 'input.js',
+			// 			icon: 'catppuccin:javascript',
+			// 			onSelect: () => emit('selectScript', 'input.js'),
+			// 		}
+			// 		{
+			// 		  label: 'labels.js',
+			// 		  icon: 'catppuccin:javascript',
+			// 		  onSelect: (event) => {
+			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+			// 		  }
+			// 		},
+			// 		{
+			// 		  label: 'lines.js',
+			// 		  icon: 'catppuccin:javascript',
+			// 		  onSelect: (event) => {
+			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+			// 		  }
+			// 		},
+			// 		{
+			// 		  label: 'rectangles.js',
+			// 		  icon: 'catppuccin:javascript',
+			// 		  onSelect: (event) => {
+			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+			// 		  }
+			// 		},
+			// 		{
+			// 		  label: 'rectSpiral.js',
+			// 		  icon: 'catppuccin:javascript',
+			// 		  onSelect: (event) => {
+			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+			// 		  }
+			// 		},
+			// 		{
+			// 		  label: 'sprites.js',
+			// 		  icon: 'catppuccin:javascript',
+			// 		  onSelect: (event) => {
+			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
+			// 		  }
+			// 		},
+			// 	]
+			// },
 
-			{
-				label: 'temp.js',
-				icon: 'catppuccin:javascript',
-				onSelect: () => emit('selectScript', 'temp.js'),
-			},
+			// {
+			// 	label: 'temp.js',
+			// 	icon: 'catppuccin:javascript',
+			// 	onSelect: () => emit('selectScript', 'temp.js'),
+			// },
 
 			{
 				label: 'main.js',
@@ -243,6 +254,16 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			children: withFolderDropPlaceholder(fileStore.childNodes(node.id).map((child) => buildNode(child, node.id)), node.id),
 		}
 	}
+	if (node.kind === 'image') {
+		return {
+			label: node.name,
+			kind: 'image',
+			id: node.id,
+			parentId,
+			thumbnail: node.publicUrl,
+			path: node.publicUrl,
+		}
+	}
 	return {
 		label: node.name,
 		kind: 'script',
@@ -314,8 +335,37 @@ async function addFolder(parentId: string | null) {
 	await fileStore.createFolder(name, parentId)
 }
 
-function uploadFile() {
-	window.alert("File upload is coming soon — there's no storage backend set up yet.")
+const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'])
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB
+
+function uploadFile(folderId: string | null) {
+	const input = document.createElement('input')
+	input.type = 'file'
+	input.accept = 'image/png,image/jpeg,image/svg+xml,image/webp'
+	input.onchange = async () => {
+		const file = input.files?.[0]
+		if (!file) return
+
+		if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+			window.alert('Only PNG, JPG, SVG, and WebP images are supported.')
+			return
+		}
+		if (file.size > MAX_IMAGE_SIZE) {
+			window.alert('That file is too large — images must be 10MB or smaller.')
+			return
+		}
+		if (fileStore.images.some((img) => img.name === file.name)) {
+			window.alert('A file with that name already exists in this project.')
+			return
+		}
+
+		try {
+			await fileStore.uploadImage(file, folderId)
+		} catch (err) {
+			window.alert(err instanceof Error ? err.message : 'Failed to upload image')
+		}
+	}
+	input.click()
 }
 
 // Dropdown shown behind the "+" trailing button on folder rows, and behind
@@ -323,15 +373,55 @@ function uploadFile() {
 function folderMenuItems(folderId: string | null) {
 	return [
 		{ label: 'New script', icon: 'tabler:script-plus', onSelect: () => addScript(folderId) },
-		{ label: 'Upload file', icon: 'tabler:upload', onSelect: () => uploadFile() },
 		{ label: 'New folder', icon: 'tabler:folder-plus', onSelect: () => addFolder(folderId) },
+		{ label: 'Upload file', icon: 'tabler:upload', onSelect: () => uploadFile(folderId) },
 	]
 }
 
 // ---- Rename ----
+// Renaming edits inline (an input replacing the row's label) rather than a
+// window.prompt — renamingItemId tracks which single row (if any) is
+// currently in edit mode; the #item-label template swaps to the input only
+// for that one row.
 
-async function renameScript(current: string) {
-	const name = window.prompt('Rename script:', current)
+const renamingItemId = ref<string | null>(null)
+const renamingValue = ref('')
+const renameInputRef = ref<HTMLInputElement | null>(null)
+
+// A click on the row to the right of the input (rather than on the input
+// itself) should just commit-and-close the rename. The naive approach —
+// let the browser blur the input as normal, commit on blur — races: mousedown
+// shifts focus (and fires blur) before mouseup, so the hidden action buttons
+// reappear mid-click and the *mouseup* lands on the reappeared delete button
+// instead of this row, with the resulting click then hitting the row's own
+// button underneath and triggering its native select-toggle (deselecting the
+// item). preventDefault on mousedown stops the browser's automatic focus
+// shift, so the input stays focused — nothing reappears mid-click — and we
+// commit explicitly on the subsequent click instead, stopping it from
+// reaching the row button underneath.
+function onRowMouseDown(event: MouseEvent, item: TreeItem) {
+	if (renamingItemId.value === item.id) event.preventDefault()
+}
+
+function onRowClick(event: MouseEvent, item: TreeItem) {
+	if (renamingItemId.value !== item.id) return
+	event.stopPropagation()
+	commitRename(item)
+}
+
+async function startRename(item: TreeItem) {
+	renamingItemId.value = item.id
+	renamingValue.value = scriptName(item)
+	await nextTick()
+	renameInputRef.value?.focus()
+	renameInputRef.value?.select()
+}
+
+function cancelRename() {
+	renamingItemId.value = null
+}
+
+async function renameScript(current: string, name: string) {
 	if (!name || name === current) return
 
 	if (fileStore.scripts.some((script) => script.name === name)) {
@@ -342,8 +432,7 @@ async function renameScript(current: string) {
 	await fileStore.renameScript(current, name)
 }
 
-async function renameFolder(id: string, currentName: string, parentId: string | null) {
-	const name = window.prompt('Rename folder:', currentName)
+async function renameFolder(id: string, currentName: string, parentId: string | null, name: string) {
 	if (!name || name === currentName) return
 
 	const hasNameCollision = fileStore.childNodes(parentId).some((node) => node.kind === 'folder' && node.id !== id && node.name === name)
@@ -355,9 +444,29 @@ async function renameFolder(id: string, currentName: string, parentId: string | 
 	await fileStore.renameFolder(id, name)
 }
 
-function renameItem(item: TreeItem) {
-	if (item.kind === 'folder') return renameFolder(item.id, scriptName(item), item.parentId ?? null)
-	return renameScript(scriptName(item))
+async function renameImage(id: string, currentName: string, name: string) {
+	if (!name || name === currentName) return
+
+	if (fileStore.images.some((img) => img.id !== id && img.name === name)) {
+		window.alert('A file with that name already exists in this project.')
+		return
+	}
+
+	await fileStore.renameImage(id, name)
+}
+
+// Guarded on renamingItemId still matching this item: Escape (cancelRename)
+// clears it synchronously, but the input's blur (also wired to this) can
+// still fire afterward as the element is torn down — without the guard
+// that would attempt the same rename a second time.
+function commitRename(item: TreeItem) {
+	if (renamingItemId.value !== item.id) return
+	const name = renamingValue.value.trim()
+	renamingItemId.value = null
+
+	if (item.kind === 'folder') renameFolder(item.id, scriptName(item), item.parentId ?? null, name)
+	else if (item.kind === 'image') renameImage(item.id, scriptName(item), name)
+	else renameScript(scriptName(item), name)
 }
 
 // ---- Delete ----
@@ -399,8 +508,14 @@ async function deleteFolder(id: string, name: string) {
 	}
 }
 
+async function deleteImage(id: string, name: string) {
+	if (!window.confirm(`Delete "${name}"? This can't be undone.`)) return
+	await fileStore.deleteImage(id)
+}
+
 function deleteItem(item: TreeItem) {
 	if (item.kind === 'folder') return deleteFolder(item.id, scriptName(item))
+	if (item.kind === 'image') return deleteImage(item.id, scriptName(item))
 	return deleteScript(scriptName(item))
 }
 
@@ -424,7 +539,7 @@ function deleteItem(item: TreeItem) {
 // children at that index, so the projected drop location reads as a real,
 // highlighted empty slot rather than just a highlighted existing row.
 
-type DraggedNode = { id: string, kind: 'folder' | 'script' }
+type DraggedNode = { id: string, kind: 'folder' | 'script' | 'image' }
 type DropTarget = { folderId: string | null, index: number }
 
 const draggedNode = ref<DraggedNode | null>(null)
@@ -432,7 +547,13 @@ const dragOverId = ref<string | null>(null)
 const dropTarget = ref<DropTarget | null>(null)
 
 function isDraggable(item: TreeItem): boolean {
-	return item.kind === 'folder' || item.kind === 'script'
+	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image'
+}
+
+async function moveDraggedTo(dragged: DraggedNode, folderId: string | null, position: number) {
+	if (dragged.kind === 'folder') await fileStore.moveFolder(dragged.id, folderId, position)
+	else if (dragged.kind === 'image') await fileStore.moveImage(dragged.id, folderId, position)
+	else await fileStore.moveScript(dragged.id, folderId, position)
 }
 
 // Native `dragover` fires continuously — many times a second — for as long
@@ -553,12 +674,11 @@ async function onDropOnItem(item: TreeItem) {
 
 	if (item.kind === 'folder') {
 		const position = fileStore.nextPosition(item.id)
-		if (dragged.kind === 'folder') await fileStore.moveFolder(dragged.id, item.id, position)
-		else await fileStore.moveScript(dragged.id, item.id, position)
+		await moveDraggedTo(dragged, item.id, position)
 		return
 	}
 
-	// Dropped on a script row: become its sibling, inserted just before it.
+	// Dropped on a script/image row: become its sibling, inserted just before it.
 	const targetParentId: string | null = item.parentId ?? null
 	const siblings = fileStore.childNodes(targetParentId)
 	const targetIndex = siblings.findIndex((n) => n.id === item.id)
@@ -567,8 +687,7 @@ async function onDropOnItem(item: TreeItem) {
 	const before = targetIndex > 0 ? siblings[targetIndex - 1] : undefined
 	const position = before ? (before.position + target.position) / 2 : target.position - 1
 
-	if (dragged.kind === 'folder') await fileStore.moveFolder(dragged.id, targetParentId, position)
-	else await fileStore.moveScript(dragged.id, targetParentId, position)
+	await moveDraggedTo(dragged, targetParentId, position)
 }
 
 async function onDropOnRoot() {
@@ -580,8 +699,7 @@ async function onDropOnRoot() {
 	if (!dragged) return
 
 	const position = fileStore.nextPosition(null)
-	if (dragged.kind === 'folder') await fileStore.moveFolder(dragged.id, null, position)
-	else await fileStore.moveScript(dragged.id, null, position)
+	await moveDraggedTo(dragged, null, position)
 }
 </script>
 
@@ -622,30 +740,51 @@ async function onDropOnRoot() {
 							'drag-over': dragOverId === item.id,
 							'drop-line-before': dropLineTarget?.beforeId === item.id,
 							'drop-line-after': dropLineTarget?.afterId === item.id,
+							'renaming': renamingItemId === item.id,
 						}"
-						:draggable="isDraggable(item)"
+						:draggable="isDraggable(item) && renamingItemId !== item.id"
 						@dragstart="onDragStart($event, item)"
 						@dragend="onDragEnd"
 						@dragover.prevent.stop="onDragOverItem(item)"
 						@dragleave="onDragLeaveItem(item)"
 						@drop.stop="onDropOnItem(item)"
+						@mousedown="onRowMouseDown($event, item)"
+						@click="onRowClick($event, item)"
 					></div>
-					{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span>
+					<input
+						v-if="renamingItemId === item.id"
+						ref="renameInputRef"
+						v-model="renamingValue"
+						class="rename-input"
+						autocomplete="off"
+						spellcheck="false"
+						@click.stop
+						@keydown.enter="commitRename(item)"
+						@keydown.escape="cancelRename"
+						@blur="commitRename(item)"
+					/>
+					<template v-else>
+						{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span>
+					</template>
 				</template>
 
 				<template v-if="fileStore.projectId" #item-trailing="{ item }">
-					<div class="item-actions">
+					<div v-if="renamingItemId !== item.id" class="item-actions">
 						<UDropdownMenu v-if="item.kind === 'folder'" :items="folderMenuItems(item.id)">
 							<UTooltip text="Add..." ignore-non-keyboard-focus>
 								<UButton icon="tabler:plus" variant="ghost" color="neutral" size="xs" @click.stop />
 							</UTooltip>
 						</UDropdownMenu>
 
-						<UTooltip :text="item.kind === 'folder' ? 'Rename folder' : 'Rename script'">
-							<UButton icon="tabler:pencil-filled" variant="ghost" color="neutral" size="xs" @click.stop="renameItem(item)" />
+						<UTooltip v-if="item.kind === 'image' && item.path" text="Copy image URL">
+							<UButton icon="tabler:copy-filled" variant="ghost" color="neutral" size="xs" @click.stop="copyImageUrl(item.path)" />
 						</UTooltip>
 
-						<UTooltip :text="item.kind === 'folder' ? 'Delete folder' : 'Delete script'">
+						<UTooltip :text="item.kind === 'folder' ? 'Rename folder' : item.kind === 'image' ? 'Rename image' : 'Rename script'">
+							<UButton icon="tabler:pencil-filled" variant="ghost" color="neutral" size="xs" @click.stop="startRename(item)" />
+						</UTooltip>
+
+						<UTooltip :text="item.kind === 'folder' ? 'Delete folder' : item.kind === 'image' ? 'Delete image' : 'Delete script'">
 							<UButton icon="tabler:trash-filled" variant="ghost" color="error" size="xs" @click.stop="deleteItem(item)" />
 						</UTooltip>
 					</div>
@@ -702,6 +841,28 @@ async function onDropOnRoot() {
 	position: absolute;
 	inset: 0;
 	border-radius: 0.25rem;
+}
+
+/* .tree-row-dnd needs to *stay* interactive while renaming (not
+   pointer-events:none, tried previously) — it's what a mousedown anywhere
+   else in the row (right of the input) now lands on, and its own
+   @mousedown handler stops that from bubbling to the row button's native
+   select-toggle (which runs on mousedown, before the blur this same click
+   triggers even has a chance to fire), which would otherwise deselect an
+   already-selected item just from clicking away to finish renaming it.
+   Raising the input above it via z-index is what lets clicks *on the
+   input itself* still reach the input normally for cursor placement/text
+   selection, despite this overlay still covering the same area underneath. */
+.rename-input {
+	position: relative;
+	z-index: 1;
+	width: 100%;
+	background-color: var(--theme-bg-darker);
+	border: 1px solid var(--theme-accent, var(--theme-scroll-light));
+	border-radius: 0.2rem;
+	color: var(--theme-text-bright);
+	font: inherit;
+	padding: 0 0.25em;
 }
 
 /* Needs to stay the topmost element in the row — it's what dragstart/

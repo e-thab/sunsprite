@@ -520,9 +520,9 @@ class UserScene extends Scene {
 	
 	preload() {
 		console.log('preload')
-		this.load.image('guy', 'assets/guy.png')
-		this.load.image('boot', 'assets/boot.png')
-		this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
+		// this.load.image('guy', 'assets/guy.png')
+		// this.load.image('boot', 'assets/boot.png')
+		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
 	}
 	
 	async create() {

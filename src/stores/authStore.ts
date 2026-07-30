@@ -10,7 +10,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     const showSignInModal = ref(false)
     const showSignUpModal = ref(false)
-    const displayName = ref<string | null>(null)
+    const username = ref<string | null>(null)
     let readyResolve: () => void
     const ready = new Promise<void>((resolve) => { readyResolve = resolve })
     let initialized = false
@@ -33,21 +33,21 @@ export const useAuthStore = defineStore('auth', () => {
 
     async function fetchProfile() {
         if (!user.value) {
-            displayName.value = null
+            username.value = null
             return
         }
 
         const { data, error } = await supabase
             .from('profiles')
-            .select('display_name')
+            .select('username')
             .eq('id', user.value.id)
             .maybeSingle()
 
-        if (!error) displayName.value = data?.display_name ?? null
+        if (!error) username.value = data?.username ?? null
     }
 
-    function setDisplayName(name: string | null) {
-        displayName.value = name
+    function setUsername(name: string | null) {
+        username.value = name
     }
 
     async function init() {
@@ -65,20 +65,39 @@ export const useAuthStore = defineStore('auth', () => {
         })
     }
 
-    async function signIn(email: string, password: string) {
+    async function signIn(identifier: string, password: string) {
+        let email = identifier.trim()
+
+        if (!email.includes('@')) {
+            const { data: resolvedEmail, error: lookupError } = await supabase.rpc('get_email_for_username', {
+                lookup_username: email.toLowerCase(),
+            })
+            if (lookupError) throw lookupError
+            if (!resolvedEmail) throw new Error('Invalid login credentials')
+            email = resolvedEmail
+        }
+
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
         closeSignIn()
     }
 
-    async function signUp(email: string, password: string, displayName?: string) {
+    async function signUp(email: string, password: string, username?: string) {
+        const metadata: Record<string, string> = {}
+        if (username) metadata.username = username
+
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
-            options: displayName ? { data: { display_name: displayName } } : undefined,
+            options: Object.keys(metadata).length ? { data: metadata } : undefined,
         })
         if (error) throw error
         return { needsEmailConfirmation: !data.session }
+    }
+
+    async function updateEmail(newEmail: string) {
+        const { error } = await supabase.auth.updateUser({ email: newEmail })
+        if (error) throw error
     }
 
     async function signOut() {
@@ -92,7 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
         isAuthenticated,
         showSignInModal,
         showSignUpModal,
-        displayName,
+        username,
         ready,
         openSignIn,
         closeSignIn,
@@ -101,7 +120,8 @@ export const useAuthStore = defineStore('auth', () => {
         init,
         signIn,
         signUp,
+        updateEmail,
         signOut,
-        setDisplayName,
+        setUsername,
     }
 })

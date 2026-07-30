@@ -84,27 +84,81 @@ export type Database = {
           },
         ]
       }
-      profiles: {
+      images: {
         Row: {
+          content_type: string
           created_at: string
-          display_name: string | null
+          folder_id: string | null
           id: string
-          theme: string | null
+          name: string
+          object_key: string
+          position: number
+          project_id: string
+          size: number
           updated_at: string
         }
         Insert: {
+          content_type: string
           created_at?: string
-          display_name?: string | null
-          id: string
-          theme?: string | null
+          folder_id?: string | null
+          id?: string
+          name: string
+          object_key: string
+          position?: number
+          project_id: string
+          size: number
           updated_at?: string
         }
         Update: {
+          content_type?: string
           created_at?: string
-          display_name?: string | null
+          folder_id?: string | null
+          id?: string
+          name?: string
+          object_key?: string
+          position?: number
+          project_id?: string
+          size?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "images_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "images_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          theme: string | null
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          theme?: string | null
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
           id?: string
           theme?: string | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -114,6 +168,7 @@ export type Database = {
           id: string
           name: string
           owner_id: string
+          slug: string
           updated_at: string
         }
         Insert: {
@@ -121,6 +176,7 @@ export type Database = {
           id?: string
           name: string
           owner_id: string
+          slug: string
           updated_at?: string
         }
         Update: {
@@ -128,6 +184,7 @@ export type Database = {
           id?: string
           name?: string
           owner_id?: string
+          slug?: string
           updated_at?: string
         }
         Relationships: []
@@ -185,7 +242,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_email_for_username: {
+        Args: { lookup_username: string }
+        Returns: string
+      }
+      is_username_taken: { Args: { check_username: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

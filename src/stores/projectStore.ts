@@ -2,13 +2,17 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { supabase } from "@/assets/utils/supabase";
 import { useAuthStore } from "./authStore";
+import { generateSlug } from "@/assets/utils/slugWords";
 
 export type ProjectRecord = {
     id: string
     name: string
+    slug: string
     createdAt: string
     updatedAt: string
 }
+
+const MAX_SLUG_ATTEMPTS = 5
 
 export const useProjectStore = defineStore('projects', () => {
     const projects = ref<ProjectRecord[]>([])
@@ -19,13 +23,14 @@ export const useProjectStore = defineStore('projects', () => {
         try {
             const { data, error } = await supabase
                 .from('projects')
-                .select('id, name, created_at, updated_at')
+                .select('id, name, slug, created_at, updated_at')
                 .order('updated_at', { ascending: false })
             if (error) throw error
 
             projects.value = (data ?? []).map((row) => ({
                 id: row.id,
                 name: row.name,
+                slug: row.slug,
                 createdAt: row.created_at,
                 updatedAt: row.updated_at,
             }))
@@ -38,21 +43,30 @@ export const useProjectStore = defineStore('projects', () => {
         const authStore = useAuthStore()
         if (!authStore.user) throw new Error('Must be signed in to create a project')
 
-        const { data, error } = await supabase
-            .from('projects')
-            .insert({ name, owner_id: authStore.user.id })
-            .select('id, name, created_at, updated_at')
-            .single()
-        if (error) throw error
+        for (let attempt = 1; attempt <= MAX_SLUG_ATTEMPTS; attempt++) {
+            const { data, error } = await supabase
+                .from('projects')
+                .insert({ name, owner_id: authStore.user.id, slug: generateSlug() })
+                .select('id, name, slug, created_at, updated_at')
+                .single()
 
-        const project: ProjectRecord = {
-            id: data.id,
-            name: data.name,
-            createdAt: data.created_at,
-            updatedAt: data.updated_at,
+            if (error) {
+                if (error.code === '23505' && attempt < MAX_SLUG_ATTEMPTS) continue
+                throw error
+            }
+
+            const project: ProjectRecord = {
+                id: data.id,
+                name: data.name,
+                slug: data.slug,
+                createdAt: data.created_at,
+                updatedAt: data.updated_at,
+            }
+            projects.value.unshift(project)
+            return project
         }
-        projects.value.unshift(project)
-        return project
+
+        throw new Error('Failed to generate a unique project URL. Please try again.')
     }
 
     async function renameProject(id: string, name: string) {

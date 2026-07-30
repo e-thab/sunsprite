@@ -405,7 +405,7 @@ onMounted(() => {
 			<div class="reset-group">
 				<!-- TODO: Right now I'm only checking if the user is signed in to decide how to display reset,
 					ideally it will only exist in the sandbox view. Come back to this. -->
-				<UTooltip v-if="!authStore.isAuthenticated" text="Reset code to default">
+				<UTooltip v-if="!fileStore.projectId" text="Reset code to default">
 					<UButton icon="tabler:arrow-back-up" label="Reset" variant="ghost" color="neutral" size="xs" @click="resetCode" />
 				</UTooltip>
 			</div>

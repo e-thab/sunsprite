@@ -55,7 +55,7 @@ async function onCreateProject() {
 
     try {
         const project = await projectStore.createProject(name)
-        router.push(`/projects/${project.id}`)
+        router.push(`/projects/${project.slug}`)
     } catch (err) {
         window.alert(err instanceof Error ? err.message : 'Failed to create project')
     }
@@ -69,7 +69,7 @@ const projectMenuItems = computed(() => [
             label: p.name,
             description: timeAgo(p.updatedAt),
             icon: 'material-symbols:shapes',
-            onSelect: () => router.push(`/projects/${p.id}`),
+            onSelect: () => router.push(`/projects/${p.slug}`),
         }))
         : [{ label: 'No projects yet', disabled: true }],
     [
@@ -167,7 +167,7 @@ const accountMenuItems = [
 
             <!-- @vue-expect-error -->
             <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
-                <UButton icon="tabler:user-filled" variant="ghost" color="neutral">{{ authStore.displayName || authStore.user?.email }}</UButton>
+                <UButton icon="tabler:user-filled" variant="ghost" color="neutral">{{ authStore.username || authStore.user?.email }}</UButton>
             </UDropdownMenu>
             </div>
     </div>

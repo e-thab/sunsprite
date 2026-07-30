@@ -6,7 +6,7 @@ import { useFileStore } from '@/stores/fileStore'
 import EditorView from './EditorView.vue'
 
 const props = defineProps<{
-  id: string
+  slug: string
 }>()
 
 const router = useRouter()
@@ -14,14 +14,15 @@ const fileStore = useFileStore()
 
 const status = ref<'loading' | 'ready' | 'not-found' | 'error'>('loading')
 const errorMessage = ref('')
+const resolvedProjectId = ref('')
 
-async function load(id: string) {
+async function load(slug: string) {
   status.value = 'loading'
 
   const { data, error } = await supabase
     .from('projects')
     .select('id, name')
-    .eq('id', id)
+    .eq('slug', slug)
     .maybeSingle()
 
   if (error) {
@@ -35,10 +36,11 @@ async function load(id: string) {
     return
   }
 
+  resolvedProjectId.value = data.id
   fileStore.setProjectName(data.name)
 
   try {
-    await fileStore.loadProject(id)
+    await fileStore.loadProject(data.id)
     status.value = 'ready'
   } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : 'Failed to load project scripts'
@@ -46,14 +48,14 @@ async function load(id: string) {
   }
 }
 
-onMounted(() => load(props.id))
-watch(() => props.id, (id) => load(id))
+onMounted(() => load(props.slug))
+watch(() => props.slug, (slug) => load(slug))
 onUnmounted(() => fileStore.exitProject())
 </script>
 
 <template>
   <div class="project-view">
-    <EditorView v-if="status === 'ready'" :project-id="props.id" class="content" />
+    <EditorView v-if="status === 'ready'" :project-id="resolvedProjectId" class="content" />
 
     <div v-else class="status-pane">
       <p v-if="status === 'loading'">Loading project&hellip;</p>
