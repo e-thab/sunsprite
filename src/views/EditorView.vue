@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, type Ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { Splitpanes, Pane } from 'splitpanes';
 import { resizeStage } from '@/assets/api/core';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useFileStore } from '@/stores/fileStore';
 import { useDocsStore } from '@/stores/docsStore';
+import { useTreeSelectionStore } from '@/stores/treeSelectionStore';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
@@ -24,17 +25,32 @@ const editor = ref()
 const fsStore = useFullscreenStore()
 const fileStore = useFileStore()
 const docsStore = useDocsStore()
+const treeSelectionStore = useTreeSelectionStore()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
 
-// FileTree (guest sandbox) and AssetLibrary (project mode) both emit this on
-// clicking an image; they're siblings here, so this is the shared owner
-// rather than reaching for a store for something this locally scoped.
+// FileTree (guest sandbox) and AssetLibrary (project mode) both bind their
+// UTree directly to treeSelectionStore.current as a shared v-model, so
+// selecting an image/script in either one is automatically reflected as the
+// selection in both trees (Reka UI's own toggle-select logic just becomes
+// cross-tree-aware once both are reading/writing the same ref) — no manual
+// "clear the other tree" plumbing needed. This watcher is the one place
+// that turns "what's currently selected" into "what the preview shows":
+// anything with a thumbnail/path opens it, anything else (a script, or the
+// selection being cleared entirely) closes it.
 const previewImagePath = ref<string | null>(null)
 const previewImageLabel = ref<string>('')
 
-function previewImage(path: string, label: string) {
-  previewImagePath.value = path
-  previewImageLabel.value = label
+watch(() => treeSelectionStore.current, (item) => {
+  if (item?.thumbnail && item?.path) {
+    previewImagePath.value = item.path
+    previewImageLabel.value = item.label ?? ''
+  } else {
+    previewImagePath.value = null
+  }
+})
+
+function closePreview() {
+  treeSelectionStore.current = undefined
 }
 
 // Tracks the explorer pane's live rendered width so the image preview
@@ -219,11 +235,16 @@ onMounted(async () => {
 
 	const explorer = document.getElementById('explorer-pane')
 	if (explorer) {
-		explorerPixelWidth.value = explorer.clientWidth
-		new ResizeObserver((entries) => {
-			explorerPixelWidth.value = entries[0]?.contentRect.width ?? 0
-		})
-		.observe(explorer)
+		// Includes the splitpanes splitter's own width (its next sibling),
+		// not just the pane — otherwise the overlay's z-index sits directly
+		// on top of that splitter and blocks dragging it while a preview is
+		// open.
+		const measure = () => {
+			const splitterWidth = (explorer.nextElementSibling as HTMLElement | null)?.clientWidth ?? 0
+			explorerPixelWidth.value = explorer.clientWidth + splitterWidth
+		}
+		measure()
+		new ResizeObserver(measure).observe(explorer)
 	}
 
 	// await new Promise((resolve) => {
@@ -288,11 +309,11 @@ onBeforeRouteLeave(() => {
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" :size="explorerPaneWidth">
       <splitpanes horizontal :push-other-panes="false">
         <pane id="file-tree-v-pane" size="65">
-          <FileTree ref="fileTree" @select-script="loadScript" @preview-image="previewImage" />
+          <FileTree @select-script="loadScript" />
         </pane>
 
         <pane id="asset-library-v-pane" size="35">
-          <AssetLibrary @preview-image="previewImage" />
+          <AssetLibrary />
         </pane>
       </splitpanes>
     </pane>
@@ -347,7 +368,7 @@ onBeforeRouteLeave(() => {
     :label="previewImageLabel"
     class="image-preview-overlay"
     :style="{ left: explorerPixelWidth + 'px', width: `calc(100% - ${explorerPixelWidth}px)` }"
-    @close="previewImagePath = null"
+    @close="closePreview"
   />
   </div>
 </template>
@@ -357,10 +378,6 @@ onBeforeRouteLeave(() => {
   width: 100%;
   height: 100%;
 } */
-
-#code-pane {
-  overflow: visible;
-}
 
 .editor-root {
   position: relative;

@@ -39,6 +39,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+          position: number
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          position?: number
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          position?: number
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -91,28 +136,41 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          folder_id: string | null
           id: string
           name: string
+          position: number
           project_id: string
           updated_at: string
         }
         Insert: {
           content?: string
           created_at?: string
+          folder_id?: string | null
           id?: string
           name: string
+          position?: number
           project_id: string
           updated_at?: string
         }
         Update: {
           content?: string
           created_at?: string
+          folder_id?: string | null
           id?: string
           name?: string
+          position?: number
           project_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "scripts_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "scripts_project_id_fkey"
             columns: ["project_id"]

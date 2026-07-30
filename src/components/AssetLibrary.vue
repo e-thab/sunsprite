@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { TreeItem } from '@nuxt/ui'
 import { useToast } from '@nuxt/ui/composables'
+import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
 import { exampleScriptNames } from '@/assets/api/examples'
 import { imagePath, animalFiles, cardFiles } from '@/assets/api/gameAssets'
 
-const emit = defineEmits<{
-	previewImage: [path: string, label: string]
-}>()
+const treeSelectionStore = useTreeSelectionStore()
 
 const toast = useToast()
 
@@ -19,6 +18,9 @@ async function copyPath(path: string) {
 	})
 }
 
+// No onSelect needed here — EditorView watches the shared selection store
+// (bound below as this tree's own v-model) and opens/closes the preview
+// from whatever item ends up selected, image or not.
 function imageLeaf(category: string, fileName: string): TreeItem {
 	const path = imagePath(category, fileName)
 	return {
@@ -29,7 +31,6 @@ function imageLeaf(category: string, fileName: string): TreeItem {
 		// served as-is at the site root in both dev and prod).
 		thumbnail: path,
 		path,
-		onSelect: () => emit('previewImage', path, fileName),
 	}
 }
 
@@ -78,7 +79,7 @@ const items: TreeItem[] = [
 		</div>
 
 		<div class="asset-tree">
-			<UTree :items="items" class="asset-tree">
+			<UTree v-model="treeSelectionStore.current" :items="items" class="asset-tree">
 				<template #item-leading="{ item, expanded }">
 					<img v-if="item.thumbnail" :src="item.thumbnail" class="thumbnail-icon" alt="" />
 					<UIcon v-else-if="item.icon" :name="item.icon" class="leading-icon" />

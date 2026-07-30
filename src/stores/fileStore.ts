@@ -14,7 +14,22 @@ type ScriptRecord = {
     name: string
     content: string
     saveTime: string
+    folderId: string | null
+    position: number
 }
+
+type FolderRecord = {
+    id: string
+    name: string
+    parentId: string | null
+    position: number
+}
+
+// A folder/script blended and sorted by position, for rendering one ordered
+// list per tree level regardless of which kind each row is.
+export type TreeNode =
+    | { kind: 'folder', id: string, name: string, position: number }
+    | { kind: 'script', id: string, name: string, position: number }
 
 export const useFileStore = defineStore('files', () => {
     const activeFileName = ref('main.js')
@@ -62,9 +77,14 @@ export const useFileStore = defineStore('files', () => {
 
     // Project (cloud) mode: when projectId is set, getLocalCode/saveCode/etc.
     // read and write `scripts` (backed by Supabase) instead of localStorage.
+    // Folders are purely an organizational layer for the tree UI — a
+    // script's `name` stays the single, project-wide-unique identifier used
+    // everywhere else (imports, Monaco models, activeFileName); folder_id
+    // only determines where it's shown.
     const projectId = ref<string | null>(null)
     const projectName = ref<string | null>(null)
     const scripts = ref<ScriptRecord[]>([])
+    const folders = ref<FolderRecord[]>([])
 
     function clear() {
         // Debugging
@@ -132,28 +152,141 @@ export const useFileStore = defineStore('files', () => {
         markClean(fileName)
     }
 
+    // ---- Folders ----
+
+    function childNodes(folderId: string | null): TreeNode[] {
+        const subfolders: TreeNode[] = folders.value
+            .filter((f) => f.parentId === folderId)
+            .map((f) => ({ kind: 'folder' as const, id: f.id, name: f.name, position: f.position }))
+        const containedScripts: TreeNode[] = scripts.value
+            .filter((s) => s.folderId === folderId)
+            .map((s) => ({ kind: 'script' as const, id: s.id, name: s.name, position: s.position }))
+        return [...subfolders, ...containedScripts].sort((a, b) => a.position - b.position)
+    }
+
+    // Appends after the current last sibling (folders and scripts share one
+    // position sequence per parent, so newly added items — whichever kind —
+    // land at the end of what's already there).
+    function nextPosition(folderId: string | null): number {
+        const siblings = childNodes(folderId)
+        if (siblings.length === 0) return 0
+        return Math.max(...siblings.map((s) => s.position)) + 1
+    }
+
+    // A folder's id plus every descendant folder's id — used both to prune
+    // in-memory state on delete (the DB already cascades) and to guard
+    // against dropping a folder into its own subtree.
+    function folderAndDescendantIds(id: string): string[] {
+        const ids = [id]
+        for (const child of folders.value.filter((f) => f.parentId === id)) {
+            ids.push(...folderAndDescendantIds(child.id))
+        }
+        return ids
+    }
+
+    // Exposed so components can warn/guard before deleting a folder (e.g.
+    // "can't delete the last script in a project") without duplicating the
+    // descendant-walk here.
+    function scriptsUnderFolder(id: string): ScriptRecord[] {
+        const ids = new Set(folderAndDescendantIds(id))
+        return scripts.value.filter((s) => s.folderId !== null && ids.has(s.folderId))
+    }
+
+    async function createFolder(name: string, parentId: string | null = null): Promise<string> {
+        if (!projectId.value) throw new Error('No active project')
+
+        const position = nextPosition(parentId)
+        const { data, error } = await supabase
+            .from('folders')
+            .insert({ project_id: projectId.value, parent_id: parentId, name, position })
+            .select('id, name, parent_id, position')
+            .single()
+        if (error) throw error
+
+        folders.value.push({ id: data.id, name: data.name, parentId: data.parent_id, position: data.position })
+        return data.id
+    }
+
+    async function renameFolder(id: string, newName: string) {
+        const folder = folders.value.find((f) => f.id === id)
+        if (!folder) throw new Error('Folder not found')
+
+        const { error } = await supabase.from('folders').update({ name: newName }).eq('id', id)
+        if (error) throw error
+
+        folder.name = newName
+    }
+
+    async function deleteFolder(id: string) {
+        const removedFolderIds = new Set(folderAndDescendantIds(id))
+
+        const { error } = await supabase.from('folders').delete().eq('id', id)
+        if (error) throw error
+
+        folders.value = folders.value.filter((f) => !removedFolderIds.has(f.id))
+        scripts.value = scripts.value.filter((s) => !(s.folderId !== null && removedFolderIds.has(s.folderId)))
+    }
+
+    // Reparent/reorder a script — the drag-drop target's folder (null for
+    // project root) and its new position among that folder's other items.
+    async function moveScript(id: string, folderId: string | null, position: number) {
+        const script = scripts.value.find((s) => s.id === id)
+        if (!script) return
+
+        const { error } = await supabase.from('scripts').update({ folder_id: folderId, position }).eq('id', id)
+        if (error) throw error
+
+        script.folderId = folderId
+        script.position = position
+    }
+
+    async function moveFolder(id: string, parentId: string | null, position: number) {
+        const folder = folders.value.find((f) => f.id === id)
+        if (!folder) return
+        // Refuse to drop a folder into itself or one of its own descendants
+        // — the DB's FK doesn't prevent that cycle, so it has to be caught
+        // here before the update round-trips.
+        if (parentId !== null && (id === parentId || folderAndDescendantIds(id).includes(parentId))) return
+
+        const { error } = await supabase.from('folders').update({ parent_id: parentId, position }).eq('id', id)
+        if (error) throw error
+
+        folder.parentId = parentId
+        folder.position = position
+    }
+
     // ---- Project (cloud) mode ----
 
     async function loadProject(id: string) {
         projectId.value = id
         scripts.value = []
+        folders.value = []
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
 
-        const { data, error } = await supabase
-            .from('scripts')
-            .select('id, name, content, updated_at')
-            .eq('project_id', id)
-            .order('name')
-        if (error) throw error
+        const [{ data: folderRows, error: folderError }, { data: scriptRows, error: scriptError }] = await Promise.all([
+            supabase.from('folders').select('id, name, parent_id, position').eq('project_id', id).order('position'),
+            supabase.from('scripts').select('id, name, content, folder_id, position, updated_at').eq('project_id', id).order('position'),
+        ])
+        if (folderError) throw folderError
+        if (scriptError) throw scriptError
 
-        if (data.length === 0) {
-            await createScript('main.js', getExampleCode())
+        if (folderRows.length === 0 && scriptRows.length === 0) {
+            const scriptsFolderId = await createFolder('scripts')
+            await createScript('main.js', getExampleCode(), scriptsFolderId)
         } else {
-            scripts.value = data.map((row) => ({
+            folders.value = folderRows.map((row) => ({
+                id: row.id,
+                name: row.name,
+                parentId: row.parent_id,
+                position: row.position,
+            }))
+            scripts.value = scriptRows.map((row) => ({
                 id: row.id,
                 name: row.name,
                 content: row.content,
+                folderId: row.folder_id,
+                position: row.position,
                 saveTime: new Date(row.updated_at).toLocaleTimeString(),
             }))
         }
@@ -163,6 +296,7 @@ export const useFileStore = defineStore('files', () => {
         projectId.value = null
         projectName.value = null
         scripts.value = []
+        folders.value = []
         dirtyFiles.value = new Set()
     }
 
@@ -170,13 +304,14 @@ export const useFileStore = defineStore('files', () => {
         projectName.value = name
     }
 
-    async function createScript(name: string, content: string = '') {
+    async function createScript(name: string, content: string = '', folderId: string | null = null) {
         if (!projectId.value) throw new Error('No active project')
 
+        const position = nextPosition(folderId)
         const { data, error } = await supabase
             .from('scripts')
-            .insert({ project_id: projectId.value, name, content })
-            .select('id, name, content, updated_at')
+            .insert({ project_id: projectId.value, name, content, folder_id: folderId, position })
+            .select('id, name, content, folder_id, position, updated_at')
             .single()
         if (error) throw error
 
@@ -184,6 +319,8 @@ export const useFileStore = defineStore('files', () => {
             id: data.id,
             name: data.name,
             content: data.content,
+            folderId: data.folder_id,
+            position: data.position,
             saveTime: new Date(data.updated_at).toLocaleTimeString(),
         })
     }
@@ -221,6 +358,7 @@ export const useFileStore = defineStore('files', () => {
         projectId,
         projectName,
         scripts,
+        folders,
         activate,
         savedThisSession,
         getLocalCode,
@@ -237,5 +375,14 @@ export const useFileStore = defineStore('files', () => {
         createScript,
         renameScript,
         deleteScript,
+        childNodes,
+        nextPosition,
+        folderAndDescendantIds,
+        scriptsUnderFolder,
+        createFolder,
+        renameFolder,
+        deleteFolder,
+        moveScript,
+        moveFolder,
     }
 })

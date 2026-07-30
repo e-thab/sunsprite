@@ -40,6 +40,13 @@ const editorOptions: EditorOptions = {
   fontSize: 14,
   minimap: { enabled: false },
   automaticLayout: true,
+  // Suggestion/hover/parameter-hint widgets position as `fixed` (viewport-
+  // relative) instead of being clipped to the editor's own container. Lets
+  // #code-pane use its normal overflow:hidden — needed because Monaco's
+  // internal .overflow-guard div never actually shrinks below a few px even
+  // when the pane is dragged fully closed, and overflow:visible let that
+  // sliver bleed out over the splitter, blocking it.
+  fixedOverflowWidgets: true,
 }
 
 // Define a Monaco theme for every app palette, sourced from the same
