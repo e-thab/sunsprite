@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { game, setup, mouseRef, resizeStage, pause, play, pausedRef } from '@/assets/api/core'
 import { useFullscreenStore } from '@/stores/fullscreen'
 import { useFileStore } from '@/stores/fileStore'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import Output from '@/assets/api/output'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
@@ -11,6 +12,26 @@ const fps = ref()
 const fpsColor = ref()
 const fullscreenStore = useFullscreenStore()
 const fileStore = useFileStore()
+
+const exampleVersionItems: DropdownMenuItem[][] = [
+  [
+    { label: 'v2.1.0', icon: 'uil:angle-double-up' },
+    { label: 'v2.0.8', icon: 'uil:angle-double-up' },
+  ],
+  [
+    { label: 'v1.9.2', icon: 'uil:angle-up' },
+    { label: 'v1.5.0', icon: 'tabler:check', color: 'primary' },
+    { label: 'v1.2.3', icon: 'uil:angle-down' },
+    { label: 'v1.0.6', icon: 'uil:angle-down' },
+  ],
+  [
+    { label: 'v0.1.0', icon: 'uil:angle-double-down' },
+    { label: 'v0.1.1', icon: 'uil:angle-double-down' },
+    { label: 'v0.0.12', icon: 'uil:angle-double-down' },
+    { label: 'v0.0.7', icon: 'uil:angle-double-down' },
+    { label: 'v0.0.3', icon: 'uil:angle-double-down' },
+  ]
+]
 
 function updateFpsInterval() {
   fps.value = Math.round(game.loop.actualFps)
@@ -100,6 +121,14 @@ onMounted(async () => {
 
       <!-- FPS indicator -->
       <UBadge color="neutral" variant="soft">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
+
+      <!-- TODO: Version selector -->
+      <UFieldGroup>
+        <UBadge color="primary" variant="subtle" size="md">v1.0.0</UBadge>
+        <UDropdownMenu :items="exampleVersionItems">
+          <UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs"/>
+        </UDropdownMenu>
+      </UFieldGroup>
     </div>
     <div id="game-container" class="canvas"></div>
   </div>

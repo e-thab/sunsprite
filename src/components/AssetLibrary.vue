@@ -14,7 +14,7 @@ async function copyPath(path: string) {
 	toast.add({
 		title: 'Copied to clipboard',
 		description: path,
-		icon: 'tabler:copy',
+		icon: 'tabler:copy-filled',
 	})
 }
 
@@ -89,7 +89,7 @@ const items: TreeItem[] = [
 				<template #item-trailing="{ item }">
 					<div v-if="!item.children && item.path" class="item-actions">
 						<UTooltip text="Copy path">
-							<UButton icon="tabler:copy" variant="ghost" color="neutral" size="xs" @click.stop="copyPath(item.path)" />
+							<UButton icon="tabler:copy-filled" variant="ghost" color="neutral" size="xs" @click.stop="copyPath(item.path)" />
 						</UTooltip>
 					</div>
 				</template>

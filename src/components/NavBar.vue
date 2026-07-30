@@ -89,6 +89,7 @@ const projectMenuItems = computed(() => [
 const themeMenuItems = computed(() => [
     themeStore.themes.map((t) => ({
         label: t.label,
+        // color: t.id === themeStore.currentId ? 'primary' : 'neutral',
         icon: (() => {
             if (t.id === themeStore.currentId) {
                 return 'tabler:check'
@@ -138,6 +139,7 @@ const accountMenuItems = [
 
         <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
             <span class="project-name">{{ fileStore.projectName }}</span>
+            
             <UTooltip text="Save all files">
                 <UButton
                     icon="tabler:device-floppy-filled"
