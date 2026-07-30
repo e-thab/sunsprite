@@ -275,8 +275,9 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 }
 
 const items = computed<TreeItem[]>(() => {
-	if (!fileStore.projectId) return guestItems
-	return fileStore.childNodes(null).map((node) => buildNode(node, null))
+	return fileStore.projectId ? fileStore.childNodes(null).map(
+		(node) => buildNode(node, null)
+	) : guestItems
 })
 
 // A dropped-into row shifting position because a placeholder row got

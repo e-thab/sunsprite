@@ -398,7 +398,7 @@ onBeforeRouteLeave(() => {
 
 .panel-bar {
   display: flex;
-	height: 24px;
+	/* height: 24px; */
   flex-shrink: 0;
   padding-left: 0.1em;
   padding-right: 0.2em;

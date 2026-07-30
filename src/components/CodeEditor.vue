@@ -389,6 +389,26 @@ onMounted(() => {
 
 // TO FIX:
 //	- Editor bar gets very cramped at small widths, text overlaps, button shrinks instead of disappearing
+import type { DropdownMenuItem } from '@nuxt/ui'
+const exampleVersionItems: DropdownMenuItem[][] = [
+  [
+    { label: 'v2.1.0', icon: 'uil:angle-double-up' },
+    { label: 'v2.0.8', icon: 'uil:angle-double-up' },
+  ],
+  [
+    { label: 'v1.9.2', icon: 'uil:angle-up' },
+    { label: 'v1.5.0', icon: 'tabler:check', color: 'primary' },
+    { label: 'v1.2.3', icon: 'uil:angle-down' },
+    { label: 'v1.0.6', icon: 'uil:angle-down' },
+  ],
+  [
+    { label: 'v0.1.0', icon: 'uil:angle-double-down' },
+    { label: 'v0.1.1', icon: 'uil:angle-double-down' },
+    { label: 'v0.0.12', icon: 'uil:angle-double-down' },
+    { label: 'v0.0.7', icon: 'uil:angle-double-down' },
+    { label: 'v0.0.3', icon: 'uil:angle-double-down' },
+  ]
+]
 </script>
 
 <template>
@@ -405,9 +425,17 @@ onMounted(() => {
 			<div class="reset-group">
 				<!-- TODO: Right now I'm only checking if the user is signed in to decide how to display reset,
 					ideally it will only exist in the sandbox view. Come back to this. -->
-				<UTooltip v-if="!fileStore.projectId" text="Reset code to default">
+				<!-- <UTooltip v-if="!fileStore.projectId" text="Reset code to default">
 					<UButton icon="tabler:arrow-back-up" label="Reset" variant="ghost" color="neutral" size="xs" @click="resetCode" />
-				</UTooltip>
+				</UTooltip> -->
+
+				<!-- TODO: Version selector -->
+				<UFieldGroup>
+					<UBadge color="primary" variant="subtle" size="md">v1.0.0</UBadge>
+					<UDropdownMenu :items="exampleVersionItems">
+					<UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs"/>
+					</UDropdownMenu>
+				</UFieldGroup>
 			</div>
 		</div>
 		<div id="code-container" class="editor">
@@ -448,7 +476,7 @@ onMounted(() => {
 	/* justify-items: center; */
 	/* padding: 0 10px; */
 	user-select: none;
-	max-height: 24px;
+	/* max-height: 24px; */
 }
 
 #file-name {

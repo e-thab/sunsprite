@@ -121,14 +121,6 @@ onMounted(async () => {
 
       <!-- FPS indicator -->
       <UBadge color="neutral" variant="soft">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
-
-      <!-- TODO: Version selector -->
-      <UFieldGroup>
-        <UBadge color="primary" variant="subtle" size="md">v1.0.0</UBadge>
-        <UDropdownMenu :items="exampleVersionItems">
-          <UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs"/>
-        </UDropdownMenu>
-      </UFieldGroup>
     </div>
     <div id="game-container" class="canvas"></div>
   </div>
