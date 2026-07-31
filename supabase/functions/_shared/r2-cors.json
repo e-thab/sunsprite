@@ -1,0 +1,17 @@
+[
+  {
+    "AllowedOrigins": [
+      "https://www.sunsprite.dev",
+      "https://sunsprite.dev",
+      "http://localhost:5173"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "PUT"
+    ],
+    "AllowedHeaders": [
+      "Content-Type"
+    ],
+    "MaxAgeSeconds": 3600
+  }
+]
