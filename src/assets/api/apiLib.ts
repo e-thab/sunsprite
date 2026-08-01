@@ -144,7 +144,7 @@ type KeyAction = {
 /**
  * User mouse reference.
  */
-const Mouse = {
+declare const Mouse: {
     /**
      * Vertical position of the user's cursor.
      */
@@ -189,7 +189,7 @@ const Mouse = {
 /**
  * Game screen reference.
  */
-const Screen = {
+declare const Screen: {
     /**
      * Current width of the game screen.
      */
@@ -229,7 +229,7 @@ const Screen = {
 /**
  * Timer singleton.
  */
-const Timer = {
+declare const Timer: {
     /**
      * Time since start, does not increment during pause.
      */
