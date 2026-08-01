@@ -8,6 +8,7 @@ import { Mouse } from './types'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
 import Output from './output'
+import { runEntryModule } from './moduleRunner'
 
 import { Colors } from './Colors'
 import Sprite from './Sprite'
@@ -17,6 +18,7 @@ import Label from './Label'
 import Line from './Line'
 import HLine from './HLine'
 import VLine from './VLine'
+import type { ThemePalette } from '../theme/themes'
 // import Camera from './Camera';  --  needs phaser attention
 
 // export const outputItems: {
@@ -54,6 +56,7 @@ export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 let _frame: number = 0 // current render frame index
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
+let _sessionCount: number = 0
 let _forevers: Action[] = []
 let _repeats: Repeatable[] = []
 let _repeatUntils: RepeatableUntil[] = []
@@ -519,9 +522,9 @@ class UserScene extends Scene {
 	
 	preload() {
 		console.log('preload')
-		this.load.image('guy', 'assets/guy.png')
-		this.load.image('boot', 'assets/boot.png')
-		this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
+		// this.load.image('guy', 'assets/guy.png')
+		// this.load.image('boot', 'assets/boot.png')
+		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
 	}
 	
 	async create() {
@@ -624,9 +627,6 @@ class UserScene extends Scene {
 			round: Math.round,
 			PI: Math.PI,
 		}
-		
-		const keys = Object.keys(api)
-		const values = Object.values(api)
 
 		// Trying some ways to get error line/col within user script from stack trace
 		// function tryCompileDynamicCode(codeBody) {
@@ -671,40 +671,12 @@ class UserScene extends Scene {
 		
 		// Another problem post-phaser: user code errors prevent reloading of the game sometimes?
 		try {
-			const fn = new Function(
-				...keys,
-				`
-				return (async () => {
-					${this.JScode}
-				})()
-				`
-			)
-			await fn(...values)
-			// await run()
+			await runEntryModule(this.JScode, api)
 		} catch (e: any) {
 			const err = (e as Error)
-			console.log('stack', err.stack)
-			const match = err.stack?.match(/<anonymous>:(\d+):(\d+)/)
-			console.log('match', match)
-			if (match && match[1]) {
-				const errorLineNumber = parseInt(match[1], 10)
-				const editorLine = errorLineNumber
-
-				console.log(`err at line: ${editorLine}`)
-			}
-
 			Output.error(err.toString())
 			console.error('User code error:', err)
 		}
-		// const fn = new Function(
-		// 	...keys,
-		// 	`
-		// 	return (async () => {
-		// 		${this.JScode}
-		// 	})()
-		// 	`
-		// )
-		// await fn(...values)
 	}
 	
 	update(time: number, delta: number) {
@@ -742,9 +714,13 @@ class UserScene extends Scene {
 	}
 }
 
-export async function runUserCode(code: string): Promise<void> {
+export async function runUserCode(code: string, theme?: ThemePalette): Promise<void> {
 	Output.clear()
-	play()
+
+	if (_sessionCount > 0) console.groupEnd()
+	// Be cool to print the group header in the theme primary color, but can't use the theme store here
+	// console.group(`%cSunsprite session ${++_sessionCount}`, `color: ${theme?.primary ?? 'white'}; font-weight: bold;`)
+	console.group(`%cSunsprite session ${++_sessionCount}`, `color: ${Colors.HotPink}; font-weight: bold;`)
 
 	_forevers = []
 	_repeats = []
@@ -768,9 +744,8 @@ export async function runUserCode(code: string): Promise<void> {
 	_nextObjectId = 0
 	_lastLeftClickTime = 0
 	
-	// Switch this to an internal addOutput func that can modify innerHTML
-	// print('<i>Running</i>', undefined, '#626f8b')
 	Output.printStartMsg()
+	play()
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
 	

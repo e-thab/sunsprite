@@ -34,13 +34,15 @@ export default class Circle extends GameObject {
             .fillStyle(this._phaserColor)
             .fillCircle(0, 0, 50)
             .setInteractive(this._hitArea, Phaser.Geom.Circle.Contains)
-            .on('pointerover', () => console.log('p'))
+            // .on('pointerover', () => console.log('p'))
         
         this._refObj = gfx // Reference to Phaser object used in mixins
         this._graphics = gfx // Reference to Phaser object used within this class (for readability)
 
         this._color = props?.color ?? '#fff'
         this.color = this._color
+
+        if (props?.radius != null) this.radius = props.radius
 
         // console.log('circle', circle.input?.draggable)
         // scene.input.setDraggable(circle, true)

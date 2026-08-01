@@ -204,6 +204,8 @@ export function getExampleCode(fileName: string = 'main.js'): string {
     return exampleCode[fileName] ?? `/* Example code not found for ${fileName} */`
 }
 
+export const exampleScriptNames = Object.keys(exampleCode)
+
 
 // from examples.js:
 /* Star Catcher

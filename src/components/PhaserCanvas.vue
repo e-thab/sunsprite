@@ -1,15 +1,37 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-// import { /*mouseRef, fpsRef,*/ /*pause, play, pausedRef, print*/ } from '@/assets/api/core'
+import { ref, computed, onMounted } from 'vue'
 import { game, setup, mouseRef, resizeStage, pause, play, pausedRef } from '@/assets/api/core'
 import { useFullscreenStore } from '@/stores/fullscreen'
+import { useFileStore } from '@/stores/fileStore'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import Output from '@/assets/api/output'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
 // const canvas = ref<HTMLCanvasElement | null>(null)
 const fps = ref()
 const fpsColor = ref()
-const fsStore = useFullscreenStore()
+const fullscreenStore = useFullscreenStore()
+const fileStore = useFileStore()
+
+const exampleVersionItems: DropdownMenuItem[][] = [
+  [
+    { label: 'v2.1.0', icon: 'uil:angle-double-up' },
+    { label: 'v2.0.8', icon: 'uil:angle-double-up' },
+  ],
+  [
+    { label: 'v1.9.2', icon: 'uil:angle-up' },
+    { label: 'v1.5.0', icon: 'tabler:check', color: 'primary' },
+    { label: 'v1.2.3', icon: 'uil:angle-down' },
+    { label: 'v1.0.6', icon: 'uil:angle-down' },
+  ],
+  [
+    { label: 'v0.1.0', icon: 'uil:angle-double-down' },
+    { label: 'v0.1.1', icon: 'uil:angle-double-down' },
+    { label: 'v0.0.12', icon: 'uil:angle-double-down' },
+    { label: 'v0.0.7', icon: 'uil:angle-double-down' },
+    { label: 'v0.0.3', icon: 'uil:angle-double-down' },
+  ]
+]
 
 function updateFpsInterval() {
   fps.value = Math.round(game.loop.actualFps)
@@ -29,6 +51,16 @@ function updateFpsInterval() {
 
 const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
+const playPauseIcon = computed(() => pausedRef.value ? 'tabler:player-play-filled' : 'tabler:player-pause-filled')
+const playPauseTooltip = computed(() => pausedRef.value ? 'Play' : 'Pause')
+function togglePlayPause() {
+  if (pausedRef.value) play()
+  else pause()
+}
+
+const fullscreenIcon = computed(() => fullscreenStore.fullscreen ? 'tabler:minimize' : 'tabler:maximize')
+const fullscreenTooltip = computed(() => fullscreenStore.fullscreen ? 'Minimize' : 'Maximize')
+
 onMounted(async () => {
     setup()
 
@@ -46,44 +78,49 @@ onMounted(async () => {
     window.setInterval(updateFpsInterval, 250)
     emit('ready')
 })
+
+// TODO: use tabler:refresh-alert icon when the code running doesn't match saved project
 </script>
 
 <template>
   <div class="panel-wrapper">
     <div class="panel-bar">
-      <!-- Play -->
-      <img v-show="pausedRef" @click="play" class="img-button" title="Play" src="@/assets/images/game-icons/right.png" />
-
-      <!-- Pause -->
-      <img v-show="!pausedRef" @click="pause" class="img-button" title="Pause" src="@/assets/images/game-icons/pause.png" />
+      <!-- Play / Pause -->
+      <UTooltip :text="playPauseTooltip">
+        <UButton :icon="playPauseIcon" variant="soft" color="neutral" :label="playPauseTooltip" size="xs" @click="togglePlayPause" />
+      </UTooltip>
 
       <!-- Restart / Run code -->
-      <img @click="$emit('runGame')" class="img-button" title="Restart" src="@/assets/images/game-icons/return.png" />
-      
-      <!-- Screenshot -->
-      <!-- <img @click="print('screenshot')" class="img-button" title="Screenshot" src="@/assets/images/game-icons/export.png" /> -->
-      
-      <!-- mouseX/Y -->
-      <div class="coords">
-        <span style="font-size: 12px;">mouse X: {{ mouseRef.mouseX }}</span>
-        <span style="font-size: 12px;">mouse Y: {{ mouseRef.mouseY }}</span>
-      </div>
-      
-      <!-- FPS indicator -->
-      <span style="font-size: 12px; width: 4em;">FPS: <span class="fps-number">{{ fps }}</span></span>
-      
+      <UChip inset color="warning" :show="fileStore.hasUnsavedChanges">
+        <UTooltip text="Restart">
+          <UButton icon="tabler:refresh" variant="soft" color="neutral" label="Restart" size="xs" @click="$emit('runGame')" />
+        </UTooltip>
+      </UChip>
+
       <!-- Sound -->
       <!-- Icon should change based on volume -->
-      <img @click="Output.print('sound')" class="img-button" title="Volume" src="@/assets/images/game-icons/audioOn.png" />
-      
+      <UTooltip text="Volume">
+        <UButton icon="tabler:volume" variant="soft" color="neutral" label="Volume" size="xs" @click="Output.print('sound')" />
+      </UTooltip>
+
+      <!-- Fullscreen toggle -->
+      <UTooltip :text="fullscreenTooltip">
+        <UButton :icon="fullscreenIcon" variant="soft" color="neutral" label="Fullscreen" size="xs" @click="$emit('fullscreen')" />
+      </UTooltip>
+
       <!-- Settings -->
-      <img @click="Output.print('settings')" class="img-button" title="Settings" src="@/assets/images/game-icons/gear.png" />
+      <UTooltip text="Settings">
+        <UButton icon="tabler:settings-filled" variant="soft" color="neutral" label="Settings" size="xs" @click="Output.print('settings')" />
+      </UTooltip>
+      
+      <!-- mouseX/Y -->
+      <UBadge color="neutral" variant="soft" class="coords-badge">
+        <span>mouse X: {{ mouseRef.mouseX }}</span>
+        <span>mouse Y: {{ mouseRef.mouseY }}</span>
+      </UBadge>
 
-      <!-- Fullscreen (maximize) -->
-      <img v-show="!fsStore.fullscreen" @click="$emit('fullscreen')" class="img-button" title="Fullscreen" src="@/assets/images/game-icons/larger.png" />
-
-      <!-- Fullscreen (minimize) -->
-      <img v-show="fsStore.fullscreen" @click="$emit('fullscreen')" class="img-button" title="Shrink" src="@/assets/images/game-icons/smaller.png" />
+      <!-- FPS indicator -->
+      <UBadge color="neutral" variant="soft">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
     </div>
     <div id="game-container" class="canvas"></div>
   </div>
@@ -94,10 +131,10 @@ onMounted(async () => {
   color: v-bind(fpsColor)
 }
 
-.coords {
-  justify-items: center;
+.coords-badge {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 0.5em;
   width: 180px;
 }
 

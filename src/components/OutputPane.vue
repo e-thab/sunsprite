@@ -6,22 +6,14 @@ import type { OutputItem } from '@/assets/api/output';
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
 
+const tabItems = [
+    { label: 'Output', value: 'output' },
+    { label: 'Info', value: 'info' },
+    { label: 'Watch', value: 'watch' },
+]
+
 function isTabActive(tab: OutputTab) {
     return tab === activeTab.value
-}
-
-function getTabColor(tab: OutputTab) {
-    const activeColor = window.getComputedStyle(document.getElementById('nav-header') as Element).backgroundColor
-    const inactiveColor = window.getComputedStyle(document.querySelector('.output-wrapper') as Element).backgroundColor
-    return tab === activeTab.value ? activeColor : inactiveColor
-}
-
-function getTabHoverBrightness(tab: OutputTab) {
-    return tab === activeTab.value ? 1.0 : 1.2
-}
-
-function activateTab(tab: OutputTab) {
-    activeTab.value = tab
 }
 
 const emit = defineEmits([ 'collapseOutput', 'ready' ])
@@ -63,27 +55,13 @@ onMounted(() => {
         <!-- Header tabs -->
         <!-- TODO: Have output tab flash when another tab is focused and a new print/warn/err appears -->
         <div class="output-header">
-            <div @click="activateTab('output')" class="output-header-item output-tab">Output</div>
-            <div @click="activateTab('info')" class="output-header-item info-tab">Info</div>
-            <div @click="activateTab('watch')" class="output-header-item watch-tab">Watch</div>
-            
-            <img 
-                @click="$emit('collapseOutput')"
-                src="/src/assets/images/game-icons/down.png"
-                id="collapse-button"
-            />
+            <UTabs v-model="activeTab" :items="tabItems" :content="false" size="xs" class="output-tabs" />
+
+            <UTooltip text="Collapse">
+                <UButton icon="tabler:chevron-down" variant="soft" color="neutral" size="xs" @click="$emit('collapseOutput')" />
+            </UTooltip>
         </div>
 
-        <!-- <div class="output-start-header">
-            <div class="output-item">
-                <div class="output-stamp-start">
-                    ☀
-                </div>
-                <div class="output-msg-start">
-                    <i>Running @ {time}</i>
-                </div>
-            </div>
-        </div> -->
         <!-- Ouput panel: shows print/warn/err output -->
         <div v-show="isTabActive('output')" class="output-panel" id="output-panel" ref="panel">
             <div id="output-item-container">
@@ -111,52 +89,27 @@ onMounted(() => {
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background-color: var(--nord-background-dark);
+    background-color: var(--theme-bg-dark);
 }
 
 .output-header {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    color: var(--nord-text-bright);
-    height: 24px;
-    /* border-bottom: 1px solid var(--nord-scroll-neutral); */
-    user-select: none;
+    /* justify-content: space-between; */
+    /* align-items: center; */
+    /* color: var(--theme-text-bright); */
+    /* height: 24px; */
+    /* user-select: none; */
 }
 
-.output-header-item {
-    flex-grow: 1;
-    text-align: center;
-    font-weight: 500;
-    transition: 0.2s;
-}
-
-.output-tab {
-    background-color: v-bind(getTabColor('output'));
-}
-.output-tab:hover {
-    filter: brightness(v-bind(getTabHoverBrightness('output')));
-}
-
-.info-tab {
-    background-color: v-bind(getTabColor('info'));
-}
-.info-tab:hover {
-    filter: brightness(v-bind(getTabHoverBrightness('info')));
-}
-
-.watch-tab {
-    background-color: v-bind(getTabColor('watch'));
-}
-.watch-tab:hover {
-    filter: brightness(v-bind(getTabHoverBrightness('watch')));
+.output-tabs {
+    flex: 1 1 auto;
 }
 
 .output-panel {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    background-color: var(--nord-background-neutral);
+    background-color: var(--theme-bg-neutral);
 }
 
 .output-item {
@@ -169,46 +122,37 @@ onMounted(() => {
 .output-msg {
     padding: 0 .25em;
     flex: 1 1 auto;
-    color: var(--nord-text-bright);
-    background-color: var(--nord-background-neutral);
-    font-family: 'Fira Code';
-}
-
-.output-msg-start {
-    padding: 0 .25em;
-    flex: 1 1 auto;
-    color: #626f8b;
-    background-color: var(--nord-background-neutral);
+    color: var(--theme-text-bright);
+    background-color: var(--theme-bg-neutral);
     font-family: 'Fira Code';
 }
 
 .output-stamp {
-    border-right: 1px solid var(--nord-scroll-neutral);
+    border-right: 1px solid var(--theme-scroll-neutral);
     padding: 0 .25em;
-    color: var(--nord-text-dim);
-    background-color: var(--nord-background-dark);
+    color: var(--theme-text-dim);
+    background-color: var(--theme-bg-dark);
     text-align: center;
     min-width: 22px;
     user-select: none;
     font-family: 'Fira Code';
 }
 
-.output-stamp-start {
-    border-right: 1px solid var(--nord-scroll-neutral);
-    padding: 0 .25em;
-    color: var(--nord-text-dim);
-    background-color: var(--nord-background-dark);
-    text-align: center;
-    min-width: 22px;
-    user-select: none;
-    font-family: 'Fira Code';
+/* Severity/kind modifiers, applied alongside .output-msg/.output-stamp so
+   error/warn/start messages stay theme-reactive instead of hardcoding
+   colors as inline styles (which freeze at whatever theme was active when
+   the message was printed). */
+.output-item--error {
+    color: var(--theme-error);
 }
 
-.output-start-header {
-    display: flex;
-    flex-direction: column;
-    background-color: var(--nord-background-neutral);
-    border-bottom: 1px solid var(--nord-scroll-neutral);
+.output-item--warn {
+    color: var(--theme-warning);
+}
+
+.output-item--start {
+    color: var(--theme-scroll-light);
+    font-style: italic;
 }
 
 .info-panel {
@@ -227,14 +171,4 @@ onMounted(() => {
     display: flex;
 }
 
-#collapse-button {
-    background-color: var(--nord-background-dark);
-    height: 24px;
-    transition: 0.2s;
-}
-#collapse-button:hover {
-    /* background-color: transparent; */
-    filter: brightness(1.2);
-    cursor: pointer;
-}
 </style>
