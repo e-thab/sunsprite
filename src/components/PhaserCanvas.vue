@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { game, setup, mouseRef, resizeStage, pause, play, pausedRef } from '@/assets/api/core'
 import { useFullscreenStore } from '@/stores/fullscreen'
 import { useFileStore } from '@/stores/fileStore'
@@ -8,30 +8,23 @@ import Output from '@/assets/api/output'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
 // const canvas = ref<HTMLCanvasElement | null>(null)
+const codeChangedSinceLastRun = ref(false)
 const fps = ref()
 const fpsColor = ref()
 const fullscreenStore = useFullscreenStore()
 const fileStore = useFileStore()
 
-const exampleVersionItems: DropdownMenuItem[][] = [
-  [
-    { label: 'v2.1.0', icon: 'uil:angle-double-up' },
-    { label: 'v2.0.8', icon: 'uil:angle-double-up' },
-  ],
-  [
-    { label: 'v1.9.2', icon: 'uil:angle-up' },
-    { label: 'v1.5.0', icon: 'tabler:check', color: 'primary' },
-    { label: 'v1.2.3', icon: 'uil:angle-down' },
-    { label: 'v1.0.6', icon: 'uil:angle-down' },
-  ],
-  [
-    { label: 'v0.1.0', icon: 'uil:angle-double-down' },
-    { label: 'v0.1.1', icon: 'uil:angle-double-down' },
-    { label: 'v0.0.12', icon: 'uil:angle-double-down' },
-    { label: 'v0.0.7', icon: 'uil:angle-double-down' },
-    { label: 'v0.0.3', icon: 'uil:angle-double-down' },
-  ]
-]
+function onRestartClick() {
+  codeChangedSinceLastRun.value = false
+  emit('runGame')
+}
+
+// Meant to track & indicate when the code running does not match the project's code. For now that just
+// means adding a chip any time the code is changed after running and removing it when restarting. Eventually,
+// it should also remove that chip when the project's code is returned to its before-change state.
+watch(() => fileStore.hasUnsavedChanges, (value, oldValue) => {
+  codeChangedSinceLastRun.value = true
+})
 
 function updateFpsInterval() {
   fps.value = Math.round(game.loop.actualFps)
@@ -49,17 +42,20 @@ function updateFpsInterval() {
   }
 }
 
-const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
-
 const playPauseIcon = computed(() => pausedRef.value ? 'tabler:player-play-filled' : 'tabler:player-pause-filled')
 const playPauseTooltip = computed(() => pausedRef.value ? 'Play' : 'Pause')
 function togglePlayPause() {
-  if (pausedRef.value) play()
-  else pause()
+  if (pausedRef.value) {
+    play()
+  } else {
+    pause()
+  }
 }
 
 const fullscreenIcon = computed(() => fullscreenStore.fullscreen ? 'tabler:minimize' : 'tabler:maximize')
 const fullscreenTooltip = computed(() => fullscreenStore.fullscreen ? 'Minimize' : 'Maximize')
+
+const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
 onMounted(async () => {
     setup()
@@ -91,9 +87,9 @@ onMounted(async () => {
       </UTooltip>
 
       <!-- Restart / Run code -->
-      <UChip inset color="warning" :show="fileStore.hasUnsavedChanges">
+      <UChip inset color="warning" :show="codeChangedSinceLastRun">
         <UTooltip text="Restart">
-          <UButton icon="tabler:refresh" variant="soft" color="neutral" label="Restart" size="xs" @click="$emit('runGame')" />
+          <UButton icon="tabler:refresh" variant="soft" color="neutral" label="Restart" size="xs" @click="onRestartClick" />
         </UTooltip>
       </UChip>
 
@@ -114,10 +110,10 @@ onMounted(async () => {
       </UTooltip>
       
       <!-- mouseX/Y -->
-      <UBadge color="neutral" variant="soft" class="coords-badge">
+      <!-- <UBadge color="neutral" variant="soft" class="coords-badge">
         <span>mouse X: {{ mouseRef.mouseX }}</span>
         <span>mouse Y: {{ mouseRef.mouseY }}</span>
-      </UBadge>
+      </UBadge> -->
 
       <!-- FPS indicator -->
       <UBadge color="neutral" variant="soft">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
