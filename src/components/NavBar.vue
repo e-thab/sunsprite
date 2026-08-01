@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue';
+import type { DropdownMenuItem } from '@nuxt/ui';
 import { useRoute, useRouter } from 'vue-router';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useAuthStore } from '@/stores/authStore';
@@ -101,7 +102,7 @@ const themeMenuItems = computed(() => [
     })),
 ])
 
-const accountMenuItems = [
+const accountMenuItems: DropdownMenuItem[][] = [
     [
         {
             label: 'My Account',
@@ -165,7 +166,6 @@ const accountMenuItems = [
             </UDropdownMenu>
             <UButton v-else variant="ghost" color="neutral" @click="authStore.openSignIn">Sign In</UButton>
 
-            <!-- @vue-expect-error -->
             <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
                 <UButton icon="tabler:user-filled" variant="ghost" color="neutral">{{ authStore.username || authStore.user?.email }}</UButton>
             </UDropdownMenu>
