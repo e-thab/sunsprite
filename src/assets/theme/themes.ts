@@ -30,6 +30,10 @@ export interface ThemePalette {
     info: string
 }
 
+// #88c0d0 Original primary
+// #d84836 Nice orange 
+// #eda952 Yellow
+
 export const themes: ThemePalette[] = [
     {
         // Authentic Nord (nordtheme.com) palette.
@@ -46,7 +50,7 @@ export const themes: ThemePalette[] = [
         textHighlighted: '#eceff4',
         scrollNeutral: '#434c5e',
         scrollLight: '#4c566a',
-        primary: '#88c0d0',
+        primary: '#52ddba',
         secondary: '#5e81ac',
         success: '#a3be8c',
         warning: '#ebcb8b',

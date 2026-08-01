@@ -87,7 +87,7 @@ onMounted(async () => {
     <div class="panel-bar">
       <!-- Play / Pause -->
       <UTooltip :text="playPauseTooltip">
-        <UButton :icon="playPauseIcon" variant="soft" color="neutral" label="Pause" size="xs" @click="togglePlayPause" />
+        <UButton :icon="playPauseIcon" variant="soft" color="neutral" :label="playPauseTooltip" size="xs" @click="togglePlayPause" />
       </UTooltip>
 
       <!-- Restart / Run code -->

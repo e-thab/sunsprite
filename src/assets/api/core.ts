@@ -18,6 +18,7 @@ import Label from './Label'
 import Line from './Line'
 import HLine from './HLine'
 import VLine from './VLine'
+import type { ThemePalette } from '../theme/themes'
 // import Camera from './Camera';  --  needs phaser attention
 
 // export const outputItems: {
@@ -55,6 +56,7 @@ export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 let _frame: number = 0 // current render frame index
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
+let _sessionCount: number = 0
 let _forevers: Action[] = []
 let _repeats: Repeatable[] = []
 let _repeatUntils: RepeatableUntil[] = []
@@ -712,9 +714,13 @@ class UserScene extends Scene {
 	}
 }
 
-export async function runUserCode(code: string): Promise<void> {
+export async function runUserCode(code: string, theme?: ThemePalette): Promise<void> {
 	Output.clear()
-	play()
+
+	if (_sessionCount > 0) console.groupEnd()
+	// Be cool to print the group header in the theme primary color, but can't use the theme store here
+	// console.group(`%cSunsprite session ${++_sessionCount}`, `color: ${theme?.primary ?? 'white'}; font-weight: bold;`)
+	console.group(`%cSunsprite session ${++_sessionCount}`, `color: ${Colors.HotPink}; font-weight: bold;`)
 
 	_forevers = []
 	_repeats = []
@@ -738,9 +744,8 @@ export async function runUserCode(code: string): Promise<void> {
 	_nextObjectId = 0
 	_lastLeftClickTime = 0
 	
-	// Switch this to an internal addOutput func that can modify innerHTML
-	// print('<i>Running</i>', undefined, '#626f8b')
 	Output.printStartMsg()
+	play()
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
 	

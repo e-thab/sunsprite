@@ -1,15 +1,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 import { publicUrlFor, signPutUrl } from "../_shared/r2.ts";
-
-const ALLOWED_CONTENT_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/svg+xml",
-  "image/webp",
-]);
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const MAX_PROJECT_SIZE = 100 * 1024 * 1024;
+import { ALLOWED_CONTENT_TYPES, MAX_FILE_SIZE, MAX_PROJECT_SIZE } from "../_shared/uploadLimits.ts";
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100);
@@ -19,6 +11,10 @@ export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
     const { projectId, fileName, contentType, size } = await req.json();
 
+    // contentType/size here are just what the client claims pre-upload, so
+    // this is a fast fail for the common case — not a security boundary.
+    // r2-confirm-upload re-checks both against the real uploaded object
+    // (via a HEAD request) before the images row is ever created.
     if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
       return Response.json({ error: "Unsupported file type" }, { status: 400 });
     }

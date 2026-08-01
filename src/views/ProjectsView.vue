@@ -56,7 +56,7 @@ onMounted(() => projectStore.fetchProjects())
       <template #header>
         <div class="projects-header">
           <h1>My Projects</h1>
-          <UButton :loading="creating" @click="onCreate">New Project</UButton>
+          <UButton trailing-icon="tabler:plus" :loading="creating" @click="onCreate">New Project</UButton>
         </div>
       </template>
 
@@ -66,14 +66,14 @@ onMounted(() => projectStore.fetchProjects())
         v-if="!projectStore.loading && projectStore.projects.length === 0"
         color="neutral"
         variant="subtle"
-        description="No projects yet. Create one now to get started!"
+        description="No projects yet. Click 'New Project' to make one now!"
         class="spaced"
       />
 
       <ul class="project-list">
         <li v-for="project in projectStore.projects" :key="project.id" class="project-row">
           <div class="project-row-info">
-            <UButton variant="link" @click="() => { router.push(`/projects/${project.slug}`) }">
+            <UButton variant="link" @click="() => { router.push(`/projects/${project.slug}`) }" style="font-weight: bold;">
               {{ project.name }}
             </UButton>
             <span class="project-updated">Last edited {{ formatDate(project.updatedAt) }}</span>

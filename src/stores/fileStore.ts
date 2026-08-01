@@ -417,38 +417,25 @@ export const useFileStore = defineStore('files', () => {
         const putRes = await fetch(signed.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
         if (!putRes.ok) throw new Error('Failed to upload image to storage')
 
+        // r2-confirm-upload HEADs the object we just PUT to verify the real
+        // size/content-type before creating the DB row (and cleans up the R2
+        // object itself if validation fails) — this is what makes the quota
+        // and content-type checks a real boundary rather than self-reported.
         const position = nextPosition(folderId)
-        const { data: row, error: insertError } = await supabase
-            .from('images')
-            .insert({
-                project_id: projectId.value,
-                folder_id: folderId,
-                name: file.name,
-                object_key: signed.objectKey,
-                content_type: file.type,
-                size: file.size,
-                position,
-            })
-            .select('id, name, object_key, content_type, size, folder_id, position')
-            .single()
-
-        if (insertError) {
-            // The object is already sitting in R2 at this point — clean it up
-            // rather than leave it orphaned since there's no DB row for it.
-            await supabase.functions.invoke('r2-delete', { body: { objectKey: signed.objectKey } }).catch(() => {})
-            if (insertError.code === '23505') throw new Error('A file with that name already exists in this project.')
-            throw insertError
-        }
+        const { data: confirmed, error: confirmError } = await supabase.functions.invoke('r2-confirm-upload', {
+            body: { projectId: projectId.value, folderId, name: file.name, objectKey: signed.objectKey, position },
+        })
+        if (confirmError) throw new Error(await functionErrorMessage(confirmError))
 
         images.value.push({
-            id: row.id,
-            name: row.name,
-            objectKey: row.object_key,
-            publicUrl: signed.publicUrl,
-            contentType: row.content_type,
-            size: row.size,
-            folderId: row.folder_id,
-            position: row.position,
+            id: confirmed.id,
+            name: confirmed.name,
+            objectKey: confirmed.objectKey,
+            publicUrl: confirmed.publicUrl,
+            contentType: confirmed.contentType,
+            size: confirmed.size,
+            folderId: confirmed.folderId,
+            position: confirmed.position,
         })
     }
 

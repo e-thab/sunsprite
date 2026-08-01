@@ -330,7 +330,7 @@ async function saveAll() {
 }
 
 function runActiveUserCode() {
-	runUserCode(getCode())
+	runUserCode(getCode(), themeStore.current)
 }
 
 function onEditorChange(value: string) {
@@ -494,5 +494,6 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 
 .reset-group {
 	justify-self: end;
+	transform: translate(-1px, -1px)
 }
 </style>

@@ -26,6 +26,9 @@ const fsStore = useFullscreenStore()
 const fileStore = useFileStore()
 const docsStore = useDocsStore()
 const treeSelectionStore = useTreeSelectionStore()
+
+// Move splitterDisplay to a component with more reason to have style unscoped,
+// also should just be computed()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
 
 // FileTree (guest sandbox) and AssetLibrary (project mode) both bind their
@@ -269,7 +272,7 @@ onMounted(async () => {
 			editor.value.switchToScript(firstScript)
 		}
 	}
-
+  
 	runActiveUserCode()
 	editor.value.updateSaveMsg()
 
@@ -308,7 +311,7 @@ onBeforeRouteLeave(() => {
     <!-- Left side pane: File explorer + built-in asset library -->
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" :size="explorerPaneWidth">
       <splitpanes horizontal :push-other-panes="false">
-        <pane id="file-tree-v-pane" size="65">
+        <pane v-if="projectId" id="file-tree-v-pane" size="65">
           <FileTree @select-script="loadScript" />
         </pane>
 
@@ -343,12 +346,12 @@ onBeforeRouteLeave(() => {
 
         <!-- Top right pane: Game view -->
         <pane id="canvas-v-pane":size="canvasHeight">
-			<PhaserCanvas
-				@ready="onCanvasReady"
-				@run-game="runActiveUserCode"
-				@fullscreen="toggleFullscreen"
-				class="inner-pane"
-			/>
+          <PhaserCanvas
+            @ready="onCanvasReady"
+            @run-game="runActiveUserCode"
+            @fullscreen="toggleFullscreen"
+            class="inner-pane"
+          />
         </pane>
 
         <!-- Bottom left pane: Output -->
@@ -396,66 +399,30 @@ onBeforeRouteLeave(() => {
   z-index: 20;
 }
 
-.panel-bar {
-  display: flex;
-	/* height: 24px; */
-  flex-shrink: 0;
-  padding-left: 0.1em;
-  padding-right: 0.2em;
-  justify-content: space-between;
-  align-items: center;
-  color: var(--theme-text-bright);
-  background-color: var(--theme-bg-dark);
-  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-  user-select: none;
-}
-
-.panel-wrapper {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  background-color: var(--theme-bg-dark);
-}
-
 .inner-pane {
   width: 100%;
   height: 100%;
 }
 
-.splitpanes {
-  background-color: var(--theme-bg-dark);
-}
-
-.splitpanes__pane {
-  /* background: linear-gradient(-45deg, #EE7752, #E73C7E, #23A6D5, #23D5AB); */
-  /* box-shadow: 0 0 5px rgba(255, 255, 255, 0.05) inset; */
-  /* justify-content: center; */
-  /* align-items: center; */
-  /* display: flex; */
-  background-color: var(--theme-bg-neutral);
-  transition: none !important;
-}
-
 .splitpanes--vertical > .splitpanes__splitter {
   background-color: var(--theme-bg-light);
-  min-width: 5px;
+  min-width: 6px;
   display: v-bind(splitterDisplay);
   transition: 0.15s 0.1s;
 }
 .splitpanes--vertical > .splitpanes__splitter:hover {
-  /* min-width: 7px; */
+  min-width: 9px;
   background-color: var(--theme-scroll-light);
 }
 
 .splitpanes--horizontal > .splitpanes__splitter {
   background-color: var(--theme-bg-light);
-  min-height: 5px;
+  min-height: 6px;
   display: v-bind(splitterDisplay);
   transition: 0.15s 0.1s;
 }
 .splitpanes--horizontal > .splitpanes__splitter:hover {
-  /* min-height: 7px; */
+  min-height: 9px;
   background-color: var(--theme-scroll-light);
 }
 </style>

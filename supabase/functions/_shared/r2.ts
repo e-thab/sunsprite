@@ -26,6 +26,22 @@ export async function signPutUrl(objectKey: string, contentType: string): Promis
   return signed.url.toString();
 }
 
+export async function headObject(objectKey: string): Promise<{ size: number; contentType: string } | null> {
+  const signed = await client.sign(
+    new Request(`${endpoint}/${R2_BUCKET_NAME}/${objectKey}`, { method: "HEAD" }),
+    { aws: { signQuery: true } },
+  );
+  const res = await fetch(signed);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`Failed to HEAD R2 object: ${res.status} ${await res.text()}`);
+  }
+  return {
+    size: Number(res.headers.get("content-length")),
+    contentType: res.headers.get("content-type") ?? "",
+  };
+}
+
 export async function deleteObject(objectKey: string): Promise<void> {
   const signed = await client.sign(
     new Request(`${endpoint}/${R2_BUCKET_NAME}/${objectKey}`, { method: "DELETE" }),

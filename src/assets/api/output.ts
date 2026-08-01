@@ -1,3 +1,4 @@
+import { Colors } from "./Colors"
 import { timer } from "./core"
 import type { Printable } from "./types"
 
@@ -63,7 +64,7 @@ function scrollOutput() {
 }
 
 function error(...args: Printable[]) {
-    console.log('err:', ...args)
+    console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, ...args)
 
     let msg = ''
     for (let arg of args) {
@@ -80,7 +81,7 @@ function error(...args: Printable[]) {
 }
 
 function warn(...args: Printable[]) {
-    console.log('warn:', ...args)
+    console.log(' %cwarn:', `color: ${Colors.Goldenrod}; font-weight: 100; font-style: italic;`, ...args)
 
     let msg = ''
     for (let arg of args) {
@@ -97,7 +98,7 @@ function warn(...args: Printable[]) {
 }
 
 export function print(...args: Printable[]) {
-    console.log('print:', ...args)
+    console.log('%cprint:', `color: ${Colors.Gray}; font-weight: 100; font-style: italic;`, ...args)
 
     let msg = ''
     for (let arg of args) {

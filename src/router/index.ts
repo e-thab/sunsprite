@@ -25,7 +25,7 @@ const router = createRouter({
     {
       path: '/projects/:slug',
       name: 'project',
-      component: () => import('../views/ProjectView.vue'),
+      component: () => import('../views/ProjectEditorView.vue'),
       meta: { requiresAuth: true },
       props: true,
     },
