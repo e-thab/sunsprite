@@ -19,21 +19,32 @@
   --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
   --vt-c-text-dark-1: var(--vt-c-white);
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+
 }
 
-/* Codemirror theme colors: Nord */
+/* Default theme values (Nord) — the theme store overrides these at runtime;
+   these are just the first-paint fallback before it initializes. */
 :root {
-  --nord-background-darker: #23252b;
-  --nord-background-dark: #252a33;
-  --nord-background-neutral: #2e3440;
-  --nord-background-light: #353b48;
+  --theme-bg-darker: #23252b;
+  --theme-bg-dark: #252a33;
+  --theme-bg-neutral: #2e3440;
+  --theme-bg-light: #353b48;
+  --theme-border: #434c5e;
 
-  --nord-text-dim: #4a546a;
-  --nord-text-bright: #d8dee9;
+  --theme-text-dim: #4a546a;
+  --theme-text-bright: #d8dee9;
+  --theme-text-highlighted: #eceff4;
 
   /* scrollbar, scrollbar-highlight, line-highlight */
-  --nord-scroll-neutral: #434c5e;
-  --nord-scroll-light: #4c566a;
+  --theme-scroll-neutral: #434c5e;
+  --theme-scroll-light: #4c566a;
+
+  --theme-primary: #88c0d0;
+  --theme-secondary: #5e81ac;
+  --theme-success: #a3be8c;
+  --theme-warning: #ebcb8b;
+  --theme-error: #bf616a;
+  --theme-info: #81a1c1;
 }
 
 /* semantic color variables for this project */
@@ -63,9 +74,36 @@
   --color-text: var(--vt-c-text-dark-2);
 }
 
+/* Nuxt vars */
 :root {
-  --ui-primary: white;
-  --ui-bg-elevated: var(--nord-background-dark);
+  /* Primary palette */
+  --ui-primary: var(--theme-primary);
+  --ui-secondary: var(--theme-secondary);
+  --ui-success: var(--theme-success);
+  --ui-warning: var(--theme-warning);
+  --ui-error: var(--theme-error);
+  --ui-info: var(--theme-info);
+
+  /* Background */
+  --ui-bg: var(--theme-bg-darker);
+  --ui-bg-muted: var(--theme-bg-dark);
+  --ui-bg-elevated: var(--theme-bg-dark);
+  --ui-bg-accented: var(--theme-bg-neutral);
+  --ui-bg-inverted: var(--theme-text-highlighted);
+
+  /* Text */
+  --ui-text-dimmed: var(--theme-scroll-neutral);
+  --ui-text-muted: var(--theme-scroll-light);
+  --ui-text-toned: var(--theme-text-dim);
+  --ui-text: var(--theme-text-bright);
+  --ui-text-highlighted: var(--theme-text-highlighted);
+  --ui-text-inverted: var(--theme-bg-darker);
+
+  /* Border */
+  --ui-border: var(--theme-border);
+  --ui-border-muted: var(--theme-border);
+  --ui-border-accented: var(--theme-border);
+  --ui-border-inverted: var(--theme-bg-neutral);
 }
 
 *,

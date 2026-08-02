@@ -45,11 +45,17 @@ declare enum Colors ${
 }
 `
 
-/** 
+/**
  * Added to the editor as a library, definitions are not added to the model
  * but general type information is still displayed. Internal.
+ *
+ * Wrapped in `declare global` because this lib has no import/export of its
+ * own: under the editor's `moduleDetection: "force"` setting (which makes
+ * project scripts require explicit imports from each other), a script-like
+ * file with no top-level import/export would otherwise be scoped to itself
+ * instead of staying globally ambient to every script.
  */
-export const apiLib = [
+export const apiLib = 'declare global {\n' + [
 // Types
 // `
 // declare enum Colors ${
@@ -789,4 +795,4 @@ class Circle {
 class Vector2 {
     // TODO: Vector2
 }`,
-].join('\n')
+].join('\n') + '\n}\nexport {}'
