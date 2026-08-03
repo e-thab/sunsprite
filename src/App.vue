@@ -60,8 +60,8 @@ onBeforeUnmount(() => classObserver?.disconnect())
   overflow-y: hidden;
 }
 .navbar-header {
-  color: var(--theme-text-bright);
-  background-color: var(--theme-bg-light);
+  color: var(--theme-text);
+  background-color: var(--theme-bg-accented);
   flex: 1;
 }
 </style>

@@ -29,6 +29,11 @@ const router = createRouter({
       meta: { requiresAuth: true },
       props: true,
     },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('../views/ErrorView.vue'),
+    },
   ],
 })
 

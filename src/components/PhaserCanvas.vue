@@ -43,7 +43,7 @@ function updateFpsInterval() {
 }
 
 const playPauseIcon = computed(() => pausedRef.value ? 'tabler:player-play-filled' : 'tabler:player-pause-filled')
-const playPauseTooltip = computed(() => pausedRef.value ? 'Play' : 'Pause')
+const playPauseLabel = computed(() => pausedRef.value ? 'Play' : 'Pause')
 function togglePlayPause() {
   if (pausedRef.value) {
     play()
@@ -82,32 +82,32 @@ onMounted(async () => {
   <div class="panel-wrapper">
     <div class="panel-bar">
       <!-- Play / Pause -->
-      <UTooltip :text="playPauseTooltip">
-        <UButton :icon="playPauseIcon" variant="soft" color="neutral" :label="playPauseTooltip" size="xs" @click="togglePlayPause" />
-      </UTooltip>
+      <!-- <UTooltip :text="playPauseLabel"> -->
+        <UButton :icon="playPauseIcon" variant="solid" color="primary" :label="playPauseLabel" size="xs" @click="togglePlayPause" />
+      <!-- </UTooltip> -->
 
       <!-- Restart / Run code -->
       <UChip inset color="warning" :show="codeChangedSinceLastRun">
-        <UTooltip text="Restart">
-          <UButton icon="tabler:refresh" variant="soft" color="neutral" label="Restart" size="xs" @click="onRestartClick" />
-        </UTooltip>
+        <!-- <UTooltip text="Restart"> -->
+          <UButton icon="tabler:refresh" variant="ghost" color="neutral" label="Restart" size="xs" @click="onRestartClick" />
+        <!-- </UTooltip> -->
       </UChip>
 
       <!-- Sound -->
       <!-- Icon should change based on volume -->
-      <UTooltip text="Volume">
-        <UButton icon="tabler:volume" variant="soft" color="neutral" label="Volume" size="xs" @click="Output.print('sound')" />
-      </UTooltip>
+      <!-- <UTooltip text="Volume"> -->
+        <UButton icon="tabler:volume" variant="ghost" color="neutral" label="Volume" size="xs" @click="Output.print('sound')" />
+      <!-- </UTooltip> -->
 
       <!-- Fullscreen toggle -->
-      <UTooltip :text="fullscreenTooltip">
-        <UButton :icon="fullscreenIcon" variant="soft" color="neutral" label="Fullscreen" size="xs" @click="$emit('fullscreen')" />
-      </UTooltip>
+      <!-- <UTooltip :text="fullscreenTooltip"> -->
+        <UButton :icon="fullscreenIcon" variant="ghost" color="neutral" label="Fullscreen" size="xs" @click="$emit('fullscreen')" />
+      <!-- </UTooltip> -->
 
       <!-- Settings -->
-      <UTooltip text="Settings">
-        <UButton icon="tabler:settings-filled" variant="soft" color="neutral" label="Settings" size="xs" @click="Output.print('settings')" />
-      </UTooltip>
+      <!-- <UTooltip text="Settings"> -->
+        <UButton icon="tabler:settings-filled" variant="ghost" color="neutral" label="Settings" size="xs" @click="Output.print('settings')" />
+      <!-- </UTooltip> -->
       
       <!-- mouseX/Y -->
       <!-- <UBadge color="neutral" variant="soft" class="coords-badge">
@@ -116,7 +116,7 @@ onMounted(async () => {
       </UBadge> -->
 
       <!-- FPS indicator -->
-      <UBadge color="neutral" variant="soft">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
+      <UBadge color="primary" variant="outline">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
     </div>
     <div id="game-container" class="canvas"></div>
   </div>

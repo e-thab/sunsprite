@@ -1,43 +1,19 @@
-/* color palette from <https://github.com/vuejs/theme> */
-:root {
-  --vt-c-white: #ffffff;
-  --vt-c-white-soft: #f8f8f8;
-  --vt-c-white-mute: #f2f2f2;
-
-  --vt-c-black: #181818;
-  --vt-c-black-soft: #222222;
-  --vt-c-black-mute: #282828;
-
-  --vt-c-indigo: #2c3e50;
-
-  --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
-  --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
-  --vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
-  --vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
-
-  --vt-c-text-light-1: var(--vt-c-indigo);
-  --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
-  --vt-c-text-dark-1: var(--vt-c-white);
-  --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
-
-}
-
 /* Default theme values (Nord) — the theme store overrides these at runtime;
    these are just the first-paint fallback before it initializes. */
 :root {
-  --theme-bg-darker: #23252b;
-  --theme-bg-dark: #252a33;
-  --theme-bg-neutral: #2e3440;
-  --theme-bg-light: #353b48;
+  --theme-bg: #23252b;
+  --theme-bg-muted: #252a33;
+  --theme-bg-elevated: #2e3440;
+  --theme-bg-accented: #353b48;
+  --theme-bg-inverted: #eceff4;
   --theme-border: #434c5e;
 
-  --theme-text-dim: #4a546a;
-  --theme-text-bright: #d8dee9;
+  --theme-text-dimmed: #434c5e;
+  --theme-text-muted: #4c566a;
+  --theme-text-toned: #4a546a;
+  --theme-text: #d8dee9;
   --theme-text-highlighted: #eceff4;
-
-  /* scrollbar, scrollbar-highlight, line-highlight */
-  --theme-scroll-neutral: #434c5e;
-  --theme-scroll-light: #4c566a;
+  --theme-text-inverted: #23252b;
 
   --theme-primary: #88c0d0;
   --theme-secondary: #5e81ac;
@@ -45,33 +21,6 @@
   --theme-warning: #ebcb8b;
   --theme-error: #bf616a;
   --theme-info: #81a1c1;
-}
-
-/* semantic color variables for this project */
-/* :root {
-  --color-background: var(--vt-c-white);
-  --color-background-soft: var(--vt-c-white-soft);
-  --color-background-mute: var(--vt-c-white-mute);
-
-  --color-border: var(--vt-c-divider-light-2);
-  --color-border-hover: var(--vt-c-divider-light-1);
-
-  --color-heading: var(--vt-c-text-light-1);
-  --color-text: var(--vt-c-text-light-1);
-
-  --section-gap: 160px;
-} */
-
-:root {
-  --color-background: var(--vt-c-black);
-  --color-background-soft: var(--vt-c-black-soft);
-  --color-background-mute: var(--vt-c-black-mute);
-
-  --color-border: var(--vt-c-divider-dark-2);
-  --color-border-hover: var(--vt-c-divider-dark-1);
-
-  --color-heading: var(--vt-c-text-dark-1);
-  --color-text: var(--vt-c-text-dark-2);
 }
 
 /* Nuxt vars */
@@ -85,39 +34,47 @@
   --ui-info: var(--theme-info);
 
   /* Background */
-  --ui-bg: var(--theme-bg-darker);
-  --ui-bg-muted: var(--theme-bg-dark);
-  --ui-bg-elevated: var(--theme-bg-dark);
-  --ui-bg-accented: var(--theme-bg-neutral);
-  --ui-bg-inverted: var(--theme-text-highlighted);
+  --ui-bg: var(--theme-bg);
+  --ui-bg-muted: var(--theme-bg-muted);
+  --ui-bg-elevated: var(--theme-bg-elevated);
+  --ui-bg-accented: var(--theme-bg-accented);
+  --ui-bg-inverted: var(--theme-bg-inverted);
 
   /* Text */
-  --ui-text-dimmed: var(--theme-scroll-neutral);
-  --ui-text-muted: var(--theme-scroll-light);
-  --ui-text-toned: var(--theme-text-dim);
-  --ui-text: var(--theme-text-bright);
+  --ui-text-dimmed: var(--theme-text-dimmed);
+  --ui-text-muted: var(--theme-text-muted);
+  --ui-text-toned: var(--theme-text-toned);
+  --ui-text: var(--theme-text);
   --ui-text-highlighted: var(--theme-text-highlighted);
-  --ui-text-inverted: var(--theme-bg-darker);
+  --ui-text-inverted: var(--theme-text-inverted);
 
-  /* Border */
+  /* Border — one shade covers all three non-inverted tiers today; only
+     border-inverted reuses it deliberately (no separate inverted-context
+     border color exists yet), same category so not a semantic mismatch. */
   --ui-border: var(--theme-border);
   --ui-border-muted: var(--theme-border);
   --ui-border-accented: var(--theme-border);
-  --ui-border-inverted: var(--theme-bg-neutral);
+  --ui-border-inverted: var(--theme-border);
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  font-weight: normal;
+/* Un-layered so it always wins over Tailwind's own utilities regardless of
+ * specificity (CSS cascade layers rule: unlayered beats layered). Wrapping
+ * in @layer base keeps the same zero-margin default everywhere, but lets
+ * Tailwind utilities (mt-*, mb-*, etc.) correctly override it again. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    font-weight: normal;
+  }
 }
 
 body {
   min-height: 100vh;
-  color: var(--color-text);
-  background: var(--color-background);
+  color: var(--theme-text);
+  background: var(--theme-bg);
   transition:
     color 0.5s,
     background-color 0.5s;

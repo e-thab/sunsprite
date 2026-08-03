@@ -480,7 +480,7 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 }
 
 #file-name {
-	color: var(--theme-text-bright);
+	color: var(--theme-text);
 	justify-self: center;
 }
 

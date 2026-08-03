@@ -136,7 +136,7 @@ onMounted(loadProfile)
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--theme-bg-neutral);
+  background-color: var(--theme-bg-elevated);
 }
 
 .account-card {

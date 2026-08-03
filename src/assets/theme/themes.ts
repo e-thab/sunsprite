@@ -2,25 +2,30 @@ import type * as monaco from 'monaco-editor'
 
 export type ThemeId = 'nord' | 'dracula' | 'monokai' | 'github-light'
 
+// Field names mirror Nuxt UI's own semantic color slots 1:1 (bg/bg-muted/
+// bg-elevated/bg-accented/bg-inverted, text/text-dimmed/text-muted/
+// text-toned/text-highlighted/text-inverted) so base.css's --ui-* mapping
+// can be a direct passthrough instead of cross-wiring unrelated slots
+// (e.g. the old --ui-bg-inverted borrowing --theme-text-highlighted).
 export interface ThemePalette {
     id: ThemeId
     label: string
     /** Drives Monaco's base theme (vs vs vs-dark) and the app's dark/light class. */
     isLight: boolean
 
-    backgroundDarker: string
-    backgroundDark: string
-    backgroundNeutral: string
-    backgroundLight: string
+    bg: string
+    bgMuted: string
+    bgElevated: string
+    bgAccented: string
+    bgInverted: string
     border: string
 
-    textDim: string
-    textBright: string
+    textDimmed: string
+    textMuted: string
+    textToned: string
+    text: string
     textHighlighted: string
-    // General-purpose mid-tone accents: dividers, hover backgrounds, and
-    // (via base.css) the two dimmest Nuxt UI text tiers.
-    scrollNeutral: string
-    scrollLight: string
+    textInverted: string
 
     primary: string
     secondary: string
@@ -31,8 +36,11 @@ export interface ThemePalette {
 }
 
 // #88c0d0 Original primary
-// #d84836 Nice orange 
+// #52ddba Good alt primary
+// #d84836 Nice orange
+// #df965a Another orange
 // #eda952 Yellow
+// #f6436b Pink
 
 export const themes: ThemePalette[] = [
     {
@@ -40,17 +48,19 @@ export const themes: ThemePalette[] = [
         id: 'nord',
         label: 'Nord',
         isLight: false,
-        backgroundDarker: '#23252b',
-        backgroundDark: '#252a33',
-        backgroundNeutral: '#2e3440',
-        backgroundLight: '#353b48',
+        bg: '#23252b',
+        bgMuted: '#252a33',
+        bgElevated: '#2e3440',
+        bgAccented: '#353b48',
+        bgInverted: '#eceff4',
         border: '#434c5e',
-        textDim: '#6a758d',
-        textBright: '#d8dee9',
+        textDimmed: '#434c5e',
+        textMuted: '#4c566a',
+        textToned: '#6a758d',
+        text: '#d8dee9',
         textHighlighted: '#eceff4',
-        scrollNeutral: '#434c5e',
-        scrollLight: '#4c566a',
-        primary: '#52ddba',
+        textInverted: '#23252b',
+        primary: '#8fbcbb',
         secondary: '#5e81ac',
         success: '#a3be8c',
         warning: '#ebcb8b',
@@ -62,16 +72,18 @@ export const themes: ThemePalette[] = [
         id: 'dracula',
         label: 'Dracula',
         isLight: false,
-        backgroundDarker: '#191a21',
-        backgroundDark: '#282a36',
-        backgroundNeutral: '#2f3241',
-        backgroundLight: '#44475a',
+        bg: '#191a21',
+        bgMuted: '#282a36',
+        bgElevated: '#2f3241',
+        bgAccented: '#44475a',
+        bgInverted: '#ffffff',
         border: '#44475a',
-        textDim: '#6272a4',
-        textBright: '#f8f8f2',
+        textDimmed: '#44475a',
+        textMuted: '#6272a4',
+        textToned: '#6272a4',
+        text: '#f8f8f2',
         textHighlighted: '#ffffff',
-        scrollNeutral: '#44475a',
-        scrollLight: '#6272a4',
+        textInverted: '#191a21',
         primary: '#bd93f9',
         secondary: '#ff79c6',
         success: '#50fa7b',
@@ -84,16 +96,18 @@ export const themes: ThemePalette[] = [
         id: 'monokai',
         label: 'Monokai',
         isLight: false,
-        backgroundDarker: '#1e1f1c',
-        backgroundDark: '#272822',
-        backgroundNeutral: '#2e2f2a',
-        backgroundLight: '#49483e',
+        bg: '#1e1f1c',
+        bgMuted: '#272822',
+        bgElevated: '#2e2f2a',
+        bgAccented: '#49483e',
+        bgInverted: '#ffffff',
         border: '#49483e',
-        textDim: '#75715e',
-        textBright: '#f8f8f2',
+        textDimmed: '#49483e',
+        textMuted: '#75715e',
+        textToned: '#75715e',
+        text: '#f8f8f2',
         textHighlighted: '#ffffff',
-        scrollNeutral: '#49483e',
-        scrollLight: '#75715e',
+        textInverted: '#1e1f1c',
         primary: '#66d9ef',
         secondary: '#ae81ff',
         success: '#a6e22e',
@@ -106,16 +120,18 @@ export const themes: ThemePalette[] = [
         id: 'github-light',
         label: 'GitHub Light',
         isLight: true,
-        backgroundDarker: '#ffffff',
-        backgroundDark: '#f6f8fa',
-        backgroundNeutral: '#eaeef2',
-        backgroundLight: '#d0d7de',
+        bg: '#ffffff',
+        bgMuted: '#f6f8fa',
+        bgElevated: '#eaeef2',
+        bgAccented: '#d0d7de',
+        bgInverted: '#10161c',
         border: '#d0d7de',
-        textDim: '#6e7781',
-        textBright: '#1f2328',
+        textDimmed: '#d0d7de',
+        textMuted: '#656d76',
+        textToned: '#6e7781',
+        text: '#1f2328',
         textHighlighted: '#10161c',
-        scrollNeutral: '#d0d7de',
-        scrollLight: '#656d76',
+        textInverted: '#ffffff',
         primary: '#0969da',
         secondary: '#8250df',
         success: '#1a7f37',
@@ -143,12 +159,12 @@ export function buildMonacoThemeData(palette: ThemePalette): monaco.editor.IStan
         inherit: true,
         rules: [],
         colors: {
-            'editor.background': palette.backgroundNeutral,
+            'editor.background': palette.bgElevated,
             'editor.lineHighlightBackground': palette.isLight ? '#00000008' : '#ffffff08',
-            'editorLineNumber.foreground': `${palette.textBright}44`,
-            'editorLineNumber.activeForeground': palette.textBright,
-            'editorWidget.background': palette.backgroundDark,
-            'dropdown.background': palette.backgroundDark,
+            'editorLineNumber.foreground': `${palette.text}44`,
+            'editorLineNumber.activeForeground': palette.text,
+            'editorWidget.background': palette.bgMuted,
+            'dropdown.background': palette.bgMuted,
             'scrollbar.shadow': '#00000044',
         },
     }

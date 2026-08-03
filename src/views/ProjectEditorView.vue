@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { supabase } from '@/assets/utils/supabase'
 import { useFileStore } from '@/stores/fileStore'
 import EditorView from './EditorView.vue'
+import ErrorView from './ErrorView.vue'
 
 const props = defineProps<{
   slug: string
@@ -57,9 +58,18 @@ onUnmounted(() => fileStore.exitProject())
   <div class="project-view">
     <EditorView v-if="status === 'ready'" :project-id="resolvedProjectId" class="content" />
 
+    <ErrorView
+      v-else-if="status === 'not-found'"
+      :status-code="404"
+      status-message="Project not found"
+      message="This project doesn't exist, or you don't have access to it."
+      back-label="Back to Projects"
+      back-to="/projects"
+      class="content"
+    />
+
     <div v-else class="status-pane">
       <p v-if="status === 'loading'">Loading project&hellip;</p>
-      <UAlert v-else-if="status === 'not-found'" color="warning" variant="subtle" description="This project doesn't exist, or you don't have access to it." />
       <UAlert v-else color="error" variant="subtle" :description="errorMessage" />
       <UButton v-if="status !== 'loading'" variant="ghost" @click="() => { router.push('/projects') }">Back to Projects</UButton>
     </div>
@@ -86,6 +96,6 @@ onUnmounted(() => fileStore.exitProject())
   align-items: center;
   justify-content: center;
   gap: 1em;
-  color: var(--theme-text-bright);
+  color: var(--theme-text);
 }
 </style>

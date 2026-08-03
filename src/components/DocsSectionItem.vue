@@ -59,12 +59,12 @@ const expandState = inject(docsExpandStateKey)!
 }
 
 .doc-section-header:hover {
-	color: var(--theme-text-bright);
+	color: var(--theme-text);
 }
 
 .doc-chevron {
 	flex-shrink: 0;
-	color: var(--theme-text-dim);
+	color: var(--theme-text-toned);
 }
 
 .doc-chevron-spacer {
@@ -77,7 +77,7 @@ const expandState = inject(docsExpandStateKey)!
 	margin: 0 0 0.5em;
 	padding-right: 0.75em;
 	font-size: 0.85em;
-	color: var(--theme-text-dim);
+	color: var(--theme-text-toned);
 	line-height: 1.4;
 }
 </style>

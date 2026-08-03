@@ -1,5 +1,6 @@
 import './assets/main.css'
 import 'primeicons/primeicons.css';
+import './assets/icons/customIcons'
 
 // import vue from '@vitejs/plugin-vue'
 // import { defineConfig } from 'vite'

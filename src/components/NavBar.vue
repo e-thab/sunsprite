@@ -111,7 +111,8 @@ const accountMenuItems: DropdownMenuItem[][] = [
         },
         {
             label: 'My Projects',
-            icon: 'material-symbols:shapes',
+            // icon: 'material-symbols:shapes',
+            icon: 'tabler:folder-filled',
             onSelect: () => router.push('/projects')
         },
     ],
@@ -129,15 +130,18 @@ const accountMenuItems: DropdownMenuItem[][] = [
 <template>
     <div v-if="!fsStore.fullscreen" id="nav-header" class="bar">
         <div class="left-group">
-            <UButton variant="ghost" color="neutral" class="logo-button" @click="() => { router.push('/') }">
-                <img id="logo" title="Sunsprite" src="/src/assets/sun.svg"></img>
+            <!-- Sunsprite home button -->
+            <UButton icon="sunsprite:sun" variant="ghost" color="neutral" @click="() => { router.push('/') }">
+                Sunsprite
             </UButton>
 
+            <!-- Docs button -->
             <UTooltip v-if="isEditorRoute" text="Docs">
                 <UButton icon="tabler:book-filled" variant="ghost" :color="docsStore.isOpen ? 'primary' : 'neutral'" @click="docsStore.toggle">Docs</UButton>
             </UTooltip>
         </div>
 
+        <!-- Try a fieldgroup here -->
         <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
             <span class="project-name">{{ fileStore.projectName }}</span>
             
@@ -182,7 +186,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
     padding: 0 0.5em 0 0.5em;
     justify-content: space-between;
     user-select: none;
-    background-color: var(--theme-bg-light);
+    background-color: var(--theme-bg-accented);
 }
 
 .center-group,
@@ -206,7 +210,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
     align-items: center;
     gap: 0.6em;
     margin-left: 0.5em;
-    color: var(--theme-text-bright);
+    color: var(--theme-text);
 }
 
 .project-name {

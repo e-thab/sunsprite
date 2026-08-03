@@ -123,12 +123,12 @@ function onPointerUp() {
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow: hidden;
-	background-color: var(--theme-bg-darker);
+	background-color: var(--theme-bg);
 	background-image:
-		linear-gradient(45deg, var(--theme-bg-dark) 25%, transparent 25%),
-		linear-gradient(-45deg, var(--theme-bg-dark) 25%, transparent 25%),
-		linear-gradient(45deg, transparent 75%, var(--theme-bg-dark) 75%),
-		linear-gradient(-45deg, transparent 75%, var(--theme-bg-dark) 75%);
+		linear-gradient(45deg, var(--theme-bg-muted) 25%, transparent 25%),
+		linear-gradient(-45deg, var(--theme-bg-muted) 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, var(--theme-bg-muted) 75%),
+		linear-gradient(-45deg, transparent 75%, var(--theme-bg-muted) 75%);
 	background-size: 20px 20px;
 	background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 	cursor: grab;
@@ -155,13 +155,13 @@ function onPointerUp() {
 	gap: 0.5em;
 	flex-shrink: 0;
 	padding: 0.5em;
-	background-color: var(--theme-bg-neutral);
+	background-color: var(--theme-bg-elevated);
 }
 
 .zoom-level {
 	min-width: 3.5em;
 	text-align: center;
 	font-size: 0.85em;
-	color: var(--theme-text-dim);
+	color: var(--theme-text-toned);
 }
 </style>
