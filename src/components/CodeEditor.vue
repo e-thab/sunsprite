@@ -46,7 +46,7 @@ const editorOptions: EditorOptions = {
   // internal .overflow-guard div never actually shrinks below a few px even
   // when the pane is dragged fully closed, and overflow:visible let that
   // sliver bleed out over the splitter, blocking it.
-  fixedOverflowWidgets: true,
+  fixedOverflowWidgets: true
 }
 
 // Define a Monaco theme for every app palette, sourced from the same

@@ -1,6 +1,20 @@
 import type * as monaco from 'monaco-editor'
+import nord from './nord'
+import dracula from './dracula'
+import monokai from './monokai'
+import gruvbox from './gruvbox'
+import oneDark from './oneDark'
+import tokyoNight from './tokyoNight'
+import gitHubLight from './gitHubLight'
 
-export type ThemeId = 'nord' | 'dracula' | 'monokai' | 'github-light'
+export type ThemeId =
+    | 'nord'
+    | 'dracula'
+    | 'monokai'
+    | 'github-light'
+    | 'gruvbox'
+    | 'onedark'
+    | 'tokyo-night-storm'
 
 // Field names mirror Nuxt UI's own semantic color slots 1:1 (bg/bg-muted/
 // bg-elevated/bg-accented/bg-inverted, text/text-dimmed/text-muted/
@@ -13,18 +27,31 @@ export interface ThemePalette {
     /** Drives Monaco's base theme (vs vs vs-dark) and the app's dark/light class. */
     isLight: boolean
 
+    /** Default component/page backgrounds */
     bg: string
+    /** Panel header bar backgrounds, not currently used within Nuxt components */
     bgMuted: string
+    /** Panel primary backgrounds and Nuxt item hover highlight */
     bgElevated: string
+    /** Navbar and splitter color, not currently used within Nuxt components */
     bgAccented: string
+    /** Not currently used */
     bgInverted: string
+    
+    /** Nuxt component borders, file tree lines */
     border: string
 
+    /** Nuxt non-selected dropdown items */
     textDimmed: string
+    /** Output 'running' item, and Nuxt 'detail' text (inactive tab labels, time-ago, etc.) */
     textMuted: string
+    /** Currently only used for 'running' item stamp and 'last edited' tags on project page */
     textToned: string
+    /** Primary text color, selected icons, and Monaco line numbers */
     text: string
+    /** Text on hovered Nuxt items */
     textHighlighted: string
+    /** Used for text within Nuxt components with solid variant */
     textInverted: string
 
     primary: string
@@ -33,6 +60,29 @@ export interface ThemePalette {
     warning: string
     error: string
     info: string
+
+    tokens: TokenPalette
+}
+
+// Color palette for monaco tokenization/syntax highlighting
+interface TokenColorDefinition {
+    color: string,
+    style: string
+}
+export interface TokenPalette {
+    default: TokenColorDefinition,
+    comment: TokenColorDefinition,
+    number: TokenColorDefinition,
+    numberHex: TokenColorDefinition
+    type: TokenColorDefinition,
+    // delimiter: TokenColorDefinition,
+    string: TokenColorDefinition,
+    keyword: TokenColorDefinition,
+    regexp: TokenColorDefinition,
+    bracketColor1: string,
+    bracketColor2: string,
+    bracketColor3: string,
+    bracketColorUnexpected: string
 }
 
 // #88c0d0 Original primary
@@ -43,102 +93,7 @@ export interface ThemePalette {
 // #f6436b Pink
 
 export const themes: ThemePalette[] = [
-    {
-        // Authentic Nord (nordtheme.com) palette.
-        id: 'nord',
-        label: 'Nord',
-        isLight: false,
-        bg: '#23252b',
-        bgMuted: '#252a33',
-        bgElevated: '#2e3440',
-        bgAccented: '#353b48',
-        bgInverted: '#eceff4',
-        border: '#434c5e',
-        textDimmed: '#434c5e',
-        textMuted: '#4c566a',
-        textToned: '#6a758d',
-        text: '#d8dee9',
-        textHighlighted: '#eceff4',
-        textInverted: '#23252b',
-        primary: '#8fbcbb',
-        secondary: '#5e81ac',
-        success: '#a3be8c',
-        warning: '#ebcb8b',
-        error: '#bf616a',
-        info: '#81a1c1',
-    },
-    {
-        // Authentic Dracula (draculatheme.com) palette.
-        id: 'dracula',
-        label: 'Dracula',
-        isLight: false,
-        bg: '#191a21',
-        bgMuted: '#282a36',
-        bgElevated: '#2f3241',
-        bgAccented: '#44475a',
-        bgInverted: '#ffffff',
-        border: '#44475a',
-        textDimmed: '#44475a',
-        textMuted: '#6272a4',
-        textToned: '#6272a4',
-        text: '#f8f8f2',
-        textHighlighted: '#ffffff',
-        textInverted: '#191a21',
-        primary: '#bd93f9',
-        secondary: '#ff79c6',
-        success: '#50fa7b',
-        warning: '#ffb86c',
-        error: '#ff5555',
-        info: '#8be9fd',
-    },
-    {
-        // Authentic Monokai palette.
-        id: 'monokai',
-        label: 'Monokai',
-        isLight: false,
-        bg: '#1e1f1c',
-        bgMuted: '#272822',
-        bgElevated: '#2e2f2a',
-        bgAccented: '#49483e',
-        bgInverted: '#ffffff',
-        border: '#49483e',
-        textDimmed: '#49483e',
-        textMuted: '#75715e',
-        textToned: '#75715e',
-        text: '#f8f8f2',
-        textHighlighted: '#ffffff',
-        textInverted: '#1e1f1c',
-        primary: '#66d9ef',
-        secondary: '#ae81ff',
-        success: '#a6e22e',
-        warning: '#fd971f',
-        error: '#f92672',
-        info: '#e6db74',
-    },
-    {
-        // Modeled on GitHub's light UI palette.
-        id: 'github-light',
-        label: 'GitHub Light',
-        isLight: true,
-        bg: '#ffffff',
-        bgMuted: '#f6f8fa',
-        bgElevated: '#eaeef2',
-        bgAccented: '#d0d7de',
-        bgInverted: '#10161c',
-        border: '#d0d7de',
-        textDimmed: '#d0d7de',
-        textMuted: '#656d76',
-        textToned: '#6e7781',
-        text: '#1f2328',
-        textHighlighted: '#10161c',
-        textInverted: '#ffffff',
-        primary: '#0969da',
-        secondary: '#8250df',
-        success: '#1a7f37',
-        warning: '#9a6700',
-        error: '#d1242f',
-        info: '#1b7c83',
-    },
+    nord, dracula, monokai, gruvbox, oneDark, tokyoNight, gitHubLight
 ]
 
 export const defaultThemeId: ThemeId = 'nord'
@@ -153,11 +108,33 @@ export function monacoThemeName(id: ThemeId): string {
 
 // Projects a palette into the editor-chrome colors Monaco needs.
 // One source of truth for both the app CSS variables and the editor theme.
+// https://code.visualstudio.com/api/references/theme-color
+// https://code.visualstudio.com/docs/configure/themes#_customize-a-color-theme:~:text=Editor%20syntax%20highlighting
 export function buildMonacoThemeData(palette: ThemePalette): monaco.editor.IStandaloneThemeData {
+    const tokenMap: Map<string, TokenColorDefinition> = new Map([
+        ['', palette.tokens.default],
+        ['comment', palette.tokens.comment],
+        ['number', palette.tokens.number],
+        ['number.hex', palette.tokens.numberHex],
+        ['type', palette.tokens.type],
+        ['string', palette.tokens.string],
+        ['keyword', palette.tokens.keyword],
+        ['regexp', palette.tokens.regexp],
+    ])
+
+    const rules: monaco.editor.ITokenThemeRule[] = []
+    for (const [name, palette] of tokenMap.entries()) {
+        rules.push({
+            token: name,
+            foreground: palette.color,
+            fontStyle: palette.style
+        })
+    }
+
     return {
         base: palette.isLight ? 'vs' : 'vs-dark',
         inherit: true,
-        rules: [],
+        rules,
         colors: {
             'editor.background': palette.bgElevated,
             'editor.lineHighlightBackground': palette.isLight ? '#00000008' : '#ffffff08',
@@ -166,6 +143,10 @@ export function buildMonacoThemeData(palette: ThemePalette): monaco.editor.IStan
             'editorWidget.background': palette.bgMuted,
             'dropdown.background': palette.bgMuted,
             'scrollbar.shadow': '#00000044',
+            "editorBracketHighlight.foreground1": palette.tokens.bracketColor1, // Innermost
+            "editorBracketHighlight.foreground2": palette.tokens.bracketColor2,
+            "editorBracketHighlight.foreground3": palette.tokens.bracketColor3,
+            "editorBracketHighlight.unexpectedBracket.foreground": palette.tokens.bracketColorUnexpected // Mismatched
         },
     }
 }
