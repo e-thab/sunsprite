@@ -55,7 +55,7 @@ onMounted(() => {
         <!-- Header tabs -->
         <!-- TODO: Have output tab flash when another tab is focused and a new print/warn/err appears -->
         <div class="output-header">
-            <UTabs v-model="activeTab" :items="tabItems" :content="false" size="xs" class="output-tabs" />
+            <UTabs v-model="activeTab" :items="tabItems" :content="false" color="primary" size="xs" class="output-tabs" />
 
             <UTooltip text="Collapse">
                 <UButton icon="tabler:chevron-down" variant="soft" color="neutral" size="xs" @click="$emit('collapseOutput')" />
@@ -89,14 +89,14 @@ onMounted(() => {
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background-color: var(--theme-bg-dark);
+    background-color: var(--theme-bg-muted);
 }
 
 .output-header {
     display: flex;
     /* justify-content: space-between; */
     /* align-items: center; */
-    /* color: var(--theme-text-bright); */
+    /* color: var(--theme-text); */
     /* height: 24px; */
     /* user-select: none; */
 }
@@ -109,7 +109,7 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    background-color: var(--theme-bg-neutral);
+    background-color: var(--theme-bg-elevated);
 }
 
 .output-item {
@@ -122,16 +122,16 @@ onMounted(() => {
 .output-msg {
     padding: 0 .25em;
     flex: 1 1 auto;
-    color: var(--theme-text-bright);
-    background-color: var(--theme-bg-neutral);
+    color: var(--theme-text);
+    background-color: var(--theme-bg-elevated);
     font-family: 'Fira Code';
 }
 
 .output-stamp {
-    border-right: 1px solid var(--theme-scroll-neutral);
+    border-right: 1px solid var(--theme-text-dimmed);
     padding: 0 .25em;
-    color: var(--theme-text-dim);
-    background-color: var(--theme-bg-dark);
+    color: var(--theme-text-toned);
+    background-color: var(--theme-bg-muted);
     text-align: center;
     min-width: 22px;
     user-select: none;
@@ -151,7 +151,7 @@ onMounted(() => {
 }
 
 .output-item--start {
-    color: var(--theme-scroll-light);
+    color: var(--theme-text-muted);
     font-style: italic;
 }
 

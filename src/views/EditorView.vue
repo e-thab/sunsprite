@@ -405,24 +405,24 @@ onBeforeRouteLeave(() => {
 }
 
 .splitpanes--vertical > .splitpanes__splitter {
-  background-color: var(--theme-bg-light);
+  background-color: var(--theme-bg-accented);
   min-width: 6px;
   display: v-bind(splitterDisplay);
   transition: 0.15s 0.1s;
 }
 .splitpanes--vertical > .splitpanes__splitter:hover {
   min-width: 9px;
-  background-color: var(--theme-scroll-light);
+  background-color: var(--theme-text-muted);
 }
 
 .splitpanes--horizontal > .splitpanes__splitter {
-  background-color: var(--theme-bg-light);
+  background-color: var(--theme-bg-accented);
   min-height: 6px;
   display: v-bind(splitterDisplay);
   transition: 0.15s 0.1s;
 }
 .splitpanes--horizontal > .splitpanes__splitter:hover {
   min-height: 9px;
-  background-color: var(--theme-scroll-light);
+  background-color: var(--theme-text-muted);
 }
 </style>

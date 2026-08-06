@@ -142,7 +142,7 @@ const guestItems: TreeItem[] = [
 
 			{
 				label: 'main.js',
-				icon: 'catppuccin:javascript',
+				icon: 'fluent:javascript-24-filled',
 				onSelect: () => emit('selectScript', 'main.js'),
 			},
 		]
@@ -269,7 +269,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 		kind: 'script',
 		id: node.id,
 		parentId,
-		icon: 'catppuccin:javascript',
+		icon: 'fluent:javascript-24-filled',
 		onSelect: selectHandler,
 	}
 }
@@ -713,7 +713,7 @@ async function onDropOnRoot() {
 
 			<UDropdownMenu v-if="fileStore.projectId" :items="folderMenuItems(null)" style="flex: 0 1 auto;">
 				<UTooltip text="Add..." ignore-non-keyboard-focus>
-					<UButton icon="tabler:plus" variant="soft" color="neutral" size="xs" />
+					<UButton icon="tabler:plus" variant="ghost" color="neutral" size="xs" />
 				</UTooltip>
 			</UDropdownMenu>
 			<div v-else class="spacer"></div>
@@ -804,7 +804,7 @@ async function onDropOnRoot() {
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;
-	background-color: var(--theme-bg-neutral);
+	background-color: var(--theme-bg-elevated);
 }
 
 .spacer {
@@ -823,7 +823,8 @@ async function onDropOnRoot() {
 	flex-shrink: 0;
 	object-fit: contain;
 	border-radius: 0.2rem;
-	background-color: var(--theme-bg-dark);
+	/* background-color: var(--theme-bg-muted); */
+	background-color: transparent;
 }
 
 .leading-icon {
@@ -858,10 +859,10 @@ async function onDropOnRoot() {
 	position: relative;
 	z-index: 1;
 	width: 100%;
-	background-color: var(--theme-bg-darker);
-	border: 1px solid var(--theme-accent, var(--theme-scroll-light));
+	background-color: var(--theme-bg);
+	border: 1px solid var(--theme-accent, var(--theme-text-muted));
 	border-radius: 0.2rem;
-	color: var(--theme-text-bright);
+	color: var(--theme-text);
 	font: inherit;
 	padding: 0 0.25em;
 }
@@ -873,9 +874,9 @@ async function onDropOnRoot() {
    translucent fill keeps it on top for events while still letting the text
    read through underneath, instead of fighting over paint order. */
 .tree-row-dnd.drag-over {
-	outline: 2px solid var(--theme-accent, var(--theme-scroll-light));
+	outline: 2px solid var(--theme-accent, var(--theme-text-muted));
 	outline-offset: -1px;
-	background-color: color-mix(in srgb, var(--theme-bg-light) 55%, transparent);
+	background-color: color-mix(in srgb, var(--theme-bg-accented) 55%, transparent);
 }
 
 /* Only ever spliced into a *folder's* own children (see
@@ -886,8 +887,8 @@ async function onDropOnRoot() {
 	width: 100%;
 	height: 1.25rem;
 	border-radius: 0.25rem;
-	border: 1.5px dashed var(--theme-scroll-light);
-	background-color: var(--theme-bg-light);
+	border: 1.5px dashed var(--theme-text-muted);
+	background-color: var(--theme-bg-accented);
 	pointer-events: none;
 }
 
@@ -898,11 +899,11 @@ async function onDropOnRoot() {
    to fire, clearing the target, snapping it back, re-triggering dragover,
    and so on in an endless flicker loop. */
 .tree-row-dnd.drop-line-before {
-	box-shadow: inset 0 2px 0 0 var(--theme-accent, var(--theme-scroll-light));
+	box-shadow: inset 0 2px 0 0 var(--theme-accent, var(--theme-text-muted));
 }
 
 .tree-row-dnd.drop-line-after {
-	box-shadow: inset 0 -2px 0 0 var(--theme-accent, var(--theme-scroll-light));
+	box-shadow: inset 0 -2px 0 0 var(--theme-accent, var(--theme-text-muted));
 }
 
 /* Nuxt UI's tree-item link is `position: relative`, which is what these

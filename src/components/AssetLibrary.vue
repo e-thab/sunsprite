@@ -63,7 +63,7 @@ const items: TreeItem[] = [
 		defaultExpanded: false,
 		children: exampleScriptNames.map((name) => ({
 			label: name,
-			icon: 'catppuccin:javascript',
+			icon: 'fluent:javascript-24-filled',
 			path: name,
 		})),
 	},
@@ -103,7 +103,7 @@ const items: TreeItem[] = [
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;
-	background-color: var(--theme-bg-neutral);
+	background-color: var(--theme-bg-elevated);
 }
 
 .spacer {
@@ -117,7 +117,8 @@ const items: TreeItem[] = [
 	flex-shrink: 0;
 	object-fit: contain;
 	border-radius: 0.2rem;
-	background-color: var(--theme-bg-dark);
+	/* background-color: var(--theme-bg-muted); */
+	background-color: transparent;
 }
 
 .leading-icon {

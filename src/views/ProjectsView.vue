@@ -99,7 +99,7 @@ onMounted(() => projectStore.fetchProjects())
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  background-color: var(--theme-bg-neutral);
+  background-color: var(--theme-bg-elevated);
   padding-top: 4em;
 }
 
@@ -148,7 +148,7 @@ onMounted(() => projectStore.fetchProjects())
 
 .project-updated {
   font-size: 0.75em;
-  color: var(--theme-text-dim);
+  color: var(--theme-text-toned);
 }
 
 .project-row-actions {

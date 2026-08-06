@@ -79,7 +79,7 @@ const filteredSections = computed(() => filterDocsSections(docsSections, searchQ
 	flex-shrink: 0;
 	padding: 0.5em 0.75em;
 	/* border-bottom: 1px solid var(--theme-border); */
-	background-color: var(--theme-bg-neutral);
+	background-color: var(--theme-bg-elevated);
 }
 
 .docs-search-input {
@@ -90,14 +90,14 @@ const filteredSections = computed(() => filterDocsSections(docsSections, searchQ
 	flex: 1 1 auto;
 	overflow-y: auto;
 	padding: 0.25em 0;
-	color: var(--theme-text-bright);
-	background-color: var(--theme-bg-neutral);
+	color: var(--theme-text);
+	background-color: var(--theme-bg-elevated);
 }
 
 .docs-no-results {
 	padding: 0.75em 1em;
 	margin: 0;
 	font-size: 0.85em;
-	color: var(--theme-text-dim);
+	color: var(--theme-text-toned);
 }
 </style>
