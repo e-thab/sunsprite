@@ -5,10 +5,10 @@ const alucard: ThemePalette = {
     id: 'alucard',
     label: 'Alucard',
     isLight: true,
-    bg: '#dfd9bf', // Bogus
-    bgMuted: '#e2decc', // Bogus
+    bg: '#e6dfc0',
+    bgMuted: '#efe9cf',
     bgElevated: '#fffbeb',
-    bgAccented: '#c5bfab', // Bogus
+    bgAccented: '#cabf94',
     bgInverted: '#1f1f1f',
     border: '#6c664b',
     textDimmed: '#6c664b',
@@ -16,7 +16,7 @@ const alucard: ThemePalette = {
     textToned: '#6c664b',
     text: '#1f1f1f',
     textHighlighted: '#000000',
-    textInverted: '#dfd9bf', // Bogus
+    textInverted: '#e6dfc0',
     primary: '#644ac9',
     secondary: '#a3144d',
     success: '#14710a',
@@ -39,7 +39,7 @@ const alucard: ThemePalette = {
         bracketColor1: '#644ac9',
         bracketColor2: '#a34d14',
         bracketColor3: '#14710a',
-        bracketColorUnexpected: '#ff5555',
+        bracketColorUnexpected: '#cb3a2a',
     }
 }
 

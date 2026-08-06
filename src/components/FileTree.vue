@@ -142,7 +142,7 @@ const guestItems: TreeItem[] = [
 
 			{
 				label: 'main.js',
-				icon: 'catppuccin:javascript',
+				icon: 'fluent:javascript-24-filled',
 				onSelect: () => emit('selectScript', 'main.js'),
 			},
 		]
@@ -269,7 +269,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 		kind: 'script',
 		id: node.id,
 		parentId,
-		icon: 'catppuccin:javascript',
+		icon: 'fluent:javascript-24-filled',
 		onSelect: selectHandler,
 	}
 }

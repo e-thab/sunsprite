@@ -15,7 +15,7 @@ export type ThemeId =
     | 'github-light'
     | 'gruvbox'
     | 'onedark'
-    | 'tokyo-night-storm'
+    | 'tokyo-night'
     | 'alucard'
 
 // Field names mirror Nuxt UI's own semantic color slots 1:1 (bg/bg-muted/
@@ -100,7 +100,7 @@ export interface TokenPalette {
 
 export const themes: ThemePalette[] = [
     // Dark
-    nord, dracula, /*monokai,*/ /*gruvbox,*/ oneDark, tokyoNight,
+    dracula, /*gruvbox,*/ /*monokai,*/ nord, oneDark, tokyoNight,
     // Light
     alucard, gitHubLight
 ]
@@ -135,7 +135,6 @@ export function buildMonacoThemeData(palette: ThemePalette): monaco.editor.IStan
         ['regexp', palette.tokens.regexp],
     ])
     
-
     const rules: monaco.editor.ITokenThemeRule[] = []
     for (const [name, palette] of tokenMap.entries()) {
         rules.push({

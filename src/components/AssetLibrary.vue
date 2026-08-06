@@ -63,7 +63,7 @@ const items: TreeItem[] = [
 		defaultExpanded: false,
 		children: exampleScriptNames.map((name) => ({
 			label: name,
-			icon: 'catppuccin:javascript',
+			icon: 'fluent:javascript-24-filled',
 			path: name,
 		})),
 	},
