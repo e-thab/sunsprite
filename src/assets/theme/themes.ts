@@ -6,6 +6,7 @@ import gruvbox from './gruvbox'
 import oneDark from './oneDark'
 import tokyoNight from './tokyoNight'
 import gitHubLight from './gitHubLight'
+import alucard from './alucard'
 
 export type ThemeId =
     | 'nord'
@@ -15,6 +16,7 @@ export type ThemeId =
     | 'gruvbox'
     | 'onedark'
     | 'tokyo-night-storm'
+    | 'alucard'
 
 // Field names mirror Nuxt UI's own semantic color slots 1:1 (bg/bg-muted/
 // bg-elevated/bg-accented/bg-inverted, text/text-dimmed/text-muted/
@@ -43,7 +45,7 @@ export interface ThemePalette {
 
     /** Nuxt non-selected dropdown items */
     textDimmed: string
-    /** Output 'running' item, and Nuxt 'detail' text (inactive tab labels, time-ago, etc.) */
+    /** Splitter hover color, output 'running' item, and Nuxt 'detail' text (inactive tab labels, time-ago, etc.) */
     textMuted: string
     /** Currently only used for 'running' item stamp and 'last edited' tags on project page */
     textToned: string
@@ -67,17 +69,21 @@ export interface ThemePalette {
 // Color palette for monaco tokenization/syntax highlighting
 interface TokenColorDefinition {
     color: string,
-    style: string
+    bgColor?: string,
+    style?: string
 }
 export interface TokenPalette {
     default: TokenColorDefinition,
-    comment: TokenColorDefinition,
+    identifier: TokenColorDefinition,
+    keyword: TokenColorDefinition,
+    delimiter: TokenColorDefinition,
+    type: TokenColorDefinition,
     number: TokenColorDefinition,
     numberHex: TokenColorDefinition
-    type: TokenColorDefinition,
-    // delimiter: TokenColorDefinition,
     string: TokenColorDefinition,
-    keyword: TokenColorDefinition,
+    stringEscape: TokenColorDefinition,
+    comment: TokenColorDefinition,
+    commentDoc: TokenColorDefinition,
     regexp: TokenColorDefinition,
     bracketColor1: string,
     bracketColor2: string,
@@ -93,7 +99,10 @@ export interface TokenPalette {
 // #f6436b Pink
 
 export const themes: ThemePalette[] = [
-    nord, dracula, monokai, gruvbox, oneDark, tokyoNight, gitHubLight
+    // Dark
+    nord, dracula, /*monokai,*/ /*gruvbox,*/ oneDark, tokyoNight,
+    // Light
+    alucard, gitHubLight
 ]
 
 export const defaultThemeId: ThemeId = 'nord'
@@ -113,14 +122,19 @@ export function monacoThemeName(id: ThemeId): string {
 export function buildMonacoThemeData(palette: ThemePalette): monaco.editor.IStandaloneThemeData {
     const tokenMap: Map<string, TokenColorDefinition> = new Map([
         ['', palette.tokens.default],
-        ['comment', palette.tokens.comment],
+        ['identifier', palette.tokens.identifier],
+        ['keyword', palette.tokens.keyword],
+        ['delimiter', palette.tokens.delimiter],
+        ['type', palette.tokens.type],
         ['number', palette.tokens.number],
         ['number.hex', palette.tokens.numberHex],
-        ['type', palette.tokens.type],
         ['string', palette.tokens.string],
-        ['keyword', palette.tokens.keyword],
+        ['string.escape', palette.tokens.stringEscape],
+        ['comment', palette.tokens.comment],
+        ['comment.doc', palette.tokens.commentDoc],
         ['regexp', palette.tokens.regexp],
     ])
+    
 
     const rules: monaco.editor.ITokenThemeRule[] = []
     for (const [name, palette] of tokenMap.entries()) {

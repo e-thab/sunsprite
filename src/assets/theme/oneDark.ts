@@ -5,17 +5,17 @@ const oneDark: ThemePalette = {
     id: 'onedark',
     label: 'One Dark',
     isLight: false,
-    bg: '#1b1d23',
-    bgMuted: '#282c34',
-    bgElevated: '#2c313a',
-    bgAccented: '#3b4048',
-    bgInverted: '#fafafa',
-    border: '#3b4048',
-    textDimmed: '#3b4048',
-    textMuted: '#5c6370',
-    textToned: '#828997',
+    bg: '#1b1d23', // Bogus
+    bgMuted: '#1c1f25',
+    bgElevated: '#282c34', // Bogus
+    bgAccented: '#343a44', // Bogus
+    bgInverted: '#abb2bf',
+    border: '#3b4048', // Bogus
+    textDimmed: '#3b4048', // Bogus
+    textMuted: '#5c6370', // Bogus
+    textToned: '#828997', // Bogus
     text: '#abb2bf',
-    textHighlighted: '#ffffff',
+    textHighlighted: '#fafafa', // Bogus
     textInverted: '#282c34',
     primary: '#61afef',
     secondary: '#c678dd',
@@ -24,18 +24,22 @@ const oneDark: ThemePalette = {
     error: '#e06c75',
     info: '#56b6c2',
     tokens: {
-        default: { color: '#', style: '' },
-        keyword: { color: '#', style: '' },
-        comment: { color: '#', style: '' },
-        type: { color: '#', style: '' },
-        number: { color: '#', style: '' },
-        numberHex: { color: '#', style: '' },
-        string: { color: '#', style: '' },
-        regexp: { color: '#', style: '' },
-        bracketColor1: '#',
-        bracketColor2: '#',
-        bracketColor3: '#',
-        bracketColorUnexpected: '#',
+        default: { color: '#fafafa' },
+        identifier: { color: '#fafafa' },
+        keyword: { color: '#c678dd' },
+        delimiter: { color: '#fafafa' },
+        type: { color: '#e5c07b', style: 'bold' },
+        number: { color: '#61afef' },
+        numberHex: { color: '#c678dd' },
+        string: { color: '#98c379' },
+        stringEscape: { color: '#ffffff' },
+        comment: { color: '#ffffff' },
+        commentDoc: { color: '#ffffff' },
+        regexp: { color: '#ffffff' },
+        bracketColor1: '#ffffff',
+        bracketColor2: '#ffffff',
+        bracketColor3: '#ffffff',
+        bracketColorUnexpected: '#ffffff',
     }
 }
 

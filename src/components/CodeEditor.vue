@@ -110,20 +110,6 @@ import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
 const libUri = 'file:///lib.ts'
 
-// monaco.typescript.typescriptDefaults.setExtraLibs([
-//   {
-//     content: apiLib,
-//     filePath: apiUri // A virtual URI for the definitions
-//   }
-// ])
-
-// Testing imports for intellisense libs
-// import Sprite from '@/assets/api/Sprite'
-// monaco.typescript.javascriptDefaults.addExtraLib(
-// 	`declare module '@test/sprite' { ${Sprite} }`,
-// 	'file:///api-whatev'
-// )
-
 // Set validation options
 monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
 	noSemanticValidation: false,
@@ -155,12 +141,22 @@ monaco.typescript.javascriptDefaults.setCompilerOptions({
 
 monaco.typescript.javascriptDefaults.addExtraLib(apiModel, modelUri)
 monaco.typescript.javascriptDefaults.addExtraLib(apiLib, libUri)
-// monaco.typescript.javascriptDefaults.setExtraLibs([
-//   {
-//     content: apiLib,
-//     filePath: apiUri, // A virtual URI for the definitions,
-//   }
-// ])
+
+// Add a command to the palette that allows inspecting tokens, for theme debugging
+monaco.editor.addEditorAction({
+  id: 'inspect-tokens',
+  label: 'Inspect Token At Cursor',
+  run: function(ed) {
+    const position = ed.getPosition();
+    const model = ed.getModel();
+    
+	if (!model || !position) return
+    // Force line tokenization evaluation
+    const lineTokens = monaco.editor.tokenize(model.getLineContent(position.lineNumber), 'javascript')[0];
+    
+    console.log("Tokens found on current line:", lineTokens);
+  }
+});
 
 ////////////////////////////////////////////
 

@@ -1,5 +1,6 @@
 import type { ThemePalette } from "./themes";
 
+// ! Currently disabled
 
 const monokai: ThemePalette = {
     // Authentic Monokai palette.
@@ -25,14 +26,18 @@ const monokai: ThemePalette = {
     error: '#f92672',
     info: '#e6db74',
     tokens: {
-        default: { color: '#', style: '' },
-        keyword: { color: '#', style: '' },
-        comment: { color: '#', style: '' },
-        type: { color: '#', style: '' },
-        number: { color: '#', style: '' },
-        numberHex: { color: '#', style: '' },
-        string: { color: '#', style: '' },
-        regexp: { color: '#', style: '' },
+        default: { color: '#' },
+        identifier: { color: '#' },
+        keyword: { color: '#' },
+        delimiter: { color: '#' },
+        type: { color: '#' },
+        number: { color: '#' },
+        numberHex: { color: '#' },
+        string: { color: '#' },
+        stringEscape: { color: '#' },
+        comment: { color: '#' },
+        commentDoc: { color: '#' },
+        regexp: { color: '#' },
         bracketColor1: '#',
         bracketColor2: '#',
         bracketColor3: '#',

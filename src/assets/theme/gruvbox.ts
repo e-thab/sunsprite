@@ -1,5 +1,7 @@
 import type { ThemePalette } from "./themes";
 
+// Currently disabled
+
 const gruvbox: ThemePalette = {
     // Gruvbox palette via https://github.com/morhetz/gruvbox
     id: 'gruvbox',
@@ -24,14 +26,18 @@ const gruvbox: ThemePalette = {
     error: '#fb4934',
     info: '#83a598',
     tokens: {
-        default: { color: '#', style: '' },
-        keyword: { color: '#', style: '' },
-        comment: { color: '#', style: '' },
-        type: { color: '#', style: '' },
-        number: { color: '#', style: '' },
-        numberHex: { color: '#', style: '' },
-        string: { color: '#', style: '' },
-        regexp: { color: '#', style: '' },
+        default: { color: '#' },
+        identifier: { color: '#' },
+        keyword: { color: '#' },
+        delimiter: { color: '#' },
+        type: { color: '#' },
+        number: { color: '#' },
+        numberHex: { color: '#' },
+        string: { color: '#' },
+        stringEscape: { color: '#' },
+        comment: { color: '#' },
+        commentDoc: { color: '#' },
+        regexp: { color: '#' },
         bracketColor1: '#',
         bracketColor2: '#',
         bracketColor3: '#',
