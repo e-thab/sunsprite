@@ -51,7 +51,7 @@ export const random = {
     // Random letter
     letter(uppercase: boolean = false): string {
         const alpha = 'abcdefghijklmnopqrstuvwxyz'
-        return uppercase ? this.char(alpha) : this.char(alpha.toUpperCase())
+        return uppercase ? this.char(alpha).toUpperCase() : this.char(alpha)
     },
 
     // TODO: Shuffle an array
