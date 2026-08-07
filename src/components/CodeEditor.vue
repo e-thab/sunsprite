@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch, handleError } from 'v
 
 import { useFileStore } from '@/stores/fileStore'
 import { useThemeStore } from '@/stores/themeStore'
-import { runUserCode } from '@/assets/api/core'
+import { runUserCode } from '@/sandbox/hostBridge'
 import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
 import { resolveSpecifierToName, listImportSpecifiers } from '@/assets/api/scriptResolution'

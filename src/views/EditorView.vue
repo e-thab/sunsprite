@@ -2,7 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { Splitpanes, Pane } from 'splitpanes';
-import { resizeStage } from '@/assets/api/core';
+import { resizeStage } from '@/sandbox/hostBridge';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useFileStore } from '@/stores/fileStore';
 import { useDocsStore } from '@/stores/docsStore';

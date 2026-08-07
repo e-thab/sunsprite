@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { game, setup, mouseRef, resizeStage, pause, play, pausedRef } from '@/assets/api/core'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { attachSandbox, detachSandbox, fpsRef, mouseRef, pausedRef, pause, play, resizeStage, sandboxUrl } from '@/sandbox/hostBridge'
 import { useFullscreenStore } from '@/stores/fullscreen'
 import { useFileStore } from '@/stores/fileStore'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import Output from '@/assets/api/output'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
-// const canvas = ref<HTMLCanvasElement | null>(null)
+// The game runs in this iframe, not in the app. See src/sandbox/hostBridge.ts.
+const sandboxFrame = ref<HTMLIFrameElement | null>(null)
 const codeChangedSinceLastRun = ref(false)
-const fps = ref()
 const fpsColor = ref()
 const fullscreenStore = useFullscreenStore()
 const fileStore = useFileStore()
@@ -26,21 +26,21 @@ watch(() => fileStore.hasUnsavedChanges, (value, oldValue) => {
   codeChangedSinceLastRun.value = true
 })
 
-function updateFpsInterval() {
-  fps.value = Math.round(game.loop.actualFps)
-
-  if (fps.value >= 55) {
+// The sandbox reports its frame rate on its own cadence, so this just recolors
+// the badge whenever a new reading lands instead of polling the game itself.
+watch(fpsRef, (fps) => {
+  if (fps >= 55) {
     fpsColor.value = 'SpringGreen'
-  } else if (fps.value >= 30) {
+  } else if (fps >= 30) {
     fpsColor.value = 'PaleGreen'
-  } else if (fps.value >= 20) {
+  } else if (fps >= 20) {
     fpsColor.value = 'Khaki'
-  } else if (fps.value >= 10) {
+  } else if (fps >= 10) {
     fpsColor.value = 'Gold'
   } else {
     fpsColor.value = 'Tomato'
   }
-}
+}, { immediate: true })
 
 const playPauseIcon = computed(() => pausedRef.value ? 'tabler:player-play-filled' : 'tabler:player-pause-filled')
 const playPauseLabel = computed(() => pausedRef.value ? 'Play' : 'Pause')
@@ -58,21 +58,21 @@ const fullscreenTooltip = computed(() => fullscreenStore.fullscreen ? 'Minimize'
 const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
 onMounted(async () => {
-    setup()
+    if (sandboxFrame.value) attachSandbox(sandboxFrame.value)
 
     resizeStage()
     // new Promise(resolve => setTimeout(resolve, 250)).then(() => {
     //   resizeStage()
     // })
 
-    // Prevent right click opening context menu
-    const gameContainer = document.getElementById('game-container')
-    gameContainer?.addEventListener('contextmenu', event => {
-      event.preventDefault()
-    })
+    // Right-click is suppressed inside the sandbox document itself now — the
+    // canvas lives there, and this document can't reach into it to listen.
 
-    window.setInterval(updateFpsInterval, 250)
     emit('ready')
+})
+
+onBeforeUnmount(() => {
+    detachSandbox()
 })
 
 // TODO: use tabler:refresh-alert icon when the code running doesn't match saved project
@@ -116,9 +116,24 @@ onMounted(async () => {
       </UBadge> -->
 
       <!-- FPS indicator -->
-      <UBadge color="primary" variant="outline">FPS: <span class="fps-number">{{ fps }}</span></UBadge>
+      <UBadge color="primary" variant="outline">FPS: <span class="fps-number">{{ fpsRef }}</span></UBadge>
     </div>
-    <div id="game-container" class="canvas"></div>
+
+    <!--
+      User code runs in here, not in this document. `sandbox="allow-scripts"` and
+      nothing else: scripts may run, but the frame gets an opaque origin, so the
+      same-origin policy blocks it from touching this page's DOM, its
+      localStorage (Supabase session), or navigating us. Do not add
+      allow-same-origin — combined with allow-scripts it lets the frame remove
+      its own sandboxing, which would undo all of this.
+    -->
+    <iframe
+      ref="sandboxFrame"
+      class="canvas"
+      title="Game canvas"
+      sandbox="allow-scripts"
+      :src="sandboxUrl()"
+    ></iframe>
   </div>
 </template>
 
@@ -138,6 +153,9 @@ onMounted(async () => {
   flex: 1;
   overflow: hidden;
   justify-content: center;
+  display: block;
+  width: 100%;
+  border: 0;
   background-color: #353b48; /* Magenta for debugging; update this from core whenever bg color is set */
   /* background-color: magenta;  */
 }
