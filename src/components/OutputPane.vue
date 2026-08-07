@@ -89,7 +89,7 @@ onMounted(() => {
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background-color: var(--theme-bg-muted);
+    background-color: var(--theme-bg-elevated);
 }
 
 .output-header {

@@ -328,11 +328,11 @@ onBeforeRouteLeave(() => {
 
     <!-- Center pane: Code editor -->
     <pane id="code-pane" v-show="!fsStore.fullscreen" :size="codePaneWidth">
-		<CodeEditor
-			ref="editor"
-			class="inner-pane"
-			@ready="onEditorReady"
-		/>
+      <CodeEditor
+        ref="editor"
+        class="inner-pane"
+        @ready="onEditorReady"
+      />
     </pane>
 
     <!-- Right side pane: Nested game/output splitpanes -->
