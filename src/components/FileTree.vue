@@ -44,6 +44,16 @@ function selectHandler(_event: any, item?: TreeItem) {
 	if (item?.label) emit('selectScript', item.label)
 }
 
+// Reka UI's TreeItem fires select *and* toggle on every click, folders
+// included — without this, clicking a folder to expand/collapse it also
+// selects it, which recolors the row via the shared treeSelectionStore
+// v-model even though nothing should visually "select" a folder. select and
+// toggle are separate custom-event dispatches, so preventDefault here only
+// cancels the select half; toggling still works.
+function preventFolderSelect(event: Event) {
+	event.preventDefault()
+}
+
 // https://icones.js.org/collection/tabler
 // https://icones.js.org/collection/catppuccin
 
@@ -82,6 +92,7 @@ const guestItems: TreeItem[] = [
 	{
 		label: 'scripts',
 		defaultExpanded: true,
+		onSelect: preventFolderSelect,
 		children: [
 			// {
 			//   label: 'main.ts',
@@ -251,6 +262,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			kind: 'folder',
 			id: node.id,
 			parentId,
+			onSelect: preventFolderSelect,
 			children: withFolderDropPlaceholder(fileStore.childNodes(node.id).map((child) => buildNode(child, node.id)), node.id),
 		}
 	}
