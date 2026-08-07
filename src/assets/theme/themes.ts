@@ -7,6 +7,7 @@ import oneDark from './oneDark'
 import tokyoNight from './tokyoNight'
 import gitHubLight from './gitHubLight'
 import alucard from './alucard'
+import random from './random'
 
 export type ThemeId =
     | 'nord'
@@ -17,6 +18,7 @@ export type ThemeId =
     | 'onedark'
     | 'tokyo-night'
     | 'alucard'
+    | 'random'
 
 // Field names mirror Nuxt UI's own semantic color slots 1:1 (bg/bg-muted/
 // bg-elevated/bg-accented/bg-inverted, text/text-dimmed/text-muted/
@@ -102,7 +104,9 @@ export const themes: ThemePalette[] = [
     // Dark
     dracula, /*gruvbox,*/ /*monokai,*/ nord, oneDark, tokyoNight,
     // Light
-    alucard, gitHubLight
+    alucard, gitHubLight,
+    // Other
+    random
 ]
 
 export const defaultThemeId: ThemeId = 'nord'

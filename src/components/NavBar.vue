@@ -11,6 +11,7 @@ import { useDocsStore } from '@/stores/docsStore';
 import { timeAgo } from '@/assets/utils/timeAgo';
 import SignInModal from './SignInModal.vue';
 import SignUpModal from './SignUpModal.vue';
+import { random } from '@/assets/api/utility.ts';
 
 const fsStore = useFullscreenStore()
 const authStore = useAuthStore()
@@ -94,6 +95,8 @@ const themeMenuItems = computed(() => [
         icon: (() => {
             if (t.id === themeStore.currentId) {
                 return 'tabler:check'
+            } else if (t.id === 'random') {
+                return `tabler:dice-${random.range(1, 6)}-filled`
             } else {
                 return t.isLight ? 'tabler:sun-filled' : 'tabler:moon-filled'
             }
