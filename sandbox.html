@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sunsprite sandbox</title>
+
+    <!--
+      Second Vite entry point, loaded only inside the <iframe sandbox="allow-scripts">
+      that PhaserCanvas.vue renders. Everything here runs in an opaque origin: Phaser,
+      the Sunsprite game API, and the user's own scripts. It has no access to the editor
+      app's DOM, storage, or Supabase session, and talks to the host purely by postMessage.
+
+      Deliberately no Google Fonts <link> like index.html has — an opaque origin can't
+      benefit from the parent's font cache, and pulling third-party subresources into the
+      sandbox would widen its network surface for no gain. Phaser renders text into the
+      canvas with whatever family the Label asks for, falling back to a generic.
+    -->
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+
+      #game-container {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-container"></div>
+    <script type="module" src="/src/sandbox/main.ts"></script>
+  </body>
+</html>

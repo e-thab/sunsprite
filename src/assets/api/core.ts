@@ -1,5 +1,3 @@
-import { ref } from 'vue'
-
 import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
@@ -7,7 +5,7 @@ import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action,
 import { Mouse } from './types'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
-import Output from './output'
+import Output from '@/sandbox/output'
 import { runEntryModule } from './moduleRunner'
 
 import { Colors } from './Colors'
@@ -31,17 +29,21 @@ import type { ThemePalette } from '../theme/themes'
 // let _printIndex = 0
 // const _outputLines = 100
 
-export const fpsRef = ref(0)
-export const mouseRef = ref({mouseX: 0, mouseY: 0})
-export const pausedRef = ref(false)
+// This module runs inside the sandbox iframe, which has no Vue and no access to
+// the editor app's reactivity. State the UI cares about (fps, mouse, paused) is
+// read out of here by src/sandbox/main.ts and forwarded to the host as plain
+// data; hostBridge.ts turns it back into refs on the app side.
 
 export function pause() {
 	paused = true
-	pausedRef.value = true
 }
 export function play() {
 	paused = false
-	pausedRef.value = false
+}
+
+/** Current renderer frame rate, or 0 before a game exists. */
+export function currentFps(): number {
+	return game ? Math.round(game.loop.actualFps) : 0
 }
 
 /**
@@ -224,6 +226,18 @@ function _releaseAllKeys() {
 		keysJustReleased.set(key, _frame)
 	}
 	keysPressed = []
+}
+
+/**
+ * Key handling entry points for events the *host* observed and forwarded,
+ * which is the normal case (the iframe only receives keys directly when the
+ * user has clicked the canvas). Assigned by setup(); no-ops until then.
+ * `code` is a raw KeyboardEvent.code — aliasing happens inside.
+ */
+export let handleKeyDown: (code: string) => void = () => {}
+export let handleKeyUp: (code: string) => void = () => {}
+export function releaseAllKeys() {
+	_releaseAllKeys()
 }
 
 export function getGamePoint(point: Point): Point {
@@ -695,8 +709,6 @@ class UserScene extends Scene {
 		if (mouseOverCanvas()) {
 			mouse.x = clamp(this.input.activePointer.x - screen.width / 2, screen.left, screen.right)
 			mouse.y = clamp(screen.height / 2 - this.input.activePointer.y, screen.bottom, screen.top)
-			mouseRef.value.mouseX = Math.round(mouse.x)
-			mouseRef.value.mouseY = Math.round(mouse.y)
 		}
 		
 		if (paused) return
@@ -761,19 +773,36 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 		},
 		parent: 'game-container',
 		// backgroundColor: '#333',
+		// Every image is cross-origin from in here: the sandbox document has an
+		// opaque origin, so even same-server /images/* is "another origin" to it.
+		// Without requesting them CORS-clean the WebGL renderer refuses to upload
+		// them as textures. Requires the image host to send ACAO (GitHub Pages and
+		// the Vite dev server both do — see vite.config.ts).
+		//
+		// The non-obvious half of this is user-uploaded art on cdn.sunsprite.dev:
+		// because the origin here is opaque, those requests carry `Origin: null`,
+		// which no named allowlist entry can ever match (and which R2 rejects as an
+		// AllowedOrigins value — it validates as scheme://host[:port]). The R2
+		// bucket policy therefore needs a *separate*, read-only rule granting GET to
+		// "*", kept after the narrower rule that grants GET+PUT to the app's real
+		// origins — first match wins, and the browser upload in fileStore.uploadImage
+		// PUTs straight to R2, so a wildcard rule ordered ahead of it would break
+		// uploads. Narrowing that "*" back down to named origins is only possible if
+		// the sandbox is ever moved to a real origin of its own (a subdomain plus
+		// `allow-same-origin`); as long as it stays opaque, "*" is the only thing
+		// `Origin: null` matches.
+		loader: {
+			crossOrigin: 'anonymous'
+		},
 		scene
 	}
 
 	game = new Game(config)
 	resizeStage()
 
-	game.canvas.onclick = () => {
-		// Remove focus from code editor when clicking on game canvas
-		const activeElement = document.activeElement as HTMLElement
-		
-		// Monaco
-		if (activeElement?.className === 'native-edit-context') activeElement.blur()
-	}
+	// The old canvas-click handler that blurred Monaco is gone: clicking the
+	// canvas now moves focus into the sandbox iframe, which blurs the editor
+	// natively.
 }
 
 const resizeDelay = 5 // milliseconds
@@ -782,6 +811,10 @@ export function resizeStage() {
 }
 
 function _resizeStage() {
+	// The container's ResizeObserver fires as soon as it starts observing,
+	// which is well before the first run creates a game.
+	if (!game) return
+
 	const size = game.scale.parentSize
 	game.scale.setGameSize(size.width, size.height)
 	updatePositions()
@@ -809,11 +842,14 @@ export function setup() {
 		return (keyAlias[keyCode] ?? keyCode).toLowerCase()
 	}
 
-	// Key press/release registration
-	window.addEventListener('keydown', event => {
-		// Don't register game key press when code editor has focus
-		if (document.activeElement?.ariaRoleDescription === 'editor') return
-
+	// A keyboard event is delivered to exactly one document, so these two
+	// sources are mutually exclusive and can't double-fire:
+	//   - the listeners below, when the sandbox iframe itself has focus
+	//     (i.e. the user clicked the game canvas), and
+	//   - 'key' messages forwarded by the host, when it has focus instead.
+	// The host is what decides whether a key belongs to the game or to Monaco,
+	// since only it can see the editor.
+	function onKeyDown(rawCode: string) {
 		// Left/right shift can't really be separated the way I was originally thinking, because
 		// the keyup event doesn't trigger if one shift is released while the other is still held.
 		// Left/right shift should be consolidated into one code, just Shift. In order to reduce
@@ -829,9 +865,8 @@ export function setup() {
 		// event.shiftKey
 		// event.key?
 
-		const keyCode = apiKeyCode(event.code)
-		console.log(`down: ${keyCode}   shift?: ${event.shiftKey}   ctrl?: ${event.ctrlKey}`)
-		
+		const keyCode = apiKeyCode(rawCode)
+
 		// Add specific key to keysJustPressed map
 		if (keyCode && !keysPressed.includes(keyCode)) {
 			keysPressed.push(keyCode)
@@ -852,14 +887,11 @@ export function setup() {
 				keysJustPressed.set('alt', _frame)
 			}
 		}
-	})
-	window.addEventListener('keyup', event => {
-		// Don't register game key release when code editor has focus
-		if (document.activeElement?.ariaRoleDescription === 'editor') return
+	}
 
-		const keyCode = apiKeyCode(event.code)
-		console.log(`up: ${keyCode}   shift?: ${event.shiftKey}   ctrl?: ${event.ctrlKey}`)
-		
+	function onKeyUp(rawCode: string) {
+		const keyCode = apiKeyCode(rawCode)
+
 		// Add key to justReleased map and remove from pressed array
 		if (keyCode && keysPressed.includes(keyCode)) {
 			// Remove key from keysPressed array
@@ -886,14 +918,23 @@ export function setup() {
 				keysJustReleased.set('alt', _frame)
 			}
 		}
-	})
-	window.addEventListener('contextmenu', event => {
+	}
+
+	// Exposed so src/sandbox/main.ts can drive the same state machine from the
+	// key events the host forwards while it, rather than the iframe, has focus.
+	handleKeyDown = onKeyDown
+	handleKeyUp = onKeyUp
+
+	// Events seen while the sandbox iframe itself has focus.
+	window.addEventListener('keydown', event => onKeyDown(event.code))
+	window.addEventListener('keyup', event => onKeyUp(event.code))
+	window.addEventListener('contextmenu', () => {
 		// Prevent opening the context menu from holding down pressed keys
 		// Note: this probably doesn't matter since context menu events were disabled
 		// on the game canvas, but I'll leave it here for now.
 		_releaseAllKeys()
 	})
-	window.addEventListener('blur', event => {
+	window.addEventListener('blur', () => {
 		// Prevent window losing focus from holding down pressed keys
 		_releaseAllKeys()
 	})

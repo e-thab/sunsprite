@@ -2,7 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { Splitpanes, Pane } from 'splitpanes';
-import { resizeStage } from '@/assets/api/core';
+import { resizeStage } from '@/sandbox/hostBridge';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useFileStore } from '@/stores/fileStore';
 import { useDocsStore } from '@/stores/docsStore';
@@ -328,11 +328,11 @@ onBeforeRouteLeave(() => {
 
     <!-- Center pane: Code editor -->
     <pane id="code-pane" v-show="!fsStore.fullscreen" :size="codePaneWidth">
-		<CodeEditor
-			ref="editor"
-			class="inner-pane"
-			@ready="onEditorReady"
-		/>
+      <CodeEditor
+        ref="editor"
+        class="inner-pane"
+        @ready="onEditorReady"
+      />
     </pane>
 
     <!-- Right side pane: Nested game/output splitpanes -->

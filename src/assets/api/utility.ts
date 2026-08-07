@@ -43,9 +43,15 @@ export const random = {
         const hexChars = '0123456789abcdef'
         let color = '#'
         while (color.length < 7) {
-            color += this.char(hexChars)
+            color += random.char(hexChars)
         }
         return color
+    },
+
+    // Random letter
+    letter(uppercase: boolean = false): string {
+        const alpha = 'abcdefghijklmnopqrstuvwxyz'
+        return uppercase ? this.char(alpha).toUpperCase() : this.char(alpha)
     },
 
     // TODO: Shuffle an array

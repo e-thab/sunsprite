@@ -21,6 +21,16 @@ async function copyPath(path: string) {
 // No onSelect needed here — EditorView watches the shared selection store
 // (bound below as this tree's own v-model) and opens/closes the preview
 // from whatever item ends up selected, image or not.
+// Reka UI's TreeItem fires select *and* toggle on every click, folders
+// included — without this, clicking a folder to expand/collapse it also
+// selects it, recoloring the row via the shared treeSelectionStore v-model
+// even though nothing should visually "select" a folder. select and toggle
+// are separate custom-event dispatches, so preventDefault here only cancels
+// the select half; toggling still works.
+function preventFolderSelect(event: Event) {
+	event.preventDefault()
+}
+
 function imageLeaf(category: string, fileName: string): TreeItem {
 	const path = imagePath(category, fileName)
 	return {
@@ -38,15 +48,18 @@ const items: TreeItem[] = [
 	{
 		label: 'images',
 		defaultExpanded: false,
+		onSelect: preventFolderSelect,
 		children: [
 			{
 				label: 'animals',
 				defaultExpanded: false,
+				onSelect: preventFolderSelect,
 				children: animalFiles.map((f) => imageLeaf('animals', f)),
 			},
 			{
 				label: 'cards',
 				defaultExpanded: false,
+				onSelect: preventFolderSelect,
 				children: cardFiles.map((f) => imageLeaf('cards', f)),
 			},
 		],
@@ -54,6 +67,7 @@ const items: TreeItem[] = [
 	{
 		label: 'sounds',
 		defaultExpanded: false,
+		onSelect: preventFolderSelect,
 		children: [
 			{ label: 'No sounds yet', disabled: true },
 		],
@@ -61,6 +75,7 @@ const items: TreeItem[] = [
 	{
 		label: 'scripts',
 		defaultExpanded: false,
+		onSelect: preventFolderSelect,
 		children: exampleScriptNames.map((name) => ({
 			label: name,
 			icon: 'fluent:javascript-24-filled',
