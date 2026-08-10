@@ -36,9 +36,9 @@ const dracula: ThemePalette = {
         comment: { color: '#6272a4', style: 'italic' },
         commentDoc: { color: '#ff79c6' },
         regexp: { color: '#ffb86c' },
-        bracketColor1: '#bd93f9',
+        bracketColor1: '#50fa7b',
         bracketColor2: '#ffb86c',
-        bracketColor3: '#50fa7b',
+        bracketColor3: '#bd93f9',
         bracketColorUnexpected: '#ff5555',
     }
 }

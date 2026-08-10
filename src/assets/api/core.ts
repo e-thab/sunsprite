@@ -1,7 +1,7 @@
 import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
-import type { Repeatable, Delayable, Screen, RepeatableUntil, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable } from './types'
+import type { Repeatable, Delayable, Screen, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
 import { Mouse } from './types'
 import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
@@ -62,8 +62,10 @@ let _sessionCount: number = 0
 let _forevers: Action[] = []
 let _repeats: Repeatable[] = []
 let _repeatUntils: RepeatableUntil[] = []
+let _repeatWhiles: RepeatableWhile[] = []
 let _afters: Delayable[] = []
 let _everys: Delayable[] = []
+let _whens: Conditional[] = []
 
 let _shiftRepeating: boolean = false
 let _ctrlRepeating: boolean = false
@@ -136,13 +138,31 @@ function _runRepeats() {
 function _runRepeatUntils() {
 	for (const repeatUntil of _repeatUntils) {
 		if (repeatUntil.condition()) {
+			// Once condition first becomes true, run then() and remove repeatUntil()
 			if (repeatUntil.then) repeatUntil.then(repeatUntil.i)
 		} else {
+			// Run as long as condition is false
 			repeatUntil.fn(repeatUntil.i)
 			repeatUntil.i += 1
 		}
 	}
 	_repeatUntils = _repeatUntils.filter(repeatUntil => !repeatUntil.condition())
+}
+
+function _runRepeatWhiles() {
+	for (const repeatWhile of _repeatWhiles) {
+		const thisCheck = repeatWhile.condition()
+		if (thisCheck) {
+			// Run as long as the condition is true
+			repeatWhile.fn(repeatWhile.i)
+			repeatWhile.i += 1
+		} else if (repeatWhile.lastCheck && repeatWhile.then) {
+			// Once the condition first becomes false, run then() and reset
+			repeatWhile.then(repeatWhile.i)
+			repeatWhile.i = 0
+		}
+		repeatWhile.lastCheck = thisCheck
+	}
 }
 
 function _runAfters(delta: number) {
@@ -162,6 +182,16 @@ function _runEverys(delta: number) {
 			every.fn()
 			every.elapsedMs = 0
 		}
+	}
+}
+
+function _runWhens() {
+	for (const when of _whens) {
+		const thisCheck = when.condition()
+		if (thisCheck && !when.lastCheck) {
+			when.fn()
+		}
+		when.lastCheck = thisCheck
 	}
 }
 
@@ -381,6 +411,22 @@ export function repeatUntil(condition: Predicate, fn: Action) {
 	}
 }
 
+export function repeatWhile(condition: Predicate, fn: Action) {
+	const repeatableWhile: RepeatableWhile = {
+		condition,
+		fn,
+		lastCheck: condition(),
+		i: 0,
+	}
+	_repeatWhiles.push(repeatableWhile)
+
+	return {
+		then(thenFn: Action) {
+			repeatableWhile.then = thenFn
+		}
+	}
+}
+
 /* Run function {fn} after {seconds} seconds have passed */
 export function after(seconds: number, fn: Action) {
 	_afters.push({
@@ -398,6 +444,16 @@ export function every(seconds: number, fn: Action) {
 		fn
 	})
 	fn()
+}
+
+/* Run function {fn} once each time {condition} becomes true */
+export function when(condition: Predicate, fn: Action) {
+	// TODO: A way to signal that this entry should be removed after the first time it becomes true
+	_whens.push({
+		lastCheck: condition(),
+		condition,
+		fn
+	})
 }
 
 /* True every frame while button is down */
@@ -629,7 +685,7 @@ class UserScene extends Scene {
 		const api = {
 			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, /*Point,*/
 			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
-			forever, repeat, repeatUntil, after, every,
+			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			print: Output.print, warn: Output.warn, error: Output.error, play, pause, setBackgroundColor,
 			Random: random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
@@ -715,12 +771,14 @@ class UserScene extends Scene {
 		timer.time += delta
 		timer.frame = _frame++
 		
+		_runWhens()
 		_runOnKeyActions()
 		_runForevers()
 		_runRepeats()
+		_runRepeatUntils()
+		_runRepeatWhiles()
 		_runAfters(timer.deltaMs)
 		_runEverys(timer.deltaMs)
-		_runRepeatUntils()
 
 		_runPropUpdaters()
 	}
@@ -738,7 +796,9 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 	_repeats = []
 	_afters = []
 	_everys = []
+	_whens = []
 	_repeatUntils = []
+	_repeatWhiles = []
 	allPositionables = []
 
 	_keyPressActions.clear()

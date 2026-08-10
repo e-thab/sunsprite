@@ -785,16 +785,16 @@ async function onDropOnRoot() {
 					<div v-if="renamingItemId !== item.id" class="item-actions">
 						<UDropdownMenu v-if="item.kind === 'folder'" :items="folderMenuItems(item.id)">
 							<UTooltip text="Add..." ignore-non-keyboard-focus>
-								<UButton icon="tabler:plus" variant="ghost" color="neutral" size="xs" @click.stop />
+								<UButton icon="tabler:plus" variant="soft" color="neutral" size="xs" @click.stop />
 							</UTooltip>
 						</UDropdownMenu>
 
 						<UTooltip v-if="item.kind === 'image' && item.path" text="Copy image URL">
-							<UButton icon="tabler:copy-filled" variant="ghost" color="neutral" size="xs" @click.stop="copyImageUrl(item.path)" />
+							<UButton icon="tabler:copy-filled" variant="soft" color="neutral" size="xs" @click.stop="copyImageUrl(item.path)" />
 						</UTooltip>
 
 						<UTooltip :text="item.kind === 'folder' ? 'Rename folder' : item.kind === 'image' ? 'Rename image' : 'Rename script'">
-							<UButton icon="tabler:pencil-filled" variant="ghost" color="neutral" size="xs" @click.stop="startRename(item)" />
+							<UButton icon="tabler:pencil-filled" variant="soft" color="neutral" size="xs" @click.stop="startRename(item)" />
 						</UTooltip>
 
 						<UTooltip :text="item.kind === 'folder' ? 'Delete folder' : item.kind === 'image' ? 'Delete image' : 'Delete script'">

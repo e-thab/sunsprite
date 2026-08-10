@@ -321,6 +321,25 @@ declare function repeatUntil(condition: () => boolean, func:
 }
 
 /**
+ * Runs repeatedly while the specified condition is true. Runs alongside the game loop (1 iteration per frame).
+ * @param condition The predicate condition to check.
+ * @param func The function to be repeated.
+ */
+declare function repeatWhile(condition: () => boolean, func:
+    /** @param i The current iteration (times repeated so far). */ 
+    (i: number) => void
+): {
+    /**
+     * Register another function to run once every time the condition switches from true to false.
+     * @param afterFunc The function.
+     */
+    then(afterFunc:
+        /** @param i The current iteration (times repeated so far). */
+        (i: number) => void
+    ): void
+}
+
+/**
  * Runs once after a specified number of seconds have passed.
  * @param seconds The number of seconds to wait before running.
  * @param func The function to run.
@@ -333,6 +352,13 @@ declare function after(seconds: number, func: () => void): void
  * @param func The function to run.
  */
 declare function every(seconds: number, func: () => void): void
+
+/**
+ * Runs once each time the condition becomes true.
+ * @param condition The condition to check.
+ * @param func The function to run.
+ */
+declare function when(condition: () => boolean, func: () => void): void
 
 /**
  * Returns true if the specified key is currently pressed. Will repeatedly be true while the key is held.

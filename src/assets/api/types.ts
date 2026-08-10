@@ -41,11 +41,24 @@ export interface RepeatableUntil extends Omit<Repeatable, 'count'> {
 	condition: Predicate
 }
 
+/* Used for repeatWhile() */
+export interface RepeatableWhile extends RepeatableUntil {
+	lastCheck: boolean
+}
+
 /* Used for after() & every() */
 export interface Delayable {
 	elapsedMs: number
 	lifetimeMs: number
 	fn: Action
+}
+
+/* Used for when() */
+export interface Conditional {
+	/** Used to record the result of condition() last time it was checked to prevent running continuously while true */
+	lastCheck: boolean
+	condition: Predicate,
+	fn: Action,
 }
 
 export interface Screen {
