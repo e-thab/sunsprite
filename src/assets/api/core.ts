@@ -771,6 +771,7 @@ class UserScene extends Scene {
 		timer.time += delta
 		timer.frame = _frame++
 		
+		_runWhens()
 		_runOnKeyActions()
 		_runForevers()
 		_runRepeats()
@@ -778,7 +779,6 @@ class UserScene extends Scene {
 		_runRepeatWhiles()
 		_runAfters(timer.deltaMs)
 		_runEverys(timer.deltaMs)
-		_runWhens()
 
 		_runPropUpdaters()
 	}
@@ -794,11 +794,11 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 
 	_forevers = []
 	_repeats = []
-	_repeatUntils = []
-	_repeatWhiles = []
 	_afters = []
 	_everys = []
 	_whens = []
+	_repeatUntils = []
+	_repeatWhiles = []
 	allPositionables = []
 
 	_keyPressActions.clear()
