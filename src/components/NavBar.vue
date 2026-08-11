@@ -8,9 +8,11 @@ import { useFileStore } from '@/stores/fileStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useDocsStore } from '@/stores/docsStore';
+import { useDocsSearchStore } from '@/stores/docsSearchStore';
 import { timeAgo } from '@/assets/utils/timeAgo';
 import SignInModal from './SignInModal.vue';
 import SignUpModal from './SignUpModal.vue';
+import DocsSearchModal from './docs/DocsSearchModal.vue';
 import { random } from '@/assets/api/utility.ts';
 
 const fsStore = useFullscreenStore()
@@ -19,8 +21,16 @@ const fileStore = useFileStore()
 const themeStore = useThemeStore()
 const projectStore = useProjectStore()
 const docsStore = useDocsStore()
+const docsSearchStore = useDocsSearchStore()
 const router = useRouter()
 const route = useRoute()
+
+// Search reaches every doc regardless of route (the panel, the standalone
+// /docs pages, or neither) — unlike the Docs panel toggle, it isn't gated to
+// isEditorRoute.
+defineShortcuts({
+    meta_k: () => docsSearchStore.toggle(),
+})
 
 // Docs toggles a pane inside EditorView (rendered on the home/guest route
 // and the loaded-project route) — showing it elsewhere would just flip
@@ -142,6 +152,11 @@ const accountMenuItems: DropdownMenuItem[][] = [
             <UTooltip v-if="isEditorRoute" text="Docs">
                 <UButton icon="tabler:book-filled" variant="ghost" :color="docsStore.isOpen ? 'primary' : 'neutral'" @click="docsStore.toggle">Docs</UButton>
             </UTooltip>
+
+            <!-- Docs search: available everywhere, not just editor routes -->
+            <UTooltip text="Search docs (Ctrl/Cmd+K)">
+                <UButton icon="tabler:search" variant="ghost" color="neutral" @click="docsSearchStore.toggle" />
+            </UTooltip>
         </div>
 
         <!-- Try a fieldgroup here -->
@@ -180,6 +195,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
     </div>
     <SignInModal />
     <SignUpModal />
+    <DocsSearchModal />
 </template>
 
 <style scoped>
