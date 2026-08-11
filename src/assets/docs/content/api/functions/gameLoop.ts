@@ -53,7 +53,7 @@ const repeat = fn({
 const repeatUntil = fn({
 	slug: 'repeat-until',
 	title: 'repeatUntil()',
-	icon: 'tabler:player-stop',
+	icon: 'tabler:repeat',
 	summary: 'Runs a function every frame until a condition becomes true.',
 	body: {
 		kind: 'api-member',
@@ -76,7 +76,7 @@ const repeatUntil = fn({
 const repeatWhile = fn({
 	slug: 'repeat-while',
 	title: 'repeatWhile()',
-	icon: 'tabler:player-play',
+	icon: 'tabler:repeat',
 	summary: 'Runs a function every frame while a condition stays true.',
 	body: {
 		kind: 'api-member',
@@ -95,7 +95,7 @@ const repeatWhile = fn({
 const after = fn({
 	slug: 'after',
 	title: 'after()',
-	icon: 'tabler:clock-play',
+	icon: 'tabler:alarm',
 	summary: 'Runs a function once, after a delay in seconds.',
 	body: {
 		kind: 'api-member',
@@ -117,7 +117,7 @@ const after = fn({
 const every = fn({
 	slug: 'every',
 	title: 'every()',
-	icon: 'tabler:clock-repeat',
+	icon: 'tabler:alarm-average',
 	summary: 'Runs a function repeatedly at a fixed time interval.',
 	body: {
 		kind: 'api-member',

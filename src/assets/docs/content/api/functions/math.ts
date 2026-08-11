@@ -100,7 +100,7 @@ const tan = fn({
 const atan2 = fn({
 	slug: 'atan2',
 	title: 'atan2()',
-	icon: 'tabler:angle',
+	icon: 'tabler:arrow-up-right-circle',
 	summary: 'The angle between the X axis and a point.',
 	body: {
 		kind: 'api-member',
@@ -119,7 +119,7 @@ const atan2 = fn({
 const clamp = fn({
 	slug: 'clamp',
 	title: 'clamp()',
-	icon: 'tabler:arrow-bar-both',
+	icon: 'tabler:container',
 	summary: 'Constrains a number to a given range.',
 	body: {
 		kind: 'api-member',

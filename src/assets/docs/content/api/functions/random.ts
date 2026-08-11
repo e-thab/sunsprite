@@ -1,3 +1,4 @@
+import { random } from '@/assets/api/utility'
 import type { DocCategoryNode, DocEntryNode } from '../../../docsTypes'
 
 // Documents Random.* as declared in src/assets/api/apiLib.ts. Note: the
@@ -12,7 +13,7 @@ function fn(entry: Omit<DocEntryNode, 'kind'>): DocEntryNode {
 const range = fn({
 	slug: 'range',
 	title: 'Random.range()',
-	icon: 'tabler:dice',
+	icon: 'tabler:brackets-contain',
 	summary: 'A random integer in a given range.',
 	body: {
 		kind: 'api-member',
@@ -104,7 +105,7 @@ const color = fn({
 const roll = fn({
 	slug: 'roll',
 	title: 'Random.roll()',
-	icon: 'tabler:dice-5',
+	icon: `tabler:dice-${random.range(1, 6)}`,
 	summary: 'The result of rolling a die with a given number of sides.',
 	body: {
 		kind: 'api-member',
@@ -192,7 +193,7 @@ const pos = fn({
 const x = fn({
 	slug: 'x',
 	title: 'Random.x()',
-	icon: 'tabler:arrows-horizontal',
+	icon: 'tabler:axis-x',
 	summary: 'A random x position within the screen.',
 	body: {
 		kind: 'api-member',
@@ -206,7 +207,7 @@ const x = fn({
 const y = fn({
 	slug: 'y',
 	title: 'Random.y()',
-	icon: 'tabler:arrows-vertical',
+	icon: 'tabler:axis-y',
 	summary: 'A random y position within the screen.',
 	body: {
 		kind: 'api-member',
@@ -221,7 +222,7 @@ export const randomFns: DocCategoryNode = {
 	kind: 'category',
 	slug: 'random',
 	title: 'Random',
-	icon: 'tabler:dice',
+	icon: 'tabler:dice-5',
 	summary: 'Helpers for random numbers, colors, positions, and choices.',
 	intro: 'A collection of functions useful for generating random values, all available on the global Random object.',
 	children: [range, float, coinFlip, roll, char, color, choice, radians, degrees, position, pos, x, y],

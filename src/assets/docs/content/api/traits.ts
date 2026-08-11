@@ -9,7 +9,7 @@ const positionable: DocEntryNode = {
 	kind: 'entry',
 	slug: 'positionable',
 	title: 'Positionable',
-	icon: 'tabler:axis-x',
+	icon: 'tabler:scan-position',
 	summary: "Controls an object's position in the world.",
 	body: {
 		kind: 'api-member',
