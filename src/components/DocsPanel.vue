@@ -19,7 +19,18 @@ const visibleTree = computed(() => filterTree(docsTree, searchQuery.value))
 // The panel's own navigation state — intentionally NOT synced to the
 // browser route (see docs/plans/docs-panel-rebuild.md, decision #1). The
 // "open full page" link is what turns this into a real, shareable URL.
-const currentPath = ref('getting-started')
+// It's still persisted, just via localStorage instead of the URL, so a page
+// reload reopens the panel where it was left rather than always resetting to
+// Getting Started — that doesn't entangle it with routing the way a
+// query-param sync would.
+const DOCS_PANEL_PATH_KEY = 'sunsprite:docsPanelPath'
+
+function loadStoredPath(): string {
+	const stored = localStorage.getItem(DOCS_PANEL_PATH_KEY)
+	return stored && nodesByPath.has(stored) ? stored : 'getting-started'
+}
+
+const currentPath = ref(loadStoredPath())
 
 // Expand/collapse state, keyed by path — entirely persistent and
 // user-controlled from here on: nothing ever *removes* a path once it's
@@ -32,6 +43,7 @@ const expandOverrides = reactive(new Map<string, boolean>())
 
 function navigate(path: string, opts?: { reveal?: boolean }) {
 	currentPath.value = path
+	localStorage.setItem(DOCS_PANEL_PATH_KEY, path)
 	if (opts?.reveal) {
 		for (const entry of ancestorsOf(path)) expandOverrides.set(entry.path, true)
 	}
@@ -78,7 +90,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 		<div class="docs-search">
 			<UInput
 				v-model="searchQuery"
-				icon="tabler:search"
+				icon="fa7-solid:magnifying-glass"
 				placeholder="Search docs..."
 				size="sm"
 				class="docs-search-input"
@@ -105,7 +117,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 				<div class="docs-content-scroll">
 					<DocsCategoryLanding v-if="currentNode?.kind === 'category'" :node="currentNode" :path="currentPath">
 						<template #header-actions>
-							<UTooltip text="Open full page">
+							<UTooltip text="Open full page" ignore-non-keyboard-focus>
 								<UButton
 									icon="tabler:arrow-up-right"
 									variant="subtle"
@@ -119,7 +131,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 					</DocsCategoryLanding>
 					<DocsBody v-else-if="currentNode?.kind === 'entry'" :node="currentNode">
 						<template #header-actions>
-							<UTooltip text="Open full page">
+							<UTooltip text="Open full page" ignore-non-keyboard-focus>
 								<UButton
 									icon="tabler:arrow-up-right"
 									variant="subtle"
@@ -192,7 +204,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 	overflow-y: auto;
 	padding: 0.75em 1em;
 	background-color: var(--theme-bg-elevated);
-	border-top: 1px solid var(--theme-border);
+	/* border-top: 1px solid var(--theme-border); */
 }
 
 .docs-no-results {

@@ -25,9 +25,11 @@ const docsSearchStore = useDocsSearchStore()
 const router = useRouter()
 const route = useRoute()
 
-// Search reaches every doc regardless of route (the panel, the standalone
-// /docs pages, or neither) — unlike the Docs panel toggle, it isn't gated to
-// isEditorRoute.
+// The keyboard shortcut still works everywhere (editor route, standalone
+// docs pages, or neither) — only the nav bar button itself is limited to the
+// full-page docs view below, since that's the one place browsing the docs
+// isn't already available some other way (the panel has its own search box;
+// everywhere else there's nothing docs-related on screen).
 defineShortcuts({
     meta_k: () => docsSearchStore.toggle(),
 })
@@ -36,6 +38,10 @@ defineShortcuts({
 // and the loaded-project route) — showing it elsewhere would just flip
 // unused state with nothing on screen to reflect it.
 const isEditorRoute = computed(() => route.name === 'home' || route.name === 'project')
+
+// The standalone full-page docs view (DocsView.vue) — as opposed to the
+// panel embedded in the editor, or anywhere else in the app.
+const isDocsRoute = computed(() => route.name === 'docs')
 
 // projectStore.projects is already ordered by updated_at desc (see
 // fetchProjects); NavBar is mounted once at the app root, so this needs its
@@ -153,9 +159,12 @@ const accountMenuItems: DropdownMenuItem[][] = [
                 <UButton icon="tabler:book-filled" variant="ghost" :color="docsStore.isOpen ? 'primary' : 'neutral'" @click="docsStore.toggle">Docs</UButton>
             </UTooltip>
 
-            <!-- Docs search: available everywhere, not just editor routes -->
-            <UTooltip text="Search docs (Ctrl/Cmd+K)">
-                <UButton icon="tabler:search" variant="ghost" color="neutral" @click="docsSearchStore.toggle" />
+            <!-- Docs search: only shown in the full-page docs view — the
+            panel has its own search box, and everywhere else there's no
+            docs UI on screen for it to relate to. The Ctrl/Cmd+K shortcut
+            itself still works everywhere regardless. -->
+            <UTooltip v-if="isDocsRoute" text="Search docs (Ctrl/Cmd+K)" ignore-non-keyboard-focus>
+                <UButton icon="fa7-solid:magnifying-glass" variant="ghost" color="neutral" @click="docsSearchStore.toggle">Search Docs</UButton>
             </UTooltip>
         </div>
 

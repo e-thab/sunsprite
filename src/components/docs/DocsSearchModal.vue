@@ -49,14 +49,32 @@ const groups = computed<CommandPaletteGroup[]>(() => {
 function onUpdateOpen(open: boolean) {
 	if (!open) searchStore.close()
 }
+
+// Reka UI's Dialog returns focus to whatever triggered it (the NavBar search
+// button) once this closes. When that close came from the keyboard (Escape,
+// or Enter to select a result), the browser's focus-visible heuristic treats
+// the returned focus as keyboard-driven too — which re-opens that button's
+// tooltip (ignore-non-keyboard-focus only screens out mouse-driven focus)
+// and leaves it stuck open with nothing left to close it. Skipping the
+// auto-focus entirely avoids that; the trade-off is keyboard users land back
+// at the top of the tab order instead of exactly on the search button.
+function onContentCloseAutoFocus(event: Event) {
+	event.preventDefault()
+}
 </script>
 
 <template>
-	<UModal :open="searchStore.isOpen" :ui="{ content: 'sm:max-w-2xl' }" @update:open="onUpdateOpen">
+	<UModal
+		:open="searchStore.isOpen"
+		:ui="{ content: 'sm:max-w-2xl' }"
+		:content="{ onCloseAutoFocus: onContentCloseAutoFocus }"
+		@update:open="onUpdateOpen"
+	>
 		<template #content>
 			<UCommandPalette
 				v-model:search-term="searchTerm"
 				:groups="groups"
+				icon="fa7-solid:magnifying-glass"
 				placeholder="Search docs..."
 				close
 				@update:open="onUpdateOpen"

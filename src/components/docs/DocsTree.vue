@@ -116,6 +116,15 @@ const expandedPaths = computed(() => categoryPaths.value.filter((path) => nav.is
 		:get-key="(item: TreeItem) => item.id"
 		:model-value="selectedItem"
 		:expanded="expandedPaths"
+		:ui="{
+			linkLabel: 'flex-1 min-w-0',
+			// Nudges the nested-children guideline (border-s on the child
+			// <ul>) a few px left of Nuxt UI's default (ms-5) so it lines up
+			// with the center of our custom item-leading chevron, which sits
+			// slightly further left than the single default leading icon
+			// this spacing was originally tuned for.
+			listWithChildren: 'ms-4',
+		}"
 		class="docs-tree"
 	>
 		<template #item-leading="{ item, expanded }">
@@ -134,18 +143,34 @@ const expandedPaths = computed(() => categoryPaths.value.filter((path) => nav.is
 			/>
 		</template>
 
+		<!-- The label wrapper is stretched to fill the row (via the `ui`
+		override above) so this span's own box — not just its text — spans the
+		full gap up to the trailing chevron. That's deliberate: it's what
+		makes clicking the empty space next to a category's title behave the
+		same as clicking the title text itself, per onCategoryLabelClick. -->
 		<template #item-label="{ item }">
 			<span
 				v-if="item.isCategory"
-				class="doc-title"
+				class="doc-title doc-title-fill"
 				:class="{ 'doc-title-current': item.path === nav.currentPath.value }"
 				@click.stop="onCategoryLabelClick(item.path)"
 			>{{ item.label }}</span>
 			<span
 				v-else
-				class="doc-title"
+				class="doc-title doc-title-fill"
 				:class="{ 'doc-title-current': item.path === nav.currentPath.value }"
 			>{{ item.label }}</span>
+		</template>
+
+		<!-- Mirrors the leading chevron exactly (same handler, same
+		unconditional toggle) so left and right chevrons are interchangeable. -->
+		<template #item-trailing="{ item, expanded }">
+			<UIcon
+				v-if="item.isCategory"
+				:name="expanded ? 'tabler:chevron-down' : 'tabler:chevron-right'"
+				class="doc-chevron"
+				@click.stop="nav.toggleExpanded(item.path)"
+			/>
 		</template>
 	</UTree>
 </template>
@@ -179,6 +204,18 @@ const expandedPaths = computed(() => categoryPaths.value.filter((path) => nav.is
 .doc-title {
 	color: var(--theme-text-highlighted);
 	cursor: pointer;
+}
+
+/* Fills the label wrapper's flex-grown width (see the `ui` override on
+   UTree above) so the clickable/hoverable box extends through the empty
+   space up to the trailing chevron, not just the text itself. */
+.doc-title-fill {
+	display: block;
+	width: 100%;
+	/* The ancestor is a native <button> (UTree's row), which centers text by
+	   default — invisible while this span only spanned its own text, but
+	   this override matters now that it's stretched to full width. */
+	text-align: left;
 }
 
 .doc-title:hover {

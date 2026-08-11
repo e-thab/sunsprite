@@ -34,7 +34,7 @@ function onSelect(path: string) {
 			<h1 class="search-title">Search Docs</h1>
 			<UInput
 				v-model="query"
-				icon="tabler:search"
+				icon="fa7-solid:magnifying-glass"
 				placeholder="Search docs..."
 				size="lg"
 				autofocus
