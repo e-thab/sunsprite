@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DropdownMenuItem } from '@nuxt/ui';
 import { useRoute, useRouter } from 'vue-router';
 import { useFullscreenStore } from '@/stores/fullscreen';
@@ -42,6 +42,33 @@ const isEditorRoute = computed(() => route.name === 'home' || route.name === 'pr
 // The standalone full-page docs view (DocsView.vue) — as opposed to the
 // panel embedded in the editor, or anywhere else in the app.
 const isDocsRoute = computed(() => route.name === 'docs')
+
+// Keeps --nav-height (base.css) in sync with the bar's real rendered height,
+// so anything elsewhere that needs to size/position itself around the
+// navbar (e.g. DocsView.vue's sticky tree) can read the actual value
+// instead of guessing it. The bar itself (not just this component) mounts
+// and unmounts via v-if on fullscreen, so this watches the template ref
+// rather than measuring once in onMounted — a plain onMounted measurement
+// would go stale/never re-attach across those toggles.
+const navBarEl = ref<HTMLElement | null>(null)
+let navBarObserver: ResizeObserver | undefined
+
+function setNavHeight(px: number) {
+    document.documentElement.style.setProperty('--nav-height', `${px}px`)
+}
+
+watch(navBarEl, (el) => {
+    navBarObserver?.disconnect()
+    if (el) {
+        setNavHeight(el.offsetHeight)
+        navBarObserver = new ResizeObserver(() => setNavHeight(el.offsetHeight))
+        navBarObserver.observe(el)
+    } else {
+        setNavHeight(0)
+    }
+}, { immediate: true })
+
+onBeforeUnmount(() => navBarObserver?.disconnect())
 
 // projectStore.projects is already ordered by updated_at desc (see
 // fetchProjects); NavBar is mounted once at the app root, so this needs its
@@ -147,7 +174,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-    <div v-if="!fsStore.fullscreen" id="nav-header" class="bar">
+    <div v-if="!fsStore.fullscreen" id="nav-header" ref="navBarEl" class="bar">
         <div class="left-group">
             <!-- Sunsprite home button -->
             <UButton icon="sunsprite:sun" variant="ghost" color="neutral" @click="() => { router.push('/') }">

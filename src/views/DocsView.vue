@@ -105,6 +105,11 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 	padding: 1em 0.5em;
 	position: sticky;
 	top: 0;
+	/* Bounds the sticky tree to the visible viewport below NavBar, so a long
+	   tree scrolls internally instead of growing past the fold. --nav-height
+	   is NavBar's real measured height (see NavBar.vue), not an estimate. */
+	max-height: calc(100vh - var(--nav-height));
+	overflow-y: auto;
 }
 
 .docs-view-container {
