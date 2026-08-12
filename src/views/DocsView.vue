@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide, reactive, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { docsTree } from '@/assets/docs/docsContent'
 import { nodesByPath, ancestorsOf } from '@/assets/docs/docsIndex'
@@ -60,6 +60,83 @@ watch(currentPath, (path) => {
 provide(docsNavigationKey, { currentPath, navigate, resolveHref, isExpanded, toggleExpanded })
 
 const currentNode = computed(() => nodesByPath.get(currentPath.value))
+
+// The TOC is what gives first when the window gets tight: it drops out once the
+// body column would be squeezed below this. In rem so it tracks the user's font
+// size, same as the rail caps over in the style block.
+const MIN_BODY_WIDTH = 32
+
+const pageRef = ref<{ $el?: unknown } | null>(null)
+const showToc = ref(true)
+
+// The width the TOC occupied last time it was on screen. Once it's gone the
+// grid has no way to tell us what putting it back would cost, and that's
+// exactly what the test below needs.
+let tocWidth = 0
+let observer: ResizeObserver | undefined
+let observed: HTMLElement | undefined
+
+// UPage is a single-root component, but the v-if above means $el is a comment
+// node on the 404 branch, so this is an element only when the page is really up.
+function rootEl(): HTMLElement | null {
+	const el = pageRef.value?.$el
+	return el instanceof HTMLElement ? el : null
+}
+
+function measure() {
+	const root = rootEl()
+	if (!root) return
+
+	// Both rails are queried out of the live DOM rather than held as template
+	// refs. They're passed into UPage's slots, and reka-ui's Slot re-clones that
+	// vnode on every render (deleting props.ref on the way through), so a ref on
+	// slot content is dropped the first time the slot re-renders and never
+	// restored — which is precisely what an on/off TOC does to it.
+	const tree = root.querySelector<HTMLElement>(':scope > .docs-view-tree')
+	if (!tree) return
+	const toc = root.querySelector<HTMLElement>(':scope > .docs-toc')
+
+	if (showToc.value) tocWidth = toc ? toc.offsetWidth : 0
+
+	const styles = getComputedStyle(root)
+	const gap = Number.parseFloat(styles.columnGap) || 0
+	const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+
+	// Always the width the body *would* have with the TOC present — container
+	// less the tree, both gaps and the TOC itself — so the answer never depends
+	// on whether the TOC happens to be showing right now. Testing the width it
+	// currently has would oscillate instead: hiding the TOC widens the body back
+	// past the threshold, which brings the TOC back, which narrows the body
+	// below it again.
+	const bodyWithToc = root.clientWidth - tree.offsetWidth - gap * 2 - tocWidth
+	showToc.value = bodyWithToc >= MIN_BODY_WIDTH * rem
+}
+
+// Only the grid container is observed, and only ever re-pointed at a genuinely
+// new element — never left disconnected on the way past, which is how an
+// earlier version got stuck with the TOC hidden and nothing listening.
+function observeRoot() {
+	const root = rootEl()
+	if (!root || root === observed) return
+	observer ??= new ResizeObserver(measure)
+	if (observed) observer.unobserve(observed)
+	observer.observe(root)
+	observed = root
+}
+
+function update() {
+	observeRoot()
+	measure()
+}
+
+onMounted(update)
+// The root's own resizes come from the observer. These cover the two things
+// that move the boundary without resizing it: expanding or collapsing a branch
+// widens the tree's fit-content track, and navigating changes what the TOC
+// holds (or whether it renders at all).
+watch(expandOverrides, measure, { flush: 'post' })
+watch(currentPath, update, { flush: 'post' })
+onBeforeUnmount(() => observer?.disconnect())
 </script>
 
 <template>
@@ -72,7 +149,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 		back-to="/docs"
 	/>
 
-	<UPage v-else class="docs-view">
+	<UPage v-else ref="pageRef" class="docs-view">
 		<template #left>
 			<div class="docs-view-tree">
 				<DocsTree :nodes="docsTree" />
@@ -89,7 +166,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 		</PageBody>
 
 		<template #right>
-			<DocsToc :node="currentNode" />
+			<DocsToc v-if="showToc" :node="currentNode" />
 		</template>
 	</UPage>
 </template>
@@ -99,6 +176,43 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 	height: 100%;
 	overflow-y: auto;
 	background-color: var(--theme-bg-elevated);
+
+	/* Ceilings, not widths — see the tracks below. Past these the rails stop
+	   growing and their labels go back to truncating, so one deep branch or long
+	   title can't run away with the page. */
+	--docs-tree-max-width: 18rem;
+	--docs-toc-max-width: 8rem;
+
+	/* Owns the page layout outright, replacing @nuxt/ui's page theme, which only
+	   switches its 10-column grid on at lg (1024px) and stacks the tree, body and
+	   TOC into one column below that.
+
+	   fit-content(<max>) sizes each rail to its own widest line — the deepest
+	   currently-expanded tree row, the longest TOC entry — and clamps it there.
+	   Track sizing is redone on every layout, so expanding or collapsing a branch
+	   resizes the tree column by itself; nothing measures or observes anything.
+	   The body takes what's left, via minmax(0, 1fr) rather than a bare 1fr so a
+	   wide code block scrolls inside it instead of stretching the track. All
+	   three tracks stay declared even when the TOC is hidden: the empty rail
+	   collapses to nothing on its own and the gap it leaves behind is what keeps
+	   the body off the right edge of the window.
+	   (Scoped styles are unlayered, so they beat the theme's @layer utilities
+	   classes on this element regardless of specificity.) */
+	display: grid;
+	grid-template-columns:
+		fit-content(var(--docs-tree-max-width))
+		minmax(0, 1fr)
+		fit-content(var(--docs-toc-max-width));
+	gap: 2.5rem;
+}
+
+/* Each region is one track now, so the theme's col-span-* (sized for its own
+   10-column grid) and its order-first/order-last dance both have to go —
+   without the order reset the TOC jumps to the leftmost track below lg. */
+.docs-view > :deep(*) {
+	grid-column: auto;
+	order: 0;
+	min-width: 0;
 }
 
 .docs-view-tree {
@@ -110,6 +224,10 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 	   is NavBar's real measured height (see NavBar.vue), not an estimate. */
 	max-height: calc(100vh - var(--nav-height));
 	overflow-y: auto;
+	/* Reserves the scrollbar's width up front so it's part of what the column
+	   measures, instead of landing on top of the longest label once the tree
+	   grows past the fold. */
+	scrollbar-gutter: stable;
 }
 
 .docs-view-container {
