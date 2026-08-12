@@ -1,5 +1,5 @@
 // import { camera, screen, timer, mouse, forever, repeat, repeatUntil, after, every, keyPressed, keyJustPressed, print, play, pause, setBackgroundColor } from "./core";
-// import { random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp } from "./utility";
+// import { deg2rad, rad2deg, sin, cos, tan, atan2, clamp } from "./utility";
 // import { Point, Vector2 } from "./Point";
 
 // import Sprite from "./Sprite"
@@ -26,7 +26,7 @@
 // }
 // export default api
 import { positionableApi, sizableApi, rotatableApi, viewableApi, interactableApi, timeableApi, gameObjectApi, gameObjectPropsTypeDef, positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef } from "./mixins"
-import { Colors } from './Colors'
+import Colors from './Colors'
 
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
 // so that peeking definitions doesn't look so crowded?
@@ -486,6 +486,12 @@ const Random: {
      * @param sides The number of sides on the die.
      */
     roll(sides: number): number,
+
+    /**
+     * Returns a random letter of the alphabet. Lowercase by default.
+     * @param uppercase True if you want the letter to be uppercase.
+     */
+    letter(uppercase: boolean = false): string,
 
     /**
      * Returns a random character from a given string.

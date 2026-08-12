@@ -1,5 +1,5 @@
-import { random } from '@/assets/api/utility'
 import type { DocCategoryNode, DocEntryNode } from '../../../docsTypes'
+import Random from '@/assets/api/Random'
 
 // Documents Random.* as declared in src/assets/api/apiLib.ts. Note: the
 // runtime implementation (src/assets/api/utility.ts) also has a `letter()`
@@ -105,7 +105,7 @@ const color = fn({
 const roll = fn({
 	slug: 'roll',
 	title: 'Random.roll()',
-	icon: `tabler:dice-${random.range(1, 6)}`,
+	icon: `tabler:dice-${Random.range(1, 6)}`,
 	summary: 'The result of rolling a die with a given number of sides.',
 	body: {
 		kind: 'api-member',
@@ -115,6 +115,21 @@ const roll = fn({
 		params: [{ name: 'sides', type: 'number', description: 'The number of sides on the die.' }],
 		returns: { type: 'number', description: 'An integer between 1 and sides, inclusive.' },
 	},
+})
+
+const letter = fn({
+	slug: 'letter',
+	title: 'Random.letter()',
+	icon: `tabler:square-letter-${Random.letter()}`,
+	summary: 'A random letter of the alphabet.',
+	body: {
+		kind: 'api-member',
+		memberKind: 'function',
+		signature: 'Random.letter(uppercase: boolean = false): string',
+		description: 'Returns a random letter of the alphabet. Lowercase by default.',
+		params: [{ name: 'uppercase', type: 'boolean', description: 'Controls upper/lowercase status of the return character.' }],
+		returns: { type: 'string', description: 'A single character of the alphabet, A-Z.' }
+	}
 })
 
 const char = fn({
@@ -222,8 +237,8 @@ export const randomFns: DocCategoryNode = {
 	kind: 'category',
 	slug: 'random',
 	title: 'Random',
-	icon: 'tabler:dice-5',
+	icon: `tabler:dice-${Random.range(1, 6)}`,
 	summary: 'Helpers for random numbers, colors, positions, and choices.',
 	intro: 'A collection of functions useful for generating random values, all available on the global Random object.',
-	children: [range, float, coinFlip, roll, char, color, choice, radians, degrees, position, pos, x, y],
+	children: [range, float, coinFlip, roll, letter, char, color, choice, radians, degrees, position, pos, x, y],
 }

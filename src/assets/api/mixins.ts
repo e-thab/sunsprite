@@ -1,6 +1,7 @@
 // Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
 // import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "./core"
-import { deg2rad, rad2deg, random } from "./utility"
+import { deg2rad, rad2deg } from "./utility"
+import Random from "./Random"
 // import { Point, type AnyPoint } from "./interfaces"
 import { pointFrom, type Point, type PointArg } from "./Point"
 import { screen, camera, timer, paused, getGamePoint, game, scene, PointerEvents } from "./core"
@@ -233,7 +234,7 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         goToRandom() {
-            this.goTo(random.position())
+            this.goTo(Random.position())
         }
 
         _updatePosition() {

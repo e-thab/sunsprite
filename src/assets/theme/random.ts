@@ -1,10 +1,10 @@
 import type { ThemePalette } from "./themes";
-import { random as randomLib } from "../api/utility";
+import Random from "../api/Random";
 
-const randomColor = randomLib.color
+const randomColor = Random.color
 
 const random: ThemePalette = {
-    // Authentic Dracula (draculatheme.com) palette.
+    // Completely randomly generated palette
     id: 'random',
     label: 'Random',
     isLight: false,

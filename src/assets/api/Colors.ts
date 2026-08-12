@@ -1,6 +1,6 @@
 // type ColorString = `#${string}`
 
-export enum Colors {
+enum Colors {
     // Web colors
     AliceBlue = "#f0f8ff",
     AntiqueWhite = "#faebd7",
@@ -165,3 +165,5 @@ export enum Colors {
     // NordScrollNeutral = '#434c5e',
     // NordScrollLight = '#4c566a',
 }
+
+export default Colors

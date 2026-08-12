@@ -3,12 +3,13 @@ import Phaser from 'phaser'
 
 import type { Repeatable, Delayable, Screen, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
 import { Mouse } from './types'
-import { atan2, cos, random, sin, tan, deg2rad, rad2deg, clamp } from './utility'
+import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
 import Output from '@/sandbox/output'
 import { runEntryModule } from './moduleRunner'
 
-import { Colors } from './Colors'
+import Colors from './Colors'
+import Random from './Random'
 import Sprite from './Sprite'
 import Rectangle from './Rectangle'
 import Circle from './Circle'
@@ -688,7 +689,7 @@ class UserScene extends Scene {
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			print: Output.print, warn: Output.warn, error: Output.error, play, pause, setBackgroundColor,
-			Random: random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
+			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
 			max: Math.max,
