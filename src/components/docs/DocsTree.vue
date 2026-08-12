@@ -144,8 +144,6 @@ const expandedPaths = computed(() => categoryPaths.value.filter((path) => nav.is
 			>{{ item.label }}</span>
 		</template>
 
-		<!-- Mirrors the leading chevron exactly (same handler, same
-		unconditional toggle) so left and right chevrons are interchangeable. -->
 		<template #item-trailing="{ item, expanded }">
 			<UIcon
 				v-if="item.isCategory"
@@ -184,7 +182,7 @@ const expandedPaths = computed(() => categoryPaths.value.filter((path) => nav.is
 }
 
 .doc-title {
-	color: var(--theme-text-highlighted);
+	color: var(--theme-text);
 	cursor: pointer;
 }
 
@@ -200,19 +198,36 @@ const expandedPaths = computed(() => categoryPaths.value.filter((path) => nav.is
 	text-align: left;
 }
 
-.doc-title:hover {
-	color: var(--theme-text);
-}
-
 .doc-title-current {
 	color: var(--theme-primary);
 	font-weight: bold;
 }
 
-/* :hover alone outweighs a single class (higher specificity), so without
-   this, hovering the current item would fall back to the plain hover color
-   instead of keeping the primary highlight. */
-.doc-title-current:hover {
+/* The icon (Nuxt UI's own default leading icon) and the label (item-label) are
+siblings inside one shared row element, not something this component's
+template renders as a unit — so hover has to be driven from that shared row,
+or the two react to separate hit areas: Nuxt UI recolors the icon from the
+row's own hover (its `hover:text-highlighted`, covering the icon, the
+padding and the trailing chevron), while `.doc-title:hover` only covered the
+label's box, so the icon lit up first and the text only once the cursor
+crossed onto it.
+
+Deliberately unscoped, same as DocsBreadcrumb.vue's matching block: the row
+lives inside UTree, and UTree is this component's own template root, so a
+scoped `:deep()` selector has no ancestor of ours to hang the scope
+attribute on (UTree is multi-root with inheritAttrs: false — it forwards
+$attrs to TreeRoot by hand, so the class survives but the scope attribute
+doesn't reliably). Keying off the `.docs-tree` class instead is what keeps
+this contained without depending on that. */
+.docs-tree [data-slot='link']:hover .doc-title {
+	color: var(--theme-text-highlighted);
+}
+/* Color transition here doesn't match Nuxt UI default hover transition */
+
+/* :hover on the row outweighs the plain .doc-title-current rule (higher
+   specificity), so without this, hovering the current item would fall back
+   to the plain hover color instead of keeping the primary highlight. */
+.docs-tree [data-slot='link']:hover .doc-title-current {
 	color: var(--theme-primary);
 }
 </style>

@@ -31,7 +31,7 @@ function go(path: string) {
 				<UIcon v-if="node.icon" :name="node.icon" class="header-icon" />
 				<h1 class="header-title">{{ node.title }}</h1>
 			</div>
-			<slot name="header-actions" />
+			<slot name="header-actions"></slot>
 		</header>
 
 		<template v-if="node.body.kind === 'prose'">

@@ -5,7 +5,7 @@ const nord: ThemePalette = {
     id: 'nord',
     label: 'Nord',
     isLight: false,
-    bg: '#2e3440',
+    bg: '#212631',
     bgMuted: '#252a33',
     bgElevated: '#2e3440',
     bgAccented: '#353b48',

@@ -117,7 +117,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 				<div class="docs-content-scroll">
 					<DocsCategoryLanding v-if="currentNode?.kind === 'category'" :node="currentNode" :path="currentPath">
 						<template #header-actions>
-							<UTooltip text="Open full page" ignore-non-keyboard-focus>
+							<UTooltip text="Open in new tab" ignore-non-keyboard-focus>
 								<UButton
 									icon="tabler:arrow-up-right"
 									variant="subtle"
@@ -131,7 +131,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 					</DocsCategoryLanding>
 					<DocsBody v-else-if="currentNode?.kind === 'entry'" :node="currentNode">
 						<template #header-actions>
-							<UTooltip text="Open full page" ignore-non-keyboard-focus>
+							<UTooltip text="Open in new tab" ignore-non-keyboard-focus>
 								<UButton
 									icon="tabler:arrow-up-right"
 									variant="subtle"
