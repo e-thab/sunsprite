@@ -403,24 +403,6 @@ declare function onKeyHold(actions: KeyAction): void
 declare function onMouse(actions: MouseInputAction): void
 
 /**
- * Display a normal message in the output panel.
- * @param msg The message to display.
- */
-declare function print(...msg: Printable[]): void
-
-/**
- * Display a warning message in the output panel.
- * @param msg The warning message to display.
- */
-declare function warn(...msg: Printable[]): void
-
-/**
- * Display an error message in the output panel.
- * @param msg The error message to display.
- */
-declare function error(...msg: Printable[]): void
-
-/**
  * Pause engine processing. Must be manually un-paused using the UI button for now.
  */
 declare function pause(): void
@@ -430,10 +412,7 @@ declare function pause(): void
  */
 declare function play(): void
 
-/**
- * Clear all messages from the output panel.
- */
-declare function clearOutput(): void
+
 
 /**
  * The browser's dev tools console. Not part of the Sunsprite API, use print/warn/err instead to show
@@ -461,7 +440,7 @@ declare const console: {
 /**
  * A collection of functions useful for generating random values.
  */
-const Random: {
+declare const Random: {
     /**
      * Returns a random integer in a given range, min and max inclusive. If min > max, they're automatically swapped for you.
      * @param min The low end of the range.
@@ -540,6 +519,37 @@ const Random: {
      */
     y(): number,
 }
+
+declare const Output: {
+    /**
+     * Display a normal message in the output panel.
+     * @param msgs The messages to display.
+     */
+    print(...msgs: Printable[]): void,
+
+    /**
+     * Display a warning message in the output panel.
+     * @param msgs The warning messages to display.
+     */
+    warn(...msgs: Printable[]): void,
+
+    /**
+     * Display an error message in the output panel.
+     * @param msgs The error messages to display.
+     */
+    error(...msgs: Printable[]): void,
+
+    /**
+     * Clear all messages from the output panel.
+     */
+    clear(): void
+}
+
+/**
+ * Display a normal message in the output panel. Shorthand for Output.print().
+ * @param msg The message to display.
+ */
+declare function print(...msg: Printable[]): void
 
 /**
  * Returns an angle converted from degrees to radians.

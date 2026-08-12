@@ -46,7 +46,7 @@ const rotatable: DocEntryNode = {
 	kind: 'entry',
 	slug: 'rotatable',
 	title: 'Rotatable',
-	icon: 'tabler:rotate',
+	icon: 'tabler:rotate-rectangle',
 	summary: "Controls an object's rotation angle.",
 	body: {
 		kind: 'api-member',

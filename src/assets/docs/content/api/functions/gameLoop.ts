@@ -157,7 +157,7 @@ const when = fn({
 export const gameLoop: DocCategoryNode = {
 	kind: 'category',
 	slug: 'game-loop',
-	title: 'Game Loop & Timing',
+	title: 'Game Loop',
 	icon: 'tabler:clock-play',
 	summary: 'Functions that run code every frame, on a delay, or on a condition.',
 	intro: 'The core scheduling functions almost every script is built on — from the primary forever() loop to one-shot delays and conditional triggers.',
