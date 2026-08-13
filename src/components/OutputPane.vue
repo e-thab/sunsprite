@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import Output from '@/assets/api/output';
 import type { OutputItem } from '@/assets/api/output';
 import InfoPanel from '@/components/InfoPanel.vue';
-import { infoFieldLabels, infoFieldOrder, useInfoPanelStore } from '@/stores/infoPanelStore';
-import type { DropdownMenuItem } from '@nuxt/ui';
 
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
@@ -18,20 +16,6 @@ const tabItems = [
 function isTabActive(tab: OutputTab) {
     return tab === activeTab.value
 }
-
-const infoPanelStore = useInfoPanelStore()
-
-// Keeps the dropdown open across multiple toggles instead of closing after
-// each checkbox click, so a user can flip several fields in one go.
-const infoFieldMenuItems = computed<DropdownMenuItem[]>(() =>
-    infoFieldOrder.map((key) => ({
-        label: infoFieldLabels[key],
-        type: 'checkbox',
-        checked: infoPanelStore.visible[key],
-        onUpdateChecked: (checked: boolean) => infoPanelStore.setVisible(key, checked),
-        onSelect: (event: Event) => event.preventDefault(),
-    }))
-)
 
 const emit = defineEmits([ 'collapseOutput', 'ready' ])
 
@@ -72,13 +56,15 @@ onMounted(() => {
         <!-- Header tabs -->
         <!-- TODO: Have output tab flash when another tab is focused and a new print/warn/err appears -->
         <div class="output-header">
-            <UTabs v-model="activeTab" :items="tabItems" :content="false" color="primary" size="xs" class="output-tabs" />
-
-            <UDropdownMenu v-if="isTabActive('info')" :items="infoFieldMenuItems" :ui="{ content: 'w-52' }">
-                <UTooltip text="Customize fields" ignore-non-keyboard-focus>
-                    <UButton icon="tabler:adjustments" variant="ghost" color="neutral" size="xs" />
-                </UTooltip>
-            </UDropdownMenu>
+            <UTabs
+                v-model="activeTab"
+                :items="tabItems"
+                :content="false"
+                color="primary"
+                size="xs"
+                class="output-tabs"
+                :ui="{ indicator: 'duration-75', list: 'bg-[var(--theme-bg-muted)]' }"
+            />
 
             <UTooltip text="Collapse">
                 <UButton icon="tabler:chevron-down" variant="soft" color="neutral" size="xs" @click="$emit('collapseOutput')" />
@@ -122,6 +108,7 @@ onMounted(() => {
     /* color: var(--theme-text); */
     /* height: 24px; */
     /* user-select: none; */
+    /* background-color: var(--theme-bg); */
 }
 
 .output-tabs {

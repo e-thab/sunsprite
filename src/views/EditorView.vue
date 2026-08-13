@@ -64,8 +64,8 @@ function closePreview() {
 const explorerPixelWidth = ref(0)
 
 const canvasWidth = ref(44)
-const canvasHeight = ref(80)
-const canvasHeightBeforeCollapse = ref(80)
+const canvasHeight = ref(77)
+const canvasHeightBeforeCollapse = ref(77)
 
 const paneSize: { [index: string]: number } = {
   // Column panes (left - middle - right)
