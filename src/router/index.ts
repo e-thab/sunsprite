@@ -30,6 +30,24 @@ const router = createRouter({
       props: true,
     },
     {
+      // Must come before the docs catch-all below, or it swallows "search"
+      // as a doc path segment instead.
+      path: '/docs/search',
+      name: 'docs-search',
+      component: () => import('../views/DocsSearchResultsView.vue'),
+    },
+    {
+      // There's no doc node at the docs root itself, so land on the first page instead
+      // of the 404 the catch-all below would otherwise show.
+      path: '/docs',
+      redirect: '/docs/getting-started',
+    },
+    {
+      path: '/docs/:pathMatch(.*)*',
+      name: 'docs',
+      component: () => import('../views/DocsView.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('../views/ErrorView.vue'),

@@ -12,6 +12,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sunsprite</title>
 
+    <!-- Matches base.css's dark --theme-bg fallback. Vite's dev server injects
+         app CSS via JS instead of a blocking <link>, so without this the browser
+         paints a blank white frame before main.ts's stylesheet import lands. -->
+    <style>
+      html, body { background: #23252b; }
+    </style>
+
     <!-- ! Remove this script when switching hosts -->
     <script type="text/javascript">
       // Single Page Apps for GitHub Pages

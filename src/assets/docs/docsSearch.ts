@@ -1,4 +1,5 @@
-import type { DocSection } from './docsContent'
+import type { DocNode } from './docsTypes'
+import { searchEntries, type DocIndexEntry } from './docsIndex'
 
 function levenshtein(a: string, b: string): number {
 	const dp: number[][] = Array.from({ length: a.length + 1 }, (_, i) => {
@@ -39,34 +40,69 @@ function wordMatches(queryWord: string, haystackWords: string[]): boolean {
 	})
 }
 
-function sectionMatchesSelf(section: DocSection, queryWords: string[]): boolean {
-	const haystack = tokenize(`${section.title} ${section.content ?? ''}`)
+// Flattens whatever's in a node's body into one haystack string — a prose
+// entry's paragraphs, or an api-member's description/signature/params/
+// properties/methods — so search reaches into structured fields, not just a
+// flat `content` string like the old DocSection shape had.
+function searchableText(node: DocNode): string {
+	const parts = [node.title, node.summary]
+
+	if (node.kind === 'category') {
+		if (node.intro) parts.push(node.intro)
+	} else if (node.body.kind === 'prose') {
+		parts.push(...node.body.paragraphs)
+	} else {
+		const body = node.body
+		parts.push(body.description)
+		if (body.signature) parts.push(body.signature)
+		body.params?.forEach((p) => parts.push(p.name, p.description))
+		body.properties?.forEach((p) => parts.push(p.name, p.description))
+		body.methods?.forEach((m) => parts.push(m.name, m.description))
+	}
+
+	return parts.join(' ')
+}
+
+function nodeMatchesSelf(node: DocNode, queryWords: string[]): boolean {
+	const haystack = tokenize(searchableText(node))
 	return queryWords.every((word) => wordMatches(word, haystack))
 }
 
-// Keeps a section if it (or any descendant) matches. A section that
-// matches by its own title/content keeps its full subtree intact (the
-// whole category was what was searched for); one that only qualifies via a
-// matching descendant keeps just the matching descendants, so results stay
-// focused.
-function filterSection(section: DocSection, queryWords: string[]): DocSection | null {
-	if (sectionMatchesSelf(section, queryWords)) return section
+// Keeps a node if it (or any descendant) matches. A node that matches by its
+// own text keeps its full subtree intact (the whole category was what was
+// searched for); one that only qualifies via a matching descendant keeps
+// just the matching descendants, so results stay focused.
+function filterNode(node: DocNode, queryWords: string[]): DocNode | null {
+	if (nodeMatchesSelf(node, queryWords)) return node
 
-	const filteredChildren = section.children
-		?.map((child) => filterSection(child, queryWords))
-		.filter((child): child is DocSection => child !== null)
+	if (node.kind === 'category') {
+		const filteredChildren = node.children
+			.map((child) => filterNode(child, queryWords))
+			.filter((child): child is DocNode => child !== null)
 
-	if (filteredChildren && filteredChildren.length > 0) {
-		return { ...section, children: filteredChildren }
+		if (filteredChildren.length > 0) return { ...node, children: filteredChildren }
 	}
 	return null
 }
 
-export function filterDocsSections(sections: DocSection[], query: string): DocSection[] {
-	const queryWords = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
-	if (queryWords.length === 0) return sections
+function queryWordsOf(query: string): string[] {
+	return query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+}
 
-	return sections
-		.map((section) => filterSection(section, queryWords))
-		.filter((section): section is DocSection => section !== null)
+/** Pruned-subtree filter for the in-panel/in-tree live search — unchanged UX from before. */
+export function filterTree(nodes: DocNode[], query: string): DocNode[] {
+	const queryWords = queryWordsOf(query)
+	if (queryWords.length === 0) return nodes
+
+	return nodes
+		.map((node) => filterNode(node, queryWords))
+		.filter((node): node is DocNode => node !== null)
+}
+
+/** Flat, ranked-by-tree-order results for the command palette and the /docs/search results page. */
+export function searchDocs(query: string): DocIndexEntry[] {
+	const queryWords = queryWordsOf(query)
+	if (queryWords.length === 0) return []
+
+	return searchEntries.filter((entry) => nodeMatchesSelf(entry.node, queryWords))
 }

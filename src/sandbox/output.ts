@@ -1,4 +1,4 @@
-import { Colors } from '@/assets/api/Colors'
+import Colors from '@/assets/api/Colors'
 import { timer } from '@/assets/api/core'
 import type { Printable } from '@/assets/api/types'
 import { postToHost } from './channel'

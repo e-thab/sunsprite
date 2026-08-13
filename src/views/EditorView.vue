@@ -67,13 +67,6 @@ const canvasWidth = ref(44)
 const canvasHeight = ref(80)
 const canvasHeightBeforeCollapse = ref(80)
 
-// explorer/code need to be refs (not static `size` props) so opening/
-// closing the docs pane can restore them after splitpanes' own forced
-// re-equalize (see onDocsPaneAdd/onDocsPaneRemove below).
-const explorerPaneWidth = ref(12)
-const codePaneWidth = ref(44)
-const docsPaneWidth = ref(0)
-
 const paneSize: { [index: string]: number } = {
   // Column panes (left - middle - right)
   'explorer-pane': 12,
@@ -85,6 +78,21 @@ const paneSize: { [index: string]: number } = {
   'canvas-v-pane': 80,
   'output-v-pane': 20
 }
+
+// docsStore.isOpen can already be true at mount (restored from localStorage
+// — see docsStore.ts), but splitpanes only fires `pane-add` for panes added
+// *after* its own initial mount, not ones present from the start, so
+// onDocsPaneAdd below would never run for a restored-open docs pane. Take
+// its width out of code-pane's share here instead, up front, so the initial
+// layout already matches what onDocsPaneAdd would have produced.
+if (docsStore.isOpen) paneSize['code-pane'] -= paneSize['docs-pane']
+
+// explorer/code need to be refs (not static `size` props) so opening/
+// closing the docs pane can restore them after splitpanes' own forced
+// re-equalize (see onDocsPaneAdd/onDocsPaneRemove below).
+const explorerPaneWidth = ref(paneSize['explorer-pane'])
+const codePaneWidth = ref(paneSize['code-pane'])
+const docsPaneWidth = ref(docsStore.isOpen ? paneSize['docs-pane'] : 0)
 
 // splitpanes unconditionally redistributes every pane's size equally
 // whenever a pane is added or removed (its own equalize-after-add/remove

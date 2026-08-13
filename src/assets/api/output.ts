@@ -1,4 +1,4 @@
-import { Colors } from "./Colors"
+import Colors from "./Colors"
 import type { Printable } from "./types"
 
 // Host-side output panel renderer. This owns the real DOM nodes in

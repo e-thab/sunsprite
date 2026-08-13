@@ -1,5 +1,5 @@
 // import { camera, screen, timer, mouse, forever, repeat, repeatUntil, after, every, keyPressed, keyJustPressed, print, play, pause, setBackgroundColor } from "./core";
-// import { random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp } from "./utility";
+// import { deg2rad, rad2deg, sin, cos, tan, atan2, clamp } from "./utility";
 // import { Point, Vector2 } from "./Point";
 
 // import Sprite from "./Sprite"
@@ -26,7 +26,7 @@
 // }
 // export default api
 import { positionableApi, sizableApi, rotatableApi, viewableApi, interactableApi, timeableApi, gameObjectApi, gameObjectPropsTypeDef, positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef } from "./mixins"
-import { Colors } from './Colors'
+import Colors from './Colors'
 
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
 // so that peeking definitions doesn't look so crowded?
@@ -403,24 +403,6 @@ declare function onKeyHold(actions: KeyAction): void
 declare function onMouse(actions: MouseInputAction): void
 
 /**
- * Display a normal message in the output panel.
- * @param msg The message to display.
- */
-declare function print(...msg: Printable[]): void
-
-/**
- * Display a warning message in the output panel.
- * @param msg The warning message to display.
- */
-declare function warn(...msg: Printable[]): void
-
-/**
- * Display an error message in the output panel.
- * @param msg The error message to display.
- */
-declare function error(...msg: Printable[]): void
-
-/**
  * Pause engine processing. Must be manually un-paused using the UI button for now.
  */
 declare function pause(): void
@@ -430,17 +412,35 @@ declare function pause(): void
  */
 declare function play(): void
 
+
+
 /**
- * Clear all messages from the output panel.
+ * The browser's dev tools console. Not part of the Sunsprite API, use print/warn/err instead to show
+ * messages in the output panel.
  */
-declare function clearOutput(): void`,
+declare const console: {
+    log(...data: any[]): void
+    info(...data: any[]): void
+    debug(...data: any[]): void
+    warn(...data: any[]): void
+    error(...data: any[]): void
+    trace(...data: any[]): void
+    table(...data: any[]): void
+    group(...data: any[]): void
+    groupEnd(): void
+    time(label?: string): void
+    timeEnd(label?: string): void
+    count(label?: string): void
+    assert(condition?: boolean, ...data: any[]): void
+    clear(): void
+}`,
 
 // Utilities
 `
 /**
  * A collection of functions useful for generating random values.
  */
-const Random: {
+declare const Random: {
     /**
      * Returns a random integer in a given range, min and max inclusive. If min > max, they're automatically swapped for you.
      * @param min The low end of the range.
@@ -465,6 +465,12 @@ const Random: {
      * @param sides The number of sides on the die.
      */
     roll(sides: number): number,
+
+    /**
+     * Returns a random letter of the alphabet. Lowercase by default.
+     * @param uppercase True if you want the letter to be uppercase.
+     */
+    letter(uppercase: boolean = false): string,
 
     /**
      * Returns a random character from a given string.
@@ -513,6 +519,37 @@ const Random: {
      */
     y(): number,
 }
+
+declare const Output: {
+    /**
+     * Display a normal message in the output panel.
+     * @param msgs The messages to display.
+     */
+    print(...msgs: Printable[]): void,
+
+    /**
+     * Display a warning message in the output panel.
+     * @param msgs The warning messages to display.
+     */
+    warn(...msgs: Printable[]): void,
+
+    /**
+     * Display an error message in the output panel.
+     * @param msgs The error messages to display.
+     */
+    error(...msgs: Printable[]): void,
+
+    /**
+     * Clear all messages from the output panel.
+     */
+    clear(): void
+}
+
+/**
+ * Display a normal message in the output panel. Shorthand for Output.print().
+ * @param msg The message to display.
+ */
+declare function print(...msg: Printable[]): void
 
 /**
  * Returns an angle converted from degrees to radians.
