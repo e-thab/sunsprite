@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { inject } from 'vue'
+import { computed, inject } from 'vue'
 import type { DocEntryNode, DocRef } from '@/assets/docs/docsTypes'
 import { nodesByPath } from '@/assets/docs/docsIndex'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
+import { docWidgets } from './widgets'
 
 const props = defineProps<{
 	node: DocEntryNode
 }>()
 
 const nav = inject(docsNavigationKey)!
+
+const topWidgets = computed(() => props.node.body.widgets?.filter((w) => w.placement === 'top') ?? [])
+const bottomWidgets = computed(() => props.node.body.widgets?.filter((w) => w.placement !== 'top') ?? [])
 
 function refLabel(ref: DocRef): string {
 	return ref.label ?? nodesByPath.get(ref.path)?.title ?? ref.path
@@ -34,24 +38,20 @@ function go(path: string) {
 			<slot name="header-actions"></slot>
 		</header>
 
+		<section
+			v-for="widget in topWidgets"
+			:id="`section-${widget.id}`"
+			:key="widget.id"
+			class="member-section"
+		>
+			<h2 v-if="widget.title" class="section-title">{{ widget.title }}</h2>
+			<component :is="docWidgets[widget.widget]" v-bind="widget.props" />
+		</section>
+
 		<template v-if="node.body.kind === 'prose'">
 			<p v-for="(paragraph, i) in node.body.paragraphs" :key="i" class="prose-paragraph">
 				{{ paragraph }}
 			</p>
-
-			<div v-if="node.body.related?.length" class="related-row">
-				<span class="related-label">See also</span>
-				<UButton
-					v-for="ref in node.body.related"
-					:key="ref.path"
-					:label="refLabel(ref)"
-					:icon="refIcon(ref)"
-					variant="soft"
-					color="neutral"
-					size="xs"
-					@click="go(ref.path)"
-				/>
-			</div>
 		</template>
 
 		<template v-else>
@@ -123,21 +123,32 @@ function go(path: string) {
 				<h2 class="section-title">Example</h2>
 				<pre class="example-block"><code>{{ node.body.example }}</code></pre>
 			</section>
-
-			<div v-if="node.body.related?.length" class="related-row">
-				<span class="related-label">See also</span>
-				<UButton
-					v-for="ref in node.body.related"
-					:key="ref.path"
-					:label="refLabel(ref)"
-					:icon="refIcon(ref)"
-					variant="soft"
-					color="neutral"
-					size="xs"
-					@click="go(ref.path)"
-				/>
-			</div>
 		</template>
+
+		<section
+			v-for="widget in bottomWidgets"
+			:id="`section-${widget.id}`"
+			:key="widget.id"
+			class="member-section"
+		>
+			<h2 v-if="widget.title" class="section-title">{{ widget.title }}</h2>
+			<component :is="docWidgets[widget.widget]" v-bind="widget.props" />
+		</section>
+
+		<!-- Same shape on both body kinds, so it renders once here rather than per-branch. -->
+		<div v-if="node.body.related?.length" class="related-row">
+			<span class="related-label">See also</span>
+			<UButton
+				v-for="ref in node.body.related"
+				:key="ref.path"
+				:label="refLabel(ref)"
+				:icon="refIcon(ref)"
+				variant="soft"
+				color="neutral"
+				size="xs"
+				@click="go(ref.path)"
+			/>
+		</div>
 	</div>
 </template>
 
