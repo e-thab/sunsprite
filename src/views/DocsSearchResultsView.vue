@@ -30,7 +30,7 @@ function onSelect(path: string) {
 
 <template>
 	<div class="search-view">
-		<Container class="search-container">
+		<UContainer class="search-container">
 			<h1 class="search-title">Search Docs</h1>
 			<UInput
 				v-model="query"
@@ -44,7 +44,7 @@ function onSelect(path: string) {
 			<p class="result-count">{{ results.length }} result{{ results.length === 1 ? '' : 's' }}</p>
 
 			<DocsSearchResultsList :results="results" @select="onSelect" />
-		</Container>
+		</UContainer>
 	</div>
 </template>
 

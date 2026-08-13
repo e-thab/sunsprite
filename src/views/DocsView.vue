@@ -158,12 +158,12 @@ onBeforeUnmount(() => observer?.disconnect())
 
 		<DocsBreadcrumb />
 
-		<PageBody>
-			<Container class="docs-view-container">
+		<UPageBody>
+			<UContainer class="docs-view-container">
 				<DocsCategoryLanding v-if="currentNode.kind === 'category'" :node="currentNode" :path="currentPath" />
 				<DocsBody v-else :node="currentNode" />
-			</Container>
-		</PageBody>
+			</UContainer>
+		</UPageBody>
 
 		<template #right>
 			<DocsToc v-if="showToc" :node="currentNode" />
@@ -231,7 +231,7 @@ onBeforeUnmount(() => observer?.disconnect())
 }
 
 .docs-view-container {
-	max-width: 48rem;
+	max-width: 96rem;
 	padding-block: 1.5em;
 }
 </style>

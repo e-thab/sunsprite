@@ -37,6 +37,12 @@ const router = createRouter({
       component: () => import('../views/DocsSearchResultsView.vue'),
     },
     {
+      // There's no doc node at the docs root itself, so land on the first page instead
+      // of the 404 the catch-all below would otherwise show.
+      path: '/docs',
+      redirect: '/docs/getting-started',
+    },
+    {
       path: '/docs/:pathMatch(.*)*',
       name: 'docs',
       component: () => import('../views/DocsView.vue'),
