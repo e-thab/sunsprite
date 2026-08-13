@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import Output from '@/assets/api/output';
 import type { OutputItem } from '@/assets/api/output';
+import InfoPanel from '@/components/InfoPanel.vue';
+import { infoFieldLabels, infoFieldOrder, useInfoPanelStore } from '@/stores/infoPanelStore';
+import type { DropdownMenuItem } from '@nuxt/ui';
 
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
@@ -15,6 +18,20 @@ const tabItems = [
 function isTabActive(tab: OutputTab) {
     return tab === activeTab.value
 }
+
+const infoPanelStore = useInfoPanelStore()
+
+// Keeps the dropdown open across multiple toggles instead of closing after
+// each checkbox click, so a user can flip several fields in one go.
+const infoFieldMenuItems = computed<DropdownMenuItem[]>(() =>
+    infoFieldOrder.map((key) => ({
+        label: infoFieldLabels[key],
+        type: 'checkbox',
+        checked: infoPanelStore.visible[key],
+        onUpdateChecked: (checked: boolean) => infoPanelStore.setVisible(key, checked),
+        onSelect: (event: Event) => event.preventDefault(),
+    }))
+)
 
 const emit = defineEmits([ 'collapseOutput', 'ready' ])
 
@@ -57,6 +74,12 @@ onMounted(() => {
         <div class="output-header">
             <UTabs v-model="activeTab" :items="tabItems" :content="false" color="primary" size="xs" class="output-tabs" />
 
+            <UDropdownMenu v-if="isTabActive('info')" :items="infoFieldMenuItems" :ui="{ content: 'w-52' }">
+                <UTooltip text="Customize fields" ignore-non-keyboard-focus>
+                    <UButton icon="tabler:adjustments" variant="ghost" color="neutral" size="xs" />
+                </UTooltip>
+            </UDropdownMenu>
+
             <UTooltip text="Collapse">
                 <UButton icon="tabler:chevron-down" variant="soft" color="neutral" size="xs" @click="$emit('collapseOutput')" />
             </UTooltip>
@@ -70,9 +93,9 @@ onMounted(() => {
             </div>
         </div>
 
-        <!-- Info panel: shows  -->
+        <!-- Info panel: shows live mouse/screen/timer info -->
         <div v-show="isTabActive('info')" class="info-panel">
-            <span>Info</span>
+            <InfoPanel />
         </div>
 
         <!-- Watch panel -->
@@ -158,9 +181,8 @@ onMounted(() => {
 .info-panel {
     width: 100%;
     height: 100%;
-    justify-content: center;
-    align-items: center;
     display: flex;
+    overflow: hidden;
 }
 
 .watch-panel {

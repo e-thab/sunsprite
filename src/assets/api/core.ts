@@ -37,6 +37,7 @@ import type { ThemePalette } from '../theme/themes'
 
 export function pause() {
 	paused = true
+	_lastPauseTime = Date.now()
 }
 export function play() {
 	paused = false
@@ -56,7 +57,10 @@ export let allPositionables: { _updatePosition(): void }[] = []
 /** A map associating Phaser objects to custom Sunsprite objects */
 export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 
-let _frame: number = 0 // current render frame index
+/** Current render frame index */
+let _frame: number = 0
+let _lastPauseTime: number = 0
+let _totalPauseTime: number = 0
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0
@@ -294,11 +298,28 @@ export let scene: Scene
 export let camera: Phaser.Cameras.Scene2D.Camera
 export const mouse = new Mouse()
 export const timer = {
-	time: 0, 	  // time since start, does not increment during pause
-	totalTime: 0, // time since start including pause time
-	delta: 0,	  // time since last frame normalized to 60fps (will usually be around 1)
-	deltaMs: 0,   // actual (smoothed) time since last frame
-	frame: 0,     // number of frames since start
+	/** Time since start in seconds, does not increment during pause */
+	time: 0,
+	/** Time since start in milliseconds, does not increment during pause */
+	timeMs: 0,
+	/** Time since start in seconds including pause time */
+	totalTime: 0,
+	/** Time since start in milliseconds including pause time */
+	totalTimeMs: 0,
+	/** Time since last frame normalized to 60fps (will usually be around 1) */
+	delta: 0,
+	/** Actual (but smoothed) time since last frame */
+	deltaMs: 0,
+	/** Number of frames since start */
+	frame: 0,
+	/** Time this run started in seconds since the Unix epoch */
+	startTime: 0,
+	/** Time this run started in milliseconds since the Unix epoch */
+	startTimeMs: 0,
+	/** Current time in seconds */
+	now: 0,
+	/** Current time in milliseconds */
+	nowMs: 0,
 }
 export let paused = false
 
@@ -308,22 +329,22 @@ let keysJustReleased: Map<string, number | undefined> = new Map()
 
 export const screen: Screen = {
 	get width(): number {
-		return camera.width
+		return camera?.width ?? 0
 	},
 	get height(): number {
-		return camera.height
+		return camera?.height ?? 0
 	},
 	get top(): number {
-		return camera.y + this.height / 2
+		return camera ? camera.y + this.height / 2 : 0
 	},
 	get bottom(): number {
-		return camera.y - this.height / 2
+		return camera ? camera.y - this.height / 2 : 0
 	},
 	get left(): number {
-		return camera.x - this.width / 2
+		return camera ? camera.x - this.width / 2 : 0
 	},
 	get right(): number {
-		return camera.x + this.width / 2
+		return camera ? camera.x + this.width / 2 : 0
 	},
 	// get center(): [number, number] {
 	// 	return [this.width / 2, this.height / 2]
@@ -578,6 +599,28 @@ function mouseOverCanvas() {
 	return game.canvas.matches(':hover')
 }
 
+// TODO: Turn Timer into a class, but still provide the default singleton
+function updateTimer(time: number, delta: number, incrementFrame: boolean = true) {
+	const deltaNormal = delta * 60 / 1000
+	timer.delta = deltaNormal
+	timer.deltaMs = delta
+
+	timer.nowMs = time
+	timer.now = time / 1000
+	timer.totalTimeMs = time - timer.startTimeMs
+	timer.totalTime = timer.totalTimeMs / 1000
+
+	if (paused) {
+		_totalPauseTime += time - _lastPauseTime
+		return
+	}
+
+	timer.timeMs = time - _totalPauseTime
+	timer.time = timer.timeMs / 1000
+
+	if (incrementFrame) timer.frame += 1
+}
+
 const UserOutput = {
 	print: Output.print,
 	error: Output.error,
@@ -600,6 +643,23 @@ class UserScene extends Scene {
 	
 	preload() {
 		console.log('preload')
+
+		timer.startTimeMs = Date.now()
+		timer.startTime = timer.startTimeMs / 1000
+
+		timer.nowMs = timer.startTimeMs
+		timer.now = timer.startTime
+
+		timer.timeMs = 0
+		timer.time = 0
+
+		timer.totalTimeMs = 0
+		timer.totalTime = 0
+
+		timer.frame = 0
+
+		_totalPauseTime = 0
+		_lastPauseTime = 0
 		// this.load.image('guy', 'assets/guy.png')
 		// this.load.image('boot', 'assets/boot.png')
 		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
@@ -760,12 +820,7 @@ class UserScene extends Scene {
 	update(time: number, delta: number) {
 		// onUpdate()
 		// console.log(delta)
-		const deltaNormal = delta * 0.06
-
-		timer.delta = deltaNormal
-		timer.deltaMs = delta
-		timer.totalTime += delta
-		
+		updateTimer(time, delta)
 		_clearKeysJustPressed(_frame)
 		_clearKeysJustReleased(_frame)
 
@@ -776,9 +831,6 @@ class UserScene extends Scene {
 		}
 		
 		if (paused) return
-		timer.time += delta
-		timer.frame = _frame++
-		
 		_runWhens()
 		_runOnKeyActions()
 		_runForevers()

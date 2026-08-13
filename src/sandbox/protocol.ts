@@ -44,8 +44,23 @@ export type SandboxMessage =
     | { type: 'script-request', id: number, name: string }
     | { type: 'output', kind: OutputKind, text: string, frame: number }
     | { type: 'output-clear' }
-    /** Periodic telemetry for the canvas panel's FPS badge / mouse readout. */
-    | { type: 'status', fps: number, mouseX: number, mouseY: number, paused: boolean, frame: number }
+    /** Periodic telemetry for the canvas panel's FPS badge / mouse readout, and the Info panel. */
+    | {
+        type: 'status',
+        fps: number,
+        mouseX: number,
+        mouseY: number,
+        paused: boolean,
+        frame: number,
+        time: number,
+        deltaMs: number,
+        screenWidth: number,
+        screenHeight: number,
+        screenTop: number,
+        screenBottom: number,
+        screenLeft: number,
+        screenRight: number,
+    }
 
 export type OutputKind = 'print' | 'warn' | 'error' | 'start'
 
