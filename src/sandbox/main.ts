@@ -15,6 +15,7 @@ import {
 } from '@/assets/api/core'
 import { setScriptResolver } from '@/assets/api/moduleRunner'
 import { onHostMessage, postToHost } from './channel'
+import { collectWatchSnapshot } from './watch'
 import type { HostMessage } from './protocol'
 
 // Entry point for sandbox.html — the document inside
@@ -116,6 +117,7 @@ function startStatusReports() {
             screenBottom: Math.round(screen.bottom),
             screenLeft: Math.round(screen.left),
             screenRight: Math.round(screen.right),
+            watch: collectWatchSnapshot(),
         })
     }, 60)
 }

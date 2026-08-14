@@ -552,6 +552,27 @@ declare const Output: {
 declare function print(...msg: Printable[]): void
 
 /**
+ * Adds an item to the watch panel.
+ * @param label The card's title.
+ * @param values An object whose properties are value labels, and whose values are functions returning the value to watch.
+ */
+declare function watch(label: string, values: Record<string, () => any>): void
+
+// Overload
+/**
+ * Adds an item to the watch panel.
+ * @param label The card's title.
+ * @param value A function returning the value to watch.
+ */
+declare function watch(label: string, value: () => any): void
+
+/**
+ * Removes an item from the watch panel.
+ * @param label The card's title.
+ */
+declare function unwatch(label: string): void
+
+/**
  * Returns an angle converted from degrees to radians.
  * @param deg The angle in degrees.
  */

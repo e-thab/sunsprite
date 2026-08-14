@@ -8,6 +8,7 @@ import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
 import { runEntryModule } from './moduleRunner'
 import Output from '@/sandbox/output'
+import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 
 import Colors from './Colors'
 import Random from './Random'
@@ -752,7 +753,7 @@ class UserScene extends Scene {
 			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			Output: UserOutput, print: Output.print, play, pause, setBackgroundColor,
+			Output: UserOutput, print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -863,6 +864,7 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 	_mouseInputActions.clear()
 	_mouseHoldActions.clear()
 	_propUpdaters.clear()
+	clearWatchCards()
 	// camera.goTo(0, 0)
 
 	// timer.time = 0

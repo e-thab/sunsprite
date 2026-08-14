@@ -74,6 +74,121 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
   user-select: none;
 }
 
+/* Shared "live value cards" layout, used by InfoPanel.vue and WatchPanel.vue
+   — both bin-pack their cards via useCardPacking() and need matching tile
+   markup/positioning for that to look right. */
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: var(--theme-bg-elevated);
+}
+
+.panel-fields {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.panel-tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .35em;
+  padding: .55em .8em;
+  background-color: var(--theme-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: .5em;
+  font-family: 'Fira Code';
+  transition: transform .15s ease, opacity .15s ease;
+  /* Belt-and-braces clip: --panel-max-width (below) already keeps label/value
+     text from wanting to be wider than the panel, but this guarantees
+     nothing (e.g. a sub-item's own padding) can visually poke past the
+     card's border regardless. */
+  overflow: hidden;
+}
+
+.panel-tile-label {
+  display: block;
+  /* .panel-tile stretches its children (flex column, default align-items),
+     so this is already sized to exactly match the tile's own max-width
+     (set from the packing composable's live contentWidth, in
+     InfoPanel.vue/WatchPanel.vue) — no separate cap needed here, just
+     something for that definite width to actually clip against. */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--theme-primary);
+  font-size: .75em;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.panel-subitems {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1em;
+  row-gap: .35em;
+}
+
+.panel-subitem {
+  display: flex;
+  flex-direction: column;
+  /* Stretch (not center) so the label/value below get a definite width
+     matching this box's own — centering is done with text-align on them
+     instead. A shrink-wrapped (center) child has no real "available width"
+     to overflow *against*, so its own overflow:hidden/ellipsis never
+     actually triggers; it just silently gets clipped by this box's own
+     overflow below once it's wider than the box, with no "…" anywhere. */
+  align-items: stretch;
+  gap: .1em;
+  padding: .3em .55em;
+  border: 1px dashed var(--theme-border);
+  background-color: var(--theme-bg);
+  border-radius: .35em;
+  /* Live panel width from InfoPanel.vue/WatchPanel.vue — without this cap
+     the box just shrink-wraps to whatever its label/value naturally want. */
+  max-width: var(--panel-max-width, none);
+  overflow: hidden;
+}
+
+.panel-subitem:hover {
+  border: 1px solid var(--theme-border);
+  background-color: var(--theme-bg);
+}
+
+.panel-subitem--error {
+  border-color: var(--theme-error);
+}
+
+.panel-sublabel {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+  color: var(--theme-text-toned);
+  font-size: .7em;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.panel-value {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--theme-text);
+  text-align: center;
+}
+
+.panel-value--error {
+  color: var(--theme-error);
+}
+
 button,
 [role="button"] {
   cursor: pointer;

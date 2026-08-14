@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import Output from '@/assets/api/output'
 import { getExampleCode } from '@/assets/api/examples'
 import { useFileStore } from '@/stores/fileStore'
+import { useWatchPanelStore } from '@/stores/watchPanelStore'
 import type { ThemePalette } from '@/assets/theme/themes'
 import { HOST_ORIGIN_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
 
@@ -121,6 +122,7 @@ function onSandboxMessage(event: MessageEvent) {
                 left: message.screenLeft,
                 right: message.screenRight,
             }
+            useWatchPanelStore().syncFromSandbox(message.watch)
             Output.setFrame(message.frame)
             break
     }

@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import Output from '@/assets/api/output';
 import type { OutputItem } from '@/assets/api/output';
 import InfoPanel from '@/components/InfoPanel.vue';
+import WatchPanel from '@/components/WatchPanel.vue';
 
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
@@ -84,9 +85,9 @@ onMounted(() => {
             <InfoPanel />
         </div>
 
-        <!-- Watch panel -->
+        <!-- Watch panel: shows user-defined live values -->
         <div v-show="isTabActive('watch')" class="watch-panel">
-            <span>Watch</span>
+            <WatchPanel />
         </div>
     </div>
 </template>
@@ -175,9 +176,8 @@ onMounted(() => {
 .watch-panel {
     width: 100%;
     height: 100%;
-    justify-content: center;
-    align-items: center;
     display: flex;
+    overflow: hidden;
 }
 
 </style>
