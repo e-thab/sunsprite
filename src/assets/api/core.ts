@@ -2,11 +2,12 @@ import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
 import type { Repeatable, Delayable, Screen, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
+import type { ThemePalette } from '../theme/themes'
 import { Mouse } from './types'
 import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
-import Output from '@/sandbox/output'
 import { runEntryModule } from './moduleRunner'
+import Output from '@/sandbox/output'
 
 import Colors from './Colors'
 import Random from './Random'
@@ -17,7 +18,7 @@ import Label from './Label'
 import Line from './Line'
 import HLine from './HLine'
 import VLine from './VLine'
-import type { ThemePalette } from '../theme/themes'
+import Timer from './Timer'
 // import Camera from './Camera';  --  needs phaser attention
 
 // export const outputItems: {
@@ -36,10 +37,11 @@ import type { ThemePalette } from '../theme/themes'
 // data; hostBridge.ts turns it back into refs on the app side.
 
 export function pause() {
+	timer.pause()
 	paused = true
-	_lastPauseTime = Date.now()
 }
 export function play() {
+	timer.play()
 	paused = false
 }
 
@@ -59,8 +61,10 @@ export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 
 /** Current render frame index */
 let _frame: number = 0
-let _lastPauseTime: number = 0
-let _totalPauseTime: number = 0
+
+// let _lastPauseTime: number = 0
+// let _totalPauseElapsed: number = 0
+
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0
@@ -297,31 +301,44 @@ export let game: Game
 export let scene: Scene
 export let camera: Phaser.Cameras.Scene2D.Camera
 export const mouse = new Mouse()
-export const timer = {
-	/** Time since start in seconds, does not increment during pause */
-	time: 0,
-	/** Time since start in milliseconds, does not increment during pause */
-	timeMs: 0,
-	/** Time since start in seconds including pause time */
-	totalTime: 0,
-	/** Time since start in milliseconds including pause time */
-	totalTimeMs: 0,
-	/** Time since last frame normalized to 60fps (will usually be around 1) */
-	delta: 0,
-	/** Actual (but smoothed) time since last frame */
-	deltaMs: 0,
-	/** Number of frames since start */
-	frame: 0,
-	/** Time this run started in seconds since the Unix epoch */
-	startTime: 0,
-	/** Time this run started in milliseconds since the Unix epoch */
-	startTimeMs: 0,
-	/** Current time in seconds */
-	now: 0,
-	/** Current time in milliseconds */
-	nowMs: 0,
-}
+export const timer: Timer = new Timer()
 export let paused = false
+
+// TODO: Turn Timer into a class, but still provide the default singleton
+// function updateTimer(time: number, delta: number, incrementFrame: boolean = true) {
+// 	// const deltaNormal = delta * 60 / 1000
+// 	// timer.delta = deltaNormal
+// 	timer.deltaMs = delta
+	
+// 	const now = Date.now()
+// 	timer.nowMs = now
+// 	// timer.now = now / 1000
+// 	// timer.totalTimeMs = now - timer.startTimeMs
+// 	// timer.totalTime = timer.totalTimeMs / 1000
+
+// 	if (paused) {
+// 		// _totalPauseTime = now - _lastPauseTime
+// 		return
+// 	}
+
+// 	timer.timeMs = timer.totalTimeMs - _totalPauseElapsed
+// 	// timer.time = timer.timeMs / 1000
+
+// 	if (incrementFrame) timer.frame += 1
+// }
+
+// function resetTimer() {
+// 	timer.deltaMs = 0
+// 	// timer.totalTimeMs = 0
+// 	timer.timeMs = 0
+// 	timer.frame = 0
+// 	timer.nowMs = Date.now()
+// 	timer.startTimeMs = timer.nowMs
+
+// 	_totalPauseElapsed = 0
+// 	_lastPauseTime = 0
+// 	_frame = 0
+// }
 
 let keysPressed: string[] = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
@@ -599,28 +616,6 @@ function mouseOverCanvas() {
 	return game.canvas.matches(':hover')
 }
 
-// TODO: Turn Timer into a class, but still provide the default singleton
-function updateTimer(time: number, delta: number, incrementFrame: boolean = true) {
-	const deltaNormal = delta * 60 / 1000
-	timer.delta = deltaNormal
-	timer.deltaMs = delta
-
-	timer.nowMs = time
-	timer.now = time / 1000
-	timer.totalTimeMs = time - timer.startTimeMs
-	timer.totalTime = timer.totalTimeMs / 1000
-
-	if (paused) {
-		_totalPauseTime += time - _lastPauseTime
-		return
-	}
-
-	timer.timeMs = time - _totalPauseTime
-	timer.time = timer.timeMs / 1000
-
-	if (incrementFrame) timer.frame += 1
-}
-
 const UserOutput = {
 	print: Output.print,
 	error: Output.error,
@@ -644,22 +639,24 @@ class UserScene extends Scene {
 	preload() {
 		console.log('preload')
 
-		timer.startTimeMs = Date.now()
-		timer.startTime = timer.startTimeMs / 1000
+		// resetTimer()
 
-		timer.nowMs = timer.startTimeMs
-		timer.now = timer.startTime
+		// timer.startTimeMs = Date.now()
+		// timer.startTime = timer.startTimeMs / 1000
 
-		timer.timeMs = 0
-		timer.time = 0
+		// timer.nowMs = timer.startTimeMs
+		// timer.now = timer.startTime
 
-		timer.totalTimeMs = 0
-		timer.totalTime = 0
+		// timer.timeMs = 0
+		// timer.time = 0
 
-		timer.frame = 0
+		// timer.totalTimeMs = 0
+		// timer.totalTime = 0
 
-		_totalPauseTime = 0
-		_lastPauseTime = 0
+		// timer.frame = 0
+
+		// _totalPauseTime = 0
+		// _lastPauseTime = 0
 		// this.load.image('guy', 'assets/guy.png')
 		// this.load.image('boot', 'assets/boot.png')
 		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
@@ -819,8 +816,7 @@ class UserScene extends Scene {
 	
 	update(time: number, delta: number) {
 		// onUpdate()
-		// console.log(delta)
-		updateTimer(time, delta)
+		timer._update(delta)
 		_clearKeysJustPressed(_frame)
 		_clearKeysJustReleased(_frame)
 
@@ -869,14 +865,15 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 	_propUpdaters.clear()
 	// camera.goTo(0, 0)
 
-	timer.time = 0
-	timer.totalTime = 0
-	timer.frame = 0
-	_frame = 0
+	// timer.time = 0
+	// timer.totalTime = 0
+	// timer.frame = 0
+	// _frame = 0
 	_nextObjectId = 0
 	_lastLeftClickTime = 0
 	
 	Output.printStartMsg()
+	timer.reset()
 	play()
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?

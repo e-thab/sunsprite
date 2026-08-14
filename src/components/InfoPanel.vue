@@ -65,7 +65,7 @@ function fieldRows(key: InfoFieldKey): InfoSubItem[][] {
                     // { label: 'Time', value: `${round(timerRef.value.time, 3).toFixed(3)}s`, minChars:  },
                     { label: 'Time', value: `${Math.trunc(timerRef.value.time)}s`, minChars: 6 },
                     { label: 'Frame', value: String(timerRef.value.frame), minChars: 6 },
-                    { label: 'delta Ms', value: `${round(timerRef.value.deltaMs, 3)}ms`, minChars: 7 },
+                    { label: 'delta Ms', value: `${round(timerRef.value.deltaMs, 1)}ms`, minChars: 7 },
                 ],
             ]
     }
