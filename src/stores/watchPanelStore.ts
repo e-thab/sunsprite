@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import type { WatchCardSnapshot } from '@/sandbox/protocol'
 
 export interface WatchCard {
@@ -22,6 +22,13 @@ export interface WatchCard {
 export const useWatchPanelStore = defineStore('watchPanel', () => {
     const cards = reactive(new Map<string, WatchCard>())
 
+    // Bumped whenever a genuinely new card label appears (not just an
+    // existing one's values refreshing) — OutputPane.vue watches this to
+    // flash the Watch tab. Both addCard() and syncFromSandbox() re-register
+    // every currently-live card on essentially every tick, so this has to
+    // check cards.has() itself rather than bumping unconditionally.
+    const activity = ref(0)
+
     // Labels most recently reported by the running sandbox, so a card whose
     // watch() call disappears between runs (edited out, or the run ended)
     // gets dropped instead of lingering as a stale ghost entry. Host-added
@@ -32,6 +39,7 @@ export const useWatchPanelStore = defineStore('watchPanel', () => {
     // this again on every run) replaces that card's sub-items in place
     // instead of accumulating duplicates.
     function addCard(label: string, values: Record<string, () => any>) {
+        if (!cards.has(label)) activity.value++
         cards.set(label, { label, values, errorKeys: new Set() })
     }
 
@@ -48,11 +56,12 @@ export const useWatchPanelStore = defineStore('watchPanel', () => {
             // formatting is a harmless no-op passthrough on the result.
             const values = Object.fromEntries(card.items.map((item) => [item.label, () => item.value]))
             const errorKeys = new Set(card.items.filter((item) => item.error).map((item) => item.label))
+            if (!cards.has(card.label)) activity.value++
             cards.set(card.label, { label: card.label, values, errorKeys })
         }
 
         sandboxLabels = nextLabels
     }
 
-    return { cards, addCard, syncFromSandbox }
+    return { cards, activity, addCard, syncFromSandbox }
 })

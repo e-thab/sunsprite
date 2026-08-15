@@ -1,24 +1,71 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import Output from '@/assets/api/output';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import Output, { outputActivity } from '@/assets/api/output';
 import type { OutputItem } from '@/assets/api/output';
 import InfoPanel from '@/components/InfoPanel.vue';
 import WatchPanel from '@/components/WatchPanel.vue';
+import { useWatchPanelStore } from '@/stores/watchPanelStore';
 
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
-
-const tabItems = [
-    { label: 'Output', value: 'output' },
-    { label: 'Info', value: 'info' },
-    { label: 'Watch', value: 'watch' },
-]
+const watchPanelStore = useWatchPanelStore()
 
 function isTabActive(tab: OutputTab) {
     return tab === activeTab.value
 }
 
+// Soft, brief glow on a tab's own label — not the whole bar — when a new
+// item lands in Output (print/warn/error; the "Running @ ..." start message
+// is deliberately excluded, see output.ts) or a new card is added to Watch,
+// while that tab isn't the one currently in view. Kept as two dedicated
+// flags rather than a generic per-tab map: only these two tabs ever flash,
+// and Info has no notion of a discrete "new item" to flash for anyway.
+const FLASH_DURATION_MS = 500
+const flashOutput = ref(false)
+const flashWatch = ref(false)
+let outputFlashTimer: ReturnType<typeof setTimeout> | null = null
+let watchFlashTimer: ReturnType<typeof setTimeout> | null = null
+
+function triggerFlash(tab: 'output' | 'watch') {
+    if (isTabActive(tab)) return
+
+    const flag = tab === 'output' ? flashOutput : flashWatch
+    let timer = tab === 'output' ? outputFlashTimer : watchFlashTimer
+    if (timer) clearTimeout(timer)
+
+    flag.value = true
+    timer = setTimeout(() => { flag.value = false }, FLASH_DURATION_MS)
+    if (tab === 'output') outputFlashTimer = timer
+    else watchFlashTimer = timer
+}
+
+watch(outputActivity, () => triggerFlash('output'))
+watch(() => watchPanelStore.activity, () => triggerFlash('watch'))
+
+// Switching to a flashing tab should stop it immediately rather than
+// waiting out the timer.
+watch(activeTab, (tab) => {
+    if (tab === 'output') {
+        flashOutput.value = false
+        if (outputFlashTimer) clearTimeout(outputFlashTimer)
+    } else if (tab === 'watch') {
+        flashWatch.value = false
+        if (watchFlashTimer) clearTimeout(watchFlashTimer)
+    }
+})
+
+const tabItems = computed(() => [
+    { label: 'Output', value: 'output', ui: flashOutput.value ? { label: 'tab-flash' } : undefined },
+    { label: 'Info', value: 'info' },
+    { label: 'Watch', value: 'watch', ui: flashWatch.value ? { label: 'tab-flash' } : undefined },
+])
+
 const emit = defineEmits([ 'collapseOutput', 'ready' ])
+
+onUnmounted(() => {
+    if (outputFlashTimer) clearTimeout(outputFlashTimer)
+    if (watchFlashTimer) clearTimeout(watchFlashTimer)
+})
 
 onMounted(() => {
     const panel = document.getElementById('output-panel')
@@ -55,7 +102,6 @@ onMounted(() => {
 <template>
     <div class="output-wrapper">
         <!-- Header tabs -->
-        <!-- TODO: Have output tab flash when another tab is focused and a new print/warn/err appears -->
         <div class="output-header">
             <UTabs
                 v-model="activeTab"
@@ -114,6 +160,19 @@ onMounted(() => {
 
 .output-tabs {
     flex: 1 1 auto;
+}
+
+/* Soft glow rather than a color swap, so it doesn't have to fight Nuxt UI's
+   own (unstyled-here) label color — a single gentle pulse, timed to fully
+   settle back to no glow right as the JS-driven FLASH_DURATION_MS removes
+   the class (see OutputPane.vue's triggerFlash). */
+@keyframes tab-flash {
+    0%, 100% { text-shadow: none; }
+    50% { text-shadow: 0 0 2px var(--theme-primary); }
+}
+
+.tab-flash {
+    animation: tab-flash .5s ease-in-out 1;
 }
 
 .output-panel {
