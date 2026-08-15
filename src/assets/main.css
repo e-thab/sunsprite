@@ -99,7 +99,7 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
   flex-direction: column;
   gap: .35em;
   padding: .55em .8em;
-  background-color: var(--theme-bg);
+  background-color: var(--theme-bg-muted);
   border: 1px solid var(--theme-border);
   border-radius: .5em;
   font-family: 'Fira Code';
@@ -147,7 +147,7 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
   gap: .1em;
   padding: .3em .55em;
   border: 1px dashed var(--theme-border);
-  background-color: var(--theme-bg);
+  background-color: var(--theme-bg-muted);
   border-radius: .35em;
   /* Live panel width from InfoPanel.vue/WatchPanel.vue — without this cap
      the box just shrink-wraps to whatever its label/value naturally want. */
@@ -157,10 +157,14 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
 
 .panel-subitem:hover {
   border: 1px solid var(--theme-border);
-  background-color: var(--theme-bg);
+  background-color: var(--theme-bg-elevated);
 }
 
 .panel-subitem--error {
+  border-color: var(--theme-error);
+}
+
+.panel-subitem--error:hover {
   border-color: var(--theme-error);
 }
 

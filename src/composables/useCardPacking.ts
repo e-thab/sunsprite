@@ -21,6 +21,10 @@ import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 // Shared between InfoPanel.vue and WatchPanel.vue so both live-value panels
 // pack their cards identically.
 export const PANEL_PADDING = 12
+// Cards are absolutely positioned by the packer, so neighbours would sit flush
+// against each other without this — margins on the tiles themselves can't
+// separate them.
+const CARD_GAP = 2
 const UNBOUNDED_HEIGHT = 1_000_000
 
 interface FreeRect { x: number, y: number, width: number, height: number }
@@ -42,16 +46,20 @@ function pruneContainedRects(rects: FreeRect[]): FreeRect[] {
     return rects.filter((rect, i) => !rects.some((other, j) => i !== j && rectContains(other, rect)))
 }
 
-function packCards(containerWidth: number, cards: CardBox[]): Map<string, { x: number, y: number }> {
+function packCards(containerWidth: number, cards: CardBox[], gap: number): Map<string, { x: number, y: number }> {
     const positions = new Map<string, { x: number, y: number }>()
     if (containerWidth <= 0) return positions
 
-    let freeRects: FreeRect[] = [{ x: 0, y: 0, width: containerWidth, height: UNBOUNDED_HEIGHT }]
+    // Each card claims `gap` extra px on its right and bottom, which is what
+    // keeps the next card off it. The bin is widened by the same gap so a
+    // card as wide as the panel still fits with its phantom margin — the
+    // margin just hangs in that extra column, past the last real one.
+    let freeRects: FreeRect[] = [{ x: 0, y: 0, width: containerWidth + gap, height: UNBOUNDED_HEIGHT }]
     let fallbackY = 0
 
     for (const card of cards) {
-        const width = Math.min(card.width, containerWidth)
-        const height = card.height
+        const width = Math.min(card.width, containerWidth) + gap
+        const height = card.height + gap
 
         // Highest (lowest y), then leftmost free rect the card fits in.
         let best: FreeRect | null = null
@@ -152,7 +160,7 @@ export function useCardPacking(cardKeys: () => string[]) {
             return el ? [{ key, width: el.offsetWidth, height: el.offsetHeight }] : []
         })
 
-        const placed = packCards(width, cards)
+        const placed = packCards(width, cards, CARD_GAP)
         positions.clear()
         for (const [key, pos] of placed) positions.set(key, pos)
 
