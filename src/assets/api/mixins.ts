@@ -4,7 +4,7 @@ import { deg2rad, rad2deg } from "./utility"
 import Random from "./Random"
 // import { Point, type AnyPoint } from "./interfaces"
 import { pointFrom, type Point, type PointArg } from "./Point"
-import { screen, camera, timer, paused, getGamePoint, game, scene, PointerEvents } from "./core"
+import { screen, camera, Clock, paused, getGamePoint, game, scene, PointerEvents } from "./core"
 
 import Phaser from "phaser"
 import type { Action, MouseInputAction, Optional, PointerAction, ReferenceObject } from "./types"
@@ -856,10 +856,10 @@ export function Interactable<Base extends Class>(base: Base) {
                 // starting the drag. i.e. the arguments are provided as
                 // x = pointerX - initialPointerOffsetX
                 // y = pointerY - initialPointerOffsetY
-                if (!paused && timer.frame > this._lastDragFrame) {
+                if (!paused && Clock.frame > this._lastDragFrame) {
                     const { x, y } = getGamePoint({ x: localX, y: localY })
                     this._refObj.emit(PointerEvents.DRAG, x, y)
-                    this._lastDragFrame = timer.frame
+                    this._lastDragFrame = Clock.frame
                 }
             })
 
@@ -1204,12 +1204,12 @@ export function Timeable<Base extends Class>(base: Base) {
 
         constructor(...args: any[]) {
             super()
-            this._initTime = timer.time
+            this._initTime = Clock.time
         }
 
         get age(): number {
             // Returns this object's age in seconds not including pause time
-            return (timer.time - this._initTime) / 1000
+            return (Clock.time - this._initTime) / 1000
         }
     }
 }

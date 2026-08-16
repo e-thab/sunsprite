@@ -3,13 +3,13 @@ import { ref, watch } from 'vue'
 
 const STORAGE_KEY = 'sunsprite-info-panel-fields'
 
-export type InfoFieldKey = 'mouse' | 'screen' | 'timer'
+export type InfoFieldKey = 'mouse' | 'screen' | 'clock'
 
 export const infoFieldLabels: Record<InfoFieldKey, string> = {
     mouse: 'Mouse',
     screen: 'Screen',
     // screenBounds: 'Screen Bounds',
-    timer: 'Timer',
+    clock: 'Clock',
     // frame: 'Frame',
     // deltaMs: 'Delta (ms)',
 }
@@ -19,7 +19,7 @@ export const infoFieldOrder = Object.keys(infoFieldLabels) as InfoFieldKey[]
 const defaultVisible: Record<InfoFieldKey, boolean> = {
     mouse: true,
     screen: true,
-    timer: true
+    clock: true
 }
 
 function loadVisible(): Record<InfoFieldKey, boolean> {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, watch } from 'vue'
-import { mouseRef, screenRef, timerRef } from '@/sandbox/hostBridge'
+import { mouseRef, screenRef, clockRef } from '@/sandbox/hostBridge'
 import { infoFieldLabels, infoFieldOrder, useInfoPanelStore, type InfoFieldKey } from '@/stores/infoPanelStore'
 import { PANEL_PADDING, useCardPacking } from '@/composables/useCardPacking'
 import type { DropdownMenuItem } from '@nuxt/ui'
@@ -30,7 +30,7 @@ function round(value: number, digits: number): number {
 
 // One row per line of sub-items a field wants to show, one entry per
 // sub-item within that row. A field with a single, self-explanatory value
-// (Timer's frame count, say) can omit the sub-label; a field with several
+// (Clock's frame count, say) can omit the sub-label; a field with several
 // per row (Mouse, Screen) labels each one. Card height in the template just
 // falls out of how many rows are rendered — no layout bookkeeping needed
 // here, so adding a row, or a whole new field, needs no other changes.
@@ -60,13 +60,13 @@ function fieldRows(key: InfoFieldKey): InfoSubItem[][] {
                     { label: 'Height', value: String(screenRef.value.height), minChars: 5 },
                 ],
             ]
-        case 'timer':
+        case 'clock':
             return [
                 [
                     // { label: 'Time', value: `${round(timerRef.value.time, 3).toFixed(3)}s`, minChars:  },
-                    { label: 'Time', value: `${Math.trunc(timerRef.value.time)}s`, minChars: 6 },
-                    { label: 'Frame', value: String(timerRef.value.frame), minChars: 6 },
-                    { label: 'delta Ms', value: `${round(timerRef.value.deltaMs, 1)}ms`, minChars: 7 },
+                    { label: 'Time', value: `${Math.trunc(clockRef.value.time)}s`, minChars: 6 },
+                    { label: 'Frame', value: String(clockRef.value.frame), minChars: 6 },
+                    { label: 'delta Ms', value: `${round(clockRef.value.deltaMs, 1)}ms`, minChars: 7 },
                 ],
             ]
     }

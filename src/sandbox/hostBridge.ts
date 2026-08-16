@@ -20,7 +20,7 @@ import { HOST_ORIGIN_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage
 const fpsRef = ref(0)
 const mouseRef = ref({ mouseX: 0, mouseY: 0 })
 const pausedRef = ref(false)
-const timerRef = ref({
+const clockRef = ref({
     time: 0,
     // timeMs: 0,
     // totalTime: 0,
@@ -35,7 +35,7 @@ const timerRef = ref({
 })
 const screenRef = ref({ width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0 })
 
-export { fpsRef, mouseRef, pausedRef, timerRef, screenRef }
+export { fpsRef, mouseRef, pausedRef, clockRef, screenRef }
 
 let frame: HTMLIFrameElement | null = null
 let sandboxReady = false
@@ -113,7 +113,7 @@ function onSandboxMessage(event: MessageEvent) {
             fpsRef.value = message.fps
             mouseRef.value = { mouseX: message.mouseX, mouseY: message.mouseY }
             pausedRef.value = message.paused
-            timerRef.value = { time: message.time, deltaMs: message.deltaMs, frame: message.frame }
+            clockRef.value = { time: message.time, deltaMs: message.deltaMs, frame: message.frame }
             screenRef.value = {
                 width: message.screenWidth,
                 height: message.screenHeight,

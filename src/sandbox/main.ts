@@ -11,7 +11,7 @@ import {
     runUserCode,
     screen,
     setup,
-    timer,
+    Clock,
 } from '@/assets/api/core'
 import { setScriptResolver } from '@/assets/api/moduleRunner'
 import { onHostMessage, postToHost } from './channel'
@@ -108,9 +108,9 @@ function startStatusReports() {
             mouseX: Math.round(mouse.x),
             mouseY: Math.round(mouse.y),
             paused,
-            frame: timer.frame,
-            time: timer.time,
-            deltaMs: timer.deltaMs,
+            frame: Clock.frame,
+            time: Clock.time,
+            deltaMs: Clock.deltaMs,
             screenWidth: Math.round(screen.width),
             screenHeight: Math.round(screen.height),
             screenTop: Math.round(screen.top),

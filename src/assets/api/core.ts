@@ -38,11 +38,11 @@ import Timer from './Timer'
 // data; hostBridge.ts turns it back into refs on the app side.
 
 export function pause() {
-	timer.pause()
+	Clock.pause()
 	paused = true
 }
 export function play() {
-	timer.play()
+	Clock.play()
 	paused = false
 }
 
@@ -128,7 +128,7 @@ export function updatePositions() {
 
 function _runForevers() {
 	for (const forever of _forevers) {
-		forever(timer.delta)
+		forever(Clock.delta)
 	}
 }
 
@@ -302,7 +302,7 @@ export let game: Game
 export let scene: Scene
 export let camera: Phaser.Cameras.Scene2D.Camera
 export const mouse = new Mouse()
-export const timer: Timer = new Timer()
+export const Clock: Timer = new Timer()
 export let paused = false
 
 // TODO: Turn Timer into a class, but still provide the default singleton
@@ -750,7 +750,7 @@ class UserScene extends Scene {
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
 			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, /*Point,*/
-			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
+			Clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			Output: UserOutput, print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
@@ -817,7 +817,7 @@ class UserScene extends Scene {
 	
 	update(time: number, delta: number) {
 		// onUpdate()
-		timer._update(delta)
+		Clock._update(delta)
 		_clearKeysJustPressed(_frame)
 		_clearKeysJustReleased(_frame)
 
@@ -834,8 +834,8 @@ class UserScene extends Scene {
 		_runRepeats()
 		_runRepeatUntils()
 		_runRepeatWhiles()
-		_runAfters(timer.deltaMs)
-		_runEverys(timer.deltaMs)
+		_runAfters(Clock.deltaMs)
+		_runEverys(Clock.deltaMs)
 
 		_runPropUpdaters()
 	}
@@ -875,7 +875,7 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 	_lastLeftClickTime = 0
 	
 	Output.printStartMsg()
-	timer.reset()
+	Clock.reset()
 	play()
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?

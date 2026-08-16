@@ -232,35 +232,52 @@ declare const Screen: {
     center: Point
 }
 
-/**
- * Timer singleton.
- */
-declare const Timer: {
-    /**
-     * Time since start, does not increment during pause.
-     */
-    time: number
+class Timer {
+	/** Time since start in milliseconds, does not increment during pause */
+	timeMs: number
+	/** Time since start in seconds, does not increment during pause */
+	time: number
 
-    /**
-     * Time since start, including pause time.
-     */
-    totalTime: number
+	/** Time since start in milliseconds including pause time */
+	totalTimeMs: number
+	/** Time since start in seconds including pause time */
+	totalTime: number
 
-    /**
-     * Normalized time since last frame. When running at 60 FPS, this will be around 1.0.
-     */
-    delta: number
+	/** Actual (but smoothed) time since last frame in milliseconds */
+	deltaMs: number
+	/** Time since last frame normalized to 60fps (will usually be around 1) */
+	delta: number
 
-    /**
-     * Time since last frame in milliseconds.
-     */
-    deltaMs: number
+	/** Number of frames since start */
+	frame: number
 
-    /**
-     * Frames since game start, does not increment during pause.
-     */
-    frame: number
+	/** Time this run started in milliseconds since the Unix epoch */
+	startTimeMs: number
+	/** Time this run started in seconds since the Unix epoch */
+	startTime: number
+
+	/** Current time in milliseconds */
+	nowMs: number = 0
+	/** Current time in seconds */
+	now: number
+
+	/** Is the timer currently paused? */
+	paused: boolean
+
+	/** Pause the timer */
+	pause(): void
+
+	/** Resume the timer */
+	play(): void
+
+	/** Reset the timer */
+	reset(): void
 }
+
+/**
+ * Game clock, instance of the Timer class.
+ */
+declare const Clock: Timer
 
 /**
  * An array of all keys currently pressed.

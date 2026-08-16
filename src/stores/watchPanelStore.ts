@@ -15,7 +15,7 @@ export interface WatchCard {
 
 // Host-side registry for the Watch panel's cards (see WatchPanel.vue). Two
 // sources feed it: host code can call addCard() directly (getters run here,
-// e.g. against mouseRef/timerRef); the sandboxed user-facing watch() API
+// e.g. against mouseRef/clockRef); the sandboxed user-facing watch() API
 // (src/sandbox/watch.ts) instead arrives via syncFromSandbox(), relayed
 // through hostBridge.ts's 'status' handler — its getters already ran inside
 // the iframe, so what crosses over is pre-formatted display strings.

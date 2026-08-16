@@ -48,9 +48,9 @@ const screen = fn({
 	},
 })
 
-const timer = fn({
-	slug: 'timer',
-	title: 'Timer',
+const clock = fn({
+	slug: 'clock',
+	title: 'Clock',
 	icon: 'tabler:clock',
 	summary: 'A live reference to elapsed game time.',
 	body: {
@@ -87,7 +87,7 @@ export const globals: DocCategoryNode = {
 	slug: 'globals',
 	title: 'Globals',
 	icon: 'tabler:world',
-	summary: 'Live references available everywhere: Mouse, Screen, Timer, keysPressed.',
+	summary: 'Live references available everywhere: Mouse, Screen, Clock, keysPressed.',
 	intro: 'A handful of always-available globals that reflect live engine state, rather than functions you call.',
-	children: [mouse, screen, timer, keysPressed],
+	children: [mouse, screen, clock, keysPressed],
 }

@@ -166,13 +166,17 @@ onMounted(() => {
    own (unstyled-here) label color — a single gentle pulse, timed to fully
    settle back to no glow right as the JS-driven FLASH_DURATION_MS removes
    the class (see OutputPane.vue's triggerFlash). */
-@keyframes tab-flash {
+/* @keyframes tab-flash {
     0%, 100% { text-shadow: none; }
     50% { text-shadow: 0 0 2px var(--theme-primary); }
+} */
+ @keyframes tab-flash {
+    0%, 100% { text-shadow: none; }
+    50% { text-shadow: 0 0 2px var(--theme-warning); }
 }
 
 .tab-flash {
-    animation: tab-flash .5s ease-in-out 1;
+    animation: tab-flash .5s ease 1;
 }
 
 .output-panel {

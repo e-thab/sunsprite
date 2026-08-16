@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, watch } from 'vue'
-import { timerRef } from '@/sandbox/hostBridge'
+import { clockRef } from '@/sandbox/hostBridge'
 import { useWatchPanelStore, type WatchCard } from '@/stores/watchPanelStore'
 import { PANEL_PADDING, useCardPacking } from '@/composables/useCardPacking'
 import Output from '@/assets/api/output'
@@ -90,11 +90,11 @@ function resolveItem(
 // InfoPanel.vue's fields use, minus the multi-row layouts predefined fields
 // sometimes need (a user-defined card is just whatever's in its record).
 const fields = computed<WatchField[]>(() => {
-    // timerRef ticks on the same ~60ms 'status' cadence that drives
+    // clockRef ticks on the same ~60ms 'status' cadence that drives
     // InfoPanel's live values (see hostBridge.ts/sandbox/main.ts), so
     // referencing it here keeps watch values refreshing at the same rate
     // even though the caller's getters aren't reactive themselves.
-    void timerRef.value
+    void clockRef.value
 
     const nextErrorKeys = new Map<string, Set<string>>()
 

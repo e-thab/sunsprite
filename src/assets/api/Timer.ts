@@ -8,6 +8,7 @@ export default class Timer {
 		return this.timeMs / 1000
 	}
 
+	// TODO: rename to age?
 	/** Time since start in milliseconds including pause time */
 	get totalTimeMs(): number {
 		return this.nowMs - this.startTimeMs
