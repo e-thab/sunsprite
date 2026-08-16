@@ -9,11 +9,13 @@ import {
     releaseAllKeys,
     resizeStage,
     runUserCode,
+    screen,
     setup,
-    timer,
+    Clock,
 } from '@/assets/api/core'
 import { setScriptResolver } from '@/assets/api/moduleRunner'
 import { onHostMessage, postToHost } from './channel'
+import { collectWatchSnapshot } from './watch'
 import type { HostMessage } from './protocol'
 
 // Entry point for sandbox.html — the document inside
@@ -93,9 +95,11 @@ function watchContainerSize() {
     container.addEventListener('contextmenu', (event) => event.preventDefault())
 }
 
-// Telemetry for the canvas panel's FPS badge and mouse readout. Polled on the
-// same 250ms cadence the host used to poll `game.loop.actualFps` at, rather than
-// posted per frame — 60 messages a second to render two numbers isn't worth it.
+// Telemetry for the canvas panel's FPS badge, mouse readout, and the Info
+// panel. Polled on an interval rather than posted per frame — true 60/sec
+// updates would add postMessage overhead to the render loop for digits that
+// change faster than they can be read. ~60ms (~16Hz) looks just as live to
+// the eye while staying well clear of that cost.
 function startStatusReports() {
     setInterval(() => {
         postToHost({
@@ -104,9 +108,18 @@ function startStatusReports() {
             mouseX: Math.round(mouse.x),
             mouseY: Math.round(mouse.y),
             paused,
-            frame: timer.frame,
+            frame: Clock.frame,
+            time: Clock.time,
+            deltaMs: Clock.deltaMs,
+            screenWidth: Math.round(screen.width),
+            screenHeight: Math.round(screen.height),
+            screenTop: Math.round(screen.top),
+            screenBottom: Math.round(screen.bottom),
+            screenLeft: Math.round(screen.left),
+            screenRight: Math.round(screen.right),
+            watch: collectWatchSnapshot(),
         })
-    }, 250)
+    }, 60)
 }
 
 setup()

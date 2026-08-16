@@ -2,11 +2,13 @@ import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
 import type { Repeatable, Delayable, Screen, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
+import type { ThemePalette } from '../theme/themes'
 import { Mouse } from './types'
 import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
-import Output from '@/sandbox/output'
 import { runEntryModule } from './moduleRunner'
+import Output from '@/sandbox/output'
+import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 
 import Colors from './Colors'
 import Random from './Random'
@@ -17,7 +19,7 @@ import Label from './Label'
 import Line from './Line'
 import HLine from './HLine'
 import VLine from './VLine'
-import type { ThemePalette } from '../theme/themes'
+import Timer from './Timer'
 // import Camera from './Camera';  --  needs phaser attention
 
 // export const outputItems: {
@@ -36,9 +38,11 @@ import type { ThemePalette } from '../theme/themes'
 // data; hostBridge.ts turns it back into refs on the app side.
 
 export function pause() {
+	Clock.pause()
 	paused = true
 }
 export function play() {
+	Clock.play()
 	paused = false
 }
 
@@ -56,7 +60,12 @@ export let allPositionables: { _updatePosition(): void }[] = []
 /** A map associating Phaser objects to custom Sunsprite objects */
 export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 
-let _frame: number = 0 // current render frame index
+/** Current render frame index */
+let _frame: number = 0
+
+// let _lastPauseTime: number = 0
+// let _totalPauseElapsed: number = 0
+
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0
@@ -119,7 +128,7 @@ export function updatePositions() {
 
 function _runForevers() {
 	for (const forever of _forevers) {
-		forever(timer.delta)
+		forever(Clock.delta)
 	}
 }
 
@@ -293,14 +302,44 @@ export let game: Game
 export let scene: Scene
 export let camera: Phaser.Cameras.Scene2D.Camera
 export const mouse = new Mouse()
-export const timer = {
-	time: 0, 	  // time since start, does not increment during pause
-	totalTime: 0, // time since start including pause time
-	delta: 0,	  // time since last frame normalized to 60fps (will usually be around 1)
-	deltaMs: 0,   // actual (smoothed) time since last frame
-	frame: 0,     // number of frames since start
-}
+export const Clock: Timer = new Timer()
 export let paused = false
+
+// TODO: Turn Timer into a class, but still provide the default singleton
+// function updateTimer(time: number, delta: number, incrementFrame: boolean = true) {
+// 	// const deltaNormal = delta * 60 / 1000
+// 	// timer.delta = deltaNormal
+// 	timer.deltaMs = delta
+	
+// 	const now = Date.now()
+// 	timer.nowMs = now
+// 	// timer.now = now / 1000
+// 	// timer.totalTimeMs = now - timer.startTimeMs
+// 	// timer.totalTime = timer.totalTimeMs / 1000
+
+// 	if (paused) {
+// 		// _totalPauseTime = now - _lastPauseTime
+// 		return
+// 	}
+
+// 	timer.timeMs = timer.totalTimeMs - _totalPauseElapsed
+// 	// timer.time = timer.timeMs / 1000
+
+// 	if (incrementFrame) timer.frame += 1
+// }
+
+// function resetTimer() {
+// 	timer.deltaMs = 0
+// 	// timer.totalTimeMs = 0
+// 	timer.timeMs = 0
+// 	timer.frame = 0
+// 	timer.nowMs = Date.now()
+// 	timer.startTimeMs = timer.nowMs
+
+// 	_totalPauseElapsed = 0
+// 	_lastPauseTime = 0
+// 	_frame = 0
+// }
 
 let keysPressed: string[] = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
@@ -308,22 +347,22 @@ let keysJustReleased: Map<string, number | undefined> = new Map()
 
 export const screen: Screen = {
 	get width(): number {
-		return camera.width
+		return camera?.width ?? 0
 	},
 	get height(): number {
-		return camera.height
+		return camera?.height ?? 0
 	},
 	get top(): number {
-		return camera.y + this.height / 2
+		return camera ? camera.y + this.height / 2 : 0
 	},
 	get bottom(): number {
-		return camera.y - this.height / 2
+		return camera ? camera.y - this.height / 2 : 0
 	},
 	get left(): number {
-		return camera.x - this.width / 2
+		return camera ? camera.x - this.width / 2 : 0
 	},
 	get right(): number {
-		return camera.x + this.width / 2
+		return camera ? camera.x + this.width / 2 : 0
 	},
 	// get center(): [number, number] {
 	// 	return [this.width / 2, this.height / 2]
@@ -600,6 +639,25 @@ class UserScene extends Scene {
 	
 	preload() {
 		console.log('preload')
+
+		// resetTimer()
+
+		// timer.startTimeMs = Date.now()
+		// timer.startTime = timer.startTimeMs / 1000
+
+		// timer.nowMs = timer.startTimeMs
+		// timer.now = timer.startTime
+
+		// timer.timeMs = 0
+		// timer.time = 0
+
+		// timer.totalTimeMs = 0
+		// timer.totalTime = 0
+
+		// timer.frame = 0
+
+		// _totalPauseTime = 0
+		// _lastPauseTime = 0
 		// this.load.image('guy', 'assets/guy.png')
 		// this.load.image('boot', 'assets/boot.png')
 		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
@@ -692,10 +750,10 @@ class UserScene extends Scene {
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
 			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, /*Point,*/
-			Timer: timer, Screen: screen, Camera: camera, Mouse: mouse, Colors,
+			Clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			Output: UserOutput, print: Output.print, play, pause, setBackgroundColor,
+			Output: UserOutput, print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -759,13 +817,7 @@ class UserScene extends Scene {
 	
 	update(time: number, delta: number) {
 		// onUpdate()
-		// console.log(delta)
-		const deltaNormal = delta * 0.06
-
-		timer.delta = deltaNormal
-		timer.deltaMs = delta
-		timer.totalTime += delta
-		
+		Clock._update(delta)
 		_clearKeysJustPressed(_frame)
 		_clearKeysJustReleased(_frame)
 
@@ -776,17 +828,14 @@ class UserScene extends Scene {
 		}
 		
 		if (paused) return
-		timer.time += delta
-		timer.frame = _frame++
-		
 		_runWhens()
 		_runOnKeyActions()
 		_runForevers()
 		_runRepeats()
 		_runRepeatUntils()
 		_runRepeatWhiles()
-		_runAfters(timer.deltaMs)
-		_runEverys(timer.deltaMs)
+		_runAfters(Clock.deltaMs)
+		_runEverys(Clock.deltaMs)
 
 		_runPropUpdaters()
 	}
@@ -815,16 +864,18 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 	_mouseInputActions.clear()
 	_mouseHoldActions.clear()
 	_propUpdaters.clear()
+	clearWatchCards()
 	// camera.goTo(0, 0)
 
-	timer.time = 0
-	timer.totalTime = 0
-	timer.frame = 0
-	_frame = 0
+	// timer.time = 0
+	// timer.totalTime = 0
+	// timer.frame = 0
+	// _frame = 0
 	_nextObjectId = 0
 	_lastLeftClickTime = 0
 	
 	Output.printStartMsg()
+	Clock.reset()
 	play()
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?

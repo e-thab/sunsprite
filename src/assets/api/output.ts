@@ -1,3 +1,4 @@
+import { ref } from "vue"
 import Colors from "./Colors"
 import type { Printable } from "./types"
 
@@ -18,6 +19,11 @@ const Output = {
     print, warn, error, clear, printStartMsg, reset, init, render, setFrame
 }
 export default Output
+
+// Bumped on every print/warn/error (but deliberately not the "Running @ ..."
+// start message printed at the top of each run) so OutputPane.vue can flash
+// its Output tab when a new line lands while another tab is active.
+export const outputActivity = ref(0)
 
 let printIndex = 0
 let lastMsg = ''
@@ -114,6 +120,7 @@ function errorMsg(msg: string) {
         item.msg.textContent = msg
         item.msg.className = 'output-msg output-item--error'
     })
+    outputActivity.value++
 }
 
 function warn(...args: Printable[]) {
@@ -129,6 +136,7 @@ function warnMsg(msg: string) {
         item.msg.textContent = msg
         item.msg.className = 'output-msg output-item--warn'
     })
+    outputActivity.value++
 }
 
 export function print(...args: Printable[]) {
@@ -144,6 +152,7 @@ function printMsg(msg: string) {
         item.msg.textContent = msg
         item.msg.className = 'output-msg'
     })
+    outputActivity.value++
 }
 
 function printStartMsg() {

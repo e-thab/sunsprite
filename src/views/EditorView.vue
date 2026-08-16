@@ -64,8 +64,8 @@ function closePreview() {
 const explorerPixelWidth = ref(0)
 
 const canvasWidth = ref(44)
-const canvasHeight = ref(80)
-const canvasHeightBeforeCollapse = ref(80)
+const canvasHeight = ref(77)
+const canvasHeightBeforeCollapse = ref(77)
 
 const paneSize: { [index: string]: number } = {
   // Column panes (left - middle - right)
@@ -85,14 +85,14 @@ const paneSize: { [index: string]: number } = {
 // onDocsPaneAdd below would never run for a restored-open docs pane. Take
 // its width out of code-pane's share here instead, up front, so the initial
 // layout already matches what onDocsPaneAdd would have produced.
-if (docsStore.isOpen) paneSize['code-pane'] -= paneSize['docs-pane']
+if (docsStore.isOpen) paneSize['code-pane'] = (paneSize['code-pane'] ?? 0) - (paneSize['docs-pane'] ?? 0)
 
 // explorer/code need to be refs (not static `size` props) so opening/
 // closing the docs pane can restore them after splitpanes' own forced
 // re-equalize (see onDocsPaneAdd/onDocsPaneRemove below).
-const explorerPaneWidth = ref(paneSize['explorer-pane'])
-const codePaneWidth = ref(paneSize['code-pane'])
-const docsPaneWidth = ref(docsStore.isOpen ? paneSize['docs-pane'] : 0)
+const explorerPaneWidth = ref(paneSize['explorer-pane'] ?? 0)
+const codePaneWidth = ref(paneSize['code-pane'] ?? 0)
+const docsPaneWidth = ref(docsStore.isOpen ? (paneSize['docs-pane'] ?? 0) : 0)
 
 // splitpanes unconditionally redistributes every pane's size equally
 // whenever a pane is added or removed (its own equalize-after-add/remove

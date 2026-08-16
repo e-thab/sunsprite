@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import Output from '@/assets/api/output'
 import { getExampleCode } from '@/assets/api/examples'
 import { useFileStore } from '@/stores/fileStore'
+import { useWatchPanelStore } from '@/stores/watchPanelStore'
 import type { ThemePalette } from '@/assets/theme/themes'
 import { HOST_ORIGIN_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
 
@@ -19,8 +20,22 @@ import { HOST_ORIGIN_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage
 const fpsRef = ref(0)
 const mouseRef = ref({ mouseX: 0, mouseY: 0 })
 const pausedRef = ref(false)
+const clockRef = ref({
+    time: 0,
+    // timeMs: 0,
+    // totalTime: 0,
+    // totalTimeMs: 0,
+    // delta: 0,
+    deltaMs: 0,
+    frame: 0,
+    // startTime: 0,
+    // startTimeMs: 0,
+    // now: 0,
+    // nowMs: 0,
+})
+const screenRef = ref({ width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0 })
 
-export { fpsRef, mouseRef, pausedRef }
+export { fpsRef, mouseRef, pausedRef, clockRef, screenRef }
 
 let frame: HTMLIFrameElement | null = null
 let sandboxReady = false
@@ -98,6 +113,16 @@ function onSandboxMessage(event: MessageEvent) {
             fpsRef.value = message.fps
             mouseRef.value = { mouseX: message.mouseX, mouseY: message.mouseY }
             pausedRef.value = message.paused
+            clockRef.value = { time: message.time, deltaMs: message.deltaMs, frame: message.frame }
+            screenRef.value = {
+                width: message.screenWidth,
+                height: message.screenHeight,
+                top: message.screenTop,
+                bottom: message.screenBottom,
+                left: message.screenLeft,
+                right: message.screenRight,
+            }
+            useWatchPanelStore().syncFromSandbox(message.watch)
             Output.setFrame(message.frame)
             break
     }

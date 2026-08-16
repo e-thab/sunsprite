@@ -44,10 +44,37 @@ export type SandboxMessage =
     | { type: 'script-request', id: number, name: string }
     | { type: 'output', kind: OutputKind, text: string, frame: number }
     | { type: 'output-clear' }
-    /** Periodic telemetry for the canvas panel's FPS badge / mouse readout. */
-    | { type: 'status', fps: number, mouseX: number, mouseY: number, paused: boolean, frame: number }
+    /** Periodic telemetry for the canvas panel's FPS badge / mouse readout, and the Info panel. */
+    | {
+        type: 'status',
+        fps: number,
+        mouseX: number,
+        mouseY: number,
+        paused: boolean,
+        frame: number,
+        time: number,
+        deltaMs: number,
+        screenWidth: number,
+        screenHeight: number,
+        screenTop: number,
+        screenBottom: number,
+        screenLeft: number,
+        screenRight: number,
+        /** Current values of every card registered via the user-facing watch(). */
+        watch: WatchCardSnapshot[],
+    }
 
 export type OutputKind = 'print' | 'warn' | 'error' | 'start'
+
+/**
+ * A watch() card's values, already formatted to display strings sandbox-side
+ * — getters may close over live game objects that aren't structured-cloneable
+ * (or that throw), so only their rendered text crosses the boundary.
+ */
+export interface WatchCardSnapshot {
+    label: string
+    items: { label: string, value: string, error?: boolean }[]
+}
 
 /**
  * The host passes its own origin in the iframe URL so the sandbox can address
