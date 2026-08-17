@@ -90,8 +90,17 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	const activeModel = ensureModel(fileStore.activeFileName)
 	if (activeModel) {
 		const importedNames = ensureImportedModels(activeModel.getValue())
+		// Hide validation squiggles for the duration of refreshDiagnostics
+		// below, rather than touching marker data directly (e.g. clearing
+		// markers to suppress them) — monaco.editor.setModelMarkers() fires
+		// onDidChangeMarkers itself, which re-enters any listener watching
+		// for the real correction and clobbers it with the empty state just
+		// written. renderValidationDecorations is a per-editor rendering
+		// option, entirely separate from marker data, so there's nothing for
+		// our own writes to re-trigger.
+		editor.updateOptions({ renderValidationDecorations: 'off' })
 		editor.setModel(activeModel)
-		refreshDiagnostics(activeModel, importedNames)
+		refreshDiagnostics(editor, activeModel, importedNames)
 	}
 
 	editor.updateOptions({
@@ -226,6 +235,52 @@ function switchToScript(name: string) {
 	if (model) ensureImportedModels(model.getValue())
 }
 
+// Resolves once no marker-change event has landed for `uri` for `quietMs`,
+// or after `timeoutMs` regardless (so a pathological case that never
+// settles can't leave a model suppressed forever). Needed because the
+// validation pass triggered by refreshDiagnostics's forced setValue isn't
+// guaranteed to be the last stale one: under a slow-to-start TS worker
+// (observed: ~4s in dev, almost certainly Vite cold-building the ts.worker
+// chunk), a straggler pass scheduled before the sync landed can still fire
+// *after* it and briefly repaint the stale "Cannot find module" marker.
+function waitForMarkersToSettle(uri: monaco.Uri, quietMs = 500, timeoutMs = 5000): Promise<void> {
+	return new Promise((resolve) => {
+		let quietTimer: ReturnType<typeof setTimeout>
+		const overallTimeout = setTimeout(finish, timeoutMs)
+		const disposable = monaco.editor.onDidChangeMarkers((changedUris) => {
+			if (!changedUris.some((u) => u.toString() === uri.toString())) return
+			clearTimeout(quietTimer)
+			quietTimer = setTimeout(finish, quietMs)
+		})
+		quietTimer = setTimeout(finish, quietMs)
+
+		function finish() {
+			clearTimeout(quietTimer)
+			clearTimeout(overallTimeout)
+			disposable.dispose()
+			resolve()
+		}
+	})
+}
+
+// On the very coldest load in a browser session, getJavaScriptWorker() (or
+// the accessor it returns) can outright throw "JavaScript not registered!"
+// — the JS language mode itself hasn't finished registering with Monaco
+// yet, not a permanent failure. A few short retries are enough to ride
+// that out once registration completes moments later.
+async function syncWithRetry(uri: monaco.Uri, relatedUris: monaco.Uri[], attempts = 5, delayMs = 300): Promise<void> {
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		try {
+			const getWorker = await monaco.typescript.getJavaScriptWorker()
+			await getWorker(uri, ...relatedUris)
+			return
+		} catch (err) {
+			if (attempt === attempts) throw err
+			await new Promise((resolve) => setTimeout(resolve, delayMs))
+		}
+	}
+}
+
 // Model creation is synchronous, but the TS worker's diagnostics scheduling
 // still races it: monaco.editor.createModel() fires onDidCreateModel
 // synchronously, which — for the very first model created — synchronously
@@ -239,14 +294,33 @@ function switchToScript(name: string) {
 // the worker's own getJavaScriptWorker(...uris) call, which resolves only
 // once those exact URIs are actually synced, then force a fresh
 // content-change event so validation reruns against a worker that's
-// genuinely caught up.
-async function refreshDiagnostics(model: monaco.editor.ITextModel, relatedNames: Iterable<string>) {
+// genuinely caught up. Even so, the caller (handleMount) already turned
+// renderValidationDecorations off before attaching this model, so none of
+// the intermediate (wrong) passes this triggers ever reach the screen —
+// this function's only remaining job is to turn it back on once things
+// have actually settled.
+async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, model: monaco.editor.ITextModel, relatedNames: Iterable<string>) {
 	const relatedUris = [...relatedNames]
 		.map((name) => modelEntries.get(name)?.model.uri)
 		.filter((uri): uri is monaco.Uri => uri !== undefined)
-	const getWorker = await monaco.typescript.getJavaScriptWorker()
-	await getWorker(model.uri, ...relatedUris)
-	if (!model.isDisposed()) model.setValue(model.getValue())
+	try {
+		await syncWithRetry(model.uri, relatedUris)
+		if (!model.isDisposed()) model.setValue(model.getValue())
+	} catch (err) {
+		console.error(`Failed to sync ${model.uri} with the TS worker after retries`, err)
+	}
+
+	// Wait for settle regardless of whether the sync above succeeded — even
+	// on total sync failure, this is what keeps us from showing whatever the
+	// *first* thing to paint happens to be, rather than what it settles on.
+	await waitForMarkersToSettle(model.uri)
+
+	// editor.getModel() reads null once disposed (e.g. the user switched
+	// files again before this resolved, tearing down this editor instance
+	// via the :key remount) — updateOptions on a disposed editor is
+	// pointless at best, so skip it rather than assume this is still the
+	// live instance.
+	if (editor.getModel()) editor.updateOptions({ renderValidationDecorations: 'on' })
 }
 
 // Project scripts renamed/deleted via FileTree.vue: Monaco models can't be

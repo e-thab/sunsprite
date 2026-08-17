@@ -4,14 +4,14 @@
 // Each URL has two descriptor words followed by a noun. Each descriptor
 // has to honor the ordering heuristic:
 //    
-//    Adverb OR ordinal
-//    Opinion (lovely, ugly, terrible)
-//    Size
-//    Age
-//    Shape (curly, round)
-//    Color
-//    Origin (french, cuban) - currently unused
-//    Material (wood, metal)
+//    1. Adverb OR ordinal
+//    2. Opinion (lovely, ugly, terrible)
+//    3. Size
+//    4. Age
+//    5. Shape (curly, round)
+//    6. Color
+//    7. Origin (french, cuban) - currently unused
+//    8. Material (wood, metal)
 //
 // in order to avoid (most) awkward-sounding slugs like blue-new-pebble
 // or categorically confusing ones like green-purple-fox
@@ -44,20 +44,20 @@ export const opinionAdjectives = [
 ]
 
 export const sizeAdjectives = [
-  'tiny', 'mighty', 'grand', 'lofty',
+  'tiny', 'mighty', 'grand', 'lofty', 'huge',
 ]
 
 export const ageAdjectives = [
-  'young', 'ancient', 'new',
+  'young', 'old', 'ancient', 'new',
 ]
 
 export const shapeAdjectives = [
-  'jagged', 'wobbly',
+  'jagged', 'wobbly', 'round', 'square', 'sharp',
 ]
 
 export const colorAdjectives = [
   'rosy', 'amber', 'red', 'orange', 'yellow', 'blue', 'green', 'indigo',
-  'violet', 'purple',
+  'violet', 'purple', 'teal', 'gray',
 ]
 
 export const materialAdjectives = [
