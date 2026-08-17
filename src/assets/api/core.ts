@@ -61,7 +61,6 @@ export let allPositionables: { _updatePosition(): void }[] = []
 export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 
 /** Current render frame index */
-let _frame: number = 0
 
 // let _lastPauseTime: number = 0
 // let _totalPauseElapsed: number = 0
@@ -263,7 +262,7 @@ function _clearKeysJustReleased(frame: number) {
 
 function _releaseAllKeys() {
 	for (const key of keysPressed) {
-		keysJustReleased.set(key, _frame)
+		keysJustReleased.set(key, Clock.frame)
 	}
 	keysPressed = []
 }
@@ -291,7 +290,7 @@ export function getGamePoint(point: Point): Point {
 // 	_ticker.destroy()
 // 	_ticker = new Ticker()
 // 	_ticker.start()
-// 	_frame = 0
+// 	Clock.frame = 0
 // }
 
 /**
@@ -338,7 +337,7 @@ export let paused = false
 
 // 	_totalPauseElapsed = 0
 // 	_lastPauseTime = 0
-// 	_frame = 0
+// 	Clock.frame = 0
 // }
 
 let keysPressed: string[] = []
@@ -818,26 +817,32 @@ class UserScene extends Scene {
 	update(time: number, delta: number) {
 		// onUpdate()
 		Clock._update(delta)
-		_clearKeysJustPressed(_frame)
-		_clearKeysJustReleased(_frame)
 
 		// Only update mouse pos while mouse is over canvas, otherwise clicking code editor updates
 		if (mouseOverCanvas()) {
 			mouse.x = clamp(this.input.activePointer.x - screen.width / 2, screen.left, screen.right)
 			mouse.y = clamp(screen.height / 2 - this.input.activePointer.y, screen.bottom, screen.top)
 		}
-		
-		if (paused) return
-		_runWhens()
-		_runOnKeyActions()
-		_runForevers()
-		_runRepeats()
-		_runRepeatUntils()
-		_runRepeatWhiles()
-		_runAfters(Clock.deltaMs)
-		_runEverys(Clock.deltaMs)
 
-		_runPropUpdaters()
+		if (!paused) {
+			_runWhens()
+			_runOnKeyActions()
+			_runForevers()
+			_runRepeats()
+			_runRepeatUntils()
+			_runRepeatWhiles()
+			_runAfters(Clock.deltaMs)
+			_runEverys(Clock.deltaMs)
+
+			_runPropUpdaters()
+		}
+
+		// Runs after actions have had a chance to observe this tick's just-pressed/released
+		// state; keydown/keyup arrive async between ticks and get stamped with whatever
+		// Clock.frame was at that moment, so clearing before _runOnKeyActions() would wipe
+		// them out one tick before anything ever reads them.
+		_clearKeysJustPressed(Clock.frame)
+		_clearKeysJustReleased(Clock.frame)
 	}
 }
 
@@ -865,12 +870,16 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 	_mouseHoldActions.clear()
 	_propUpdaters.clear()
 	clearWatchCards()
+
+	keysPressed = []
+	keysJustPressed.clear()
+	keysJustReleased.clear()
 	// camera.goTo(0, 0)
 
 	// timer.time = 0
 	// timer.totalTime = 0
 	// timer.frame = 0
-	// _frame = 0
+	// Clock.frame = 0
 	_nextObjectId = 0
 	_lastLeftClickTime = 0
 	
@@ -989,21 +998,21 @@ export function setup() {
 		// Add specific key to keysJustPressed map
 		if (keyCode && !keysPressed.includes(keyCode)) {
 			keysPressed.push(keyCode)
-			keysJustPressed.set(keyCode, _frame)
+			keysJustPressed.set(keyCode, Clock.frame)
 			
 			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keysPressed.includes('shift')) {
 				keysPressed.push('shift')
-				keysJustPressed.set('shift', _frame)
+				keysJustPressed.set('shift', Clock.frame)
 			}
 
 			else if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keysPressed.includes('ctrl')) {
 				keysPressed.push('ctrl')
-				keysJustPressed.set('ctrl', _frame)
+				keysJustPressed.set('ctrl', Clock.frame)
 			}
 
 			else if ((keyCode === 'altleft' || keyCode === 'altright') && keysPressed.includes('alt')) {
 				keysPressed.push('alt')
-				keysJustPressed.set('alt', _frame)
+				keysJustPressed.set('alt', Clock.frame)
 			}
 		}
 	}
@@ -1017,24 +1026,24 @@ export function setup() {
 			keysPressed.splice(keysPressed.indexOf(keyCode), 1)
 			// Only add to map if it was being pressed. This prevents potential extra release events
 			// if releasing key after window regains focus
-			keysJustReleased.set(keyCode, _frame)
+			keysJustReleased.set(keyCode, Clock.frame)
 
 			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keyPressed('shiftleft') && !keyPressed('shiftright')) {
 				// console.log('clear shift')
 				keysPressed.splice(keysPressed.indexOf('shift'), 1)
-				keysJustReleased.set('shift', _frame)
+				keysJustReleased.set('shift', Clock.frame)
 			}
 
 			if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keyPressed('ctrlleft') && !keyPressed('ctrlright')) {
 				// console.log('clear ctrl')
 				keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
-				keysJustReleased.set('ctrl', _frame)
+				keysJustReleased.set('ctrl', Clock.frame)
 			}
 
 			if ((keyCode === 'altleft' || keyCode === 'altright') && !keyPressed('altleft') && !keyPressed('altright')) {
 				// console.log('clear alt')
 				keysPressed.splice(keysPressed.indexOf('alt'), 1)
-				keysJustReleased.set('alt', _frame)
+				keysJustReleased.set('alt', Clock.frame)
 			}
 		}
 	}
