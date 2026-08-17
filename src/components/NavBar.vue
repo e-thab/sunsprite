@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DropdownMenuItem } from '@nuxt/ui';
+import { defineShortcuts } from '@nuxt/ui/composables';
 import { useRoute, useRouter } from 'vue-router';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useAuthStore } from '@/stores/authStore';
