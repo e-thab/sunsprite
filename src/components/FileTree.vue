@@ -979,7 +979,7 @@ async function onDropOnRoot() {
 							<UDropdownMenu
 								:items="itemMenuItems(item)"
 								:open="actionsMenuOpenKey === rowKey(item)"
-								@update:open="(value) => actionsMenuOpenKey = value ? (rowKey(item) ?? null) : null"
+								@update:open="(value: boolean) => actionsMenuOpenKey = value ? (rowKey(item) ?? null) : null"
 							>
 								<!-- <UTooltip text="Actions" ignore-non-keyboard-focus> -->
 									<!-- Ghost's default hover/active fill is bg-elevated — invisible here since
