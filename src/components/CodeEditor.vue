@@ -7,6 +7,7 @@ import { runUserCode } from '@/sandbox/hostBridge'
 import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
 import { resolveSpecifierToName, listImportSpecifiers } from '@/assets/api/scriptResolution'
+import { TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
 import { ModuleDetectionKind } from 'typescript'
 
 // CodeMirror
@@ -89,18 +90,25 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	// unresolved until the user edited the content (forcing a recheck).
 	const activeModel = ensureModel(fileStore.activeFileName)
 	if (activeModel) {
-		const importedNames = ensureImportedModels(activeModel.getValue())
-		// Hide validation squiggles for the duration of refreshDiagnostics
-		// below, rather than touching marker data directly (e.g. clearing
-		// markers to suppress them) — monaco.editor.setModelMarkers() fires
-		// onDidChangeMarkers itself, which re-enters any listener watching
-		// for the real correction and clobbers it with the empty state just
-		// written. renderValidationDecorations is a per-editor rendering
-		// option, entirely separate from marker data, so there's nothing for
-		// our own writes to re-trigger.
-		editor.updateOptions({ renderValidationDecorations: 'off' })
-		editor.setModel(activeModel)
-		refreshDiagnostics(editor, activeModel, importedNames)
+		// A text file's model is plaintext — no import graph to pre-warm and no
+		// JS/TS worker attached to it at all, so none of the diagnostics dance
+		// below applies; just show it.
+		if (fileStore.isTextFile(fileStore.activeFileName)) {
+			editor.setModel(activeModel)
+		} else {
+			const importedNames = ensureImportedModels(activeModel.getValue())
+			// Hide validation squiggles for the duration of refreshDiagnostics
+			// below, rather than touching marker data directly (e.g. clearing
+			// markers to suppress them) — monaco.editor.setModelMarkers() fires
+			// onDidChangeMarkers itself, which re-enters any listener watching
+			// for the real correction and clobbers it with the empty state just
+			// written. renderValidationDecorations is a per-editor rendering
+			// option, entirely separate from marker data, so there's nothing for
+			// our own writes to re-trigger.
+			editor.updateOptions({ renderValidationDecorations: 'off' })
+			editor.setModel(activeModel)
+			refreshDiagnostics(editor, activeModel, importedNames)
+		}
 	}
 
 	editor.updateOptions({
@@ -177,12 +185,15 @@ const saveStatusColor = computed(() => fileStore.activeFileIsSaved ? 'neutral' :
 const activeMonacoTheme = computed(() => monacoThemeName(themeStore.currentId))
 watch(activeMonacoTheme, (name) => monaco.editor.setTheme(name))
 
-// One persistent Monaco model per script (keyed by resolved name, e.g.
-// "helper.js"), at a stable file:///name.js URI — this is what lets
+// One persistent Monaco model per script or text file (keyed by resolved
+// name, e.g. "helper.js"), at a stable file:///name URI — this is what lets
 // Monaco's own TS/JS language service resolve imports between project
 // scripts (real "cannot find module" errors, real hover types,
-// autocomplete on real exports) instead of only ever seeing one file.
-type ModelEntry = { model: monaco.editor.ITextModel, scriptId?: string }
+// autocomplete on real exports) instead of only ever seeing one file. Text
+// files never participate in that graph (see ensureImportedModels/
+// onEditorChange/switchToScript below, all guarded on isTextFile) — their
+// model just holds plaintext content with no worker attached.
+type ModelEntry = { model: monaco.editor.ITextModel, recordId?: string, isText?: boolean }
 const modelEntries = new Map<string, ModelEntry>()
 
 // Same content source moduleRunner.ts reads at runtime, so the editor and
@@ -204,9 +215,12 @@ function ensureModel(name: string): monaco.editor.ITextModel | undefined {
 	const content = resolveContent(name)
 	if (content === undefined) return undefined
 
-	const model = monaco.editor.createModel(content, 'javascript', monaco.Uri.parse('file:///' + name))
-	const scriptId = fileStore.projectId ? fileStore.scripts.find((s) => s.name === name)?.id : undefined
-	modelEntries.set(name, { model, scriptId })
+	const isText = fileStore.isTextFile(name)
+	const model = monaco.editor.createModel(content, isText ? TEXT_MONACO_LANGUAGE : 'javascript', monaco.Uri.parse('file:///' + name))
+	const record = fileStore.projectId
+		? (fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name))
+		: undefined
+	modelEntries.set(name, { model, recordId: record?.id, isText })
 	return model
 }
 
@@ -232,7 +246,7 @@ function ensureImportedModels(source: string, visited: Set<string> = new Set()):
 // remount below — see the long comment on that binding for why.
 function switchToScript(name: string) {
 	const model = ensureModel(name)
-	if (model) ensureImportedModels(model.getValue())
+	if (model && !fileStore.isTextFile(name)) ensureImportedModels(model.getValue())
 }
 
 // Resolves once no marker-change event has landed for `uri` for `quietMs`,
@@ -323,40 +337,45 @@ async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, m
 	if (editor.getModel()) editor.updateOptions({ renderValidationDecorations: 'on' })
 }
 
-// Project scripts renamed/deleted via FileTree.vue: Monaco models can't be
-// renamed in place, so a rename carries the live (possibly unsaved)
-// content over to a fresh model at the new URI; a deletion just disposes
-// the orphaned one. One place owns this instead of threading it through
-// every fileStore.renameScript/deleteScript call site.
-watch(() => fileStore.scripts.map((s) => ({ id: s.id, name: s.name })), () => {
-	if (!fileStore.projectId) return
+// Project scripts *and text files* renamed/deleted via FileTree.vue: Monaco
+// models can't be renamed in place, so a rename carries the live (possibly
+// unsaved) content over to a fresh model at the new URI; a deletion just
+// disposes the orphaned one. One place owns this instead of threading it
+// through every fileStore.renameScript/renameTextFile/delete* call site.
+watch(
+	() => [...fileStore.scripts.map((s) => ({ id: s.id, name: s.name })), ...fileStore.textFiles.map((f) => ({ id: f.id, name: f.name }))],
+	() => {
+		if (!fileStore.projectId) return
 
-	for (const [name, entry] of [...modelEntries]) {
-		if (!entry.scriptId) continue
+		for (const [name, entry] of [...modelEntries]) {
+			if (!entry.recordId) continue
 
-		const current = fileStore.scripts.find((s) => s.id === entry.scriptId)
-		if (!current) {
-			entry.model.dispose()
-			modelEntries.delete(name)
-			continue
+			const current = fileStore.scripts.find((s) => s.id === entry.recordId) ?? fileStore.textFiles.find((f) => f.id === entry.recordId)
+			if (!current) {
+				entry.model.dispose()
+				modelEntries.delete(name)
+				continue
+			}
+			if (current.name !== name) {
+				const wasActive = editorInstance.value?.getModel() === entry.model
+				const language = entry.isText ? TEXT_MONACO_LANGUAGE : 'javascript'
+				const renamed = monaco.editor.createModel(entry.model.getValue(), language, monaco.Uri.parse('file:///' + current.name))
+				entry.model.dispose()
+				modelEntries.delete(name)
+				modelEntries.set(current.name, { model: renamed, recordId: entry.recordId, isText: entry.isText })
+				if (wasActive) editorInstance.value?.setModel(renamed)
+			}
 		}
-		if (current.name !== name) {
-			const wasActive = editorInstance.value?.getModel() === entry.model
-			const renamed = monaco.editor.createModel(entry.model.getValue(), 'javascript', monaco.Uri.parse('file:///' + current.name))
-			entry.model.dispose()
-			modelEntries.delete(name)
-			modelEntries.set(current.name, { model: renamed, scriptId: entry.scriptId })
-			if (wasActive) editorInstance.value?.setModel(renamed)
-		}
-	}
-}, { deep: true })
+	},
+	{ deep: true },
+)
 
 // Switching projects (or leaving one for the guest sandbox): project-backed
 // models from the *previous* project are stale and must not bleed into
-// the next one — guest-mode models (no scriptId) are left alone.
+// the next one — guest-mode models (no recordId) are left alone.
 watch(() => fileStore.projectId, () => {
 	for (const [name, entry] of [...modelEntries]) {
-		if (!entry.scriptId) continue
+		if (!entry.recordId) continue
 		entry.model.dispose()
 		modelEntries.delete(name)
 	}
@@ -405,7 +424,7 @@ function runActiveUserCode() {
 
 function onEditorChange(value: string) {
 	updateSaveMsg(value)
-	ensureImportedModels(value)
+	if (!fileStore.isTextFile(fileStore.activeFileName)) ensureImportedModels(value)
 }
 
 function updateSaveMsg(checkCode?: string) {

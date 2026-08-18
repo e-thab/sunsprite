@@ -5,6 +5,17 @@ import { useToast } from '@nuxt/ui/composables'
 import { useFileStore, type TreeNode } from '@/stores/fileStore'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
 import { imagePath, animalFiles, cardFiles } from '@/assets/api/gameAssets'
+import {
+	ALLOWED_IMAGE_CONTENT_TYPES,
+	DEFAULT_SCRIPT_FILE_TYPE,
+	DEFAULT_TEXT_FILE_TYPE,
+	IMAGE_ACCEPT_ATTR,
+	imageDisplayName,
+	imageFileTypeForExtension,
+	joinFileName,
+	scriptFileType,
+	splitFileName,
+} from '@/assets/utils/fileTypes'
 
 const fileStore = useFileStore()
 const treeSelectionStore = useTreeSelectionStore()
@@ -56,9 +67,6 @@ function preventFolderSelect(event: Event) {
 
 // https://icones.js.org/collection/tabler
 // https://icones.js.org/collection/catppuccin
-
-// icon: 'catppuccin:image'
-// icon: 'catppuccin:svg'
 
 const guestItems: TreeItem[] = [
 	// {
@@ -274,14 +282,30 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			parentId,
 			thumbnail: node.publicUrl,
 			path: node.publicUrl,
+			typeLabel: imageFileTypeForExtension(splitFileName(node.name).extension)?.label,
 		}
 	}
+	if (node.kind === 'text') {
+		return {
+			label: node.name,
+			kind: 'text',
+			id: node.id,
+			parentId,
+			icon: DEFAULT_TEXT_FILE_TYPE.icon,
+			typeLabel: DEFAULT_TEXT_FILE_TYPE.label,
+			// Opens the same way a script does — same Monaco pane, just a
+			// plaintext model with no language worker (see CodeEditor.vue).
+			onSelect: selectHandler,
+		}
+	}
+	const fileType = scriptFileType(splitFileName(node.name).extension)
 	return {
 		label: node.name,
 		kind: 'script',
 		id: node.id,
 		parentId,
-		icon: 'fluent:javascript-24-filled',
+		icon: fileType.icon,
+		typeLabel: fileType.label,
 		onSelect: selectHandler,
 	}
 }
@@ -321,11 +345,33 @@ function scriptName(item: TreeItem): string {
 	return item.label ?? ''
 }
 
+// Scripts, images, and text files carry an extension as part of their name;
+// folders don't. Used both to render the fixed suffix next to the rename
+// input and to keep it out of renamingValue so it can never be typed over.
+function fileExtension(item: TreeItem): string {
+	return splitFileName(scriptName(item)).extension
+}
+
+// Human label for the rename/delete tooltips below — a plain if-chain reads
+// better here than a 4-way ternary once 'text' joins 'folder'/'image'/'script'.
+function kindLabel(item: TreeItem): string {
+	if (item.kind === 'folder') return 'folder'
+	if (item.kind === 'image') return 'image'
+	if (item.kind === 'text') return 'text file'
+	return 'script'
+}
+
 // ---- Create ----
 
 async function addScript(folderId: string | null) {
-	const name = window.prompt('New script name (e.g. game.js):')
-	if (!name) return
+	const input = window.prompt(`New script name ("${joinFileName('', DEFAULT_SCRIPT_FILE_TYPE.extension)}" is added automatically):`)
+	if (!input) return
+
+	// Whatever's typed becomes the base name, full stop — mirrors the rename
+	// input, which never lets the extension itself be edited either.
+	const base = splitFileName(input.trim()).base
+	if (!base) return
+	const name = joinFileName(base, DEFAULT_SCRIPT_FILE_TYPE.extension)
 
 	if (fileStore.scripts.some((script) => script.name === name)) {
 		window.alert('A script with that name already exists.')
@@ -348,18 +394,17 @@ async function addFolder(parentId: string | null) {
 	await fileStore.createFolder(name, parentId)
 }
 
-const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'])
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB
 
 function uploadFile(folderId: string | null) {
 	const input = document.createElement('input')
 	input.type = 'file'
-	input.accept = 'image/png,image/jpeg,image/svg+xml,image/webp'
+	input.accept = IMAGE_ACCEPT_ATTR
 	input.onchange = async () => {
 		const file = input.files?.[0]
 		if (!file) return
 
-		if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+		if (!ALLOWED_IMAGE_CONTENT_TYPES.has(file.type)) {
 			window.alert('Only PNG, JPG, SVG, and WebP images are supported.')
 			return
 		}
@@ -367,7 +412,10 @@ function uploadFile(folderId: string | null) {
 			window.alert('That file is too large — images must be 10MB or smaller.')
 			return
 		}
-		if (fileStore.images.some((img) => img.name === file.name)) {
+		// The name it'll actually be stored under — its recognized type's
+		// canonical extension, not necessarily whatever this source file was
+		// called (see imageDisplayName) — is what has to be unique, not file.name.
+		if (fileStore.images.some((img) => img.name === imageDisplayName(file))) {
 			window.alert('A file with that name already exists in this project.')
 			return
 		}
@@ -381,11 +429,30 @@ function uploadFile(folderId: string | null) {
 	input.click()
 }
 
+// Blank creation, same shape as addScript — not upload-based: there's no
+// file picker here, just a name prompt and an empty new row.
+async function addTextFile(folderId: string | null) {
+	const input = window.prompt(`New text file name ("${joinFileName('', DEFAULT_TEXT_FILE_TYPE.extension)}" is added automatically):`)
+	if (!input) return
+
+	const base = splitFileName(input.trim()).base
+	if (!base) return
+	const name = joinFileName(base, DEFAULT_TEXT_FILE_TYPE.extension)
+
+	if (fileStore.textFiles.some((f) => f.name === name)) {
+		window.alert('A file with that name already exists in this project.')
+		return
+	}
+
+	await fileStore.createTextFile(name, '', folderId)
+}
+
 // Dropdown shown behind the "+" trailing button on folder rows, and behind
 // the header's own "+" for the project root — folderId is null for root.
 function folderMenuItems(folderId: string | null) {
 	return [
 		{ label: 'New script', icon: 'tabler:script-plus', onSelect: () => addScript(folderId) },
+		{ label: 'New text file', icon: 'tabler:file-plus', onSelect: () => addTextFile(folderId) },
 		{ label: 'New folder', icon: 'tabler:folder-plus', onSelect: () => addFolder(folderId) },
 		{ label: 'Upload file', icon: 'tabler:upload', onSelect: () => uploadFile(folderId) },
 	]
@@ -424,7 +491,9 @@ function onRowClick(event: MouseEvent, item: TreeItem) {
 
 async function startRename(item: TreeItem) {
 	renamingItemId.value = item.id
-	renamingValue.value = scriptName(item)
+	// The input only ever holds the base name — folders have no extension to
+	// strip, scripts/images do (rejoined with it in commitRename below).
+	renamingValue.value = item.kind === 'folder' ? scriptName(item) : splitFileName(scriptName(item)).base
 	await nextTick()
 	renameInputRef.value?.focus()
 	renameInputRef.value?.select()
@@ -468,17 +537,37 @@ async function renameImage(id: string, currentName: string, name: string) {
 	await fileStore.renameImage(id, name)
 }
 
+async function renameTextFile(id: string, currentName: string, name: string) {
+	if (!name || name === currentName) return
+
+	if (fileStore.textFiles.some((f) => f.id !== id && f.name === name)) {
+		window.alert('A file with that name already exists in this project.')
+		return
+	}
+
+	await fileStore.renameTextFile(id, name)
+}
+
 // Guarded on renamingItemId still matching this item: Escape (cancelRename)
 // clears it synchronously, but the input's blur (also wired to this) can
 // still fire afterward as the element is torn down — without the guard
 // that would attempt the same rename a second time.
 function commitRename(item: TreeItem) {
 	if (renamingItemId.value !== item.id) return
-	const name = renamingValue.value.trim()
+	const typed = renamingValue.value.trim()
 	renamingItemId.value = null
+	if (!typed) return
 
-	if (item.kind === 'folder') renameFolder(item.id, scriptName(item), item.parentId ?? null, name)
-	else if (item.kind === 'image') renameImage(item.id, scriptName(item), name)
+	if (item.kind === 'folder') {
+		renameFolder(item.id, scriptName(item), item.parentId ?? null, typed)
+		return
+	}
+
+	// The extension itself was never part of renamingValue (see startRename),
+	// so it's re-attached here rather than trusted from what was typed.
+	const name = joinFileName(typed, fileExtension(item))
+	if (item.kind === 'image') renameImage(item.id, scriptName(item), name)
+	else if (item.kind === 'text') renameTextFile(item.id, scriptName(item), name)
 	else renameScript(scriptName(item), name)
 }
 
@@ -512,7 +601,12 @@ async function deleteFolder(id: string, name: string) {
 		: `Delete "${name}"? This can't be undone.`
 	if (!window.confirm(message)) return
 
+	// Text files (unlike images) can be the active file, same as a script —
+	// so a folder delete that takes one out from under the editor needs the
+	// same active-file fallback scripts already get.
+	const textFilesInside = fileStore.textFilesUnderFolder(id)
 	const activeWasInside = scriptsInside.some((s) => s.name === fileStore.activeFileName)
+		|| textFilesInside.some((f) => f.name === fileStore.activeFileName)
 	await fileStore.deleteFolder(id)
 
 	if (activeWasInside) {
@@ -526,9 +620,22 @@ async function deleteImage(id: string, name: string) {
 	await fileStore.deleteImage(id)
 }
 
+async function deleteTextFile(id: string, name: string) {
+	if (!window.confirm(`Delete "${name}"? This can't be undone.`)) return
+
+	const wasActive = fileStore.activeFileName === name
+	await fileStore.deleteTextFile(id)
+
+	if (wasActive) {
+		const next = fileStore.scripts[0]?.name
+		if (next) emit('selectScript', next)
+	}
+}
+
 function deleteItem(item: TreeItem) {
 	if (item.kind === 'folder') return deleteFolder(item.id, scriptName(item))
 	if (item.kind === 'image') return deleteImage(item.id, scriptName(item))
+	if (item.kind === 'text') return deleteTextFile(item.id, scriptName(item))
 	return deleteScript(scriptName(item))
 }
 
@@ -552,7 +659,7 @@ function deleteItem(item: TreeItem) {
 // children at that index, so the projected drop location reads as a real,
 // highlighted empty slot rather than just a highlighted existing row.
 
-type DraggedNode = { id: string, kind: 'folder' | 'script' | 'image' }
+type DraggedNode = { id: string, kind: 'folder' | 'script' | 'image' | 'text' }
 type DropTarget = { folderId: string | null, index: number }
 
 const draggedNode = ref<DraggedNode | null>(null)
@@ -560,12 +667,13 @@ const dragOverId = ref<string | null>(null)
 const dropTarget = ref<DropTarget | null>(null)
 
 function isDraggable(item: TreeItem): boolean {
-	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image'
+	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image' || item.kind === 'text'
 }
 
 async function moveDraggedTo(dragged: DraggedNode, folderId: string | null, position: number) {
 	if (dragged.kind === 'folder') await fileStore.moveFolder(dragged.id, folderId, position)
 	else if (dragged.kind === 'image') await fileStore.moveImage(dragged.id, folderId, position)
+	else if (dragged.kind === 'text') await fileStore.moveTextFile(dragged.id, folderId, position)
 	else await fileStore.moveScript(dragged.id, folderId, position)
 }
 
@@ -691,7 +799,7 @@ async function onDropOnItem(item: TreeItem) {
 		return
 	}
 
-	// Dropped on a script/image row: become its sibling, inserted just before it.
+	// Dropped on a script/image/text-file row: become its sibling, inserted just before it.
 	const targetParentId: string | null = item.parentId ?? null
 	const siblings = fileStore.childNodes(targetParentId)
 	const targetIndex = siblings.findIndex((n) => n.id === item.id)
@@ -741,8 +849,8 @@ async function onDropOnRoot() {
 				class="file-tree"
 			>
 				<template #item-leading="{ item, expanded }">
-					<img v-if="item.thumbnail" :src="item.thumbnail" class="thumbnail-icon" alt="" />
-					<UIcon v-else-if="item.icon" :name="item.icon" class="leading-icon" />
+					<img v-if="item.thumbnail" :src="item.thumbnail" :title="item.typeLabel" class="thumbnail-icon" alt="" />
+					<UIcon v-else-if="item.icon" :name="item.icon" :title="item.typeLabel" class="leading-icon" />
 					<UIcon v-else-if="item.kind === 'folder' || item.children?.length" :name="expanded ? 'tabler:folder-open-filled' : 'tabler:folder-filled'" class="leading-icon" />
 				</template>
 
@@ -764,18 +872,29 @@ async function onDropOnRoot() {
 						@mousedown="onRowMouseDown($event, item)"
 						@click="onRowClick($event, item)"
 					></div>
-					<input
+					<div
 						v-if="renamingItemId === item.id"
-						ref="renameInputRef"
-						v-model="renamingValue"
-						class="rename-input"
-						autocomplete="off"
-						spellcheck="false"
-						@click.stop
-						@keydown.enter="commitRename(item)"
-						@keydown.escape="cancelRename"
-						@blur="commitRename(item)"
-					/>
+						class="rename-editing"
+						@mousedown="onRowMouseDown($event, item)"
+						@click="onRowClick($event, item)"
+					>
+						<input
+							ref="renameInputRef"
+							v-model="renamingValue"
+							class="rename-input"
+							autocomplete="off"
+							spellcheck="false"
+							@click.stop
+							@mousedown.stop
+							@keydown.enter="commitRename(item)"
+							@keydown.escape="cancelRename"
+							@blur="commitRename(item)"
+						/>
+						<!-- Static, not part of renamingValue — the whole point is that
+						     it can't be typed over or cleared, only re-derived from the
+						     item's current name in commitRename. -->
+						<span v-if="fileExtension(item)" class="rename-extension">.{{ fileExtension(item) }}</span>
+					</div>
 					<template v-else>
 						{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span>
 					</template>
@@ -793,11 +912,11 @@ async function onDropOnRoot() {
 							<UButton icon="tabler:copy-filled" variant="soft" color="neutral" size="xs" @click.stop="copyImageUrl(item.path)" />
 						</UTooltip>
 
-						<UTooltip :text="item.kind === 'folder' ? 'Rename folder' : item.kind === 'image' ? 'Rename image' : 'Rename script'">
+						<UTooltip :text="`Rename ${kindLabel(item)}`">
 							<UButton icon="tabler:pencil-filled" variant="soft" color="neutral" size="xs" @click.stop="startRename(item)" />
 						</UTooltip>
 
-						<UTooltip :text="item.kind === 'folder' ? 'Delete folder' : item.kind === 'image' ? 'Delete image' : 'Delete script'">
+						<UTooltip :text="`Delete ${kindLabel(item)}`">
 							<UButton icon="tabler:trash-filled" variant="ghost" color="error" size="xs" @click.stop="deleteItem(item)" />
 						</UTooltip>
 					</div>
@@ -864,19 +983,44 @@ async function onDropOnRoot() {
    select-toggle (which runs on mousedown, before the blur this same click
    triggers even has a chance to fire), which would otherwise deselect an
    already-selected item just from clicking away to finish renaming it.
-   Raising the input above it via z-index is what lets clicks *on the
+   Raising this wrapper above it via z-index is what lets clicks *on the
    input itself* still reach the input normally for cursor placement/text
-   selection, despite this overlay still covering the same area underneath. */
-.rename-input {
+   selection, despite this overlay still covering the same area underneath.
+   The wrapper carries the same mousedown/click handling .tree-row-dnd uses
+   for "clicked elsewhere in the row" — here that covers the fixed extension
+   suffix and any padding around it, i.e. everywhere in this box that isn't
+   the input itself (which stops both events from ever reaching here). */
+.rename-editing {
 	position: relative;
 	z-index: 1;
+	display: flex;
+	align-items: center;
 	width: 100%;
 	background-color: var(--theme-bg);
 	border: 1px solid var(--theme-accent, var(--theme-text-muted));
 	border-radius: 0.2rem;
+	padding: 0 0.25em;
+}
+
+.rename-input {
+	flex: 1 1 auto;
+	min-width: 0;
+	background: none;
+	border: none;
+	outline: none;
 	color: var(--theme-text);
 	font: inherit;
-	padding: 0 0.25em;
+	padding: 0;
+}
+
+/* Never part of renamingValue (see startRename/commitRename) — this is only
+   ever a rendering of the extension the item already had, not an editable
+   field, so it's not focusable and can't be selected into the input's text. */
+.rename-extension {
+	flex: 0 0 auto;
+	color: var(--theme-text-muted);
+	white-space: nowrap;
+	user-select: none;
 }
 
 /* Needs to stay the topmost element in the row — it's what dragstart/
