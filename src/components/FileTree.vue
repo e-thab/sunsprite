@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import type { TreeItem } from '@nuxt/ui'
+import type { DropdownMenuItem, TreeItem } from '@nuxt/ui'
 import { useToast } from '@nuxt/ui/composables'
 import { useFileStore, type TreeNode } from '@/stores/fileStore'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
@@ -447,14 +447,35 @@ async function addTextFile(folderId: string | null) {
 	await fileStore.createTextFile(name, '', folderId)
 }
 
-// Dropdown shown behind the "+" trailing button on folder rows, and behind
-// the header's own "+" for the project root — folderId is null for root.
+// Dropdown shown behind the header's own "+" for the project root — folderId
+// is null for root. Also folded into itemMenuItems below for folder rows,
+// rather than getting its own separate trigger button on those rows.
 function folderMenuItems(folderId: string | null) {
 	return [
 		{ label: 'New script', icon: 'tabler:script-plus', onSelect: () => addScript(folderId) },
 		{ label: 'New text file', icon: 'tabler:file-plus', onSelect: () => addTextFile(folderId) },
 		{ label: 'New folder', icon: 'tabler:folder-plus', onSelect: () => addFolder(folderId) },
 		{ label: 'Upload file', icon: 'tabler:upload', onSelect: () => uploadFile(folderId) },
+	]
+}
+
+// Every row's actions collapsed into one dropdown behind one trigger button
+// (see item-trailing below), rather than a row of separate buttons that used
+// to fade in on hover — kind-specific entries (folder's add actions, image's
+// copy-url) come first, delete last in its own group so it reads as the one
+// destructive action instead of blending in with the rest.
+function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
+	const primary: DropdownMenuItem[] = []
+
+	if (item.kind === 'folder') primary.push(...folderMenuItems(item.id))
+	if (item.kind === 'image' && item.path) {
+		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyImageUrl(item.path) })
+	}
+	primary.push({ label: `Rename ${kindLabel(item)}`, icon: 'tabler:pencil-filled', onSelect: () => startRename(item) })
+
+	return [
+		primary,
+		[{ label: `Delete ${kindLabel(item)}`, icon: 'tabler:trash-filled', color: 'error', onSelect: () => deleteItem(item) }],
 	]
 }
 
@@ -902,23 +923,11 @@ async function onDropOnRoot() {
 
 				<template v-if="fileStore.projectId" #item-trailing="{ item }">
 					<div v-if="renamingItemId !== item.id" class="item-actions">
-						<UDropdownMenu v-if="item.kind === 'folder'" :items="folderMenuItems(item.id)">
-							<UTooltip text="Add..." ignore-non-keyboard-focus>
-								<UButton icon="tabler:plus" variant="soft" color="neutral" size="xs" @click.stop />
+						<UDropdownMenu :items="itemMenuItems(item)">
+							<UTooltip text="Actions" ignore-non-keyboard-focus>
+								<UButton icon="tabler:dots-vertical" variant="ghost" color="neutral" size="xs" @click.stop />
 							</UTooltip>
 						</UDropdownMenu>
-
-						<UTooltip v-if="item.kind === 'image' && item.path" text="Copy image URL">
-							<UButton icon="tabler:copy-filled" variant="soft" color="neutral" size="xs" @click.stop="copyImageUrl(item.path)" />
-						</UTooltip>
-
-						<UTooltip :text="`Rename ${kindLabel(item)}`">
-							<UButton icon="tabler:pencil-filled" variant="soft" color="neutral" size="xs" @click.stop="startRename(item)" />
-						</UTooltip>
-
-						<UTooltip :text="`Delete ${kindLabel(item)}`">
-							<UButton icon="tabler:trash-filled" variant="ghost" color="error" size="xs" @click.stop="deleteItem(item)" />
-						</UTooltip>
 					</div>
 				</template>
 
@@ -951,6 +960,19 @@ async function onDropOnRoot() {
 .thumbnail-icon {
 	width: 1.25rem;
 	height: 1.25rem;
+	/* Tailwind's preflight sets every <img> to `max-width: 100%` — for a
+	   *fixed-size* one that's a live constraint tied to whatever width the
+	   row narrows to, not a one-time value, so it silently wins over the
+	   `width` above once the row gets tight enough. flex-shrink: 0 doesn't
+	   touch this at all (that only governs the flex algorithm's own shrink
+	   pass, which this element correctly opts out of already) — max-width
+	   is a separate, later clamp applied on top regardless. Confirmed via a
+	   throwaway harness mounting the real component standalone: without this
+	   line the icon visibly shrank (down to 0 width) as the panel narrowed;
+	   with it, it holds 1.25rem right up to the point the row itself
+	   overflows the panel, same as .leading-icon (an inline SVG, never
+	   subject to this) already does. */
+	max-width: none;
 	flex-shrink: 0;
 	object-fit: contain;
 	border-radius: 0.2rem;
@@ -965,11 +987,11 @@ async function onDropOnRoot() {
 }
 
 /* Absolutely positioned against the tree-item link's own `position:
-   relative` (same anchor `.item-actions` below uses) rather than sized to
-   the label text, so the drag handle/drop target covers the whole row —
-   icon, whitespace, and trailing-button area included — not just wherever
-   the label happens to be. The label text itself renders as a plain
-   sibling in this slot; Nuxt UI's own linkLabel span already truncates it. */
+   relative` rather than sized to the label text, so the drag handle/drop
+   target covers the whole row — icon, whitespace, and trailing-button area
+   included — not just wherever the label happens to be. The label text
+   itself renders as a plain sibling in this slot; Nuxt UI's own linkLabel
+   span already truncates it. */
 .tree-row-dnd {
 	position: absolute;
 	inset: 0;
@@ -1062,27 +1084,31 @@ async function onDropOnRoot() {
 	box-shadow: inset 0 -2px 0 0 var(--theme-accent, var(--theme-text-muted));
 }
 
-/* Nuxt UI's tree-item link is `position: relative`, which is what these
-   coordinates anchor to — taking the actions out of flow (rather than
-   relying on the trailing slot's own flex/margin-auto behavior) also frees
-   the label to use the row's full width instead of sharing it, so the
-   filename doesn't truncate just because these buttons exist. */
+/* Rendered inside Nuxt UI's own linkTrailing span (data-slot="linkTrailing"
+   — the same wrapper the tree's built-in expand/collapse chevron uses),
+   which is already an in-flow flex item with `ms-auto` pushing it to the
+   row's end. Previously this was pulled out to `position: absolute` instead,
+   back when it only had to appear on hover — worth it then, since being out
+   of flow let the label use the row's full width while the buttons were
+   invisible. Now that there's a single persistent trigger, that trade-off is
+   backwards: staying in flow is what makes it behave like the chevron
+   already does — the label (min-width: 0 below) gives up space first, this
+   button holds its own size instead of being squeezed or overlapped, and if
+   the row truly runs out of room, the row itself overflows the panel rather
+   than anything visually colliding — the same "drag the splitter further to
+   cover it" behavior the chevron already has. */
 .item-actions {
-	display: flex;
-	align-items: center;
-	gap: 0.15em;
-	position: absolute;
-	right: 0.5em;
-	top: 50%;
-	transform: translateY(-50%);
-	opacity: 0;
-	pointer-events: none;
-	transition: opacity 0.1s;
+	flex-shrink: 0;
 }
 
-:deep([data-slot="link"]:hover) .item-actions,
-:deep([data-slot="link"]:focus-within) .item-actions {
-	opacity: 1;
-	pointer-events: auto;
+/* Nuxt UI only gives this element `truncate` (overflow-hidden + text-
+   overflow: ellipsis + white-space: nowrap) — none of that clips anything
+   until the box can actually shrink narrower than its content, and a flex
+   item's default min-width is `auto`, i.e. "at least as wide as its
+   unwrapped text". Overriding the floor to 0 is what lets the label actually
+   give up space to .item-actions above as the row narrows, so the ellipsis
+   applies at any width instead of only when there's slack to spare. */
+:deep([data-slot="linkLabel"]) {
+	min-width: 0;
 }
 </style>
