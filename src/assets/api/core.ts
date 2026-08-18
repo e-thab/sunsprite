@@ -60,11 +60,6 @@ export let allPositionables: { _updatePosition(): void }[] = []
 /** A map associating Phaser objects to custom Sunsprite objects */
 export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 
-/** Current render frame index */
-
-// let _lastPauseTime: number = 0
-// let _totalPauseElapsed: number = 0
-
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0

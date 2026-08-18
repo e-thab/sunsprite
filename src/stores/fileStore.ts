@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { supabase } from "@/assets/utils/supabase";
 import { getExampleCode } from "@/assets/api/examples";
+import { DEFAULT_SCRIPT_FILE_TYPE, imageDisplayName, joinFileName } from "@/assets/utils/fileTypes";
 
 function publicUrlForKey(objectKey: string): string {
     return `${import.meta.env.VITE_R2_PUBLIC_BASE_URL}/${objectKey}`
@@ -58,12 +59,27 @@ type ImageRecord = {
     position: number
 }
 
-// A folder/script/image blended and sorted by position, for rendering one
-// ordered list per tree level regardless of which kind each row is.
+// Structurally identical to ScriptRecord — content lives inline, same as a
+// script — but kept as its own type/table rather than reusing ScriptRecord:
+// text files are never executed or import()-able, and don't count toward
+// "a project always has at least one script".
+type TextFileRecord = {
+    id: string
+    name: string
+    content: string
+    saveTime: string
+    folderId: string | null
+    position: number
+}
+
+// A folder/script/image/text file blended and sorted by position, for
+// rendering one ordered list per tree level regardless of which kind each
+// row is.
 export type TreeNode =
     | { kind: 'folder', id: string, name: string, position: number }
     | { kind: 'script', id: string, name: string, position: number }
     | { kind: 'image', id: string, name: string, position: number, publicUrl: string }
+    | { kind: 'text', id: string, name: string, position: number }
 
 export const useFileStore = defineStore('files', () => {
     const activeFileName = ref('main.js')
@@ -120,6 +136,7 @@ export const useFileStore = defineStore('files', () => {
     const scripts = ref<ScriptRecord[]>([])
     const folders = ref<FolderRecord[]>([])
     const images = ref<ImageRecord[]>([])
+    const textFiles = ref<TextFileRecord[]>([])
 
     function clear() {
         // Debugging
@@ -147,13 +164,25 @@ export const useFileStore = defineStore('files', () => {
         return scripts.value.find((script) => script.name === fileName)
     }
 
+    function findTextFile(fileName: string): TextFileRecord | undefined {
+        return textFiles.value.find((file) => file.name === fileName)
+    }
+
+    // Whether `fileName` is a text file rather than a script — the two share
+    // extension-disjoint names today (scripts are always .js, text files
+    // never are), so this is unambiguous. Used by CodeEditor.vue to decide
+    // whether to attach a JS language worker to a model at all.
+    function isTextFile(fileName: string): boolean {
+        return findTextFile(fileName) !== undefined
+    }
+
     function getLocalCode(fileName: string): string | undefined {
-        if (projectId.value) return findScript(fileName)?.content
+        if (projectId.value) return findScript(fileName)?.content ?? findTextFile(fileName)?.content
         return getSaveData(fileName)?.content
     }
 
     function getTimeSaved(fileName: string): string | undefined {
-        if (projectId.value) return findScript(fileName)?.saveTime
+        if (projectId.value) return findScript(fileName)?.saveTime ?? findTextFile(fileName)?.saveTime
         return getSaveData(fileName)?.saveTime
     }
 
@@ -171,13 +200,22 @@ export const useFileStore = defineStore('files', () => {
 
         if (projectId.value) {
             const script = findScript(fileName)
-            if (!script) return
+            if (script) {
+                script.content = content
+                script.saveTime = saveTime
+                supabase.from('scripts').update({ content }).eq('id', script.id).then(({ error }) => {
+                    if (error) console.error(`Failed to save script "${fileName}"`, error)
+                })
+            } else {
+                const textFile = findTextFile(fileName)
+                if (!textFile) return
 
-            script.content = content
-            script.saveTime = saveTime
-            supabase.from('scripts').update({ content }).eq('id', script.id).then(({ error }) => {
-                if (error) console.error(`Failed to save script "${fileName}"`, error)
-            })
+                textFile.content = content
+                textFile.saveTime = saveTime
+                supabase.from('text_files').update({ content }).eq('id', textFile.id).then(({ error }) => {
+                    if (error) console.error(`Failed to save text file "${fileName}"`, error)
+                })
+            }
         } else {
             const saveData: codeSaveData = { fileName, content, saveTime }
             localStorage.setItem(fileName, JSON.stringify(saveData))
@@ -199,7 +237,10 @@ export const useFileStore = defineStore('files', () => {
         const containedImages: TreeNode[] = images.value
             .filter((img) => img.folderId === folderId)
             .map((img) => ({ kind: 'image' as const, id: img.id, name: img.name, position: img.position, publicUrl: img.publicUrl }))
-        return [...subfolders, ...containedScripts, ...containedImages].sort((a, b) => a.position - b.position)
+        const containedTextFiles: TreeNode[] = textFiles.value
+            .filter((f) => f.folderId === folderId)
+            .map((f) => ({ kind: 'text' as const, id: f.id, name: f.name, position: f.position }))
+        return [...subfolders, ...containedScripts, ...containedImages, ...containedTextFiles].sort((a, b) => a.position - b.position)
     }
 
     // Appends after the current last sibling (folders and scripts share one
@@ -228,6 +269,15 @@ export const useFileStore = defineStore('files', () => {
     function scriptsUnderFolder(id: string): ScriptRecord[] {
         const ids = new Set(folderAndDescendantIds(id))
         return scripts.value.filter((s) => s.folderId !== null && ids.has(s.folderId))
+    }
+
+    // Same as scriptsUnderFolder, but text files never gate a folder delete
+    // — only used so a deleted folder's active-file fallback (in
+    // FileTree.vue) also catches a text file that was open when its parent
+    // folder was removed.
+    function textFilesUnderFolder(id: string): TextFileRecord[] {
+        const ids = new Set(folderAndDescendantIds(id))
+        return textFiles.value.filter((f) => f.folderId !== null && ids.has(f.folderId))
     }
 
     async function createFolder(name: string, parentId: string | null = null): Promise<string> {
@@ -264,6 +314,7 @@ export const useFileStore = defineStore('files', () => {
         folders.value = folders.value.filter((f) => !removedFolderIds.has(f.id))
         scripts.value = scripts.value.filter((s) => !(s.folderId !== null && removedFolderIds.has(s.folderId)))
         images.value = images.value.filter((img) => !(img.folderId !== null && removedFolderIds.has(img.folderId)))
+        textFiles.value = textFiles.value.filter((f) => !(f.folderId !== null && removedFolderIds.has(f.folderId)))
     }
 
     // Reparent/reorder a script — the drag-drop target's folder (null for
@@ -301,21 +352,24 @@ export const useFileStore = defineStore('files', () => {
         scripts.value = []
         folders.value = []
         images.value = []
+        textFiles.value = []
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
 
-        const [{ data: folderRows, error: folderError }, { data: scriptRows, error: scriptError }, { data: imageRows, error: imageError }] = await Promise.all([
+        const [{ data: folderRows, error: folderError }, { data: scriptRows, error: scriptError }, { data: imageRows, error: imageError }, { data: textFileRows, error: textFileError }] = await Promise.all([
             supabase.from('folders').select('id, name, parent_id, position').eq('project_id', id).order('position'),
             supabase.from('scripts').select('id, name, content, folder_id, position, updated_at').eq('project_id', id).order('position'),
             supabase.from('images').select('id, name, object_key, content_type, size, folder_id, position').eq('project_id', id).order('position'),
+            supabase.from('text_files').select('id, name, content, folder_id, position, updated_at').eq('project_id', id).order('position'),
         ])
         if (folderError) throw folderError
         if (scriptError) throw scriptError
         if (imageError) throw imageError
+        if (textFileError) throw textFileError
 
         if (folderRows.length === 0 && scriptRows.length === 0) {
             const scriptsFolderId = await createFolder('scripts')
-            await createScript('main.js', getExampleCode(), scriptsFolderId)
+            await createScript(joinFileName('main', DEFAULT_SCRIPT_FILE_TYPE.extension), getExampleCode(), scriptsFolderId)
         } else {
             folders.value = folderRows.map((row) => ({
                 id: row.id,
@@ -341,6 +395,14 @@ export const useFileStore = defineStore('files', () => {
                 folderId: row.folder_id,
                 position: row.position,
             }))
+            textFiles.value = textFileRows.map((row) => ({
+                id: row.id,
+                name: row.name,
+                content: row.content,
+                folderId: row.folder_id,
+                position: row.position,
+                saveTime: new Date(row.updated_at).toLocaleTimeString(),
+            }))
         }
     }
 
@@ -350,6 +412,7 @@ export const useFileStore = defineStore('files', () => {
         scripts.value = []
         folders.value = []
         images.value = []
+        textFiles.value = []
         dirtyFiles.value = new Set()
     }
 
@@ -409,8 +472,14 @@ export const useFileStore = defineStore('files', () => {
     async function uploadImage(file: File, folderId: string | null = null) {
         if (!projectId.value) throw new Error('No active project')
 
+        // The stored name always carries the canonical extension for file.type
+        // (see imageDisplayName) rather than whatever the source file was
+        // called — this is what "type recognized and assigned automatically"
+        // means for an upload, same as a locked extension means for a rename.
+        const name = imageDisplayName(file)
+
         const { data: signed, error: signError } = await supabase.functions.invoke('r2-sign-upload', {
-            body: { projectId: projectId.value, fileName: file.name, contentType: file.type, size: file.size },
+            body: { projectId: projectId.value, fileName: name, contentType: file.type, size: file.size },
         })
         if (signError) throw new Error(await functionErrorMessage(signError))
 
@@ -423,7 +492,7 @@ export const useFileStore = defineStore('files', () => {
         // and content-type checks a real boundary rather than self-reported.
         const position = nextPosition(folderId)
         const { data: confirmed, error: confirmError } = await supabase.functions.invoke('r2-confirm-upload', {
-            body: { projectId: projectId.value, folderId, name: file.name, objectKey: signed.objectKey, position },
+            body: { projectId: projectId.value, folderId, name, objectKey: signed.objectKey, position },
         })
         if (confirmError) throw new Error(await functionErrorMessage(confirmError))
 
@@ -473,6 +542,73 @@ export const useFileStore = defineStore('files', () => {
         image.position = position
     }
 
+    // ---- Text files ----
+    // Uploaded (or, eventually, created) as plain content up front — unlike
+    // images there's no signed-URL/object-storage round trip, so this is a
+    // single insert, same shape as createScript.
+
+    async function createTextFile(name: string, content: string = '', folderId: string | null = null) {
+        if (!projectId.value) throw new Error('No active project')
+
+        const position = nextPosition(folderId)
+        const { data, error } = await supabase
+            .from('text_files')
+            .insert({ project_id: projectId.value, name, content, folder_id: folderId, position })
+            .select('id, name, content, folder_id, position, updated_at')
+            .single()
+        if (error) throw error
+
+        textFiles.value.push({
+            id: data.id,
+            name: data.name,
+            content: data.content,
+            folderId: data.folder_id,
+            position: data.position,
+            saveTime: new Date(data.updated_at).toLocaleTimeString(),
+        })
+    }
+
+    // id-based (like renameImage) rather than name-based (like renameScript)
+    // — but still has to carry renameScript's activeFileName/dirty handling,
+    // since a text file (unlike an image) can be the open, edited file.
+    async function renameTextFile(id: string, newName: string) {
+        const textFile = textFiles.value.find((f) => f.id === id)
+        if (!textFile) throw new Error('Text file not found')
+
+        const { error } = await supabase.from('text_files').update({ name: newName }).eq('id', id)
+        if (error) throw error
+
+        const oldName = textFile.name
+        textFile.name = newName
+        if (activeFileName.value === oldName) activeFileName.value = newName
+        if (isDirty(oldName)) {
+            markClean(oldName)
+            markDirty(newName)
+        }
+    }
+
+    async function deleteTextFile(id: string) {
+        const textFile = textFiles.value.find((f) => f.id === id)
+        if (!textFile) return
+
+        const { error } = await supabase.from('text_files').delete().eq('id', id)
+        if (error) throw error
+
+        textFiles.value = textFiles.value.filter((f) => f.id !== id)
+        markClean(textFile.name)
+    }
+
+    async function moveTextFile(id: string, folderId: string | null, position: number) {
+        const textFile = textFiles.value.find((f) => f.id === id)
+        if (!textFile) return
+
+        const { error } = await supabase.from('text_files').update({ folder_id: folderId, position }).eq('id', id)
+        if (error) throw error
+
+        textFile.folderId = folderId
+        textFile.position = position
+    }
+
     return {
         activeFileName,
         activeFileIsSaved,
@@ -482,12 +618,14 @@ export const useFileStore = defineStore('files', () => {
         scripts,
         folders,
         images,
+        textFiles,
         activate,
         savedThisSession,
         getLocalCode,
         getTimeSaved,
         saveCode,
         isDirty,
+        isTextFile,
         markDirty,
         markClean,
         registerSaveAllHandler,
@@ -502,6 +640,7 @@ export const useFileStore = defineStore('files', () => {
         nextPosition,
         folderAndDescendantIds,
         scriptsUnderFolder,
+        textFilesUnderFolder,
         createFolder,
         renameFolder,
         deleteFolder,
@@ -511,5 +650,9 @@ export const useFileStore = defineStore('files', () => {
         renameImage,
         deleteImage,
         moveImage,
+        createTextFile,
+        renameTextFile,
+        deleteTextFile,
+        moveTextFile,
     }
 })

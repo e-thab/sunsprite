@@ -1,22 +1,79 @@
-// Kid-friendly word lists for generating short, memorable project URLs
+// Accessible word lists for generating short, memorable project URLs
 // (e.g. "sparkly-brave-otter"), Gfycat-style.
 
-export const adjectives = [
-  'sparkly', 'brave', 'silly', 'quick', 'jolly', 'mighty', 'gentle', 'clever',
-  'bouncy', 'cozy', 'daring', 'eager', 'fuzzy', 'giggly', 'happy', 'icy',
-  'jumpy', 'kind', 'lucky', 'merry', 'nifty', 'orange', 'plucky', 'quiet',
-  'rosy', 'shiny', 'tiny', 'upbeat', 'vivid', 'witty', 'zesty', 'zippy',
-  'bold', 'breezy', 'chipper', 'dazzling', 'electric', 'fluffy', 'glowing',
-  'humble', 'itty', 'jazzy', 'keen', 'lively', 'mellow', 'nimble', 'peppy',
-  'proud', 'quirky', 'radiant', 'snappy', 'spry', 'twinkly', 'vibrant',
-  'wobbly', 'yummy', 'zany', 'amber', 'bubbly', 'crafty', 'dreamy',
-  'energetic', 'fancy', 'goofy', 'honest', 'inky', 'jubilant', 'kooky',
-  'loud', 'magic', 'noble', 'odd', 'perky', 'quaint', 'royal', 'speedy',
-  'trusty', 'unique', 'velvety', 'warm', 'young', 'zealous', 'ancient',
-  'cheerful', 'dandy', 'epic', 'frosty', 'grand', 'hazy', 'invincible',
-  'jagged', 'lofty', 'misty', 'neat', 'polka', 'quick-witted', 'rapid',
-  'stellar', 'turbo', 'ultra', 'wild', 'yellow', 'zigzag',
+// Each URL has two descriptor words followed by a noun. Each descriptor
+// has to honor the ordering heuristic:
+//    
+//    1. Adverb OR ordinal
+//    2. Opinion (lovely, ugly, terrible)
+//    3. Size
+//    4. Age
+//    5. Shape (curly, round)
+//    6. Color
+//    7. Origin (french, cuban) - currently unused
+//    8. Material (wood, metal)
+//
+// in order to avoid (most) awkward-sounding slugs like blue-new-pebble
+// or categorically confusing ones like green-purple-fox
+
+export const adverbsAndOrdinals = [
+  // Adverbs
+  'very', 'fully', 'almost', 'rather', 'too', 'fairly', 'barely', 'often',
+  'always', 'ultra', 'truly', 'half', 'ideally', 'actually', 'entirely',
+  'highly', 'super', 'hardly', 'newly', 'mostly', 'locally', 'nearly',
+  'partly', 'plainly', 'politely', 'really', 'seldom', 'simply', 'slightly',
+  'strictly',  'surely', 'suddenly', 'sometimes', 'strangely', 'suitably',
+  'awfully', 'not',
+
+  // Ordinals
+  'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth',
+  'ninth', 'tenth', 'last'
 ]
+
+export const opinionAdjectives = [
+  'sparkly', 'brave', 'silly', 'quick', 'jolly', 'gentle', 'clever', 'bouncy',
+  'cozy', 'daring', 'eager', 'funny', 'happy', 'jumpy', 'kind', 'lucky',
+  'merry', 'nifty', 'plucky', 'quiet', 'shiny', 'upbeat', 'vivid', 'witty',
+  'zippy', 'bold', 'breezy', 'chipper', 'dazzling', 'electric', 'glowing',
+  'humble', 'keen', 'lively', 'mellow', 'nimble', 'peppy', 'proud', 'quirky',
+  'radiant', 'snappy', 'spry', 'twinkly', 'vibrant', 'zany', 'crafty',
+  'energetic', 'fancy', 'goofy', 'honest', 'kooky', 'loud', 'magical',
+  'noble', 'odd', 'quaint', 'royal', 'speedy', 'trusty', 'unique', 'zealous',
+  'cheerful', 'dandy', 'epic', 'invincible', 'neat', 'rapid', 'stellar',
+  'turbo', 'wild', 'calm',
+]
+
+export const sizeAdjectives = [
+  'tiny', 'mighty', 'grand', 'lofty', 'huge',
+]
+
+export const ageAdjectives = [
+  'young', 'old', 'ancient', 'new',
+]
+
+export const shapeAdjectives = [
+  'jagged', 'wobbly', 'round', 'square', 'sharp',
+]
+
+export const colorAdjectives = [
+  'rosy', 'amber', 'red', 'orange', 'yellow', 'blue', 'green', 'indigo',
+  'violet', 'purple', 'teal', 'gray',
+]
+
+export const materialAdjectives = [
+  'fuzzy', 'icy', 'fluffy', 'bubbly', 'carbonated', 'frosty', 'hazy', 'misty',
+]
+
+// Hierarchy tiers, ordered to match the comment above (origin is unused).
+const descriptor_hierarchy = [
+  adverbsAndOrdinals,
+  opinionAdjectives,
+  sizeAdjectives,
+  ageAdjectives,
+  shapeAdjectives,
+  colorAdjectives,
+  materialAdjectives,
+] as const
 
 export const nouns = [
   'otter', 'fox', 'panda', 'tiger', 'eagle', 'rabbit', 'dolphin', 'koala',
@@ -27,7 +84,7 @@ export const nouns = [
   'inventor', 'painter', 'juggler', 'acrobat', 'dreamer', 'wanderer',
   'puzzle', 'lantern', 'compass', 'meadow', 'canyon', 'glacier', 'volcano',
   'rainbow', 'thunder', 'breeze', 'pebble', 'seashell', 'cactus', 'bramble',
-  'chestnut', 'maple',
+  'tree', 'walrus',
 ]
 
 function pick<T>(list: readonly T[]): T {
@@ -35,9 +92,20 @@ function pick<T>(list: readonly T[]): T {
 }
 
 export function generateSlug(): string {
-  const first = pick(adjectives)
-  let second = pick(adjectives)
-  while (second === first) second = pick(adjectives)
+  const tierCount = descriptor_hierarchy.length
+  const firstTier = Math.floor(Math.random() * tierCount)
+  let secondTier = Math.floor(Math.random() * tierCount)
+  while (secondTier === firstTier) secondTier = Math.floor(Math.random() * tierCount)
+
+  const [earlierTier, laterTier] =
+    firstTier < secondTier ? [firstTier, secondTier] : [secondTier, firstTier]
+
+  const first = pick(descriptor_hierarchy[earlierTier]!)
+  const second = pick(descriptor_hierarchy[laterTier]!)
 
   return `${first}-${second}-${pick(nouns)}`
+}
+
+for (let i=0; i<10; i++) {
+  console.log(generateSlug())
 }

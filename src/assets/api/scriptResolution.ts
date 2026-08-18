@@ -1,14 +1,15 @@
 import * as ts from 'typescript'
+import { DEFAULT_SCRIPT_FILE_TYPE, splitFileName } from '@/assets/utils/fileTypes'
 
 // Shared between moduleRunner.ts (runtime import resolution) and
 // CodeEditor.vue (Monaco model URIs), so the IDE and the actual game
-// execution always agree on what './helper.js' resolves to.
+// execution always agree on what './helper' resolves to.
 
 export function resolveSpecifierToName(specifier: string): string {
     let name = specifier.trim()
     if (name.startsWith('./')) name = name.slice(2)
     else if (name.startsWith('/')) name = name.slice(1)
-    if (!/\.[a-zA-Z0-9]+$/.test(name)) name += '.js'
+    if (!splitFileName(name).extension) name += '.' + DEFAULT_SCRIPT_FILE_TYPE.extension
     return name
 }
 

@@ -7,6 +7,7 @@ import { runUserCode } from '@/sandbox/hostBridge'
 import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
 import { resolveSpecifierToName, listImportSpecifiers } from '@/assets/api/scriptResolution'
+import { TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
 import { ModuleDetectionKind } from 'typescript'
 
 // CodeMirror
@@ -89,9 +90,25 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	// unresolved until the user edited the content (forcing a recheck).
 	const activeModel = ensureModel(fileStore.activeFileName)
 	if (activeModel) {
-		const importedNames = ensureImportedModels(activeModel.getValue())
-		editor.setModel(activeModel)
-		refreshDiagnostics(activeModel, importedNames)
+		// A text file's model is plaintext — no import graph to pre-warm and no
+		// JS/TS worker attached to it at all, so none of the diagnostics dance
+		// below applies; just show it.
+		if (fileStore.isTextFile(fileStore.activeFileName)) {
+			editor.setModel(activeModel)
+		} else {
+			const importedNames = ensureImportedModels(activeModel.getValue())
+			// Hide validation squiggles for the duration of refreshDiagnostics
+			// below, rather than touching marker data directly (e.g. clearing
+			// markers to suppress them) — monaco.editor.setModelMarkers() fires
+			// onDidChangeMarkers itself, which re-enters any listener watching
+			// for the real correction and clobbers it with the empty state just
+			// written. renderValidationDecorations is a per-editor rendering
+			// option, entirely separate from marker data, so there's nothing for
+			// our own writes to re-trigger.
+			editor.updateOptions({ renderValidationDecorations: 'off' })
+			editor.setModel(activeModel)
+			refreshDiagnostics(editor, activeModel, importedNames)
+		}
 	}
 
 	editor.updateOptions({
@@ -168,12 +185,15 @@ const saveStatusColor = computed(() => fileStore.activeFileIsSaved ? 'neutral' :
 const activeMonacoTheme = computed(() => monacoThemeName(themeStore.currentId))
 watch(activeMonacoTheme, (name) => monaco.editor.setTheme(name))
 
-// One persistent Monaco model per script (keyed by resolved name, e.g.
-// "helper.js"), at a stable file:///name.js URI — this is what lets
+// One persistent Monaco model per script or text file (keyed by resolved
+// name, e.g. "helper.js"), at a stable file:///name URI — this is what lets
 // Monaco's own TS/JS language service resolve imports between project
 // scripts (real "cannot find module" errors, real hover types,
-// autocomplete on real exports) instead of only ever seeing one file.
-type ModelEntry = { model: monaco.editor.ITextModel, scriptId?: string }
+// autocomplete on real exports) instead of only ever seeing one file. Text
+// files never participate in that graph (see ensureImportedModels/
+// onEditorChange/switchToScript below, all guarded on isTextFile) — their
+// model just holds plaintext content with no worker attached.
+type ModelEntry = { model: monaco.editor.ITextModel, recordId?: string, isText?: boolean }
 const modelEntries = new Map<string, ModelEntry>()
 
 // Same content source moduleRunner.ts reads at runtime, so the editor and
@@ -195,9 +215,12 @@ function ensureModel(name: string): monaco.editor.ITextModel | undefined {
 	const content = resolveContent(name)
 	if (content === undefined) return undefined
 
-	const model = monaco.editor.createModel(content, 'javascript', monaco.Uri.parse('file:///' + name))
-	const scriptId = fileStore.projectId ? fileStore.scripts.find((s) => s.name === name)?.id : undefined
-	modelEntries.set(name, { model, scriptId })
+	const isText = fileStore.isTextFile(name)
+	const model = monaco.editor.createModel(content, isText ? TEXT_MONACO_LANGUAGE : 'javascript', monaco.Uri.parse('file:///' + name))
+	const record = fileStore.projectId
+		? (fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name))
+		: undefined
+	modelEntries.set(name, { model, recordId: record?.id, isText })
 	return model
 }
 
@@ -223,7 +246,53 @@ function ensureImportedModels(source: string, visited: Set<string> = new Set()):
 // remount below — see the long comment on that binding for why.
 function switchToScript(name: string) {
 	const model = ensureModel(name)
-	if (model) ensureImportedModels(model.getValue())
+	if (model && !fileStore.isTextFile(name)) ensureImportedModels(model.getValue())
+}
+
+// Resolves once no marker-change event has landed for `uri` for `quietMs`,
+// or after `timeoutMs` regardless (so a pathological case that never
+// settles can't leave a model suppressed forever). Needed because the
+// validation pass triggered by refreshDiagnostics's forced setValue isn't
+// guaranteed to be the last stale one: under a slow-to-start TS worker
+// (observed: ~4s in dev, almost certainly Vite cold-building the ts.worker
+// chunk), a straggler pass scheduled before the sync landed can still fire
+// *after* it and briefly repaint the stale "Cannot find module" marker.
+function waitForMarkersToSettle(uri: monaco.Uri, quietMs = 500, timeoutMs = 5000): Promise<void> {
+	return new Promise((resolve) => {
+		let quietTimer: ReturnType<typeof setTimeout>
+		const overallTimeout = setTimeout(finish, timeoutMs)
+		const disposable = monaco.editor.onDidChangeMarkers((changedUris) => {
+			if (!changedUris.some((u) => u.toString() === uri.toString())) return
+			clearTimeout(quietTimer)
+			quietTimer = setTimeout(finish, quietMs)
+		})
+		quietTimer = setTimeout(finish, quietMs)
+
+		function finish() {
+			clearTimeout(quietTimer)
+			clearTimeout(overallTimeout)
+			disposable.dispose()
+			resolve()
+		}
+	})
+}
+
+// On the very coldest load in a browser session, getJavaScriptWorker() (or
+// the accessor it returns) can outright throw "JavaScript not registered!"
+// — the JS language mode itself hasn't finished registering with Monaco
+// yet, not a permanent failure. A few short retries are enough to ride
+// that out once registration completes moments later.
+async function syncWithRetry(uri: monaco.Uri, relatedUris: monaco.Uri[], attempts = 5, delayMs = 300): Promise<void> {
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		try {
+			const getWorker = await monaco.typescript.getJavaScriptWorker()
+			await getWorker(uri, ...relatedUris)
+			return
+		} catch (err) {
+			if (attempt === attempts) throw err
+			await new Promise((resolve) => setTimeout(resolve, delayMs))
+		}
+	}
 }
 
 // Model creation is synchronous, but the TS worker's diagnostics scheduling
@@ -239,50 +308,74 @@ function switchToScript(name: string) {
 // the worker's own getJavaScriptWorker(...uris) call, which resolves only
 // once those exact URIs are actually synced, then force a fresh
 // content-change event so validation reruns against a worker that's
-// genuinely caught up.
-async function refreshDiagnostics(model: monaco.editor.ITextModel, relatedNames: Iterable<string>) {
+// genuinely caught up. Even so, the caller (handleMount) already turned
+// renderValidationDecorations off before attaching this model, so none of
+// the intermediate (wrong) passes this triggers ever reach the screen —
+// this function's only remaining job is to turn it back on once things
+// have actually settled.
+async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, model: monaco.editor.ITextModel, relatedNames: Iterable<string>) {
 	const relatedUris = [...relatedNames]
 		.map((name) => modelEntries.get(name)?.model.uri)
 		.filter((uri): uri is monaco.Uri => uri !== undefined)
-	const getWorker = await monaco.typescript.getJavaScriptWorker()
-	await getWorker(model.uri, ...relatedUris)
-	if (!model.isDisposed()) model.setValue(model.getValue())
+	try {
+		await syncWithRetry(model.uri, relatedUris)
+		if (!model.isDisposed()) model.setValue(model.getValue())
+	} catch (err) {
+		console.error(`Failed to sync ${model.uri} with the TS worker after retries`, err)
+	}
+
+	// Wait for settle regardless of whether the sync above succeeded — even
+	// on total sync failure, this is what keeps us from showing whatever the
+	// *first* thing to paint happens to be, rather than what it settles on.
+	await waitForMarkersToSettle(model.uri)
+
+	// editor.getModel() reads null once disposed (e.g. the user switched
+	// files again before this resolved, tearing down this editor instance
+	// via the :key remount) — updateOptions on a disposed editor is
+	// pointless at best, so skip it rather than assume this is still the
+	// live instance.
+	if (editor.getModel()) editor.updateOptions({ renderValidationDecorations: 'on' })
 }
 
-// Project scripts renamed/deleted via FileTree.vue: Monaco models can't be
-// renamed in place, so a rename carries the live (possibly unsaved)
-// content over to a fresh model at the new URI; a deletion just disposes
-// the orphaned one. One place owns this instead of threading it through
-// every fileStore.renameScript/deleteScript call site.
-watch(() => fileStore.scripts.map((s) => ({ id: s.id, name: s.name })), () => {
-	if (!fileStore.projectId) return
+// Project scripts *and text files* renamed/deleted via FileTree.vue: Monaco
+// models can't be renamed in place, so a rename carries the live (possibly
+// unsaved) content over to a fresh model at the new URI; a deletion just
+// disposes the orphaned one. One place owns this instead of threading it
+// through every fileStore.renameScript/renameTextFile/delete* call site.
+watch(
+	() => [...fileStore.scripts.map((s) => ({ id: s.id, name: s.name })), ...fileStore.textFiles.map((f) => ({ id: f.id, name: f.name }))],
+	() => {
+		if (!fileStore.projectId) return
 
-	for (const [name, entry] of [...modelEntries]) {
-		if (!entry.scriptId) continue
+		for (const [name, entry] of [...modelEntries]) {
+			if (!entry.recordId) continue
 
-		const current = fileStore.scripts.find((s) => s.id === entry.scriptId)
-		if (!current) {
-			entry.model.dispose()
-			modelEntries.delete(name)
-			continue
+			const current = fileStore.scripts.find((s) => s.id === entry.recordId) ?? fileStore.textFiles.find((f) => f.id === entry.recordId)
+			if (!current) {
+				entry.model.dispose()
+				modelEntries.delete(name)
+				continue
+			}
+			if (current.name !== name) {
+				const wasActive = editorInstance.value?.getModel() === entry.model
+				const language = entry.isText ? TEXT_MONACO_LANGUAGE : 'javascript'
+				const renamed = monaco.editor.createModel(entry.model.getValue(), language, monaco.Uri.parse('file:///' + current.name))
+				entry.model.dispose()
+				modelEntries.delete(name)
+				modelEntries.set(current.name, { model: renamed, recordId: entry.recordId, isText: entry.isText })
+				if (wasActive) editorInstance.value?.setModel(renamed)
+			}
 		}
-		if (current.name !== name) {
-			const wasActive = editorInstance.value?.getModel() === entry.model
-			const renamed = monaco.editor.createModel(entry.model.getValue(), 'javascript', monaco.Uri.parse('file:///' + current.name))
-			entry.model.dispose()
-			modelEntries.delete(name)
-			modelEntries.set(current.name, { model: renamed, scriptId: entry.scriptId })
-			if (wasActive) editorInstance.value?.setModel(renamed)
-		}
-	}
-}, { deep: true })
+	},
+	{ deep: true },
+)
 
 // Switching projects (or leaving one for the guest sandbox): project-backed
 // models from the *previous* project are stale and must not bleed into
-// the next one — guest-mode models (no scriptId) are left alone.
+// the next one — guest-mode models (no recordId) are left alone.
 watch(() => fileStore.projectId, () => {
 	for (const [name, entry] of [...modelEntries]) {
-		if (!entry.scriptId) continue
+		if (!entry.recordId) continue
 		entry.model.dispose()
 		modelEntries.delete(name)
 	}
@@ -331,7 +424,7 @@ function runActiveUserCode() {
 
 function onEditorChange(value: string) {
 	updateSaveMsg(value)
-	ensureImportedModels(value)
+	if (!fileStore.isTextFile(fileStore.activeFileName)) ensureImportedModels(value)
 }
 
 function updateSaveMsg(checkCode?: string) {
