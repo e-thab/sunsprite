@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
 import type { DropdownMenuItem, TreeItem } from '@nuxt/ui'
 import { useToast } from '@nuxt/ui/composables'
 import { useFileStore, type TreeNode } from '@/stores/fileStore'
@@ -479,6 +480,54 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 	]
 }
 
+// Right-clicking anywhere on a row opens itemMenuItems at the cursor via the
+// UContextMenu wrapped around .tree-row-dnd below (Reka's own trigger reads
+// the native contextmenu event's coordinates to position it). Keyed off each
+// row's own element so the actions button — see forwardRowContextMenu below —
+// can look it up and re-target its own right-clicks there.
+const rowDndRefs = new Map<string, HTMLElement>()
+
+function rowKey(item: TreeItem): string | undefined {
+	return item.id ?? item.label
+}
+
+function setRowDndRef(item: TreeItem, el: Element | ComponentPublicInstance | null) {
+	const key = rowKey(item)
+	if (!key) return
+	if (el) rowDndRefs.set(key, el as HTMLElement)
+	else rowDndRefs.delete(key)
+}
+
+// The actions button lives in Nuxt UI's separate item-trailing slot, outside
+// the .tree-row-dnd element the row's own ContextMenuTrigger is actually
+// bound to — a real contextmenu event fired here bubbles up through the
+// button's own ancestor chain instead, never reaching that trigger. Re-
+// dispatching a synthetic one directly at the row's element, carrying the
+// same cursor position, is what Reka's trigger reads to place the menu — same
+// result as if the right-click had landed on the row itself.
+function forwardRowContextMenu(event: MouseEvent, item: TreeItem) {
+	event.preventDefault()
+	// Right-clicking the actions button while its own left-click dropdown is
+	// already open doesn't count as an "outside" pointerdown to that dropdown
+	// (Reka deliberately excludes its own trigger from dismiss-on-outside-click,
+	// so re-clicking it doesn't just close-then-reopen) — so without this it's
+	// left open underneath the context menu we're about to show instead.
+	actionsMenuOpenKey.value = null
+	const key = rowKey(item)
+	const row = key ? rowDndRefs.get(key) : undefined
+	row?.dispatchEvent(new MouseEvent('contextmenu', {
+		bubbles: true,
+		cancelable: true,
+		clientX: event.clientX,
+		clientY: event.clientY,
+	}))
+}
+
+// Controlled (rather than left to each UDropdownMenu's own uncontrolled
+// state) specifically so forwardRowContextMenu above has a way to force this
+// closed from outside the component that actually owns it.
+const actionsMenuOpenKey = ref<string | null>(null)
+
 // ---- Rename ----
 // Renaming edits inline (an input replacing the row's label) rather than a
 // window.prompt — renamingItemId tracks which single row (if any) is
@@ -860,82 +909,101 @@ async function onDropOnRoot() {
 			<div v-else class="spacer"></div>
 		</div>
 
-		<div class="file-tree" @dragover.prevent="onDragOverRoot" @dragleave="onDragLeaveRoot" @drop="onDropOnRoot">
-			<UTree
-				v-model="treeSelectionStore.current"
-				:items="items"
-				:get-key="(item: TreeItem) => item.id ?? item.label"
-				:expanded="controlledExpandedIds"
-				@update:expanded="onUpdateExpanded"
-				class="file-tree"
-			>
-				<template #item-leading="{ item, expanded }">
-					<img v-if="item.thumbnail" :src="item.thumbnail" :title="item.typeLabel" class="thumbnail-icon" alt="" />
-					<UIcon v-else-if="item.icon" :name="item.icon" :title="item.typeLabel" class="leading-icon" />
-					<UIcon v-else-if="item.kind === 'folder' || item.children?.length" :name="expanded ? 'tabler:folder-open-filled' : 'tabler:folder-filled'" class="leading-icon" />
-				</template>
-
-				<template #item-label="{ item }">
-					<div
-						class="tree-row-dnd"
-						:class="{
-							'drag-over': dragOverId === item.id,
-							'drop-line-before': dropLineTarget?.beforeId === item.id,
-							'drop-line-after': dropLineTarget?.afterId === item.id,
-							'renaming': renamingItemId === item.id,
-						}"
-						:draggable="isDraggable(item) && renamingItemId !== item.id"
-						@dragstart="onDragStart($event, item)"
-						@dragend="onDragEnd"
-						@dragover.prevent.stop="onDragOverItem(item)"
-						@dragleave="onDragLeaveItem(item)"
-						@drop.stop="onDropOnItem(item)"
-						@mousedown="onRowMouseDown($event, item)"
-						@click="onRowClick($event, item)"
-					></div>
-					<div
-						v-if="renamingItemId === item.id"
-						class="rename-editing"
-						@mousedown="onRowMouseDown($event, item)"
-						@click="onRowClick($event, item)"
-					>
-						<input
-							ref="renameInputRef"
-							v-model="renamingValue"
-							class="rename-input"
-							autocomplete="off"
-							spellcheck="false"
-							@click.stop
-							@mousedown.stop
-							@keydown.enter="commitRename(item)"
-							@keydown.escape="cancelRename"
-							@blur="commitRename(item)"
-						/>
-						<!-- Static, not part of renamingValue — the whole point is that
-						     it can't be typed over or cleared, only re-derived from the
-						     item's current name in commitRename. -->
-						<span v-if="fileExtension(item)" class="rename-extension">.{{ fileExtension(item) }}</span>
-					</div>
-					<template v-else>
-						{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span>
+		<UContextMenu :disabled="!fileStore.projectId" :items="folderMenuItems(null)">
+			<div class="file-tree" @dragover.prevent="onDragOverRoot" @dragleave="onDragLeaveRoot" @drop="onDropOnRoot">
+				<UTree
+					v-model="treeSelectionStore.current"
+					:items="items"
+					:get-key="(item: TreeItem) => item.id ?? item.label"
+					:expanded="controlledExpandedIds"
+					@update:expanded="onUpdateExpanded"
+					class="file-tree"
+				>
+					<template #item-leading="{ item, expanded }">
+						<img v-if="item.thumbnail" :src="item.thumbnail" :title="item.typeLabel" class="thumbnail-icon" alt="" />
+						<UIcon v-else-if="item.icon" :name="item.icon" :title="item.typeLabel" class="leading-icon" />
+						<UIcon v-else-if="item.kind === 'folder' || item.children?.length" :name="expanded ? 'tabler:folder-open-filled' : 'tabler:folder-filled'" class="leading-icon" />
 					</template>
-				</template>
 
-				<template v-if="fileStore.projectId" #item-trailing="{ item }">
-					<div v-if="renamingItemId !== item.id" class="item-actions">
-						<UDropdownMenu :items="itemMenuItems(item)">
-							<UTooltip text="Actions" ignore-non-keyboard-focus>
-								<UButton icon="tabler:dots-vertical" variant="ghost" color="neutral" size="xs" @click.stop />
-							</UTooltip>
-						</UDropdownMenu>
-					</div>
-				</template>
+					<template #item-label="{ item }">
+						<UContextMenu :disabled="!fileStore.projectId" :items="itemMenuItems(item)">
+							<div
+								class="tree-row-dnd"
+								:ref="(el) => setRowDndRef(item, el)"
+								:class="{
+									'drag-over': dragOverId === item.id,
+									'drop-line-before': dropLineTarget?.beforeId === item.id,
+									'drop-line-after': dropLineTarget?.afterId === item.id,
+									'renaming': renamingItemId === item.id,
+								}"
+								:draggable="isDraggable(item) && renamingItemId !== item.id"
+								@dragstart="onDragStart($event, item)"
+								@dragend="onDragEnd"
+								@dragover.prevent.stop="onDragOverItem(item)"
+								@dragleave="onDragLeaveItem(item)"
+								@drop.stop="onDropOnItem(item)"
+								@mousedown="onRowMouseDown($event, item)"
+								@click="onRowClick($event, item)"
+							></div>
+						</UContextMenu>
+						<div
+							v-if="renamingItemId === item.id"
+							class="rename-editing"
+							@mousedown="onRowMouseDown($event, item)"
+							@click="onRowClick($event, item)"
+						>
+							<input
+								ref="renameInputRef"
+								v-model="renamingValue"
+								class="rename-input"
+								autocomplete="off"
+								spellcheck="false"
+								@click.stop
+								@mousedown.stop
+								@keydown.enter="commitRename(item)"
+								@keydown.escape="cancelRename"
+								@blur="commitRename(item)"
+							/>
+							<!-- Static, not part of renamingValue — the whole point is that
+							     it can't be typed over or cleared, only re-derived from the
+							     item's current name in commitRename. -->
+							<span v-if="fileExtension(item)" class="rename-extension">.{{ fileExtension(item) }}</span>
+						</div>
+						<template v-else>
+							{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span>
+						</template>
+					</template>
 
-				<template #drop-placeholder>
-					<div class="drop-placeholder"></div>
-				</template>
-			</UTree>
-		</div>
+					<template v-if="fileStore.projectId" #item-trailing="{ item }">
+						<div v-if="renamingItemId !== item.id" class="item-actions" @contextmenu="forwardRowContextMenu($event, item)">
+							<UDropdownMenu
+								:items="itemMenuItems(item)"
+								:open="actionsMenuOpenKey === rowKey(item)"
+								@update:open="(value) => actionsMenuOpenKey = value ? (rowKey(item) ?? null) : null"
+							>
+								<!-- <UTooltip text="Actions" ignore-non-keyboard-focus> -->
+									<!-- Ghost's default hover/active fill is bg-elevated — invisible here since
+									     .file-tree's own background is that same token (see below). Bumped one
+									     step up to bg-accented so the highlight actually shows against it. -->
+									<UButton
+										icon="tabler:dots-vertical"
+										variant="ghost"
+										color="neutral"
+										size="xs"
+										:ui="{ base: 'hover:bg-[var(--theme-bg-accented)] active:bg-[var(--theme-bg-accented)]' }"
+										@click.stop
+									/>
+								<!-- </UTooltip> -->
+							</UDropdownMenu>
+						</div>
+					</template>
+
+					<template #drop-placeholder>
+						<div class="drop-placeholder"></div>
+					</template>
+				</UTree>
+			</div>
+		</UContextMenu>
 	</div>
 </template>
 
@@ -996,6 +1064,18 @@ async function onDropOnRoot() {
 	position: absolute;
 	inset: 0;
 	border-radius: 0.25rem;
+}
+
+/* Applied to Nuxt UI's own row element (rather than as a Tailwind class via
+   the tree's `:ui` prop) so it paints as a real background behind the row's
+   own content — icon and label included — instead of a layer stacked above
+   it. `:hover` here fires from *any* descendant, .item-actions' own button
+   included, since hover state bubbles to every ancestor regardless of which
+   element the pointer is actually over; the :has() exclusion is what keeps
+   that button's own hover (see .item-actions below) as a highlight on just
+   the button, rather than both it and the row lighting up together. */
+:deep([data-slot="link"]:hover:not(:has(.item-actions:hover))) {
+	background-color: var(--theme-bg-accented);
 }
 
 /* .tree-row-dnd needs to *stay* interactive while renaming (not
@@ -1096,8 +1176,16 @@ async function onDropOnRoot() {
    button holds its own size instead of being squeezed or overlapped, and if
    the row truly runs out of room, the row itself overflows the panel rather
    than anything visually colliding — the same "drag the splitter further to
-   cover it" behavior the chevron already has. */
+   cover it" behavior the chevron already has.
+
+   Also needs `position: relative` + a z-index (same fix as .rename-editing
+   above, same root cause): .tree-row-dnd is `position: absolute`, and an
+   absolutely-positioned z-index:auto element always paints above a plain
+   in-flow sibling regardless of DOM order, so without this the drag overlay
+   sat on top of the button at all times and silently ate every click. */
 .item-actions {
+	position: relative;
+	z-index: 1;
 	flex-shrink: 0;
 }
 

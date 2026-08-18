@@ -16,6 +16,12 @@ import SignUpModal from './SignUpModal.vue';
 import DocsSearchModal from './docs/DocsSearchModal.vue';
 import Random from '@/assets/api/Random.ts';
 
+// This template has multiple root nodes (.bar plus the modals below), so
+// Vue can't auto-target passthrough attrs (App.vue's `class="navbar-header"`)
+// onto a single element and just drops them with a dev warning instead —
+// forwarding `class` onto .bar explicitly is what the docs call for here.
+defineOptions({ inheritAttrs: false })
+
 const fsStore = useFullscreenStore()
 const authStore = useAuthStore()
 const fileStore = useFileStore()
@@ -175,7 +181,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
 </script>
 
 <template>
-    <div v-if="!fsStore.fullscreen" id="nav-header" ref="navBarEl" class="bar">
+    <div v-if="!fsStore.fullscreen" id="nav-header" ref="navBarEl" class="bar" :class="$attrs.class">
         <div class="left-group">
             <!-- Sunsprite home button -->
             <UButton icon="sunsprite:sun" variant="ghost" color="neutral" @click="() => { router.push('/') }">
