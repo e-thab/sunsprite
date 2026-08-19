@@ -47,38 +47,35 @@ function onCategoryLabelClick(path: string) {
 	if (!wasExpanded || wasCurrent) nav.toggleExpanded(path)
 }
 
-// Paths aren't stored on DocNode itself — they're positional (slugs joined
-// by ancestry), and filterTree() can return cloned category objects while
-// pruning to matches, so a node -> path reverse lookup wouldn't be reliable.
-// Recomputing by threading parentPath through, same as docsIndex.ts's own
-// walk(), is what stays correct regardless of node identity.
-function buildItems(nodes: DocNode[], parentPath: string | null): TreeItem[] {
+// Each node carries its own path (built from where its file sits, see
+// docsContent.ts), including the cloned categories filterTree() hands back
+// while pruning to search matches — so nothing here has to reconstruct it.
+function buildItems(nodes: DocNode[]): TreeItem[] {
 	return nodes.map((node): TreeItem => {
-		const path = parentPath ? `${parentPath}/${node.slug}` : node.slug
 		if (node.kind === 'category') {
 			return {
-				id: path,
+				id: node.path,
 				label: node.title,
 				icon: node.icon,
-				path,
+				path: node.path,
 				isCategory: true,
 				onSelect: preventCategorySelect,
 				onToggle: preventNativeToggle,
-				children: buildItems(node.children, path),
+				children: buildItems(node.children),
 			}
 		}
 		return {
-			id: path,
+			id: node.path,
 			label: node.title,
 			icon: node.icon,
-			path,
+			path: node.path,
 			isCategory: false,
-			onSelect: () => nav.navigate(path),
+			onSelect: () => nav.navigate(node.path),
 		}
 	})
 }
 
-const items = computed(() => buildItems(props.nodes, null))
+const items = computed(() => buildItems(props.nodes))
 
 // UTree's v-model expects the selected TreeItem object itself (matched
 // against `items` by `getKey`, not by identity) — driving it from

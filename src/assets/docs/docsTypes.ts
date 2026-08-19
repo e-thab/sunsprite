@@ -1,4 +1,4 @@
-import type { DocWidgetName } from '@/components/docs/widgets'
+import type { Component } from 'vue'
 
 export type DocRef = {
 	path: string
@@ -6,67 +6,65 @@ export type DocRef = {
 }
 
 /**
- * An escape hatch from the templated body layout: renders a registered widget
- * component (see `@/components/docs/widgets`) as its own section, so a page can
- * show something the structured `DocBody` shape can't express — the Colors
- * palette grid, for instance.
+ * What every page SFC exports as `meta` from its plain `<script>` block:
+ *
+ * ```vue
+ * <script lang="ts">
+ * export const meta = { title: 'Sprite', icon: 'tabler:photo', summary: 'An image-based game object.' }
+ *
+ * // The page component. A page that needs logic replaces this with a
+ * // `<script setup>` block of its own (and drops this line — Vue allows
+ * // only one of the two).
+ * export default {}
+ * </script>
+ *
+ * <template>
+ *   <DocSignature>new Sprite(options?: SpriteProps)</DocSignature>
+ *   <p>...</p>
+ * </template>
+ * ```
+ *
+ * Nothing here repeats where the file lives — a page's slug is its filename
+ * and its place in the tree is its folder (see docsContent.ts), so moving or
+ * renaming the file is what moves the page.
  */
-export type DocWidgetSection = {
-	/** Key into the widget registry. */
-	widget: DocWidgetName
-	/** Anchor suffix — the section's DOM id becomes `section-<id>`. Must be unique within a page. */
-	id: string
-	/** Section heading. Omit for a bare, heading-less block (then it's left out of the table of contents too). */
-	title?: string
-	/** Rendered above the templated content instead of below it. */
-	placement?: 'top' | 'bottom'
-	/** Bound onto the widget component. */
-	props?: Record<string, unknown>
+export type DocPageMeta = {
+	title: string
+	icon?: string
+	/** One-liner, shown in search results and on the parent category's card for this page. */
+	summary: string
+	/**
+	 * Only meaningful on a category's `index.vue` (and on the content root's):
+	 * the order this folder's pages appear in, listed by slug — a page's
+	 * filename, or a subcategory's folder name. Reordering a category is
+	 * editing this one list; pages it leaves out follow the listed ones,
+	 * alphabetically by title.
+	 */
+	order?: string[]
 }
 
-export type DocCategoryNode = {
-	kind: 'category'
+type DocNodeBase = {
+	/** URL segment, unique among siblings — the page's filename (or folder name, for a category). */
 	slug: string
+	/** Every ancestor slug plus this node's own, joined — i.e. its /docs/... address. */
+	path: string
 	title: string
 	icon?: string
 	summary: string
-	intro?: string
+	/** The page's own SFC. Only ever missing on a category folder with no index.vue. */
+	component?: Component
+	/** The page's visible text, flattened out of its source at build time, for search. */
+	searchText: string
+}
+
+export type DocCategoryNode = DocNodeBase & {
+	kind: 'category'
 	children: DocNode[]
 }
 
-export type DocEntryNode = {
+export type DocEntryNode = DocNodeBase & {
 	kind: 'entry'
-	slug: string
-	title: string
-	icon?: string
-	summary: string
-	body: DocBody
+	component: Component
 }
 
 export type DocNode = DocCategoryNode | DocEntryNode
-
-export type ProseBody = {
-	kind: 'prose'
-	paragraphs: string[]
-	widgets?: DocWidgetSection[]
-	related?: DocRef[]
-}
-
-export type ApiMemberBody = {
-	kind: 'api-member'
-	memberKind: 'trait' | 'class' | 'function' | 'namespace' | 'property' | 'enum'
-	signature?: string
-	description: string
-	params?: { name: string; type: string; description: string; optional?: boolean }[]
-	returns?: { type: string; description: string }
-	/** Own members only — members from a composed trait belong on that trait's own page, see `mixins`. */
-	properties?: { name: string; type: string; description: string }[]
-	/** Own members only — members from a composed trait belong on that trait's own page, see `mixins`. */
-	methods?: { name: string; signature: string; description: string }[]
-	mixins?: DocRef[]
-	example?: string
-	widgets?: DocWidgetSection[]
-	related?: DocRef[]
-}
-
-export type DocBody = ProseBody | ApiMemberBody

@@ -40,27 +40,12 @@ function wordMatches(queryWord: string, haystackWords: string[]): boolean {
 	})
 }
 
-// Flattens whatever's in a node's body into one haystack string — a prose
-// entry's paragraphs, or an api-member's description/signature/params/
-// properties/methods — so search reaches into structured fields, not just a
-// flat `content` string like the old DocSection shape had.
+// A page's own text comes from its SFC source (flattened at build time, see
+// docsContent.ts) rather than from a structured body — pages are free-form
+// markup now, so their prose, param descriptions and examples are only
+// searchable through that.
 function searchableText(node: DocNode): string {
-	const parts = [node.title, node.summary]
-
-	if (node.kind === 'category') {
-		if (node.intro) parts.push(node.intro)
-	} else if (node.body.kind === 'prose') {
-		parts.push(...node.body.paragraphs)
-	} else {
-		const body = node.body
-		parts.push(body.description)
-		if (body.signature) parts.push(body.signature)
-		body.params?.forEach((p) => parts.push(p.name, p.description))
-		body.properties?.forEach((p) => parts.push(p.name, p.description))
-		body.methods?.forEach((m) => parts.push(m.name, m.description))
-	}
-
-	return parts.join(' ')
+	return `${node.title} ${node.summary} ${node.searchText}`
 }
 
 function nodeMatchesSelf(node: DocNode, queryWords: string[]): boolean {

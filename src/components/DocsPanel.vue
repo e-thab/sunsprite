@@ -115,7 +115,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 
 			<pane size="55" class="docs-content-pane">
 				<div class="docs-content-scroll">
-					<DocsCategoryLanding v-if="currentNode?.kind === 'category'" :node="currentNode" :path="currentPath">
+					<DocsCategoryLanding v-if="currentNode?.kind === 'category'" :node="currentNode">
 						<template #header-actions>
 							<UTooltip text="Open in new tab" ignore-non-keyboard-focus>
 								<UButton

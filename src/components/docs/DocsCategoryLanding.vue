@@ -3,10 +3,8 @@ import { inject } from 'vue'
 import type { DocCategoryNode } from '@/assets/docs/docsTypes'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
 
-const props = defineProps<{
+defineProps<{
 	node: DocCategoryNode
-	/** This category's own resolved path, needed to build each child's path. */
-	path: string
 }>()
 
 const nav = inject(docsNavigationKey)!
@@ -22,7 +20,9 @@ const nav = inject(docsNavigationKey)!
 			<slot name="header-actions" />
 		</header>
 
-		<p v-if="node.intro" class="landing-intro">{{ node.intro }}</p>
+		<div v-if="node.component" class="docs-page landing-intro">
+			<component :is="node.component" />
+		</div>
 
 		<div class="landing-cards">
 			<button
@@ -30,7 +30,7 @@ const nav = inject(docsNavigationKey)!
 				:key="child.slug"
 				type="button"
 				class="landing-card"
-				@click="nav.navigate(`${path}/${child.slug}`, { reveal: true })"
+				@click="nav.navigate(child.path, { reveal: true })"
 			>
 				<UIcon v-if="child.icon" :name="child.icon" class="card-icon" />
 				<div class="card-body">
@@ -75,8 +75,7 @@ const nav = inject(docsNavigationKey)!
 }
 
 .landing-intro {
-	margin: 0 0 1.25em;
-	line-height: 1.5;
+	margin-bottom: 1.25em;
 	color: var(--theme-text-toned);
 }
 

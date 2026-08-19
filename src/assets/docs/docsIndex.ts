@@ -10,38 +10,37 @@ export type DocIndexEntry = {
 
 export const nodesByPath = new Map<string, DocNode>()
 
-const parentPathOf = new Map<string, string | null>()
 const breadcrumbLabelOf = new Map<string, string>()
 export const searchEntries: DocIndexEntry[] = []
 
-function walk(nodes: DocNode[], parentPath: string | null, parentLabel: string) {
+function walk(nodes: DocNode[], parentLabel: string) {
 	for (const node of nodes) {
-		const path = parentPath ? `${parentPath}/${node.slug}` : node.slug
 		const breadcrumbLabel = parentLabel ? `${parentLabel} / ${node.title}` : node.title
 
-		nodesByPath.set(path, node)
-		parentPathOf.set(path, parentPath)
-		breadcrumbLabelOf.set(path, breadcrumbLabel)
-		searchEntries.push({ node, path, breadcrumbLabel })
+		nodesByPath.set(node.path, node)
+		breadcrumbLabelOf.set(node.path, breadcrumbLabel)
+		searchEntries.push({ node, path: node.path, breadcrumbLabel })
 
 		if (node.kind === 'category') {
-			walk(node.children, path, breadcrumbLabel)
+			walk(node.children, breadcrumbLabel)
 		}
 	}
 }
-walk(docsTree, null, '')
+walk(docsTree, '')
 
 /** Ancestor chain for `path`, root-first, including `path` itself. Empty if `path` doesn't resolve. */
 export function ancestorsOf(path: string): DocIndexEntry[] {
-	const chain: DocIndexEntry[] = []
-	let current: string | null = path
+	if (!nodesByPath.has(path)) return []
 
-	while (current !== null) {
-		const node = nodesByPath.get(current)
+	const segments = path.split('/')
+	const chain: DocIndexEntry[] = []
+
+	for (let depth = 1; depth <= segments.length; depth++) {
+		const ancestorPath = segments.slice(0, depth).join('/')
+		const node = nodesByPath.get(ancestorPath)
 		if (!node) break
 
-		chain.unshift({ node, path: current, breadcrumbLabel: breadcrumbLabelOf.get(current) ?? node.title })
-		current = parentPathOf.get(current) ?? null
+		chain.push({ node, path: ancestorPath, breadcrumbLabel: breadcrumbLabelOf.get(ancestorPath) ?? node.title })
 	}
 
 	return chain
