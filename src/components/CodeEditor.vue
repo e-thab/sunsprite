@@ -8,6 +8,7 @@ import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
 import { resolveSpecifierToName, listImportSpecifiers } from '@/assets/api/scriptResolution'
 import { TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
+import '@/assets/code-completion/monaco-colors'
 import { ModuleDetectionKind } from 'typescript'
 
 // CodeMirror
