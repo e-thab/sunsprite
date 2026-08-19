@@ -14,6 +14,13 @@ export type ProjectRecord = {
 
 const MAX_SLUG_ATTEMPTS = 5
 
+// A generous cap, not a technical constraint — see MAX_FILE_NAME_LENGTH in
+// fileTypes.ts for the equivalent on scripts/folders/images/text files.
+// Kept as its own constant rather than shared with that one: same current
+// value, but an unrelated data model (Supabase `projects`, not the file
+// tree), free to diverge later.
+export const MAX_PROJECT_NAME_LENGTH = 40
+
 export const useProjectStore = defineStore('projects', () => {
     const projects = ref<ProjectRecord[]>([])
     const loading = ref(false)
@@ -42,6 +49,7 @@ export const useProjectStore = defineStore('projects', () => {
     async function createProject(name: string): Promise<ProjectRecord> {
         const authStore = useAuthStore()
         if (!authStore.user) throw new Error('Must be signed in to create a project')
+        if (name.length > MAX_PROJECT_NAME_LENGTH) throw new Error(`Project names can't be longer than ${MAX_PROJECT_NAME_LENGTH} characters.`)
 
         for (let attempt = 1; attempt <= MAX_SLUG_ATTEMPTS; attempt++) {
             const { data, error } = await supabase
@@ -70,6 +78,8 @@ export const useProjectStore = defineStore('projects', () => {
     }
 
     async function renameProject(id: string, name: string) {
+        if (name.length > MAX_PROJECT_NAME_LENGTH) throw new Error(`Project names can't be longer than ${MAX_PROJECT_NAME_LENGTH} characters.`)
+
         const { error } = await supabase.from('projects').update({ name }).eq('id', id)
         if (error) throw error
 

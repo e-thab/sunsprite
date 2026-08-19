@@ -67,6 +67,17 @@ export function joinFileName(base: string, extension: string): string {
 	return extension ? `${base}.${extension}` : base
 }
 
+// A generous cap, not a technical constraint — keeps tree rows, the editor
+// header, and anywhere else a name renders from being able to blow past
+// reasonable UI bounds. Applies to the full stored name (extension
+// included) for scripts/text files/images, and to the whole name for
+// folders, which have none.
+export const MAX_FILE_NAME_LENGTH = 40
+
+export function isFileNameTooLong(name: string): boolean {
+	return name.length > MAX_FILE_NAME_LENGTH
+}
+
 // The name an upload is stored under: type is recognized from the file's
 // real content type (not trusted from whatever extension, if any, the source
 // file's own name happened to have), and that recognized type's canonical

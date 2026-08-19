@@ -204,7 +204,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
 
         <!-- Try a fieldgroup here -->
         <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
-            <span class="project-name">{{ fileStore.projectName }}</span>
+            <span class="project-name" :title="fileStore.projectName">{{ fileStore.projectName }}</span>
             
             <UTooltip text="Save all files">
                 <UButton
@@ -257,6 +257,11 @@ const accountMenuItems: DropdownMenuItem[][] = [
     display: flex;
     align-items: center;
     gap: 0.5em;
+    /* The project name (.project-header, below) is the one thing in this
+       bar that should give up space first — these hold the actual nav
+       controls (home, docs, theme, account) and should never get squeezed
+       to make room for a long name. */
+    flex-shrink: 0;
 }
 
 .logo-button {
@@ -273,10 +278,18 @@ const accountMenuItems: DropdownMenuItem[][] = [
     gap: 0.6em;
     margin-left: 0.5em;
     color: var(--theme-text);
+    /* Lets this flex item actually shrink below the name's unwrapped width
+       instead of pushing .right-group's nav controls out — flex items
+       default to min-width: auto, which would otherwise block that. */
+    min-width: 0;
 }
 
 .project-name {
     font-weight: bold;
     font-size: 0.9em;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 </style>

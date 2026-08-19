@@ -663,7 +663,10 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 			</div>
 
 			<div id="file-name">
-				<span>{{ fileStore.activeFileName }}</span>
+				<!-- Names are capped at 40 chars (see MAX_FILE_NAME_LENGTH), but
+				     the bar itself can get much narrower than that at small
+				     panel widths — title gives the full name back on hover. -->
+				<span class="file-name-text" :title="fileStore.activeFileName">{{ fileStore.activeFileName }}</span>
 
 				<!-- Runs just this script as the entry point, regardless of
 				     which one the game header's Restart button runs (always
@@ -736,6 +739,20 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 	gap: 0.25em;
 	color: var(--theme-text);
 	justify-self: center;
+	/* Lets this grid item actually shrink below its content's width instead
+	   of overflowing the column — grid items default to min-width: auto,
+	   same trap flex items have. max-width keeps it from claiming more than
+	   its column ever has to give. */
+	min-width: 0;
+	max-width: 100%;
+}
+
+.file-name-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .save-group {

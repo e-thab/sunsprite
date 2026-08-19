@@ -13,7 +13,9 @@ import {
 	IMAGE_ACCEPT_ATTR,
 	imageDisplayName,
 	imageFileTypeForExtension,
+	isFileNameTooLong,
 	joinFileName,
+	MAX_FILE_NAME_LENGTH,
 	scriptFileType,
 	splitFileName,
 } from '@/assets/utils/fileTypes'
@@ -26,6 +28,16 @@ const toast = useToast()
 // Restart button runs (see CodeEditor.vue's runMainScript). Can't be
 // deleted from here (see itemMenuItems) so that invariant always holds.
 const MAIN_SCRIPT_NAME = 'main.js'
+
+// Shared by every create/rename path below (scripts, text files, images,
+// folders) — the rename input also caps typing itself via :maxlength (see
+// renameMaxLength), so this mainly catches window.prompt-based creation,
+// which has no equivalent way to limit input as it's typed.
+function checkNameLength(name: string): boolean {
+	if (!isFileNameTooLong(name)) return true
+	window.alert(`Names can't be longer than ${MAX_FILE_NAME_LENGTH} characters.`)
+	return false
+}
 
 async function copyImageUrl(path: string) {
 	await navigator.clipboard.writeText(path)
@@ -359,6 +371,15 @@ function fileExtension(item: TreeItem): string {
 	return splitFileName(scriptName(item)).extension
 }
 
+// The rename input only ever holds the base name (see startRename) — this
+// caps *that* so the base+extension it gets rejoined into in commitRename
+// can never exceed MAX_FILE_NAME_LENGTH in the first place, rather than
+// letting the user type past the limit and rejecting it after the fact.
+function renameMaxLength(item: TreeItem): number {
+	const extension = fileExtension(item)
+	return Math.max(0, MAX_FILE_NAME_LENGTH - (extension ? extension.length + 1 : 0))
+}
+
 // Drives the name/icon coloring below: a script that just threw takes
 // priority over merely being unsaved, so the row reads as "look here" rather
 // than the two states visually competing.
@@ -389,6 +410,7 @@ async function addScript(folderId: string | null) {
 	const base = splitFileName(input.trim()).base
 	if (!base) return
 	const name = joinFileName(base, DEFAULT_SCRIPT_FILE_TYPE.extension)
+	if (!checkNameLength(name)) return
 
 	if (fileStore.scripts.some((script) => script.name === name)) {
 		window.alert('A script with that name already exists.')
@@ -401,6 +423,7 @@ async function addScript(folderId: string | null) {
 async function addFolder(parentId: string | null) {
 	const name = window.prompt('New folder name:')
 	if (!name) return
+	if (!checkNameLength(name)) return
 
 	const hasNameCollision = fileStore.childNodes(parentId).some((node) => node.kind === 'folder' && node.name === name)
 	if (hasNameCollision) {
@@ -432,7 +455,9 @@ function uploadFile(folderId: string | null) {
 		// The name it'll actually be stored under — its recognized type's
 		// canonical extension, not necessarily whatever this source file was
 		// called (see imageDisplayName) — is what has to be unique, not file.name.
-		if (fileStore.images.some((img) => img.name === imageDisplayName(file))) {
+		const name = imageDisplayName(file)
+		if (!checkNameLength(name)) return
+		if (fileStore.images.some((img) => img.name === name)) {
 			window.alert('A file with that name already exists in this project.')
 			return
 		}
@@ -455,6 +480,7 @@ async function addTextFile(folderId: string | null) {
 	const base = splitFileName(input.trim()).base
 	if (!base) return
 	const name = joinFileName(base, DEFAULT_TEXT_FILE_TYPE.extension)
+	if (!checkNameLength(name)) return
 
 	if (fileStore.textFiles.some((f) => f.name === name)) {
 		window.alert('A file with that name already exists in this project.')
@@ -654,13 +680,17 @@ function commitRename(item: TreeItem) {
 	if (!typed) return
 
 	if (item.kind === 'folder') {
+		if (!checkNameLength(typed)) return
 		renameFolder(item.id, scriptName(item), item.parentId ?? null, typed)
 		return
 	}
 
 	// The extension itself was never part of renamingValue (see startRename),
 	// so it's re-attached here rather than trusted from what was typed.
+	// renameMaxLength already keeps this under the limit by construction —
+	// this is a backstop, not the primary defense.
 	const name = joinFileName(typed, fileExtension(item))
+	if (!checkNameLength(name)) return
 	if (item.kind === 'image') renameImage(item.id, scriptName(item), name)
 	else if (item.kind === 'text') renameTextFile(item.id, scriptName(item), name)
 	else renameScript(scriptName(item), name)
@@ -998,6 +1028,7 @@ async function onDropOnRoot() {
 								class="rename-input"
 								autocomplete="off"
 								spellcheck="false"
+								:maxlength="renameMaxLength(item)"
 								@click.stop
 								@mousedown.stop
 								@keydown.enter="commitRename(item)"

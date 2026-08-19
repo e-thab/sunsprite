@@ -144,6 +144,22 @@ onMounted(() => projectStore.fetchProjects())
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
+  /* Lets this flex item actually shrink below its name's unwrapped width
+     instead of pushing the row wider — flex items default to min-width:
+     auto, so without this a long name would never be forced to wrap. */
+  min-width: 0;
+}
+
+/* Targets the name UButton's root element — it renders {{ project.name }}
+   as plain slot content (no wrapping `truncate`-classed span of its own,
+   confirmed by reading Button.vue), so it inherits white-space: normal
+   already, but still needs the same min-width fix as its parent above
+   (it's a flex row internally too) and overflow-wrap as a backstop for a
+   single unbroken run of characters longer than the row is wide. */
+.project-row-info :deep(button) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .project-updated {
@@ -154,5 +170,6 @@ onMounted(() => projectStore.fetchProjects())
 .project-row-actions {
   display: flex;
   gap: 0.25em;
+  flex-shrink: 0;
 }
 </style>
