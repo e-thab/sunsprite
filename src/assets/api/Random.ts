@@ -39,6 +39,11 @@ const Random = {
         return uppercase ? this.char(alpha).toUpperCase() : this.char(alpha)
     },
 
+    // Word... include kid-friendly word list?
+    // word(length: number): string {
+
+    // }
+
     // Random character from a string
     char(str: string): string {
         return str.charAt(this.range(0, str.length - 1))

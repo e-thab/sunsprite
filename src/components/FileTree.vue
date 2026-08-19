@@ -911,10 +911,19 @@ async function onDropOnRoot() {
 
 		<UContextMenu :disabled="!fileStore.projectId" :items="folderMenuItems(null)">
 			<div class="file-tree" @dragover.prevent="onDragOverRoot" @dragleave="onDragLeaveRoot" @drop="onDropOnRoot">
+				<!-- selection-behavior="replace": Reka's own default ('toggle')
+				deselects an item when it's clicked again while already
+				selected, which — since this is a real v-model straight to the
+				shared store — actually cleared the selection (see
+				treeSelectionStore.ts; AssetLibrary.vue's UTree needs the same
+				fix, sharing that same store/model). 'replace' always
+				re-selects on click instead, so re-clicking the active item is
+				a no-op rather than deactivating it. -->
 				<UTree
 					v-model="treeSelectionStore.current"
 					:items="items"
 					:get-key="(item: TreeItem) => item.id ?? item.label"
+					selection-behavior="replace"
 					:expanded="controlledExpandedIds"
 					@update:expanded="onUpdateExpanded"
 					class="file-tree"
@@ -1064,18 +1073,6 @@ async function onDropOnRoot() {
 	position: absolute;
 	inset: 0;
 	border-radius: 0.25rem;
-}
-
-/* Applied to Nuxt UI's own row element (rather than as a Tailwind class via
-   the tree's `:ui` prop) so it paints as a real background behind the row's
-   own content — icon and label included — instead of a layer stacked above
-   it. `:hover` here fires from *any* descendant, .item-actions' own button
-   included, since hover state bubbles to every ancestor regardless of which
-   element the pointer is actually over; the :has() exclusion is what keeps
-   that button's own hover (see .item-actions below) as a highlight on just
-   the button, rather than both it and the row lighting up together. */
-:deep([data-slot="link"]:hover:not(:has(.item-actions:hover))) {
-	background-color: var(--theme-bg-accented);
 }
 
 /* .tree-row-dnd needs to *stay* interactive while renaming (not

@@ -17,7 +17,9 @@ const nav = inject(docsNavigationKey)!
 				<UIcon v-if="node.icon" :name="node.icon" class="header-icon" />
 				<h1 class="header-title">{{ node.title }}</h1>
 			</div>
-			<slot name="header-actions" />
+			<div class="header-actions">
+				<slot name="header-actions" />
+			</div>
 		</header>
 
 		<div v-if="node.component" class="docs-page landing-intro">
@@ -56,11 +58,13 @@ const nav = inject(docsNavigationKey)!
 	margin-bottom: 0.5em;
 }
 
+/* flex-shrink: 0 rather than the min-width: 0 this used to carry — see the
+   matching block in DocsBody.vue for why. */
 .header-title-group {
 	display: flex;
 	align-items: center;
 	gap: 0.5em;
-	min-width: 0;
+	flex-shrink: 0;
 }
 
 .header-icon {
@@ -72,6 +76,11 @@ const nav = inject(docsNavigationKey)!
 	margin: 0;
 	font-size: 1.3em;
 	color: var(--theme-text-highlighted);
+	white-space: nowrap;
+}
+
+.header-actions {
+	flex-shrink: 0;
 }
 
 .landing-intro {

@@ -15,13 +15,30 @@ import ErrorView from './ErrorView.vue'
 const route = useRoute()
 const router = useRouter()
 
-const currentPath = computed(() => {
+const routePath = computed(() => {
 	const raw = route.params.pathMatch
 	return Array.isArray(raw) ? raw.join('/') : (raw ?? '')
 })
 
+// router.push() below is async — actual navigation (route match, guards, the
+// page's own re-render) can lag a click by several ms, which visibly showed
+// as the clicked tree item's highlight briefly holding its hover color
+// before snapping to the current-page one once the route caught up.
+// optimisticPath tracks the just-clicked target so currentPath — and
+// everything driven by it (tree highlight, page content, TOC) — updates the
+// instant navigate() runs, with the real route/URL following shortly after
+// in the background. Cleared once that push settles (resolved or rejected;
+// .finally() covers both) — guarded on still being the same path in case a
+// second click landed before the first's push settled, so that one's own
+// clear doesn't stomp the second click's own still-pending state.
+const optimisticPath = ref<string | null>(null)
+const currentPath = computed(() => optimisticPath.value ?? routePath.value)
+
 function navigate(path: string, opts?: { reveal?: boolean }) {
-	router.push(`/docs/${path}`)
+	optimisticPath.value = path
+	router.push(`/docs/${path}`).finally(() => {
+		if (optimisticPath.value === path) optimisticPath.value = null
+	})
 	if (opts?.reveal) {
 		for (const entry of ancestorsOf(path)) expandOverrides.set(entry.path, true)
 	}

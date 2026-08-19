@@ -20,6 +20,7 @@ import Line from './Line'
 import HLine from './HLine'
 import VLine from './VLine'
 import Timer from './Timer'
+import Clock from './Clock'
 // import Camera from './Camera';  --  needs phaser attention
 
 // export const outputItems: {
@@ -38,11 +39,11 @@ import Timer from './Timer'
 // data; hostBridge.ts turns it back into refs on the app side.
 
 export function pause() {
-	Clock.pause()
+	clock.pause()
 	paused = true
 }
 export function play() {
-	Clock.play()
+	clock.play()
 	paused = false
 }
 
@@ -59,6 +60,9 @@ export let allPositionables: { _updatePosition(): void }[] = []
 
 /** A map associating Phaser objects to custom Sunsprite objects */
 export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
+
+/** All timer objects that need updating each frame */
+export let allTimers: Timer[] = []
 
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
@@ -120,9 +124,15 @@ export function updatePositions() {
 	}
 }
 
+function updateTimers() {
+	for (const timer of allTimers) {
+		timer._update()
+	}
+}
+
 function _runForevers() {
 	for (const forever of _forevers) {
-		forever(Clock.delta)
+		forever(clock.delta)
 	}
 }
 
@@ -257,7 +267,7 @@ function _clearKeysJustReleased(frame: number) {
 
 function _releaseAllKeys() {
 	for (const key of keysPressed) {
-		keysJustReleased.set(key, Clock.frame)
+		keysJustReleased.set(key, clock.frame)
 	}
 	keysPressed = []
 }
@@ -296,7 +306,7 @@ export let game: Game
 export let scene: Scene
 export let camera: Phaser.Cameras.Scene2D.Camera
 export const mouse = new Mouse()
-export const Clock: Timer = new Timer()
+export const clock: Clock = new Clock()
 export let paused = false
 
 // TODO: Turn Timer into a class, but still provide the default singleton
@@ -743,8 +753,8 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, /*Point,*/
-			Clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, /*Point,*/
+			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			Output: UserOutput, print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
@@ -811,7 +821,8 @@ class UserScene extends Scene {
 	
 	update(time: number, delta: number) {
 		// onUpdate()
-		Clock._update(delta)
+		clock._update(delta)
+		updateTimers()
 
 		// Only update mouse pos while mouse is over canvas, otherwise clicking code editor updates
 		if (mouseOverCanvas()) {
@@ -826,8 +837,8 @@ class UserScene extends Scene {
 			_runRepeats()
 			_runRepeatUntils()
 			_runRepeatWhiles()
-			_runAfters(Clock.deltaMs)
-			_runEverys(Clock.deltaMs)
+			_runAfters(clock.deltaMs)
+			_runEverys(clock.deltaMs)
 
 			_runPropUpdaters()
 		}
@@ -836,8 +847,8 @@ class UserScene extends Scene {
 		// state; keydown/keyup arrive async between ticks and get stamped with whatever
 		// Clock.frame was at that moment, so clearing before _runOnKeyActions() would wipe
 		// them out one tick before anything ever reads them.
-		_clearKeysJustPressed(Clock.frame)
-		_clearKeysJustReleased(Clock.frame)
+		_clearKeysJustPressed(clock.frame)
+		_clearKeysJustReleased(clock.frame)
 	}
 }
 
@@ -857,6 +868,7 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 	_repeatUntils = []
 	_repeatWhiles = []
 	allPositionables = []
+	allTimers = []
 
 	_keyPressActions.clear()
 	_keyHoldActions.clear()
@@ -874,12 +886,12 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 	// timer.time = 0
 	// timer.totalTime = 0
 	// timer.frame = 0
-	// Clock.frame = 0
+	// clock.frame = 0
 	_nextObjectId = 0
 	_lastLeftClickTime = 0
 	
 	Output.printStartMsg()
-	Clock.reset()
+	clock._reset()
 	play()
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
@@ -993,21 +1005,21 @@ export function setup() {
 		// Add specific key to keysJustPressed map
 		if (keyCode && !keysPressed.includes(keyCode)) {
 			keysPressed.push(keyCode)
-			keysJustPressed.set(keyCode, Clock.frame)
+			keysJustPressed.set(keyCode, clock.frame)
 			
 			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keysPressed.includes('shift')) {
 				keysPressed.push('shift')
-				keysJustPressed.set('shift', Clock.frame)
+				keysJustPressed.set('shift', clock.frame)
 			}
 
 			else if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keysPressed.includes('ctrl')) {
 				keysPressed.push('ctrl')
-				keysJustPressed.set('ctrl', Clock.frame)
+				keysJustPressed.set('ctrl', clock.frame)
 			}
 
 			else if ((keyCode === 'altleft' || keyCode === 'altright') && keysPressed.includes('alt')) {
 				keysPressed.push('alt')
-				keysJustPressed.set('alt', Clock.frame)
+				keysJustPressed.set('alt', clock.frame)
 			}
 		}
 	}
@@ -1021,24 +1033,24 @@ export function setup() {
 			keysPressed.splice(keysPressed.indexOf(keyCode), 1)
 			// Only add to map if it was being pressed. This prevents potential extra release events
 			// if releasing key after window regains focus
-			keysJustReleased.set(keyCode, Clock.frame)
+			keysJustReleased.set(keyCode, clock.frame)
 
 			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keyPressed('shiftleft') && !keyPressed('shiftright')) {
 				// console.log('clear shift')
 				keysPressed.splice(keysPressed.indexOf('shift'), 1)
-				keysJustReleased.set('shift', Clock.frame)
+				keysJustReleased.set('shift', clock.frame)
 			}
 
 			if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keyPressed('ctrlleft') && !keyPressed('ctrlright')) {
 				// console.log('clear ctrl')
 				keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
-				keysJustReleased.set('ctrl', Clock.frame)
+				keysJustReleased.set('ctrl', clock.frame)
 			}
 
 			if ((keyCode === 'altleft' || keyCode === 'altright') && !keyPressed('altleft') && !keyPressed('altright')) {
 				// console.log('clear alt')
 				keysPressed.splice(keysPressed.indexOf('alt'), 1)
-				keysJustReleased.set('alt', Clock.frame)
+				keysJustReleased.set('alt', clock.frame)
 			}
 		}
 	}

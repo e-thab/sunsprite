@@ -239,14 +239,9 @@ class Timer {
 	time: number
 
 	/** Time since start in milliseconds including pause time */
-	totalTimeMs: number
+	ageMs: number
 	/** Time since start in seconds including pause time */
-	totalTime: number
-
-	/** Actual (but smoothed) time since last frame in milliseconds */
-	deltaMs: number
-	/** Time since last frame normalized to 60fps (will usually be around 1) */
-	delta: number
+	age: number
 
 	/** Number of frames since start */
 	frame: number
@@ -275,9 +270,46 @@ class Timer {
 }
 
 /**
- * Game clock, instance of the Timer class.
+ * Game clock, derived largely from Timer but with some key differences.
  */
-declare const Clock: Timer
+declare const Clock: {
+    /** Actual (but smoothed) time since last frame in milliseconds */
+	deltaMs: number
+	/** Time since last frame normalized to 60fps (will usually be around 1) */
+	delta: number
+
+    /** Time since start in milliseconds, does not increment during pause */
+	timeMs: number 
+	/** Time since start in seconds, does not increment during pause */
+	time: number
+
+    /** Time since start in milliseconds including pause time */
+	ageMs: number
+	/** Time since start in seconds including pause time */
+	age: number
+
+	/** Number of frames since start */
+	frame: number
+
+	/** Time this run started in milliseconds since the Unix epoch */
+	startTimeMs: number
+	/** Time this run started in seconds since the Unix epoch */
+	startTime: number
+
+	/** Current time in milliseconds */
+	nowMs: number = 0
+	/** Current time in seconds */
+	now: number
+
+	/** Is the game currently paused? */
+	paused: boolean
+
+	/** Pause the game */
+	pause(): void
+
+	/** Resume the game */
+	play(): void
+}
 
 /**
  * An array of all keys currently pressed.

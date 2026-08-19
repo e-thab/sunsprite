@@ -94,7 +94,11 @@ const items: TreeItem[] = [
 		</div>
 
 		<div class="asset-tree">
-			<UTree v-model="treeSelectionStore.current" :items="items" class="asset-tree">
+			<!-- selection-behavior="replace": see the matching UTree in
+			FileTree.vue, which shares this same treeSelectionStore v-model —
+			without it, re-clicking the already-active item deselects it
+			instead of leaving it active. -->
+			<UTree v-model="treeSelectionStore.current" :items="items" selection-behavior="replace" class="asset-tree">
 				<template #item-leading="{ item, expanded }">
 					<img v-if="item.thumbnail" :src="item.thumbnail" class="thumbnail-icon" alt="" />
 					<UIcon v-else-if="item.icon" :name="item.icon" class="leading-icon" />

@@ -1,5 +1,5 @@
 import Colors from '@/assets/api/Colors'
-import { Clock } from '@/assets/api/core'
+import { clock } from '@/assets/api/core'
 import type { Printable } from '@/assets/api/types'
 import { postToHost } from './channel'
 import type { OutputKind } from './protocol'
@@ -34,7 +34,7 @@ function joinArgs(args: Printable[]): string {
 }
 
 function send(kind: OutputKind, text: string) {
-    postToHost({ type: 'output', kind, text, frame: Clock.frame })
+    postToHost({ type: 'output', kind, text, frame: clock.frame })
 }
 
 export function print(...args: Printable[]) {
