@@ -41,7 +41,7 @@ let frame: HTMLIFrameElement | null = null
 let sandboxReady = false
 
 /** Set while the sandbox is still booting, so an early Run isn't dropped. */
-let queuedRun: { code: string, theme?: ThemePalette } | null = null
+let queuedRun: { code: string, entryName: string, theme?: ThemePalette } | null = null
 
 /** URL for the sandbox document, carrying our origin so it can address replies. */
 export function sandboxUrl(): string {
@@ -102,7 +102,7 @@ function onSandboxMessage(event: MessageEvent) {
             break
 
         case 'output':
-            Output.render(message.kind, message.text, message.frame)
+            Output.render(message.kind, message.text, message.frame, message.location)
             break
 
         case 'output-clear':
@@ -142,12 +142,12 @@ function resolveScript(name: string): string | undefined {
     return undefined
 }
 
-export function runUserCode(code: string, theme?: ThemePalette) {
+export function runUserCode(code: string, entryName: string, theme?: ThemePalette) {
     if (!sandboxReady) {
-        queuedRun = { code, theme }
+        queuedRun = { code, entryName, theme }
         return
     }
-    post({ type: 'run', code, theme })
+    post({ type: 'run', code, entryName, theme })
 }
 
 export function pause() {

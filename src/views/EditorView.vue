@@ -207,7 +207,35 @@ function loadScript(fileName: string) {
   fileStore.activate(fileName)
   editor.value.switchToScript(fileName)
   editor.value.updateSaveMsg()
+
+  // Keeps FileTree's selected row following the active file even when
+  // something other than clicking the tree itself triggered the switch (the
+  // error-jump handler below being the case that actually needed this —
+  // clicking the tree already does this on its own via UTree's v-model).
+  // FileTree keys a selection by id when the item has one (see its
+  // :get-key), so a plain { label } stand-in wouldn't highlight a real
+  // project script — only the id-less guest-mode tree matches by label alone.
+  const record = fileStore.scripts.find((s) => s.name === fileName) ?? fileStore.textFiles.find((f) => f.name === fileName)
+  treeSelectionStore.current = record ? { id: record.id, label: fileName } : { label: fileName }
 }
+
+// A runtime error's "at script:line" link in the output panel (see
+// output.ts) jumps here: switch to the script it happened in, same as
+// clicking it in the file tree, then have the editor highlight/scroll to it.
+Output.onJumpToError((script, line) => {
+  loadScript(script)
+  editor.value.revealErrorLine(script, line)
+})
+
+// Every runtime error with a known location highlights its line as soon as
+// it happens, not just ones the user clicks through to — but without
+// switching files out from under them, unlike the click handler above. Also
+// marks the script itself in FileTree, so a script that isn't even open
+// still shows something's wrong with it.
+Output.onErrorLocation((script, line) => {
+  editor.value?.revealErrorLine(script, line)
+  fileStore.setErroredScript(script)
+})
 
 // const readyComponents = {
 //   output: false,

@@ -1,5 +1,6 @@
 import * as ts from 'typescript'
 import { resolveSpecifierToName } from './scriptResolution'
+import type { OutputLocation } from '@/sandbox/protocol'
 
 // Lets project/guest scripts `import`/`export` between each other. Real ESM
 // semantics (live bindings, default/named/namespace imports) via a Blob URL
@@ -141,8 +142,14 @@ function buildApiModuleSource(apiKeys: string[]): string {
  * Everything goes on a single physical line so error line numbers reported
  * against the compiled module still line up with what the user sees in the
  * editor (offset by exactly the one prelude line, as before).
+ *
+ * The trailing `//# sourceURL=` comment gives the compiled Blob module the
+ * script's own name in stack traces (`main.js:12:3`) instead of an opaque
+ * `blob:...` URL — see locateError below, which depends on it.
  */
 function compileScript(source: string, label: string, apiKeys: string[], apiUrl: string): string {
+    checkSyntax(source, label)
+
     const imported = [...apiKeys, IMPORT_HELPER, BLOCK_HELPER]
     const parts = [`import { ${imported.join(', ')} } from ${JSON.stringify(apiUrl)};`]
 
@@ -156,7 +163,156 @@ function compileScript(source: string, label: string, apiKeys: string[], apiUrl:
         parts.push(`const ${bindings};`)
     }
 
-    return parts.join(' ') + '\n' + rewriteImports(source, label)
+    return parts.join(' ') + '\n' + rewriteImports(source, label) + `\n//# sourceURL=${label}`
+}
+
+// A location stashed directly on an Error we threw ourselves — see
+// checkSyntax below — takes priority over stack-parsing in locateError,
+// since the whole reason it exists is for cases where the stack has none.
+interface LocatedError extends Error {
+    __sunspriteLocation?: OutputLocation
+}
+
+function withLocation<T extends Error>(error: T, location: OutputLocation): T {
+    (error as LocatedError).__sunspriteLocation = location
+    return error
+}
+
+/**
+ * Parses `source` with the same TS parser rewriteImports already depends on,
+ * *before* any of the rewriting/prelude below, so a syntax error is caught
+ * against exactly the line numbers the user's own editor shows — unlike a
+ * syntax error from the compiled Blob module's own dynamic import(), which
+ * V8 throws with no line/column at all (just "SyntaxError: Unexpected
+ * token"), leaving locateError's stack-parsing nothing to recover.
+ */
+function checkSyntax(source: string, label: string): void {
+    const { diagnostics } = ts.transpileModule(source, {
+        fileName: label,
+        reportDiagnostics: true,
+        // Matches the target the editor's own TS worker checks against
+        // (CodeEditor.vue) — otherwise perfectly valid modern syntax (e.g.
+        // optional chaining) risks a false-positive "not supported" diagnostic
+        // from whatever older default transpileModule would otherwise assume.
+        compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext },
+    })
+
+    const diagnostic = diagnostics?.find((d) => d.category === ts.DiagnosticCategory.Error)
+    if (diagnostic && diagnostic.start !== undefined && diagnostic.file) {
+        const { line } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start)
+        const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')
+        throw withLocation(new SyntaxError(message), { script: label, line: line + 1 })
+    }
+
+    checkGrammarRestrictions(source, label)
+}
+
+// Diagnostic codes TS only raises from a full semantic pass (the binder),
+// not from parsing alone — but that are genuine grammar violations regardless
+// of context, unlike the vast majority of what a semantic pass flags (e.g.
+// "cannot find name 'Sprite'", which is only an error because this isolated
+// single-file check has no idea the runtime prelude defines it). Restricted
+// to a narrow, deliberately-curated allowlist so running the checker below
+// can never fail a script for a reason that wouldn't have failed at runtime —
+// each entry here was verified (see moduleRunner test notes) to both (a) be
+// a genuine compile-time SyntaxError in real V8 and (b) never fire merely
+// because this isolated single-file check can't see the runtime's ambient
+// globals. `arguments`/`eval` restrictions are deliberately NOT here: TS only
+// flags them via "cannot find name", the exact code every ordinary script
+// trips on for Sprite/forever/print/etc., so there's no safe way to tell
+// those apart here.
+const GRAMMAR_RESTRICTION_CODES = new Set([
+    1104,  // "A 'continue' statement can only be used within an enclosing iteration statement."
+    1105,  // "A 'break' statement can only be used within an enclosing iteration or switch statement."
+    1108,  // "A 'return' statement can only be used within a function body."
+    1155,  // "'const' declarations must be initialized."
+    1163,  // "A 'yield' expression is only allowed in a generator body."
+    2300,  // "Duplicate identifier '...'." (e.g. two parameters with the same name)
+    2410,  // "The 'with' statement is not supported."
+    2451,  // "Cannot redeclare block-scoped variable '...'."
+    2703,  // "The operand of a 'delete' operator must be a property reference."
+    17013, // "Meta-property 'new.target' is only allowed in the body of a function..."
+    18016, // "Private identifiers are not allowed outside class bodies."
+])
+
+/**
+ * Catches constructs TS's own parser accepts but the actual runtime's
+ * grammar doesn't — e.g. a stray `#name` outside a class, or a `continue`
+ * outside a loop, are both valid enough to survive transpileModule's
+ * syntax-only pass above, but V8 rejects them at parse time with a
+ * SyntaxError that (like all of them) carries no location. Always runs
+ * (rather than gating on some cheap substring check first, the way an
+ * earlier version of this gated on the source containing '#'): the codes
+ * above cover far too broad a set of ordinary-looking syntax for any single
+ * cheap pre-filter to be worth the complexity.
+ */
+function checkGrammarRestrictions(source: string, label: string): void {
+    const sourceFile = ts.createSourceFile(label, source, ts.ScriptTarget.ES2020, true, ts.ScriptKind.JS)
+    const compilerOptions: ts.CompilerOptions = {
+        allowJs: true,
+        checkJs: true,
+        noLib: true,
+        noResolve: true,
+        target: ts.ScriptTarget.ES2020,
+        module: ts.ModuleKind.ESNext,
+    }
+    const host: ts.CompilerHost = {
+        getSourceFile: (fileName) => fileName === label ? sourceFile : undefined,
+        getDefaultLibFileName: () => 'lib.d.ts',
+        writeFile: () => {},
+        getCurrentDirectory: () => '',
+        getDirectories: () => [],
+        fileExists: (fileName) => fileName === label,
+        readFile: () => undefined,
+        getCanonicalFileName: (fileName) => fileName,
+        useCaseSensitiveFileNames: () => true,
+        getNewLine: () => '\n',
+    }
+
+    const program = ts.createProgram([label], compilerOptions, host)
+    const diagnostic = program.getSemanticDiagnostics(sourceFile)
+        .find((d) => GRAMMAR_RESTRICTION_CODES.has(d.code))
+    if (!diagnostic || diagnostic.start === undefined || !diagnostic.file) return
+
+    const { line } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start)
+    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')
+    throw withLocation(new SyntaxError(message), { script: label, line: line + 1 })
+}
+
+// Matches a Chrome/V8-style stack frame line, e.g. `    at foo (main.js:12:3)`
+// or `    at main.js:12:3`. Frames from real page/bundle code report a full
+// URL (`http://...`) or an un-sourceURL'd blob (`blob:...`); only frames
+// inside a compiled user script report a bare name, because that's exactly
+// what the `//# sourceURL=` comment above gives them.
+const STACK_FRAME_RE = /at\s+(?:.*?\s+\()?([^\s():]+):(\d+):(\d+)\)?\s*$/
+
+/**
+ * Best-effort recovery of "which script, which line" from a thrown error's
+ * stack trace, for surfacing in the output panel. Returns undefined rather
+ * than guessing wrong — e.g. for a stack format this doesn't recognize, or an
+ * error with no useful stack at all (some resolution failures are just
+ * `throw new Error(...)` from this module itself).
+ */
+export function locateError(error: unknown): OutputLocation | undefined {
+    if (!(error instanceof Error)) return undefined
+
+    const attached = (error as LocatedError).__sunspriteLocation
+    if (attached) return attached
+
+    if (!error.stack) return undefined
+
+    for (const rawLine of error.stack.split('\n')) {
+        const match = rawLine.match(STACK_FRAME_RE)
+        if (!match) continue
+
+        const [, file, lineStr] = match
+        if (!file || !lineStr) continue
+        if (file.includes('://') || file.startsWith('blob:')) continue
+
+        // -1 undoes the single prelude line every compiled script is given above.
+        return { script: file, line: Math.max(1, Number(lineStr) - 1) }
+    }
+    return undefined
 }
 
 /**
@@ -189,7 +345,7 @@ function runAsModule(code: string): Promise<any> {
     return import(/* @vite-ignore */ url).finally(() => URL.revokeObjectURL(url))
 }
 
-export async function runEntryModule(entryCode: string, api: Record<string, unknown>): Promise<void> {
+export async function runEntryModule(entryCode: string, api: Record<string, unknown>, entryName: string): Promise<void> {
     const apiKeys = Object.keys(api)
 
     // Held for the whole run: every script compiled below imports this exact
@@ -224,7 +380,7 @@ export async function runEntryModule(entryCode: string, api: Record<string, unkn
     ;(globalThis as any)[BLOCK_HELPER] = blockedGlobal
 
     try {
-        await runAsModule(compileScript(entryCode, 'main.js', apiKeys, apiUrl))
+        await runAsModule(compileScript(entryCode, entryName, apiKeys, apiUrl))
     } finally {
         URL.revokeObjectURL(apiUrl)
     }

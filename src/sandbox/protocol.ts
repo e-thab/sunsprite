@@ -9,8 +9,14 @@ import type { ThemePalette } from '@/assets/theme/themes'
 
 /** host -> sandbox */
 export type HostMessage =
-    /** Start a fresh run. `code` is the entry script (main.js equivalent). */
-    | { type: 'run', code: string, theme?: ThemePalette }
+    /**
+     * Start a fresh run. `code` is the entry script's content — whichever
+     * file was active in the editor, not necessarily "main.js" — and
+     * `entryName` is that file's real name, so compiled stack traces (and
+     * therefore locateError) attribute errors to it correctly instead of
+     * always assuming "main.js".
+     */
+    | { type: 'run', code: string, entryName: string, theme?: ThemePalette }
     /** Reply to a 'script-request'. `content: null` means "no such script". */
     | { type: 'script-response', id: number, content: string | null }
     | { type: 'set-paused', paused: boolean }
@@ -42,7 +48,7 @@ export type SandboxMessage =
      * in-page runner used to read the store directly.
      */
     | { type: 'script-request', id: number, name: string }
-    | { type: 'output', kind: OutputKind, text: string, frame: number }
+    | { type: 'output', kind: OutputKind, text: string, frame: number, location?: OutputLocation }
     | { type: 'output-clear' }
     /** Periodic telemetry for the canvas panel's FPS badge / mouse readout, and the Info panel. */
     | {
@@ -65,6 +71,17 @@ export type SandboxMessage =
     }
 
 export type OutputKind = 'print' | 'warn' | 'error' | 'start'
+
+/**
+ * Where in the user's own scripts a runtime error was thrown, if it could be
+ * recovered from the error's stack trace (see moduleRunner.ts's locateError).
+ * `line` is already corrected for the one-line prelude every compiled script
+ * carries, so it's directly a line the user's editor can point at.
+ */
+export interface OutputLocation {
+    script: string
+    line: number
+}
 
 /**
  * A watch() card's values, already formatted to display strings sandbox-side

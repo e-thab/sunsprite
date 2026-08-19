@@ -353,6 +353,16 @@ function fileExtension(item: TreeItem): string {
 	return splitFileName(scriptName(item)).extension
 }
 
+// Drives the name/icon coloring below: a script that just threw takes
+// priority over merely being unsaved, so the row reads as "look here" rather
+// than the two states visually competing.
+function itemStateClass(item: TreeItem): string | undefined {
+	const name = scriptName(item)
+	if (fileStore.erroredScriptName === name) return 'item-state-error'
+	if (fileStore.isDirty(name)) return 'item-state-dirty'
+	return undefined
+}
+
 // Human label for the rename/delete tooltips below — a plain if-chain reads
 // better here than a 4-way ternary once 'text' joins 'folder'/'image'/'script'.
 function kindLabel(item: TreeItem): string {
@@ -930,7 +940,7 @@ async function onDropOnRoot() {
 				>
 					<template #item-leading="{ item, expanded }">
 						<img v-if="item.thumbnail" :src="item.thumbnail" :title="item.typeLabel" class="thumbnail-icon" alt="" />
-						<UIcon v-else-if="item.icon" :name="item.icon" :title="item.typeLabel" class="leading-icon" />
+						<UIcon v-else-if="item.icon" :name="item.icon" :title="item.typeLabel" class="leading-icon" :class="itemStateClass(item)" />
 						<UIcon v-else-if="item.kind === 'folder' || item.children?.length" :name="expanded ? 'tabler:folder-open-filled' : 'tabler:folder-filled'" class="leading-icon" />
 					</template>
 
@@ -979,7 +989,7 @@ async function onDropOnRoot() {
 							<span v-if="fileExtension(item)" class="rename-extension">.{{ fileExtension(item) }}</span>
 						</div>
 						<template v-else>
-							{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span>
+							<span :class="itemStateClass(item)">{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span></span>
 						</template>
 					</template>
 
@@ -1030,8 +1040,19 @@ async function onDropOnRoot() {
 }
 
 .dirty-marker {
-	color: var(--theme-warning);
+	/* Inherits from whichever of .item-state-error/.item-state-dirty is on
+	   the wrapping span below — the marker only ever renders alongside one
+	   of those two, so it always ends up the same color as the name next to it. */
+	color: inherit;
 	margin-left: 0.15em;
+}
+
+.item-state-dirty {
+	color: var(--theme-warning);
+}
+
+.item-state-error {
+	color: var(--theme-error);
 }
 
 .thumbnail-icon {

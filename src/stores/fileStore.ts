@@ -110,6 +110,22 @@ export const useFileStore = defineStore('files', () => {
         dirtyFiles.value = next
     }
 
+    // Name of the script whose runtime error is currently shown in the
+    // output panel, if its location was recoverable (see output.ts's
+    // onErrorLocation) — lets FileTree highlight which file to look at
+    // without the user having to open it first. Cleared the moment a fresh
+    // run starts (see CodeEditor.vue's runActiveUserCode), same lifecycle as
+    // the matching line highlight in the editor itself.
+    const erroredScriptName = ref<string | undefined>(undefined)
+
+    function setErroredScript(fileName: string) {
+        erroredScriptName.value = fileName
+    }
+
+    function clearErroredScript() {
+        erroredScriptName.value = undefined
+    }
+
     // CodeEditor.vue owns the live Monaco models (fileStore doesn't know
     // script content beyond what's already saved), so "save everything" has
     // to be delegated to whichever CodeEditor instance is currently mounted.
@@ -628,6 +644,9 @@ export const useFileStore = defineStore('files', () => {
         isTextFile,
         markDirty,
         markClean,
+        erroredScriptName,
+        setErroredScript,
+        clearErroredScript,
         registerSaveAllHandler,
         saveAll,
         loadProject,

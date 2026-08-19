@@ -1,6 +1,7 @@
 import { ref } from "vue"
 import Colors from "./Colors"
 import type { Printable } from "./types"
+import type { OutputLocation } from "@/sandbox/protocol"
 
 // Host-side output panel renderer. This owns the real DOM nodes in
 // OutputPane.vue and runs in the editor app, *not* in the sandbox — user code
@@ -16,9 +17,29 @@ export type OutputItem = { stamp: HTMLElement, msg: HTMLElement }
 
 const Output = {
     items: [] as OutputItem[],
-    print, warn, error, clear, printStartMsg, reset, init, render, setFrame
+    print, warn, error, clear, printStartMsg, reset, init, render, setFrame, onJumpToError, onErrorLocation
 }
 export default Output
+
+// Set by whoever wants to handle a click on a runtime error's "at script:line"
+// link (EditorView.vue, which owns both the file tree and the code editor
+// ref) — this module only renders the output panel, it has no way to switch
+// files or reach into Monaco itself.
+let jumpHandler: ((script: string, line: number) => void) | null = null
+
+function onJumpToError(handler: (script: string, line: number) => void) {
+    jumpHandler = handler
+}
+
+// Fired for *every* runtime error that carries a location, not just clicked
+// ones, so the offending line is already highlighted the moment it happens —
+// without forcing the user's editor tab to switch away from whatever they're
+// looking at (that's what the click link, above, is for).
+let locationHandler: ((script: string, line: number) => void) | null = null
+
+function onErrorLocation(handler: (script: string, line: number) => void) {
+    locationHandler = handler
+}
 
 // Bumped on every print/warn/error (but deliberately not the "Running @ ..."
 // start message printed at the top of each run) so OutputPane.vue can flash
@@ -37,6 +58,19 @@ const outputLines = 100
 
 function init(outputItems: OutputItem[]) {
     Output.items = outputItems.slice()
+
+    // One listener per (reused) item element, not per message — shiftItemsUp
+    // moves content between items via innerHTML, which carries the location
+    // link's data-* attributes along with it, so this stays correct without
+    // needing to re-bind anything per message.
+    for (const item of Output.items) {
+        item.msg.addEventListener('click', (event) => {
+            const target = (event.target as HTMLElement).closest('.output-error-location') as HTMLElement | null
+            const { jumpScript, jumpLine } = target?.dataset ?? {}
+            if (jumpHandler && jumpScript && jumpLine) jumpHandler(jumpScript, Number(jumpLine))
+        })
+    }
+
     reset()
 }
 
@@ -46,13 +80,13 @@ function setFrame(frame: number) {
 }
 
 /** Entry point for output forwarded from the sandbox. */
-function render(kind: 'print' | 'warn' | 'error' | 'start', text: string, frame: number) {
+function render(kind: 'print' | 'warn' | 'error' | 'start', text: string, frame: number, location?: OutputLocation) {
     currentFrame = frame
 
     switch (kind) {
         case 'print': return printMsg(text)
         case 'warn': return warnMsg(text)
-        case 'error': return errorMsg(text)
+        case 'error': return errorMsg(text, location)
         case 'start': return startMsg(text)
     }
 }
@@ -112,15 +146,36 @@ function error(...args: Printable[]) {
     errorMsg(joinArgs(args))
 }
 
-function errorMsg(msg: string) {
+function errorMsg(msg: string, location?: OutputLocation) {
     addOutputItem(msg, (item) => {
         item.stamp.textContent = '⚠'
         item.stamp.className = 'output-stamp output-item--error'
 
-        item.msg.textContent = msg
         item.msg.className = 'output-msg output-item--error'
+        renderMessageWithLocation(item.msg, msg, location)
     })
     outputActivity.value++
+
+    if (location) locationHandler?.(location.script, location.line)
+}
+
+/**
+ * Renders the error text plus, when a source location was recovered from the
+ * stack trace, a clickable "at script:line" tag appended to the same line —
+ * the click target that onJumpToError's delegated listener (see init) looks
+ * for.
+ */
+function renderMessageWithLocation(el: HTMLElement, msg: string, location?: OutputLocation) {
+    el.textContent = msg
+    if (!location) return
+
+    el.appendChild(document.createTextNode(' '))
+    const link = document.createElement('span')
+    link.className = 'output-error-location'
+    link.textContent = `at ${location.script}:${location.line}`
+    link.dataset.jumpScript = location.script
+    link.dataset.jumpLine = String(location.line)
+    el.appendChild(link)
 }
 
 function warn(...args: Printable[]) {

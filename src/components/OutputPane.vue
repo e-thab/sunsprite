@@ -196,6 +196,13 @@ onMounted(() => {
 .output-msg {
     padding: 0 .25em;
     flex: 1 1 auto;
+    /* A flex item's default min-width is content-based (auto), which for a
+       <pre> ignores wrap opportunities and keeps it at its unbroken width —
+       min-width: 0 lets it actually shrink to the panel's width so pre-wrap
+       below can do its job instead of forcing a horizontal scrollbar. */
+    min-width: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
     color: var(--theme-text);
     background-color: var(--theme-bg-elevated);
     font-family: 'Fira Code';
@@ -218,6 +225,16 @@ onMounted(() => {
    the message was printed). */
 .output-item--error {
     color: var(--theme-error);
+}
+
+.output-error-location {
+    color: var(--theme-error);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.output-error-location:hover {
+    opacity: 0.75;
 }
 
 .output-item--warn {

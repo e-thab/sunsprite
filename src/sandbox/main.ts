@@ -43,7 +43,7 @@ setScriptResolver((name) => {
 function handleMessage(message: HostMessage) {
     switch (message.type) {
         case 'run':
-            runUserCode(message.code, message.theme)
+            runUserCode(message.code, message.entryName, message.theme)
             break
 
         case 'script-response': {
