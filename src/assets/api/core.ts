@@ -960,7 +960,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_nextObjectId = 0
 	_lastLeftClickTime = 0
 	
-	Output.printStartMsg()
+	Output.printStartMsg(entryName)
 	clock._reset()
 	play()
 

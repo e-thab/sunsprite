@@ -63,13 +63,13 @@ function runtimeError(message: string, location?: OutputLocation) {
     send('error', message, location)
 }
 
-function printStartMsg() {
+function printStartMsg(scriptName: string) {
     const time = new Date()
     const hr = withLeadingZeroes(time.getHours(), 2)
     const min = withLeadingZeroes(time.getMinutes(), 2)
     const sec = withLeadingZeroes(time.getSeconds(), 2)
     const milli = withLeadingZeroes(time.getMilliseconds(), 3)
-    send('start', `Running @ ${hr}:${min}:${sec}.${milli}`)
+    send('start', `Running ${scriptName} @ ${hr}:${min}:${sec}.${milli}`)
 }
 
 function clear() {

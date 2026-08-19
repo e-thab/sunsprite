@@ -551,9 +551,28 @@ async function saveAll() {
 	updateSaveMsg()
 }
 
-function runActiveUserCode() {
+// Runs `name` as the entry script regardless of which file is currently
+// active/visible — used for the game header's Restart (always "main.js",
+// see runMainScript) and FileTree's per-script "Run" action, neither of
+// which should yank the editor over to a different tab just to run it.
+// ensureModel loads a script that's never been opened from its last saved
+// content; one that's already open (with live, possibly unsaved edits)
+// keeps using that model, same as running the active file always has.
+function runNamedScript(name: string) {
 	clearErrorDecoration()
-	runUserCode(getCode(), fileStore.activeFileName, themeStore.current)
+	const code = ensureModel(name)?.getValue() ?? ''
+	runUserCode(code, name, themeStore.current)
+}
+
+function runActiveUserCode() {
+	runNamedScript(fileStore.activeFileName)
+}
+
+// The game header's Restart button always runs this — "main.js" is the
+// project's canonical entry point regardless of whichever script happens to
+// be open in the editor at the time.
+function runMainScript() {
+	runNamedScript('main.js')
 }
 
 function onEditorChange(value: string) {
@@ -579,7 +598,7 @@ function updateSaveMsg(checkCode?: string) {
 }
 
 const emit = defineEmits(['ready'])
-defineExpose({ runActiveUserCode, setCode, getCode, updateSaveMsg, switchToScript, revealErrorLine })
+defineExpose({ runActiveUserCode, runMainScript, runNamedScript, setCode, getCode, updateSaveMsg, switchToScript, revealErrorLine })
 
 onMounted(() => {
 	self.MonacoEnvironment = {
@@ -643,7 +662,16 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 				</UTooltip>
 			</div>
 
-			<div id="file-name">{{ fileStore.activeFileName }}</div>
+			<div id="file-name">
+				<span>{{ fileStore.activeFileName }}</span>
+
+				<!-- Runs just this script as the entry point, regardless of
+				     which one the game header's Restart button runs (always
+				     main.js — see runMainScript). Text files aren't scripts. -->
+				<UTooltip v-if="!fileStore.isTextFile(fileStore.activeFileName)" text="Run this script">
+					<UButton icon="tabler:player-play-filled" variant="ghost" color="neutral" size="xs" @click="runActiveUserCode" />
+				</UTooltip>
+			</div>
 
 			<div class="reset-group">
 				<!-- TODO: Right now I'm only checking if the user is signed in to decide how to display reset,
@@ -703,6 +731,9 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 }
 
 #file-name {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25em;
 	color: var(--theme-text);
 	justify-self: center;
 }

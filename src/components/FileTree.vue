@@ -22,6 +22,11 @@ const fileStore = useFileStore()
 const treeSelectionStore = useTreeSelectionStore()
 const toast = useToast()
 
+// The project's canonical entry point — always what the game header's
+// Restart button runs (see CodeEditor.vue's runMainScript). Can't be
+// deleted from here (see itemMenuItems) so that invariant always holds.
+const MAIN_SCRIPT_NAME = 'main.js'
+
 async function copyImageUrl(path: string) {
 	await navigator.clipboard.writeText(path)
 	toast.add({
@@ -33,6 +38,7 @@ async function copyImageUrl(path: string) {
 
 const emit = defineEmits<{
 	selectScript: [fileName: string]
+	runScript: [fileName: string]
 }>()
 
 // No onSelect needed here — EditorView watches the shared selection store
@@ -478,16 +484,25 @@ function folderMenuItems(folderId: string | null) {
 function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 	const primary: DropdownMenuItem[] = []
 
+	if (item.kind === 'script') {
+		primary.push({ label: 'Run script', icon: 'tabler:player-play-filled', onSelect: () => emit('runScript', scriptName(item)) })
+	}
 	if (item.kind === 'folder') primary.push(...folderMenuItems(item.id))
 	if (item.kind === 'image' && item.path) {
 		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyImageUrl(item.path) })
 	}
 	primary.push({ label: `Rename ${kindLabel(item)}`, icon: 'tabler:pencil-filled', onSelect: () => startRename(item) })
 
-	return [
-		primary,
-		[{ label: `Delete ${kindLabel(item)}`, icon: 'tabler:trash-filled', color: 'error', onSelect: () => deleteItem(item) }],
-	]
+	const groups = [primary]
+
+	// The canonical entry script can be renamed (that stays a legitimate
+	// reorganization) but never deleted from here — nothing else guarantees
+	// a project always has one, and Restart depends on it existing.
+	if (!(item.kind === 'script' && scriptName(item) === MAIN_SCRIPT_NAME)) {
+		groups.push([{ label: `Delete ${kindLabel(item)}`, icon: 'tabler:trash-filled', color: 'error', onSelect: () => deleteItem(item) }])
+	}
+
+	return groups
 }
 
 // Right-clicking anywhere on a row opens itemMenuItems at the cursor via the
@@ -654,6 +669,12 @@ function commitRename(item: TreeItem) {
 // ---- Delete ----
 
 async function deleteScript(name: string) {
+	// Belt-and-braces: itemMenuItems already omits the Delete entry entirely
+	// for main.js, so this only matters if some other path ever calls here.
+	if (name === MAIN_SCRIPT_NAME) {
+		window.alert("The main script can't be deleted.")
+		return
+	}
 	if (fileStore.scripts.length <= 1) {
 		window.alert("Can't delete the last script in a project.")
 		return

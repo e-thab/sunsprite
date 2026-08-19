@@ -151,9 +151,19 @@ async function onDocsPaneRemove() {
   await forceSetSize(docsPaneWidth, 0)
 }
 
-function runActiveUserCode() {
-  // Run the code currently in the code editor
-  editor.value.runActiveUserCode()
+function runMainScript() {
+  // The game header's Restart always runs the project's canonical entry
+  // point ("main.js"), independent of whichever script happens to be open
+  // in the editor — that's what CodeEditor's own per-script Run button
+  // (and FileTree's "Run script" action) are for instead.
+  editor.value.runMainScript()
+}
+
+// FileTree's per-script "Run script" context action — runs that script
+// without switching the editor to it, same as the per-script button in
+// CodeEditor's own bar but reachable for a script that isn't even open.
+function runNamedScript(fileName: string) {
+  editor.value.runNamedScript(fileName)
 }
 
 async function toggleFullscreen() {
@@ -308,8 +318,8 @@ onMounted(async () => {
 			editor.value.switchToScript(firstScript)
 		}
 	}
-  
-	runActiveUserCode()
+
+	runMainScript()
 	editor.value.updateSaveMsg()
 
 	window.addEventListener('beforeunload', onBeforeUnload)
@@ -348,7 +358,7 @@ onBeforeRouteLeave(() => {
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" :size="explorerPaneWidth">
       <splitpanes horizontal :push-other-panes="false">
         <pane v-if="projectId" id="file-tree-v-pane" size="65">
-          <FileTree @select-script="loadScript" />
+          <FileTree @select-script="loadScript" @run-script="runNamedScript" />
         </pane>
 
         <pane id="asset-library-v-pane" size="35">
@@ -384,7 +394,7 @@ onBeforeRouteLeave(() => {
         <pane id="canvas-v-pane":size="canvasHeight">
           <PhaserCanvas
             @ready="onCanvasReady"
-            @run-game="runActiveUserCode"
+            @run-game="runMainScript"
             @fullscreen="toggleFullscreen"
             class="inner-pane"
           />
