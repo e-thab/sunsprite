@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted } from 'vue';
 import { RouterView } from 'vue-router'
 import 'splitpanes/dist/splitpanes.css';
 import NavBar from './components/NavBar.vue';
+import NamePromptModal from './components/NamePromptModal.vue';
 import { useAuthStore } from './stores/authStore';
 import { useThemeStore } from './stores/themeStore';
 
@@ -45,6 +46,7 @@ onBeforeUnmount(() => classObserver?.disconnect())
       <RouterView class="content"/>
       <!-- <NavBar class="navbar-footer"/> -->
     </div>
+    <NamePromptModal />
   </UApp>
 </template>
 

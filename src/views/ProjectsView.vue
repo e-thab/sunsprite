@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useProjectStore } from '@/stores/projectStore'
+import { useProjectStore, MAX_PROJECT_NAME_LENGTH } from '@/stores/projectStore'
+import { useNamePromptStore } from '@/stores/namePromptStore'
 import { formatDate } from '@/assets/utils/timeAgo'
 
 const projectStore = useProjectStore()
+const namePromptStore = useNamePromptStore()
 const router = useRouter()
 
 const creating = ref(false)
 const errorMessage = ref('')
 
 async function onCreate() {
-  const name = window.prompt('Project name:')
+  const name = await namePromptStore.prompt({
+    title: 'New project',
+    maxLength: MAX_PROJECT_NAME_LENGTH,
+    confirmLabel: 'Create',
+  })
   if (!name) return
 
   creating.value = true
@@ -27,7 +33,12 @@ async function onCreate() {
 }
 
 async function onRename(id: string, currentName: string) {
-  const name = window.prompt('Rename project:', currentName)
+  const name = await namePromptStore.prompt({
+    title: 'Rename project',
+    initialValue: currentName,
+    maxLength: MAX_PROJECT_NAME_LENGTH,
+    confirmLabel: 'Rename',
+  })
   if (!name || name === currentName) return
 
   try {
@@ -79,10 +90,10 @@ onMounted(() => projectStore.fetchProjects())
             <span class="project-updated">Last edited {{ formatDate(project.updatedAt) }}</span>
           </div>
           <div class="project-row-actions">
-            <UTooltip text="Rename">
+            <UTooltip text="Rename" ignore-non-keyboard-focus>
               <UButton icon="tabler:pencil" variant="ghost" color="neutral" size="sm" @click="onRename(project.id, project.name)" />
             </UTooltip>
-            <UTooltip text="Delete">
+            <UTooltip text="Delete" ignore-non-keyboard-focus>
               <UButton icon="tabler:trash" variant="ghost" color="error" size="sm" @click="onDelete(project.id, project.name)" />
             </UTooltip>
           </div>
