@@ -7,7 +7,8 @@ import { useFullscreenStore } from '@/stores/fullscreen';
 import { useAuthStore } from '@/stores/authStore';
 import { useFileStore } from '@/stores/fileStore';
 import { useThemeStore } from '@/stores/themeStore';
-import { useProjectStore } from '@/stores/projectStore';
+import { useProjectStore, MAX_PROJECT_NAME_LENGTH } from '@/stores/projectStore';
+import { useNamePromptStore } from '@/stores/namePromptStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useDocsSearchStore } from '@/stores/docsSearchStore';
 import { timeAgo } from '@/assets/utils/timeAgo';
@@ -27,6 +28,7 @@ const authStore = useAuthStore()
 const fileStore = useFileStore()
 const themeStore = useThemeStore()
 const projectStore = useProjectStore()
+const namePromptStore = useNamePromptStore()
 const docsStore = useDocsStore()
 const docsSearchStore = useDocsSearchStore()
 const router = useRouter()
@@ -102,7 +104,11 @@ async function onSignOut() {
 }
 
 async function onCreateProject() {
-    const name = window.prompt('Project name:')
+    const name = await namePromptStore.prompt({
+        title: 'New project',
+        maxLength: MAX_PROJECT_NAME_LENGTH,
+        confirmLabel: 'Create',
+    })
     if (!name) return
 
     try {

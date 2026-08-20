@@ -595,6 +595,21 @@ const renamingItemId = ref<string | null>(null)
 const renamingValue = ref('')
 const renameInputRef = ref<HTMLInputElement | null>(null)
 
+// Bound to both the row's UContextMenu (right-click) and its UDropdownMenu
+// ("..." button) via :content="{ onCloseAutoFocus: preventCloseAutoFocus }".
+// Both close as part of selecting "Rename", and Reka's Menu primitive
+// explicitly moves focus back to whatever triggered it as part of that close
+// — which, since the rename <input> has almost always already claimed focus
+// by then, *blurs* it and fires commitRename via its own @blur handler
+// before the user can type a single character. Confirmed via the actual
+// stack trace (FocusScope's focus() call landing in our onBlur) rather than
+// assumed — this is the primitive's own designed-in behavior, not a bug in
+// it, so preventing it here is the correct fix rather than trying to win a
+// timing race against it.
+function preventCloseAutoFocus(event: Event) {
+	event.preventDefault()
+}
+
 // Not reactive — only ever read imperatively from onDocumentMouseDown below,
 // which needs the actual item (commitRename's signature) and not just its id.
 let renamingItem: TreeItem | null = null
@@ -639,15 +654,46 @@ function onRowClick(event: MouseEvent, item: TreeItem) {
 	commitRename(item)
 }
 
+// The tree root has its own roving-tabindex keyboard nav (arrow keys to
+// move the active item, Home/End, type-ahead search, ...) bound at the
+// tree/treeitem level — which the rename <input> sits *inside*, so every
+// keystroke while typing a new name also bubbles up into it unless stopped
+// here. Left unstopped, ordinary text editing (Home/End to jump within the
+// typed name, arrow keys, letters) doubles as tree navigation underneath.
+// One handler for the whole keydown, rather than @keydown.stop *and*
+// separate @keydown.enter/.escape ones — a real DOM element can only carry
+// one `keydown` listener from a template, so Enter/Escape have to be
+// dispatched from in here too.
+function onRenameKeydown(event: KeyboardEvent, item: TreeItem) {
+	event.stopPropagation()
+	if (event.key === 'Enter') commitRename(item)
+	else if (event.key === 'Escape') cancelRename()
+}
+
 async function startRename(item: TreeItem) {
+	// Belt-and-braces alongside preventCloseAutoFocus above: forces the
+	// dropdown closed immediately rather than waiting on its own close, in
+	// case anything else is watching actionsMenuOpenKey in the meantime.
+	if (actionsMenuOpenKey.value === rowKey(item)) actionsMenuOpenKey.value = null
+
 	renamingItemId.value = item.id
 	renamingItem = item
 	// The input only ever holds the base name — folders have no extension to
 	// strip, scripts/images do (rejoined with it in commitRename below).
 	renamingValue.value = item.kind === 'folder' ? scriptName(item) : splitFileName(scriptName(item)).base
 	await nextTick()
-	renameInputRef.value?.focus()
-	renameInputRef.value?.select()
+
+	// preventCloseAutoFocus (above) stops the menu from actively stealing
+	// focus back to a specific target, but the right-click ContextMenu's
+	// FocusScope still unwinds itself on its own timing regardless —
+	// observed landing focus on <body> afterward even with that prevented.
+	// Deferring past it with a macrotask, same reasoning as the comment that
+	// used to be here, is still needed on top of preventCloseAutoFocus, not
+	// instead of it.
+	setTimeout(() => {
+		renameInputRef.value?.focus()
+		renameInputRef.value?.select()
+	}, 0)
 }
 
 function cancelRename() {
@@ -1030,7 +1076,7 @@ async function onDropOnRoot() {
 					</template>
 
 					<template #item-label="{ item }">
-						<UContextMenu :disabled="!fileStore.projectId" :items="itemMenuItems(item)">
+						<UContextMenu :disabled="!fileStore.projectId" :items="itemMenuItems(item)" :content="{ onCloseAutoFocus: preventCloseAutoFocus }">
 							<div
 								class="tree-row-dnd"
 								:ref="(el) => setRowDndRef(item, el)"
@@ -1065,8 +1111,7 @@ async function onDropOnRoot() {
 								:maxlength="MAX_FILE_NAME_LENGTH"
 								@click.stop
 								@mousedown.stop
-								@keydown.enter="commitRename(item)"
-								@keydown.escape="cancelRename"
+								@keydown="onRenameKeydown($event, item)"
 								@blur="commitRename(item)"
 							/>
 							<!-- Static, not part of renamingValue — the whole point is that
@@ -1084,6 +1129,7 @@ async function onDropOnRoot() {
 							<UDropdownMenu
 								:items="itemMenuItems(item)"
 								:open="actionsMenuOpenKey === rowKey(item)"
+								:content="{ onCloseAutoFocus: preventCloseAutoFocus }"
 								@update:open="(value: boolean) => actionsMenuOpenKey = value ? (rowKey(item) ?? null) : null"
 							>
 								<!-- <UTooltip text="Actions" ignore-non-keyboard-focus> -->
