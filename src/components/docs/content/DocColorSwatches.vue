@@ -1,22 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useToast } from '@nuxt/ui/composables'
+import { getForegroundColor } from '@/assets/api/utility'
 import Colors from '@/assets/api/Colors'
 
 const toast = useToast()
-
-function getColorBrightness(hex: string): number {
-	const r = parseInt(hex.slice(1, 3), 16)
-	const g = parseInt(hex.slice(3, 5), 16)
-	const b = parseInt(hex.slice(5, 7), 16)
-	return (r * 0.299 + g * 0.587 + b * 0.114) / 255
-	// return Math.max(r, g, b) / 255
-}
-
-function getForegroundColor(backgroundHex: string): string {
-	return getColorBrightness(backgroundHex) > 0.45 ? '#000000' : '#ffffff' 
-}
-defineExpose([getForegroundColor])
 
 // String enums have no reverse mapping, so the plain entries are already the
 // name → hex pairs we want.

@@ -9,20 +9,18 @@ export const meta = {
 <script setup lang="ts">
 import Random from '@/assets/api/Random'
 import { useThemeStore } from '@/stores/themeStore'
-import DocColorSwatches from '@/components/docs/content/DocColorSwatches.vue'
-import asdf from 'asdf'
-// err so I remember to come back to this
+import { getForegroundColor } from '@/assets/api/utility'
 
 const themeStore = useThemeStore()
-const getForegroundColor = DocColorSwatches.getForegroundColor
 
 const exampleColor = Random.color()
-const textShadow = themeStore.current.isLight ? '0px 0px 2px black' : '0px 0px 2px white'
+// const textShadow = themeStore.current.isLight ? '0px 0px 2px black' : '0px 0px 2px white'
 
 const randomColorStyle = {
 	color: getForegroundColor(exampleColor),
 	backgroundColor: exampleColor,
-	borderRadius: '4px',
+	borderRadius: '0.2rem',
+	// border: `2px solid ${themeStore.current.bgInverted}`
 	// textShadow,
 	// TODO: finish this
 }
@@ -37,9 +35,7 @@ const randomColorStyle = {
 
 	<DocReturns type="string">A hex color string, e.g. <span :style="randomColorStyle">&nbsp;"{{ exampleColor }}"&nbsp;</span></DocReturns>
 
-	<DocSnippet title="Example">
-<pre>rect.color = Random.color()</pre>
-	</DocSnippet>
+	<DocSnippet title="Example"><pre>rect.color = Random.color()</pre></DocSnippet>
 
-	<DocRelated :paths="['api/functions/random/choice']" />
+	<DocRelated :paths="['api/colors']" />
 </template>

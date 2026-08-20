@@ -3,7 +3,7 @@ export const meta = {
 	title: 'Tutorials',
 	icon: 'tabler:school',
 	summary: 'Guided walkthroughs for common game-building tasks.',
-	order: ['keyboard-input', 'labels', 'drag-and-drop', 'playing-sounds', 'detecting-collisions'],
+	order: ['hex-colors', 'keyboard-input', 'labels', 'drag-and-drop', 'playing-sounds', 'detecting-collisions'],
 }
 
 export default {}
