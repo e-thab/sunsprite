@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import EditorView from '../views/EditorView.vue'
+import LandingView from '../views/LandingView.vue'
 import { useAuthStore } from '@/stores/authStore'
 
 const router = createRouter({
@@ -8,7 +8,16 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: EditorView,
+      component: LandingView,
+    },
+    {
+      // A faux-project accessible without signing in — same EditorView as a
+      // real project, just never given a projectId, so fileStore's guest
+      // mode (see getLocalCode/saveCode) reads and writes localStorage
+      // instead of Supabase.
+      path: '/sandbox',
+      name: 'sandbox',
+      component: () => import('../views/EditorView.vue'),
     },
     {
       path: '/account',

@@ -11,6 +11,7 @@ import { useProjectStore, MAX_PROJECT_NAME_LENGTH } from '@/stores/projectStore'
 import { useNamePromptStore } from '@/stores/namePromptStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useDocsSearchStore } from '@/stores/docsSearchStore';
+import { nodesByPath } from '@/assets/docs/docsIndex';
 import { timeAgo } from '@/assets/utils/timeAgo';
 import SignInModal from './SignInModal.vue';
 import SignUpModal from './SignUpModal.vue';
@@ -43,14 +44,47 @@ defineShortcuts({
     meta_k: () => docsSearchStore.toggle(),
 })
 
-// Docs toggles a pane inside EditorView (rendered on the home/guest route
-// and the loaded-project route) — showing it elsewhere would just flip
-// unused state with nothing on screen to reflect it.
-const isEditorRoute = computed(() => route.name === 'home' || route.name === 'project')
+// Whether EditorView is the current route component (the sandbox/guest
+// route, or a loaded project) — it's the only place with a docs pane to
+// toggle, so the Docs nav button (below) branches its click behavior on this.
+const isEditorRoute = computed(() => route.name === 'sandbox' || route.name === 'project')
 
 // The standalone full-page docs view (DocsView.vue) — as opposed to the
 // panel embedded in the editor, or anywhere else in the app.
 const isDocsRoute = computed(() => route.name === 'docs')
+
+// The Docs nav button is dual-purpose: inside the editor it toggles the
+// embedded panel (nothing to navigate to — the panel is right there), but
+// everywhere else there's no panel on screen, so it instead navigates to
+// the full-page docs view.
+function onDocsClick() {
+    if (isEditorRoute.value) {
+        docsStore.toggle()
+    } else {
+        router.push('/docs')
+    }
+}
+
+// Center-bar label for whichever page is current. The 'project' route is
+// deliberately absent here — that's the one page with something better to
+// show instead (see .project-header below), and left blank falls through to
+// nothing during the brief window before a loaded project has a name yet.
+const pageTitle = computed(() => {
+    switch (route.name) {
+        case 'home': return 'Home'
+        case 'sandbox': return 'Sandbox'
+        case 'account': return 'Account'
+        case 'projects': return 'My Projects'
+        case 'docs': {
+            const raw = route.params.pathMatch
+            const path = Array.isArray(raw) ? raw.join('/') : (raw ?? '')
+            return nodesByPath.get(path)?.title ?? 'Docs'
+        }
+        case 'docs-search': return 'Search Docs'
+        case 'not-found': return 'Page Not Found'
+        default: return ''
+    }
+})
 
 // Keeps --nav-height (base.css) in sync with the bar's real rendered height,
 // so anything elsewhere that needs to size/position itself around the
@@ -194,9 +228,21 @@ const accountMenuItems: DropdownMenuItem[][] = [
                 Sunsprite
             </UButton>
 
-            <!-- Docs button -->
-            <UTooltip v-if="isEditorRoute" text="Docs">
-                <UButton icon="tabler:book-filled" variant="ghost" :color="docsStore.isOpen ? 'primary' : 'neutral'" @click="docsStore.toggle">Docs</UButton>
+            <!-- Sandbox button: a faux-project, accessible without signing in,
+            that saves to localStorage. Not to be confused with the code
+            sandboxing (sandbox.html/src/sandbox) used internally to run user
+            code from its own origin. Hidden while already in the sandbox —
+            nothing to navigate to from there. -->
+            <UTooltip v-if="route.name !== 'sandbox'" text="Sandbox">
+                <UButton icon="tabler:device-gamepad-2-filled" variant="ghost" color="neutral" @click="() => { router.push('/sandbox') }">Sandbox</UButton>
+            </UTooltip>
+
+            <!-- Docs button: toggles the embedded panel in the editor, or
+            navigates to the full-page docs view everywhere else. Hidden only
+            on the full-page docs view itself, which has no more-docs place
+            left to send you. -->
+            <UTooltip v-if="!isDocsRoute" text="Docs">
+                <UButton icon="tabler:book-filled" variant="ghost" :color="isEditorRoute && docsStore.isOpen ? 'primary' : 'neutral'" @click="onDocsClick">Docs</UButton>
             </UTooltip>
 
             <!-- Docs search: only shown in the full-page docs view — the
@@ -222,6 +268,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
                 >{{ fileStore.hasUnsavedChanges ? 'Save All' : 'Saved' }}</UButton>
             </UTooltip>
         </div>
+        <span v-else-if="pageTitle" class="page-title">{{ pageTitle }}</span>
 
         <div class="right-group">
             <UDropdownMenu :items="themeMenuItems">
@@ -291,6 +338,26 @@ const accountMenuItems: DropdownMenuItem[][] = [
 }
 
 .project-name {
+    font-weight: bold;
+    font-size: 0.9em;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Same slot as .project-header above (mutually exclusive with it), so it
+   gets the same treatment: the flex/align-items/margin/color/min-width here
+   match .project-header exactly — without display:flex + align-items:center
+   of its own, a bare span just stretches to the bar's full height (.bar's
+   own align-items defaults to stretch) and its text sits at the top instead
+   of centering. It also shrinks before the nav controls do, and ellipses
+   rather than wrapping/overflowing if it ever runs out of room. */
+.page-title {
+    display: flex;
+    align-items: center;
+    margin-left: 0.5em;
+    color: var(--theme-text);
     font-weight: bold;
     font-size: 0.9em;
     min-width: 0;
