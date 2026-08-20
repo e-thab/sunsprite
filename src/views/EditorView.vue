@@ -27,6 +27,16 @@ const fileStore = useFileStore()
 const docsStore = useDocsStore()
 const treeSelectionStore = useTreeSelectionStore()
 
+// Guest sandbox: populate fileStore's scripts/folders/textFiles from
+// localStorage synchronously, here in setup rather than onMounted below —
+// CodeEditor (a child) mounts, and makes its own first ensureModel('main.js')
+// call, *before* a parent's onMounted ever runs. Without this running first,
+// that call would find an empty guest project and show placeholder content
+// even for a returning guest with real saved work. Project mode's equivalent
+// (fileStore.loadProject) doesn't need the same treatment — ProjectEditorView
+// already awaits it before EditorView is mounted at all.
+if (!props.projectId) fileStore.loadGuestProject()
+
 // Move splitterDisplay to a component with more reason to have style unscoped,
 // also should just be computed()
 const splitterDisplay = ref<'inline' | 'none'>('inline')
@@ -309,9 +319,10 @@ onMounted(async () => {
 
 	// console.log('components ready')
 
-	// Project mode: correct the active file if CodeEditor's own default
-	// ('main.js') isn't one of this project's scripts (e.g. it was renamed).
-	if (props.projectId && !fileStore.scripts.some((s) => s.name === fileStore.activeFileName)) {
+	// Correct the active file if CodeEditor's own default ('main.js') isn't
+	// actually one of this project's — or guest sandbox's — scripts (e.g. it
+	// was renamed). Both are real, record-backed script lists now.
+	if (!fileStore.scripts.some((s) => s.name === fileStore.activeFileName)) {
 		const firstScript = fileStore.scripts[0]?.name
 		if (firstScript) {
 			fileStore.activate(firstScript)
@@ -357,7 +368,7 @@ onBeforeRouteLeave(() => {
     <!-- Left side pane: File explorer + built-in asset library -->
     <pane id="explorer-pane" v-show="!fsStore.fullscreen" :size="explorerPaneWidth">
       <splitpanes horizontal :push-other-panes="false">
-        <pane v-if="projectId" id="file-tree-v-pane" size="65">
+        <pane id="file-tree-v-pane" size="65">
           <FileTree @select-script="loadScript" @run-script="runNamedScript" />
         </pane>
 

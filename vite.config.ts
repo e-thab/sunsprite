@@ -13,7 +13,7 @@ export default defineConfig(({ command }) => {
     plugins: [
       vue(),
       // Inject the devtools client only into the editor app's entry. Left to
-      // itself the plugin appends to every HTML page, including sandbox.html —
+      // itself the plugin appends to every HTML page, including runner.html —
       // where it immediately throws reading localStorage, because a document
       // without allow-same-origin isn't allowed to have any.
       vueDevTools({ appendTo: 'src/main.ts' }),
@@ -28,11 +28,19 @@ export default defineConfig(({ command }) => {
     build: {
       rollupOptions: {
         // Two entry points: the editor app, and the sandbox document that runs
-        // user code (see sandbox.html). They must be separate HTML files so the
+        // user code (see runner.html). They must be separate HTML files so the
         // sandbox can be loaded into an opaque-origin iframe.
+        //
+        // runner.html is deliberately not named sandbox.html: the app's own
+        // client-side route for the guest sandbox page lives at /sandbox, and
+        // a static host resolves a bare /sandbox request straight to a
+        // same-named sandbox.html file (200 OK) without ever reaching the SPA
+        // — confirmed on Vite's own dev server, and GitHub Pages' 404.html-based
+        // SPA fallback (see public/404.html) only ever triggers on a genuine
+        // 404, not on a file that exists. This name sidesteps that collision.
         input: {
           main: fileURLToPath(new URL('./index.html', import.meta.url)),
-          sandbox: fileURLToPath(new URL('./sandbox.html', import.meta.url)),
+          runner: fileURLToPath(new URL('./runner.html', import.meta.url)),
         },
       },
     },

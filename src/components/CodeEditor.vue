@@ -237,29 +237,21 @@ let errorDecorationWatcher: monaco.IDisposable | null = null
 let pendingReveal: { script: string, line: number } | null = null
 
 // Same content source moduleRunner.ts reads at runtime, so the editor and
-// the actual game execution always agree on what a script resolves to.
-// In project mode a script that genuinely doesn't exist resolves to
-// undefined (no phantom model, so Monaco correctly flags a real typo);
-// guest mode always has example-code fallback content.
-function resolveContent(name: string): string | undefined {
-	const local = fileStore.getLocalCode(name)
-	if (local !== undefined) return local
-	if (!fileStore.projectId) return getExampleCode(name)
-	return undefined
-}
-
+// the actual game execution always agree on what a script resolves to. A
+// script that genuinely doesn't exist — in the loaded project or the guest
+// sandbox alike, both real record-backed file lists now — resolves to
+// undefined, so Monaco correctly flags a real typo instead of phantom-
+// resolving it to placeholder content.
 function ensureModel(name: string): monaco.editor.ITextModel | undefined {
 	const existing = modelEntries.get(name)
 	if (existing) return existing.model
 
-	const content = resolveContent(name)
+	const content = fileStore.getLocalCode(name)
 	if (content === undefined) return undefined
 
 	const isText = fileStore.isTextFile(name)
 	const model = monaco.editor.createModel(content, isText ? TEXT_MONACO_LANGUAGE : 'javascript', monaco.Uri.parse('file:///' + name))
-	const record = fileStore.projectId
-		? (fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name))
-		: undefined
+	const record = fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name)
 	modelEntries.set(name, { model, recordId: record?.id, isText })
 	return model
 }
@@ -469,16 +461,15 @@ async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, m
 	if (editor.getModel()) editor.updateOptions({ renderValidationDecorations: 'on' })
 }
 
-// Project scripts *and text files* renamed/deleted via FileTree.vue: Monaco
-// models can't be renamed in place, so a rename carries the live (possibly
-// unsaved) content over to a fresh model at the new URI; a deletion just
-// disposes the orphaned one. One place owns this instead of threading it
-// through every fileStore.renameScript/renameTextFile/delete* call site.
+// Scripts *and text files* renamed/deleted via FileTree.vue — in a loaded
+// project or the guest sandbox alike — Monaco models can't be renamed in
+// place, so a rename carries the live (possibly unsaved) content over to a
+// fresh model at the new URI; a deletion just disposes the orphaned one. One
+// place owns this instead of threading it through every
+// fileStore.renameScript/renameTextFile/delete* call site.
 watch(
 	() => [...fileStore.scripts.map((s) => ({ id: s.id, name: s.name })), ...fileStore.textFiles.map((f) => ({ id: f.id, name: f.name }))],
 	() => {
-		if (!fileStore.projectId) return
-
 		for (const [name, entry] of [...modelEntries]) {
 			if (!entry.recordId) continue
 
@@ -502,9 +493,8 @@ watch(
 	{ deep: true },
 )
 
-// Switching projects (or leaving one for the guest sandbox): project-backed
-// models from the *previous* project are stale and must not bleed into
-// the next one — guest-mode models (no recordId) are left alone.
+// Switching projects (or leaving one for the guest sandbox): stale models
+// from whatever was loaded before must not bleed into whatever comes next.
 watch(() => fileStore.projectId, () => {
 	for (const [name, entry] of [...modelEntries]) {
 		if (!entry.recordId) continue

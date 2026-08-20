@@ -18,7 +18,7 @@ import { onHostMessage, postToHost } from './channel'
 import { collectWatchSnapshot } from './watch'
 import type { HostMessage } from './protocol'
 
-// Entry point for sandbox.html — the document inside
+// Entry point for runner.html — the document inside
 // `<iframe sandbox="allow-scripts">`. Phaser, the Sunsprite API, and every line
 // of user code live in here, at an opaque origin with no way to reach the
 // editor app. This file is the only thing that talks to the host.

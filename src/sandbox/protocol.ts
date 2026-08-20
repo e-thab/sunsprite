@@ -97,7 +97,7 @@ export interface WatchCardSnapshot {
  * The host passes its own origin in the iframe URL so the sandbox can address
  * replies to exactly that origin instead of '*'. An opaque origin has no way to
  * discover its embedder otherwise, and '*' would leak game output to any third
- * party that framed sandbox.html.
+ * party that framed runner.html.
  */
 export const HOST_ORIGIN_PARAM = 'hostOrigin'
 

@@ -1,13 +1,12 @@
 import { ref } from 'vue'
 import Output from '@/assets/api/output'
-import { getExampleCode } from '@/assets/api/examples'
 import { useFileStore } from '@/stores/fileStore'
 import { useWatchPanelStore } from '@/stores/watchPanelStore'
 import type { ThemePalette } from '@/assets/theme/themes'
 import { HOST_ORIGIN_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
 
 // Host side of the sandbox. User code no longer runs in the editor app at all:
-// it runs in sandbox.html inside an `<iframe sandbox="allow-scripts">`, which
+// it runs in runner.html inside an `<iframe sandbox="allow-scripts">`, which
 // the browser gives an *opaque* origin. That's the security boundary — same
 // origin policy means the frame can't read `parent.document`, the app's
 // localStorage (where the Supabase session lives), or any of its DOM, no matter
@@ -43,9 +42,13 @@ let sandboxReady = false
 /** Set while the sandbox is still booting, so an early Run isn't dropped. */
 let queuedRun: { code: string, entryName: string, theme?: ThemePalette } | null = null
 
-/** URL for the sandbox document, carrying our origin so it can address replies. */
+/**
+ * URL for the sandbox document, carrying our origin so it can address replies.
+ * The file itself is named runner.html, not sandbox.html — see the comment on
+ * vite.config.ts's build.rollupOptions.input for why the two are kept apart.
+ */
 export function sandboxUrl(): string {
-    const base = `${import.meta.env.BASE_URL}sandbox.html`
+    const base = `${import.meta.env.BASE_URL}runner.html`
     return `${base}?${HOST_ORIGIN_PARAM}=${encodeURIComponent(window.location.origin)}`
 }
 
@@ -130,16 +133,12 @@ function onSandboxMessage(event: MessageEvent) {
 
 /**
  * Same content source CodeEditor.vue resolves models against, so the editor and
- * the running game always agree on what './helper.js' means. Guest (local) mode
- * has default example content per file; project scripts are fully user-defined,
- * so a miss there is a real error and stays undefined.
+ * the running game always agree on what './helper.js' means. A miss — in a
+ * loaded project or the guest sandbox alike, both real record-backed file
+ * lists now — is a genuine error and stays undefined.
  */
 function resolveScript(name: string): string | undefined {
-    const fileStore = useFileStore()
-    const local = fileStore.getLocalCode(name)
-    if (local !== undefined) return local
-    if (!fileStore.projectId) return getExampleCode(name)
-    return undefined
+    return useFileStore().getLocalCode(name)
 }
 
 export function runUserCode(code: string, entryName: string, theme?: ThemePalette) {

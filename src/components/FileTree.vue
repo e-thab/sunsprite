@@ -6,7 +6,6 @@ import { useToast } from '@nuxt/ui/composables'
 import { useFileStore, type TreeNode } from '@/stores/fileStore'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
 import { useNamePromptStore } from '@/stores/namePromptStore'
-import { imagePath, animalFiles, cardFiles } from '@/assets/api/gameAssets'
 import {
 	ALLOWED_IMAGE_CONTENT_TYPES,
 	DEFAULT_SCRIPT_FILE_TYPE,
@@ -57,18 +56,6 @@ const emit = defineEmits<{
 	runScript: [fileName: string]
 }>()
 
-// No onSelect needed here — EditorView watches the shared selection store
-// (bound below as this tree's own v-model) and opens/closes the preview
-// from whatever item ends up selected, image or not.
-function imageLeaf(category: string, fileName: string): TreeItem {
-	const path = imagePath(category, fileName)
-	return {
-		label: fileName,
-		thumbnail: path,
-		path,
-	}
-}
-
 // Reads the script name from the item's own data rather than the clicked
 // element's rendered text — the label slot appends a "*" for unsaved
 // files, which would otherwise get emitted as part of the file name. The
@@ -88,151 +75,7 @@ function preventFolderSelect(event: Event) {
 	event.preventDefault()
 }
 
-// https://icones.js.org/collection/tabler
-// https://icones.js.org/collection/catppuccin
-
-const guestItems: TreeItem[] = [
-	// {
-	// 	label: 'images',
-	// 	defaultExpanded: false,
-	// 	children: [
-	// 		{
-	// 			label: 'animals',
-	// 			defaultExpanded: false,
-	// 			children: animalFiles.map((f) => imageLeaf('animals', f)),
-	// 		},
-	// 		{
-	// 			label: 'cards',
-	// 			defaultExpanded: false,
-	// 			children: cardFiles.map((f) => imageLeaf('cards', f)),
-	// 		},
-	// 	]
-	// },
-
-	// {
-	//   label: 'Sounds',
-	//   defaultExpanded: true,
-	//   children: [
-	//     {
-	//       label: 'sound.wav',
-	//       icon: 'catppuccin:audio'
-	//     },
-	//   ]
-	// },
-
-	{
-		label: 'scripts',
-		defaultExpanded: true,
-		onSelect: preventFolderSelect,
-		children: [
-			// {
-			//   label: 'main.ts',
-			//   icon: 'catppuccin:typescript'
-			// },
-			// {
-			// 	label: 'examples',
-			// 	defaultExpanded: true,
-			// 	children: [
-			// 		{
-			// 			label: 'input.js',
-			// 			icon: 'catppuccin:javascript',
-			// 			onSelect: () => emit('selectScript', 'input.js'),
-			// 		}
-			// 		{
-			// 		  label: 'labels.js',
-			// 		  icon: 'catppuccin:javascript',
-			// 		  onSelect: (event) => {
-			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-			// 		  }
-			// 		},
-			// 		{
-			// 		  label: 'lines.js',
-			// 		  icon: 'catppuccin:javascript',
-			// 		  onSelect: (event) => {
-			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-			// 		  }
-			// 		},
-			// 		{
-			// 		  label: 'rectangles.js',
-			// 		  icon: 'catppuccin:javascript',
-			// 		  onSelect: (event) => {
-			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-			// 		  }
-			// 		},
-			// 		{
-			// 		  label: 'rectSpiral.js',
-			// 		  icon: 'catppuccin:javascript',
-			// 		  onSelect: (event) => {
-			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-			// 		  }
-			// 		},
-			// 		{
-			// 		  label: 'sprites.js',
-			// 		  icon: 'catppuccin:javascript',
-			// 		  onSelect: (event) => {
-			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-			// 		  }
-			// 		},
-			// 	]
-			// },
-
-			// {
-			// 	label: 'temp.js',
-			// 	icon: 'catppuccin:javascript',
-			// 	onSelect: () => emit('selectScript', 'temp.js'),
-			// },
-
-			{
-				label: 'main.js',
-				icon: 'fluent:javascript-24-filled',
-				onSelect: () => emit('selectScript', 'main.js'),
-			},
-		]
-	},
-	// {
-	//   label: 'app/',
-	//   defaultExpanded: true,
-	//   children: [
-	//     {
-	//       label: 'composables/',
-	//       children: [
-	//         {
-	//           label: 'useAuth.js',
-	//           icon: 'catppuccin:javascript'
-	//         },
-	//         {
-	//           label: 'useUser.ts',
-	//           icon: 'catppuccin:typescript'
-	//         }
-	//       ]
-	//     },
-	//     {
-	//       label: 'components/',
-	//       defaultExpanded: false,
-	//       children: [
-	//         {
-	//           label: 'Card.vue',
-	//           icon: 'catppuccin:vue'
-	//         },
-	//         {
-	//           label: 'Button.vue',
-	//           icon: 'catppuccin:vue'
-	//         }
-	//       ]
-	//     },
-	//   ]
-	// },
-	// {
-	//   label: 'app.vue',
-	//   icon: 'catppuccin:vue'
-	// },
-	// {
-	//   label: 'nuxt.config.ts',
-	//   icon: 'catppuccin:nuxt'
-	// },
-]
-
-// ---- Project mode: real folders + scripts ----
+// ---- Folders + scripts, in a loaded project or the guest sandbox alike ----
 
 // Hovering a folder's own header means "drop inside, at the end" (the only
 // shape onDragOverItem's folder branch ever produces — index always equals
@@ -274,16 +117,8 @@ function ensureFolderExpanded(folderId: string) {
 	expandedFolderIds.value = [...expandedFolderIds.value, folderId]
 }
 
-// Guest mode's tree is static and still leans on the guestItems' own
-// per-item `defaultExpanded` (uncontrolled) — switching it over to a
-// controlled `expanded` array too would need its own seeding logic for no
-// real benefit, since none of it ever changes after mount anyway. Passing
-// `undefined` for the prop is the same as not binding it at all, so this
-// only takes over in project mode, leaving guest mode exactly as before.
-const controlledExpandedIds = computed(() => fileStore.projectId ? expandedFolderIds.value : undefined)
-
 function onUpdateExpanded(ids: string[]) {
-	if (fileStore.projectId) expandedFolderIds.value = ids
+	expandedFolderIds.value = ids
 }
 
 function buildNode(node: TreeNode, parentId: string | null): TreeItem {
@@ -333,11 +168,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 	}
 }
 
-const items = computed<TreeItem[]>(() => {
-	return fileStore.projectId ? fileStore.childNodes(null).map(
-		(node) => buildNode(node, null)
-	) : guestItems
-})
+const items = computed<TreeItem[]>(() => fileStore.childNodes(null).map((node) => buildNode(node, null)))
 
 // A dropped-into row shifting position because a placeholder row got
 // spliced in right next to it — the previous approach — moves the row out
@@ -499,13 +330,17 @@ async function addTextFile(folderId: string | null) {
 // Dropdown shown behind the header's own "+" for the project root — folderId
 // is null for root. Also folded into itemMenuItems below for folder rows,
 // rather than getting its own separate trigger button on those rows.
-function folderMenuItems(folderId: string | null) {
-	return [
+// Upload only ever appears in a real project — the guest sandbox has no
+// object storage to put an uploaded file in (see fileStore.uploadImage's own
+// guard, the actual enforcement point).
+function folderMenuItems(folderId: string | null): DropdownMenuItem[] {
+	const items: DropdownMenuItem[] = [
 		{ label: 'New script', icon: 'tabler:script-plus', onSelect: () => addScript(folderId) },
 		{ label: 'New text file', icon: 'tabler:file-plus', onSelect: () => addTextFile(folderId) },
 		{ label: 'New folder', icon: 'tabler:folder-plus', onSelect: () => addFolder(folderId) },
-		{ label: 'Upload file', icon: 'tabler:upload', onSelect: () => uploadFile(folderId) },
 	]
+	if (fileStore.projectId) items.push({ label: 'Upload file', icon: 'tabler:upload', onSelect: () => uploadFile(folderId) })
+	return items
 }
 
 // Every row's actions collapsed into one dropdown behind one trigger button
@@ -861,8 +696,7 @@ function deleteItem(item: TreeItem) {
 // (appended at the end); dropping on a script makes the dragged item that
 // script's sibling, inserted just before it; dropping on the tree's own
 // background (nothing more specific claimed the event) sends it to the
-// project root. Guest-mode rows never set `.kind`, so `draggable` is false
-// for them and none of this activates outside project mode.
+// project root (or the guest sandbox's own root, in the sandbox).
 //
 // `dropTarget` mirrors whichever of those three outcomes is currently
 // hovered as a { folderId, index } pair — withDropPlaceholder (above)
@@ -1042,15 +876,14 @@ async function onDropOnRoot() {
 
 			<div>Files</div>
 
-			<UDropdownMenu v-if="fileStore.projectId" :items="folderMenuItems(null)" style="flex: 0 1 auto;">
+			<UDropdownMenu :items="folderMenuItems(null)" style="flex: 0 1 auto;">
 				<UTooltip text="Add..." ignore-non-keyboard-focus>
 					<UButton icon="tabler:plus" variant="ghost" color="neutral" size="xs" />
 				</UTooltip>
 			</UDropdownMenu>
-			<div v-else class="spacer"></div>
 		</div>
 
-		<UContextMenu :disabled="!fileStore.projectId" :items="folderMenuItems(null)">
+		<UContextMenu :items="folderMenuItems(null)">
 			<div class="file-tree" @dragover.prevent="onDragOverRoot" @dragleave="onDragLeaveRoot" @drop="onDropOnRoot">
 				<!-- selection-behavior="replace": Reka's own default ('toggle')
 				deselects an item when it's clicked again while already
@@ -1065,7 +898,7 @@ async function onDropOnRoot() {
 					:items="items"
 					:get-key="(item: TreeItem) => item.id ?? item.label"
 					selection-behavior="replace"
-					:expanded="controlledExpandedIds"
+					:expanded="expandedFolderIds"
 					@update:expanded="onUpdateExpanded"
 					class="file-tree"
 				>
@@ -1076,7 +909,7 @@ async function onDropOnRoot() {
 					</template>
 
 					<template #item-label="{ item }">
-						<UContextMenu :disabled="!fileStore.projectId" :items="itemMenuItems(item)" :content="{ onCloseAutoFocus: preventCloseAutoFocus }">
+						<UContextMenu :items="itemMenuItems(item)" :content="{ onCloseAutoFocus: preventCloseAutoFocus }">
 							<div
 								class="tree-row-dnd"
 								:ref="(el) => setRowDndRef(item, el)"
@@ -1124,7 +957,7 @@ async function onDropOnRoot() {
 						</template>
 					</template>
 
-					<template v-if="fileStore.projectId" #item-trailing="{ item }">
+					<template #item-trailing="{ item }">
 						<div v-if="renamingItemId !== item.id" class="item-actions" @contextmenu="forwardRowContextMenu($event, item)">
 							<UDropdownMenu
 								:items="itemMenuItems(item)"

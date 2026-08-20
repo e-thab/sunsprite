@@ -230,7 +230,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
 
             <!-- Sandbox button: a faux-project, accessible without signing in,
             that saves to localStorage. Not to be confused with the code
-            sandboxing (sandbox.html/src/sandbox) used internally to run user
+            sandboxing (runner.html/src/sandbox) used internally to run user
             code from its own origin. Hidden while already in the sandbox —
             nothing to navigate to from there. -->
             <UTooltip v-if="route.name !== 'sandbox'" text="Sandbox">
