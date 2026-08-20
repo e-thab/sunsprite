@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>atan2(y: number, x: number, unit?: string): number</DocSignature>
+	<DocSnippet><pre>atan2(y: number, x: number, unit?: string): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns the angle between the X axis and the line going through both the origin and the given point.</p>

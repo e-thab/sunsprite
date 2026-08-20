@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>clamp(num: number, min: number, max: number): number</DocSignature>
+	<DocSnippet><pre>clamp(num: number, min: number, max: number): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a number constrained to a given range. If num &lt;= min, returns min. If num &gt;= max, returns max. If min &gt; max, they’re automatically swapped for you.</p>

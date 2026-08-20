@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>repeat(times: number, func: (i: number) =&gt; void): { then(afterFunc: (i: number) =&gt; void): void }</DocSignature>
+	<DocSnippet><pre>repeat(times: number, func: (i: number) =&gt; void): { then(afterFunc: (i: number) =&gt; void): void }</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Runs a specified number of times alongside the game loop, one iteration per frame.</p>
@@ -22,13 +22,13 @@ export default {}
 
 	<DocReturns type="{ then(afterFunc: (i: number) => void): void }">Call .then() to register a function that runs once, when the repeat ends.</DocReturns>
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>repeat(45, () =&gt; {
     gator.rotation += 8
 }).then(() =&gt; {
     print('done')
 })</pre>
-	</DocExample>
+	</DocSnippet>
 
 	<DocRelated :paths="['api/functions/game-loop/forever', 'api/functions/game-loop/repeat-until']" />
 </template>

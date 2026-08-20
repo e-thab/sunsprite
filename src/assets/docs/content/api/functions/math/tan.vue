@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>tan(angle: number, unit?: string): number</DocSignature>
+	<DocSnippet><pre>tan(angle: number, unit?: string): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns the tangent of a number.</p>

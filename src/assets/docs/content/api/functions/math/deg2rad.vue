@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>deg2rad(deg: number): number</DocSignature>
+	<DocSnippet><pre>deg2rad(deg: number): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns an angle converted from degrees to radians.</p>

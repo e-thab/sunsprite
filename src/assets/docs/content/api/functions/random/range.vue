@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Random.range(min: number, max: number): number</DocSignature>
+	<DocSnippet><pre>Random.range(min: number, max: number): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random integer in a given range, min and max inclusive. If min &gt; max, they’re automatically swapped for you.</p>
@@ -22,9 +22,9 @@ export default {}
 
 	<DocReturns type="number">A random integer between min and max, inclusive.</DocReturns>
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>const sides = Random.range(1, 6)</pre>
-	</DocExample>
+	</DocSnippet>
 
 	<DocRelated :paths="['api/functions/random/float']" />
 </template>

@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>new Line(options?: LineProps)</DocSignature>
+	<DocSnippet><pre>new Line(options?: LineProps)</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>A straight line from point A to point B. Unlike Sprite/Rectangle/Circle/Label, Line does not compose GameObject — it has no x/y/width/height/draggable of its own, since its position is defined entirely by its two endpoints.</p>
@@ -28,12 +28,12 @@ export default {}
 
 	<DocMixins :paths="['api/traits/rotatable', 'api/traits/timeable', 'api/traits/viewable']" />
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>const divider = new Line({
     pointA: { x: -100, y: 0 },
     pointB: { x: 100, y: 0 },
     color: '#ffffff',
     thickness: 4,
 })</pre>
-	</DocExample>
+	</DocSnippet>
 </template>

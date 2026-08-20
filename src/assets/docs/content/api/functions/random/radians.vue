@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Random.radians(): number</DocSignature>
+	<DocSnippet><pre>Random.radians(): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random rotation in radians as a float/decimal value. Range: [0, 2*pi).</p>

@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>after(seconds: number, func: () =&gt; void): void</DocSignature>
+	<DocSnippet><pre>after(seconds: number, func: () =&gt; void): void</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Runs the given function once, after the specified number of seconds have passed.</p>
@@ -20,11 +20,11 @@ export default {}
 		<DocParam name="func" type="() => void">The function to run.</DocParam>
 	</DocParams>
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>after(2, () =&gt; {
     print('2 seconds have passed')
 })</pre>
-	</DocExample>
+	</DocSnippet>
 
 	<DocRelated :paths="['api/functions/game-loop/every']" />
 </template>

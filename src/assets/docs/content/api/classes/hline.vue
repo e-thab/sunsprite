@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>new HLine(options?: HLineProps)</DocSignature>
+	<DocSnippet><pre>new HLine(options?: HLineProps)</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>A straight, infinitely long horizontal line spanning the full width of the screen at a given y. The minimal case in this API — it composes only Viewable, nothing else.</p>
@@ -27,10 +27,10 @@ export default {}
 
 	<DocMixins :paths="['api/traits/viewable']" />
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>const groundLine = new HLine({
     y: -150,
     color: '#33aa55',
 })</pre>
-	</DocExample>
+	</DocSnippet>
 </template>

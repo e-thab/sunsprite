@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>new VLine(options?: VLineProps)</DocSignature>
+	<DocSnippet><pre>new VLine(options?: VLineProps)</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>A straight, infinitely long vertical line spanning the full height of the screen at a given x. Like HLine, it composes only Viewable.</p>

@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Output.warn(...msg: Printable[]): void</DocSignature>
+	<DocSnippet><pre>Output.warn(...msg: Printable[]): void</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Display a warning message in the output panel.</p>

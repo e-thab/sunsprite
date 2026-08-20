@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>every(seconds: number, func: () =&gt; void): void</DocSignature>
+	<DocSnippet><pre>every(seconds: number, func: () =&gt; void): void</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Runs the given function once immediately, then repeatedly at the specified time interval.</p>
@@ -20,11 +20,11 @@ export default {}
 		<DocParam name="func" type="() => void">The function to run.</DocParam>
 	</DocParams>
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>every(0.1, () =&gt; {
     new Sprite({ src: 'https://pixijs.com/assets/bunny.png' })
 })</pre>
-	</DocExample>
+	</DocSnippet>
 
 	<DocRelated :paths="['api/functions/game-loop/after', 'api/functions/game-loop/forever']" />
 </template>

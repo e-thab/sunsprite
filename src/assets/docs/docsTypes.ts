@@ -19,7 +19,7 @@ export type DocRef = {
  * </script>
  *
  * <template>
- *   <DocSignature>new Sprite(options?: SpriteProps)</DocSignature>
+ *   <DocSnippet><pre>new Sprite(options?: SpriteProps)</pre></DocSnippet>
  *   <p>...</p>
  * </template>
  * ```

@@ -1,7 +1,6 @@
 import type { App } from 'vue'
 import '@/assets/docs/docsPage.css'
 import DocColorSwatches from './DocColorSwatches.vue'
-import DocExample from './DocExample.vue'
 import DocLink from './DocLink.vue'
 import DocMethod from './DocMethod.vue'
 import DocMethods from './DocMethods.vue'
@@ -13,7 +12,7 @@ import DocProperty from './DocProperty.vue'
 import DocRelated from './DocRelated.vue'
 import DocReturns from './DocReturns.vue'
 import DocSection from './DocSection.vue'
-import DocSignature from './DocSignature.vue'
+import DocSnippet from './DocSnippet.vue'
 
 /**
  * The building blocks a docs page writes its body out of. They're registered
@@ -27,7 +26,6 @@ import DocSignature from './DocSignature.vue'
  */
 export const docComponents = {
 	DocColorSwatches,
-	DocExample,
 	DocLink,
 	DocMethod,
 	DocMethods,
@@ -39,7 +37,7 @@ export const docComponents = {
 	DocRelated,
 	DocReturns,
 	DocSection,
-	DocSignature,
+	DocSnippet,
 }
 
 export function installDocComponents(app: App) {

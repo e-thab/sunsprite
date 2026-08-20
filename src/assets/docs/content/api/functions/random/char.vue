@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Random.char(str: string): string</DocSignature>
+	<DocSnippet><pre>Random.char(str: string): string</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random character from a given string.</p>

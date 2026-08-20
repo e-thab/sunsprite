@@ -11,7 +11,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Random.letter(uppercase: boolean = false): string</DocSignature>
+	<DocSnippet><pre>Random.letter(uppercase: boolean = false): string</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random letter of the alphabet. Lowercase by default.</p>

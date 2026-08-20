@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>new Rectangle(options?: RectangleProps)</DocSignature>
+	<DocSnippet><pre>new Rectangle(options?: RectangleProps)</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>A filled rectangle shape. Composes every trait in GameObject, plus its own fill color.</p>

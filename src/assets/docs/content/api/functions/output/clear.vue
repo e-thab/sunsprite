@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Output.clear(): void</DocSignature>
+	<DocSnippet><pre>Output.clear(): void</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Clear all messages from the output panel.</p>

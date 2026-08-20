@@ -13,9 +13,10 @@ function getColorBrightness(hex: string): number {
 	// return Math.max(r, g, b) / 255
 }
 
-function getForegroundColor(hex: string): string {
-	return getColorBrightness(hex) > 0.45 ? '#000000' : '#ffffff' 
+function getForegroundColor(backgroundHex: string): string {
+	return getColorBrightness(backgroundHex) > 0.45 ? '#000000' : '#ffffff' 
 }
+defineExpose([getForegroundColor])
 
 // String enums have no reverse mapping, so the plain entries are already the
 // name → hex pairs we want.

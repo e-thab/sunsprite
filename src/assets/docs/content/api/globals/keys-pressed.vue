@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>const keysPressed: string[]</DocSignature>
+	<DocSnippet><pre>const keysPressed: string[]</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>An array of all keys currently pressed.</p>

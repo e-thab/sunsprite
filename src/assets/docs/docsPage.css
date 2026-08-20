@@ -92,15 +92,6 @@
 	color: var(--theme-text-toned);
 }
 
-.doc-signature {
-	display: block;
-	padding: 0.5em 0.75em;
-	background-color: var(--theme-bg);
-	border-radius: 0.2rem;
-	overflow-x: auto;
-	white-space: pre;
-}
-
 .doc-table {
 	width: 100%;
 	border-collapse: collapse;
@@ -170,7 +161,9 @@
 	color: var(--theme-text-toned);
 }
 
-.doc-example,
+/* `.doc-snippet` is DocSnippet's own block, used when it's given the code as
+   a string; the bare `pre` is the same thing written inline in a page. */
+.doc-snippet,
 .docs-page pre {
 	padding: 0.75em;
 	margin: 0;
@@ -183,7 +176,7 @@
 	color: var(--theme-text);
 }
 
-.doc-example code,
+.doc-snippet code,
 .docs-page pre code {
 	font-size: inherit;
 	color: inherit;

@@ -11,7 +11,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Random.roll(sides: number): number</DocSignature>
+	<DocSnippet><pre>Random.roll(sides: number): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns the result of rolling a die with a given number of sides.</p>

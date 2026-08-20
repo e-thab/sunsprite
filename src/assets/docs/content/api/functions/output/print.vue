@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>print(...msg: Printable[]): void</DocSignature>
+	<DocSnippet><pre>print(...msg: Printable[]): void</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Display a normal message in the output panel.</p>

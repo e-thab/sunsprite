@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Random.pos(): Point</DocSignature>
+	<DocSnippet><pre>Random.pos(): Point</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random position within the screen. Alias for Random.position().</p>

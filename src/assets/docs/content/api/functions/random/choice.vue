@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Random.choice(array: any[]): any</DocSignature>
+	<DocSnippet><pre>Random.choice(array: any[]): any</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random item from a given array.</p>
@@ -21,7 +21,7 @@ export default {}
 
 	<DocReturns type="any">One randomly-chosen element from the array.</DocReturns>
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>const color = Random.choice(['#F72585', '#7209B7', '#3A0CA3'])</pre>
-	</DocExample>
+	</DocSnippet>
 </template>

@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>new Sprite(options?: SpriteProps)</DocSignature>
+	<DocSnippet><pre>new Sprite(options?: SpriteProps)</pre></DocSnippet>
 	
 	<DocSection id="content-1">
 		<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque quis finibus felis. Duis vestibulum aliquam suscipit. Curabitur elementum egestas lacinia. Nam rhoncus velit nisi. Nulla et augue tristique odio blandit convallis. Integer rutrum ornare malesuada. Sed vehicula rutrum consectetur.</p>
@@ -39,7 +39,7 @@ export default {}
 
 	<DocMixins :paths="['api/traits/game-object']" />
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>const bunny = new Sprite({
     src: 'https://pixijs.com/assets/bunny.png',
     x: 200,
@@ -48,5 +48,5 @@ export default {}
 forever(delta =&gt; {
     bunny.rotation += 2
 })</pre>
-	</DocExample>
+	</DocSnippet>
 </template>

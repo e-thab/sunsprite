@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>sin(angle: number, unit?: string): number</DocSignature>
+	<DocSnippet><pre>sin(angle: number, unit?: string): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns the sine of a number.</p>

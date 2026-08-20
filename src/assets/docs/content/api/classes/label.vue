@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>new Label(options?: LabelProps)</DocSignature>
+	<DocSnippet><pre>new Label(options?: LabelProps)</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>An object that displays text — useful for scores, timers, and messages. Composes every trait in GameObject, plus its own text/size/font/color.</p>

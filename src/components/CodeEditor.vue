@@ -672,7 +672,7 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 				     which one the game header's Restart button runs (always
 				     main.js — see runMainScript). Text files aren't scripts. -->
 				<UTooltip v-if="!fileStore.isTextFile(fileStore.activeFileName)" text="Run this script">
-					<UButton icon="tabler:player-play-filled" variant="ghost" color="neutral" size="xs" @click="runActiveUserCode" />
+					<UButton icon="tabler:player-play-filled" variant="subtle" color="primary" size="xs" @click="runActiveUserCode" />
 				</UTooltip>
 			</div>
 

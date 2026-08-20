@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>onMouse(actions: MouseInputAction): void</DocSignature>
+	<DocSnippet><pre>onMouse(actions: MouseInputAction): void</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Register input actions to run once each time a mouse event is detected.</p>

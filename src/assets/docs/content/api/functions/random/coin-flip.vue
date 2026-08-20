@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Random.coinFlip(): boolean</DocSignature>
+	<DocSnippet><pre>Random.coinFlip(): boolean</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random boolean, 50/50 chance for true/false.</p>
@@ -17,9 +17,9 @@ export default {}
 
 	<DocReturns type="boolean">true or false, each with 50% chance.</DocReturns>
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>if (Random.coinFlip()) {
     bunny.rotation += 180
 }</pre>
-	</DocExample>
+	</DocSnippet>
 </template>

@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>keyJustReleased(key: string): boolean</DocSignature>
+	<DocSnippet><pre>keyJustReleased(key: string): boolean</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns true if the specified key is no longer pressed, and this is the first frame after release. Only true once when a key stops being held.</p>

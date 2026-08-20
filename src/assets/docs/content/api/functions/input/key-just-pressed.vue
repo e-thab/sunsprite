@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>keyJustPressed(key: string): boolean</DocSignature>
+	<DocSnippet><pre>keyJustPressed(key: string): boolean</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns true if the specified key is pressed, and this is the first frame that it’s being held. Only true once when a key starts being held.</p>

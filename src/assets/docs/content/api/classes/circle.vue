@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>new Circle(options?: CircleProps)</DocSignature>
+	<DocSnippet><pre>new Circle(options?: CircleProps)</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>A filled circle shape. Composes every trait in GameObject, plus its own fill color and radius.</p>

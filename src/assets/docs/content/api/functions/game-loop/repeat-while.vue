@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>repeatWhile(condition: () =&gt; boolean, func: (i: number) =&gt; void): { then(afterFunc: (i: number) =&gt; void): void }</DocSignature>
+	<DocSnippet><pre>repeatWhile(condition: () =&gt; boolean, func: (i: number) =&gt; void): { then(afterFunc: (i: number) =&gt; void): void }</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Runs repeatedly while the given condition is true, alongside the game loop, one iteration per frame.</p>

@@ -12,7 +12,7 @@ export default {}
      the page's URL slug), and fill in the meta above and the content below.
      Add the new slug to the order list in this folder's index.vue to place it;
      without that it just sorts after the listed pages. The blocks available
-     here — DocSection, DocParams, DocExample, DocLink and the rest — live in
+     here — DocSection, DocParams, DocSnippet, DocLink and the rest — live in
      src/components/docs/content. -->
 <template>
 	<DocSection id="content-1">

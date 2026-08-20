@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Random.float(min: number, max: number): number</DocSignature>
+	<DocSnippet><pre>Random.float(min: number, max: number): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random float in a given range, min inclusive / max exclusive. If min &gt; max, they’re automatically swapped for you.</p>
@@ -22,9 +22,9 @@ export default {}
 
 	<DocReturns type="number">A random decimal value, min inclusive / max exclusive.</DocReturns>
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>bunny.scale = Random.float(0.5, 1.5)</pre>
-	</DocExample>
+	</DocSnippet>
 
 	<DocRelated :paths="['api/functions/random/range']" />
 </template>

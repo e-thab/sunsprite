@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>cos(angle: number, unit?: string): number</DocSignature>
+	<DocSnippet><pre>cos(angle: number, unit?: string): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns the cosine of a number.</p>

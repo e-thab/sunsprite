@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>Random.degrees(): number</DocSignature>
+	<DocSnippet><pre>Random.degrees(): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random rotation in degrees as an integer. Range: [0, 359].</p>

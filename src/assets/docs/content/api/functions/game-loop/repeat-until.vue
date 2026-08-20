@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>repeatUntil(condition: () =&gt; boolean, func: (i: number) =&gt; void): { then(afterFunc: (i: number) =&gt; void): void }</DocSignature>
+	<DocSnippet><pre>repeatUntil(condition: () =&gt; boolean, func: (i: number) =&gt; void): { then(afterFunc: (i: number) =&gt; void): void }</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Runs alongside the game loop, one iteration per frame, until the given condition becomes true.</p>
@@ -22,11 +22,11 @@ export default {}
 
 	<DocReturns type="{ then(afterFunc: (i: number) => void): void }">Call .then() to register a function that runs once, when the loop ends.</DocReturns>
 
-	<DocExample>
+	<DocSnippet title="Example">
 <pre>repeatUntil(() =&gt; bunny.rotation &gt;= 360, i =&gt; {
     bunny.rotation += 2
 }).then(i =&gt; print(`done after ${i} frames`))</pre>
-	</DocExample>
+	</DocSnippet>
 
 	<DocRelated :paths="['api/functions/game-loop/repeat-while', 'api/functions/game-loop/repeat']" />
 </template>

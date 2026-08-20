@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>onKeyRelease(actions: KeyAction): void</DocSignature>
+	<DocSnippet><pre>onKeyRelease(actions: KeyAction): void</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Register input actions to run once each time a key is released.</p>

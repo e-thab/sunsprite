@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSignature>when(condition: () =&gt; boolean, func: () =&gt; void): void</DocSignature>
+	<DocSnippet><pre>when(condition: () =&gt; boolean, func: () =&gt; void): void</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Checks the given condition every frame, and runs func once each time it transitions from false to true.</p>
