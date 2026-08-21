@@ -19,7 +19,17 @@ export type HostMessage =
     | { type: 'run', code: string, entryName: string, theme?: ThemePalette }
     /** Reply to a 'script-request'. `content: null` means "no such script". */
     | { type: 'script-response', id: number, content: string | null }
-    | { type: 'set-paused', paused: boolean }
+    /**
+     * `seq` is a host-side counter incremented on every 'set-paused' sent,
+     * echoed back as `status.pauseSeq` once the sandbox applies it. Without
+     * it, hostBridge.ts's optimistic `pausedRef` write on click can get
+     * clobbered by a 'status' snapshot that was already in flight when the
+     * click happened — the snapshot reflects the pre-click state, but lands
+     * after the optimistic write, flickering the button back before the next
+     * (correct) snapshot arrives. Gating on `seq` lets the host recognize and
+     * discard those stale snapshots instead of trusting whichever arrives last.
+     */
+    | { type: 'set-paused', paused: boolean, seq: number }
     /** Nudge the game to re-measure its container (splitter drags, etc.). */
     | { type: 'resize' }
     /**
@@ -57,6 +67,8 @@ export type SandboxMessage =
         mouseX: number,
         mouseY: number,
         paused: boolean,
+        /** The `seq` of the last 'set-paused' this snapshot reflects having applied. See that type's comment. */
+        pauseSeq: number,
         frame: number,
         time: number,
         deltaMs: number,

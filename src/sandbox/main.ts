@@ -32,6 +32,9 @@ import type { HostMessage } from './protocol'
 let nextScriptRequestId = 0
 const pendingScripts = new Map<number, (content: string | undefined) => void>()
 
+/** seq of the last 'set-paused' command applied — echoed in status reports; see protocol.ts. */
+let appliedPauseSeq = 0
+
 setScriptResolver((name) => {
     return new Promise<string | undefined>((resolve) => {
         const id = nextScriptRequestId++
@@ -57,6 +60,7 @@ function handleMessage(message: HostMessage) {
         case 'set-paused':
             if (message.paused) pause()
             else play()
+            appliedPauseSeq = message.seq
             break
 
         case 'resize':
@@ -108,6 +112,7 @@ function startStatusReports() {
             mouseX: Math.round(mouse.x),
             mouseY: Math.round(mouse.y),
             paused,
+            pauseSeq: appliedPauseSeq,
             frame: clock.frame,
             time: clock.time,
             deltaMs: clock.deltaMs,

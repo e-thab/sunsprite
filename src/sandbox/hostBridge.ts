@@ -39,6 +39,9 @@ export { fpsRef, mouseRef, pausedRef, clockRef, screenRef }
 let frame: HTMLIFrameElement | null = null
 let sandboxReady = false
 
+/** seq of the last 'set-paused' command sent — see protocol.ts's comment on that type. */
+let sentPauseSeq = 0
+
 /** Set while the sandbox is still booting, so an early Run isn't dropped. */
 let queuedRun: { code: string, entryName: string, theme?: ThemePalette } | null = null
 
@@ -115,7 +118,12 @@ function onSandboxMessage(event: MessageEvent) {
         case 'status':
             fpsRef.value = message.fps
             mouseRef.value = { mouseX: message.mouseX, mouseY: message.mouseY }
-            pausedRef.value = message.paused
+            // A snapshot older than the last command we sent predates it being
+            // applied sandbox-side; trusting it would flicker pausedRef back to
+            // the pre-click value for one tick. See protocol.ts's 'set-paused'.
+            if (message.pauseSeq >= sentPauseSeq) {
+                pausedRef.value = message.paused
+            }
             clockRef.value = { time: message.time, deltaMs: message.deltaMs, frame: message.frame }
             screenRef.value = {
                 width: message.screenWidth,
@@ -151,12 +159,14 @@ export function runUserCode(code: string, entryName: string, theme?: ThemePalett
 
 export function pause() {
     pausedRef.value = true
-    post({ type: 'set-paused', paused: true })
+    sentPauseSeq += 1
+    post({ type: 'set-paused', paused: true, seq: sentPauseSeq })
 }
 
 export function play() {
     pausedRef.value = false
-    post({ type: 'set-paused', paused: false })
+    sentPauseSeq += 1
+    post({ type: 'set-paused', paused: false, seq: sentPauseSeq })
 }
 
 export function resizeStage() {
