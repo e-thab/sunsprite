@@ -51,24 +51,129 @@ function emptyDir(): DocDir {
 	return { pages: new Map(), dirs: new Map() }
 }
 
+type ElementAttrs = Record<string, string | true>
+
+/**
+ * Every `<Tag attr="val" ...>body</Tag>` (attributes in any order, self-
+ * closing allowed, no same-named tag nested inside) is replaced by whatever
+ * `format` returns. Used below to turn the doc blocks whose meaningful text
+ * lives in *attributes* (a param's name and type, a return's type) into one
+ * clean phrase before the generic stripping further down gets to them — left
+ * alone, those attributes read as bare quoted fragments with no connecting
+ * words once a search result excerpts the surrounding sentence (see
+ * docsSearch.ts's snippetFor), and a type like `() => void` has its own `>`,
+ * which the generic tag-closer stripping below would otherwise eat.
+ */
+function reformatElements(source: string, tag: string, format: (attrs: ElementAttrs, body: string) => string): string {
+	const openTag = new RegExp(`<${tag}(?![\\w-])((?:\\s+[\\w:@.-]+(?:=(?:"[^"]*"|'[^']*'))?)*)\\s*/?>(?:([\\s\\S]*?)</${tag}>)?`, 'g')
+	const attrPair = /([\w:@.-]+)(?:=(?:"([^"]*)"|'([^']*)'))?/g
+
+	return source.replace(openTag, (_match, attrList: string, body: string | undefined) => {
+		const attrs: ElementAttrs = {}
+		attrPair.lastIndex = 0
+		let pair: RegExpExecArray | null
+		while ((pair = attrPair.exec(attrList))) attrs[pair[1]!] = pair[2] ?? pair[3] ?? true
+		return format(attrs, body ?? '')
+	})
+}
+
+function attr(attrs: ElementAttrs, name: string): string {
+	const value = attrs[name]
+	return typeof value === 'string' ? value : ''
+}
+
+// A type that's already its own function signature — `(delta: number) =>
+// void` — reads fine on its own; only a bare type name needs parenthesizing
+// to read as one unit next to the param/property name it belongs to.
+function formatType(type: string): string {
+	if (!type) return ''
+	return type.startsWith('(') ? ` ${type}` : ` (${type})`
+}
+
+// Placeholder pair standing in for a literal `<`/`>` that belongs to a
+// param/return *type* (an arrow function, a `Foo<Bar>` generic) while it
+// passes through the generic tag-stripping below, which would otherwise
+// read either character as tag punctuation. Restored for real once that
+// pass is done. Deliberately not applied to a block's body text: unlike an
+// attribute value, body text may legitimately contain another nested tag
+// (see e.g. random/color.vue's DocReturns, which wraps a live example in a
+// <span>) that the generic pass still needs to strip normally.
+const ANGLE_GT = 'ZZZ_ANGLE_GT_ZZZ'
+const ANGLE_LT = 'ZZZ_ANGLE_LT_ZZZ'
+
+function protectAngles(value: string): string {
+	return value.replace(/>/g, ANGLE_GT).replace(/</g, ANGLE_LT)
+}
+
+function restoreAngles(text: string): string {
+	return text.split(ANGLE_GT).join('>').split(ANGLE_LT).join('<')
+}
+
+const NAMED_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' }
+
+/**
+ * Decodes the handful of HTML entities this hand-authored content actually
+ * uses — content/ escapes `<`/`>`/etc. the same way any Vue template must
+ * (see DocSnippet.vue's own doc comment on writing code literally in a
+ * template). Left alone, an entity either shows up as its literal `&gt;`-
+ * style text or — under the blank-to-a-space handling this replaces —
+ * silently swallows a comparison/arrow-function operator: "min &gt; max"
+ * used to read as "min  max", and an example's `=&gt;` as a bare `=`. An
+ * unrecognized entity still blanks to a space, same as before.
+ */
+function decodeEntities(text: string): string {
+	return text.replace(/&([a-z]+);|&#(x[0-9a-f]+|\d+);/gi, (_match, name?: string, code?: string) => {
+		if (code) {
+			const codePoint = code.toLowerCase().startsWith('x') ? Number.parseInt(code.slice(1), 16) : Number.parseInt(code, 10)
+			return Number.isNaN(codePoint) ? ' ' : String.fromCodePoint(codePoint)
+		}
+		return NAMED_ENTITIES[name!.toLowerCase()] ?? ' '
+	})
+}
+
 /**
  * Everything a reader would actually see on the page, as one string. Script
- * and style blocks go (they're plumbing, and matching a page because of its
- * imports would be noise), then tag and attribute *names* go while attribute
- * *values* stay — the text of a param or property lives in an attribute or a
- * slot, and both need to be searchable.
+ * and style blocks go first (they're plumbing, and matching a page because
+ * of its imports would be noise), then the doc blocks reformatted above,
+ * then whatever's left goes through the generic pass: tag and attribute
+ * *names* go while attribute *values* stay unquoted — the text of a param or
+ * property lives in an attribute or a slot, and both need to be searchable.
+ * `id` and a bound `:paths`/`:code` are the exceptions, dropped
+ * name-and-value together: an `id` (DocSection/DocSnippet anchor slugs like
+ * "content-1") is routing plumbing, never prose, and `:paths`/`:code`
+ * (DocRelated/DocMixins' linked pages, DocSnippet's multi-language examples)
+ * are JS array/object literals that read as noise once flattened, not
+ * prose — left in, either surfaces as a stray fragment in a search result's
+ * excerpt (see docsSearch.ts's snippetFor).
  */
 function pageText(source: string): string {
-	return source
+	let text = source
 		.replace(/<script[\s\S]*?<\/script>/gi, ' ')
 		.replace(/<style[\s\S]*?<\/style>/gi, ' ')
 		.replace(/<!--[\s\S]*?-->/g, ' ')
+
+	text = reformatElements(text, 'DocParam', (attrs, body) => {
+		const type = formatType(protectAngles(attr(attrs, 'type')))
+		return ` ${attr(attrs, 'name')}${attrs.optional ? '?' : ''}${type}: ${body} `
+	})
+	text = reformatElements(text, 'DocProperty', (attrs, body) => {
+		const type = formatType(protectAngles(attr(attrs, 'type')))
+		return ` ${attr(attrs, 'name')}${type}: ${body} `
+	})
+	text = reformatElements(text, 'DocReturns', (attrs, body) => {
+		const type = protectAngles(attr(attrs, 'type'))
+		return ` ${type ? `${type} — ` : ''}${body} `
+	})
+	text = reformatElements(text, 'DocMethod', (attrs, body) => ` ${protectAngles(attr(attrs, 'signature'))}: ${body} `)
+
+	text = text
+		.replace(/\bid=(["'])[^"']*\1/g, ' ')
+		.replace(/\s+:(?:paths|code)=(["'])(?:(?!\1)[\s\S])*\1/g, ' ')
 		.replace(/<\/?[A-Za-z][\w.-]*/g, ' ')
-		.replace(/[\w:@.-]+=/g, ' ')
+		.replace(/[\w:@.-]+=(["'])((?:(?!\1)[\s\S])*)\1/g, ' $2 ')
 		.replace(/\/?>/g, ' ')
-		.replace(/&[a-z]+;|&#\d+;/gi, ' ')
-		.replace(/\s+/g, ' ')
-		.trim()
+
+	return decodeEntities(restoreAngles(text)).replace(/\s+/g, ' ').trim()
 }
 
 function titleFromSlug(slug: string): string {

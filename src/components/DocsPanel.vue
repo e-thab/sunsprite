@@ -3,9 +3,10 @@ import { computed, provide, reactive, ref, watch } from 'vue'
 import { Splitpanes, Pane } from 'splitpanes'
 import { docsTree } from '@/assets/docs/docsContent'
 import { nodesByPath, ancestorsOf } from '@/assets/docs/docsIndex'
-import { filterTree } from '@/assets/docs/docsSearch'
+import { searchDocs } from '@/assets/docs/docsSearch'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
 import DocsTree from './docs/DocsTree.vue'
+import DocsSearchResultsList from './docs/DocsSearchResultsList.vue'
 import DocsBreadcrumb from './docs/DocsBreadcrumb.vue'
 import DocsCategoryLanding from './docs/DocsCategoryLanding.vue'
 import DocsBody from './docs/DocsBody.vue'
@@ -14,7 +15,13 @@ defineEmits<{ close: [] }>()
 
 const searchQuery = ref('')
 const isSearching = computed(() => searchQuery.value.trim().length > 0)
-const visibleTree = computed(() => filterTree(docsTree, searchQuery.value))
+// Flat, snippet-bearing results (see docsSearch.ts) rather than the pruned
+// tree this used to filter down to — a tree of nested categories has no
+// natural place to show *why* each node matched, and this is a more direct
+// functional match for the reference the search rework was built against
+// (Vue's own docs search: a flat list of results, each excerpted around the
+// match).
+const searchResults = computed(() => searchDocs(searchQuery.value))
 
 // The panel's own navigation state — intentionally NOT synced to the
 // browser route (see docs/plans/docs-panel-rebuild.md, decision #1). The
@@ -49,12 +56,23 @@ function navigate(path: string, opts?: { reveal?: boolean }) {
 	}
 }
 
+// Selecting a search result is a content-driven jump, not a tree click — the
+// user couldn't have already seen (or collapsed) the branch it lands in via
+// the tree itself — so it reveals its ancestors the same way a category
+// landing card or a related-doc link does. Clearing the query afterward
+// swaps the tree pane back from results to the browsable tree, landing on
+// the now-expanded destination instead of leaving the flat result list up
+// behind a page that's already changed underneath it.
+function selectSearchResult(path: string) {
+	navigate(path, { reveal: true })
+	searchQuery.value = ''
+}
+
 function resolveHref(path: string) {
 	return `/docs/${path}`
 }
 
 function isExpanded(path: string): boolean {
-	if (isSearching.value) return true
 	return expandOverrides.get(path) ?? false
 }
 
@@ -108,8 +126,10 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 		<splitpanes horizontal class="docs-panes" :push-other-panes="false">
 			<pane size="45" class="docs-tree-pane">
 				<div class="docs-tree-scroll">
-					<DocsTree :nodes="visibleTree" />
-					<p v-if="isSearching && visibleTree.length === 0" class="docs-no-results">No matching sections found.</p>
+					<DocsTree v-if="!isSearching" :nodes="docsTree" />
+					<div v-else class="docs-search-results">
+						<DocsSearchResultsList :results="searchResults" @select="selectSearchResult" />
+					</div>
 				</div>
 			</pane>
 
@@ -199,18 +219,19 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 	background-color: var(--theme-bg-elevated);
 }
 
+/* Results are bordered cards (see DocsSearchResultsList.vue), unlike the
+   tree's own borderless rows — this is the horizontal breathing room that
+   keeps them off the pane edge, scoped to just the search state so the
+   tree's own flush layout is untouched. */
+.docs-search-results {
+	padding: 0 0.5em;
+}
+
 .docs-content-scroll {
 	height: 100%;
 	overflow-y: auto;
 	padding: 0.75em 1em;
 	background-color: var(--theme-bg-elevated);
 	/* border-top: 1px solid var(--theme-border); */
-}
-
-.docs-no-results {
-	padding: 0.75em 1em;
-	margin: 0;
-	font-size: 0.85em;
-	color: var(--theme-text-toned);
 }
 </style>

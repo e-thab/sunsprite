@@ -53,8 +53,7 @@ function onCategorySelect(_event: Event, item?: TreeItem) {
 }
 
 // Each node carries its own path (built from where its file sits, see
-// docsContent.ts), including the cloned categories filterTree() hands back
-// while pruning to search matches — so nothing here has to reconstruct it.
+// docsContent.ts) — so nothing here has to reconstruct it.
 function buildItems(nodes: DocNode[]): TreeItem[] {
 	return nodes.map((node): TreeItem => {
 		if (node.kind === 'category') {

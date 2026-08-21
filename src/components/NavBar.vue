@@ -11,7 +11,7 @@ import { useProjectStore, MAX_PROJECT_NAME_LENGTH } from '@/stores/projectStore'
 import { useNamePromptStore } from '@/stores/namePromptStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useDocsSearchStore } from '@/stores/docsSearchStore';
-import { nodesByPath } from '@/assets/docs/docsIndex';
+import { usePageTitle } from '@/composables/usePageTitle';
 import { timeAgo } from '@/assets/utils/timeAgo';
 import SignInModal from './SignInModal.vue';
 import SignUpModal from './SignUpModal.vue';
@@ -65,26 +65,14 @@ function onDocsClick() {
     }
 }
 
-// Center-bar label for whichever page is current. The 'project' route is
-// deliberately absent here — that's the one page with something better to
-// show instead (see .project-header below), and left blank falls through to
-// nothing during the brief window before a loaded project has a name yet.
-const pageTitle = computed(() => {
-    switch (route.name) {
-        case 'home': return 'Home'
-        case 'sandbox': return 'Sandbox'
-        case 'account': return 'Account'
-        case 'projects': return 'My Projects'
-        case 'docs': {
-            const raw = route.params.pathMatch
-            const path = Array.isArray(raw) ? raw.join('/') : (raw ?? '')
-            return nodesByPath.get(path)?.title ?? 'Docs'
-        }
-        case 'docs-search': return 'Search Docs'
-        case 'not-found': return 'Page Not Found'
-        default: return ''
-    }
-})
+// Center-bar label for whichever page is current — also what the browser
+// tab title is built from (see App.vue), so the two stay in sync by
+// construction. The 'project' route is deliberately absent from the
+// composable's own switch — that's the one page with something better to
+// show instead (a loaded project's name takes priority there), and left
+// blank falls through to nothing during the brief window before a loaded
+// project has a name yet.
+const pageTitle = usePageTitle()
 
 // Keeps --nav-height (base.css) in sync with the bar's real rendered height,
 // so anything elsewhere that needs to size/position itself around the
@@ -234,7 +222,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
             code from its own origin. Hidden while already in the sandbox —
             nothing to navigate to from there. -->
             <UTooltip v-if="route.name !== 'sandbox'" text="Sandbox">
-                <UButton icon="tabler:device-gamepad-2-filled" variant="ghost" color="neutral" @click="() => { router.push('/sandbox') }">Sandbox</UButton>
+                <UButton icon="tabler:sandbox" variant="ghost" color="neutral" @click="() => { router.push('/sandbox') }">Sandbox</UButton>
             </UTooltip>
 
             <!-- Docs button: toggles the embedded panel in the editor, or
@@ -256,8 +244,8 @@ const accountMenuItems: DropdownMenuItem[][] = [
 
         <!-- Try a fieldgroup here -->
         <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
-            <span class="project-name" :title="fileStore.projectName">{{ fileStore.projectName }}</span>
-            
+            <span class="project-name" :title="pageTitle">{{ pageTitle }}</span>
+
             <UTooltip text="Save all files">
                 <UButton
                     icon="tabler:device-floppy-filled"
