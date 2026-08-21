@@ -2,13 +2,14 @@
 import { computed } from 'vue'
 import { useToast } from '@nuxt/ui/composables'
 import { getForegroundColor } from '@/assets/api/utility'
-import Colors from '@/assets/api/Colors'
+// import { CustomColors } from '@/assets/api/Colors'
 
 const toast = useToast()
+const props = defineProps<{ colors: Record<string, string> }>()
 
 // String enums have no reverse mapping, so the plain entries are already the
 // name → hex pairs we want.
-const swatches = computed(() => Object.entries(Colors).map(([name, hex]) => ({ name, hex: hex as string })))
+const swatches = computed(() => Object.entries(props.colors).map(([name, hex]) => ({ name, hex: hex as string })))
 
 async function copyName(name: string) {
 	const reference = `Colors.${name}`

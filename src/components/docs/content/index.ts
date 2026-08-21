@@ -1,6 +1,6 @@
 import type { App } from 'vue'
 import '@/assets/docs/docsPage.css'
-import DocColorSwatches from './DocColorSwatches.vue'
+import DocWebColorSwatches from './DocColorSwatches.vue'
 import DocLink from './DocLink.vue'
 import DocMethod from './DocMethod.vue'
 import DocMethods from './DocMethods.vue'
@@ -25,7 +25,7 @@ import DocSnippet from './DocSnippet.vue'
  * components for one-off content.
  */
 export const docComponents = {
-	DocColorSwatches,
+	DocWebColorSwatches,
 	DocLink,
 	DocMethod,
 	DocMethods,

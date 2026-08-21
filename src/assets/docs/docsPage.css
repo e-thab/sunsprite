@@ -206,4 +206,22 @@
 	text-decoration: underline;
 	text-underline-offset: 0.15em;
 	cursor: pointer;
+	transition: color 0.15s;
+}
+
+/* .doc-link a:visited, */
+.docs-page p a:visited,
+.docs-page li a:visited {
+	color: var(--theme-secondary);
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+	cursor: pointer;
+}
+
+.docs-page p a:hover,
+.docs-page li a:hover {
+	color: var(--theme-bg-inverted);
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+	cursor: pointer;
 }
