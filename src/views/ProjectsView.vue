@@ -107,6 +107,13 @@ onMounted(() => projectStore.fetchProjects())
 .projects-view {
   width: 100%;
   height: 100%;
+  /* .project-list below is unbounded — enough projects (or a short/zoomed
+     viewport) can make this taller than the screen. App.vue's `.content`
+     used to force `overflow-y: hidden` on every route's root regardless,
+     which would've silently clipped that case with no way to reach the
+     rest. Now that each view owns its own overflow (see App.vue), this
+     needs to actually handle it. */
+  overflow-y: auto;
   display: flex;
   align-items: flex-start;
   justify-content: center;

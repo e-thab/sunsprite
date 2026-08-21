@@ -57,9 +57,19 @@ onBeforeUnmount(() => classObserver?.disconnect())
   display: flex;
   flex-direction: column;
 }
+/* Sizing only — no `overflow` here. This class lands on whatever the
+   current route's root element is (RouterView forwards `class` the same way
+   any other attr falls through), and different views want opposite
+   overflow behavior on that same element: DocsView/LandingView/
+   DocsSearchResultsView each make their own root the scrollable region
+   (`overflow-y: auto` + `height: 100%`), while EditorView wants its root
+   clipped (`overflow: hidden`) since its panes each own their own internal
+   scroll instead. A shared `overflow-y: hidden` here used to fight whichever
+   of those a view declared for itself, with the winner decided by
+   unrelated CSS load order rather than either declaration actually meaning
+   anything — each view sets its own now. */
 .content {
   flex: 1 1 100%;
-  overflow-y: hidden;
 }
 .navbar-header {
   color: var(--theme-text);
