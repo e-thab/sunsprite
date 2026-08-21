@@ -24,7 +24,12 @@ import { CustomColors } from '@/assets/api/Colors';
 		<p>New link <a target="_blank" href="https://en.wikipedia.org/wiki/Web_colors#HTML_color_nam">do not click</a></p>
 	</DocSection> -->
 
-	<DocSnippet title="Example"><pre>rect.color = Colors.Peru</pre></DocSnippet>
+	<!-- <DocSnippet title="Example"><pre>rect.color = Colors.Peru</pre></DocSnippet> -->
+	<DocSnippet title="Example" :code="{
+		JavaScript: 'sprite.color = \'peru\'',
+		Python: 'rect.color = Colors.Peru',
+	}" />
+
 
 	<DocSection id="web-colors" title="Web Colors">
 		<DocColorSwatches :colors="WebColors" />

@@ -161,6 +161,46 @@
 	color: var(--theme-text-toned);
 }
 
+/* DocSnippet: `.doc-snippet-frame` always wraps the block — the language
+   selector, when there is one, plus `.doc-snippet-body` (the code and its
+   copy button, see below) — so the two read as one card instead of a pill
+   floating separately above the code. */
+.doc-snippet-frame .doc-snippet-tabs {
+	width: 100%;
+}
+
+/* Flattens `UTabs`' own padded, rounded pill capsule into a header strip
+   spanning the frame, with triggers left-aligned and sized to their label
+   rather than stretched to fill the row (its default under horizontal
+   orientation — see `w-full` on the list and `grow` on the triggers). The
+   top corners match the frame's own radius; the bottom is square, flush
+   with `.doc-snippet` below. */
+.doc-snippet-frame .doc-snippet-tabs [data-slot='list'] {
+	width: 100%;
+	/* padding: 0.3em 0.4em 0; */
+	background-color: var(--theme-bg);
+	border-radius: 0.2rem 0.2rem 0 0;
+	/* border-bottom: 0.1rem solid var(--theme-bg-elevated); */
+}
+
+.doc-snippet-frame .doc-snippet-tabs [data-slot='trigger'] {
+	flex: 0 0 auto;
+}
+
+/* Only squared off when the selector's actually there to butt against —
+   `.doc-snippet-frame` now wraps every snippet, tabs or not, so this can't
+   key off the frame alone. */
+.doc-snippet-tabs + .doc-snippet-body .doc-snippet {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}
+
+/* Positioning context for `.doc-snippet-copy` below — every snippet gets
+   one, framed or not. */
+.doc-snippet-body {
+	position: relative;
+}
+
 /* `.doc-snippet` is DocSnippet's own block, used when it's given the code as
    a string; the bare `pre` is the same thing written inline in a page. */
 .doc-snippet,
@@ -180,6 +220,24 @@
 .docs-page pre code {
 	font-size: inherit;
 	color: inherit;
+}
+
+/* Copy-to-clipboard button, top-right of the code — hidden until
+   `.doc-snippet-body` is hovered, or the button itself has focus so it's
+   reachable by keyboard. */
+.doc-snippet-copy {
+	position: absolute;
+	top: 0.5em;
+	right: 0.5em;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.1s;
+}
+
+.doc-snippet-body:hover .doc-snippet-copy,
+.doc-snippet-body:focus-within .doc-snippet-copy {
+	opacity: 1;
+	pointer-events: auto;
 }
 
 .doc-related {
