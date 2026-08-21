@@ -25,11 +25,15 @@ import { CustomColors } from '@/assets/api/Colors';
 	</DocSection> -->
 
 	<!-- <DocSnippet title="Example"><pre>rect.color = Colors.Peru</pre></DocSnippet> -->
-	<DocSnippet title="Example" :code="{
+	<!-- <DocSnippet title="Example" :code="{
 		JavaScript: 'sprite.color = \'peru\'',
 		Python: 'rect.color = Colors.Peru',
-	}" />
+	}" /> -->
 
+	<DocSnippet title="Example" :code="{
+		JavaScript: [{ text: 'sprite', color: 'identifier' }, '.color = ', { text: '\'peru\'', color: 'string' }],
+		Python: [{ text: 'rect', color: 'identifier' }, '.color = ', { text: 'Colors.Peru', color: 'type' }],
+	}" />
 
 	<DocSection id="web-colors" title="Web Colors">
 		<DocColorSwatches :colors="WebColors" />

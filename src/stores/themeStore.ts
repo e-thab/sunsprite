@@ -34,6 +34,25 @@ export const useThemeStore = defineStore('theme', () => {
         root.setProperty('--theme-warning', palette.warning)
         root.setProperty('--theme-error', palette.error)
         root.setProperty('--theme-info', palette.info)
+
+        // Same syntax-token colors Monaco gets via buildMonacoThemeData
+        // (themes.ts), exposed as CSS vars too so DocSnippet's manual
+        // highlighting (`doc-snippet-hl-*` in docsPage.css) tracks whatever
+        // editor theme is active instead of a fixed palette. Only `.color` —
+        // the `style` (bold/italic) Monaco also reads isn't a CSS property
+        // and has no CSS use yet.
+        root.setProperty('--theme-token-default', palette.tokens.default.color)
+        root.setProperty('--theme-token-identifier', palette.tokens.identifier.color)
+        root.setProperty('--theme-token-keyword', palette.tokens.keyword.color)
+        root.setProperty('--theme-token-delimiter', palette.tokens.delimiter.color)
+        root.setProperty('--theme-token-type', palette.tokens.type.color)
+        root.setProperty('--theme-token-number', palette.tokens.number.color)
+        root.setProperty('--theme-token-number-hex', palette.tokens.numberHex.color)
+        root.setProperty('--theme-token-string', palette.tokens.string.color)
+        root.setProperty('--theme-token-string-escape', palette.tokens.stringEscape.color)
+        root.setProperty('--theme-token-comment', palette.tokens.comment.color)
+        root.setProperty('--theme-token-comment-doc', palette.tokens.commentDoc.color)
+        root.setProperty('--theme-token-regexp', palette.tokens.regexp.color)
     }
 
     // Sets the active theme, persists it (localStorage always, plus the

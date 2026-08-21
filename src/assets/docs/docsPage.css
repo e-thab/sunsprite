@@ -222,6 +222,62 @@
 	color: inherit;
 }
 
+/* Manually-colored tokens within a snippet, standing in for a real
+   language-aware highlighter — DocSnippet's `code` prop can mark a piece
+   `{ text, color }` instead of a plain string (see its own doc comment), or
+   a hand-written `<pre>` can use these classes directly. Named for the
+   syntax-token categories a theme's `TokenPalette` (@/assets/theme/themes)
+   defines for Monaco — the `--theme-token-*` vars themselves are set by
+   themeStore.ts's applyToDocument, so a highlighted snippet tracks whatever
+   editor theme is active instead of a fixed palette. */
+.doc-snippet-hl-default {
+	color: var(--theme-token-default);
+}
+
+.doc-snippet-hl-identifier {
+	color: var(--theme-token-identifier);
+}
+
+.doc-snippet-hl-keyword {
+	color: var(--theme-token-keyword);
+}
+
+.doc-snippet-hl-delimiter {
+	color: var(--theme-token-delimiter);
+}
+
+.doc-snippet-hl-type {
+	color: var(--theme-token-type);
+}
+
+.doc-snippet-hl-number {
+	color: var(--theme-token-number);
+}
+
+.doc-snippet-hl-number-hex {
+	color: var(--theme-token-number-hex);
+}
+
+.doc-snippet-hl-string {
+	color: var(--theme-token-string);
+}
+
+.doc-snippet-hl-string-escape {
+	color: var(--theme-token-string-escape);
+}
+
+.doc-snippet-hl-comment {
+	color: var(--theme-token-comment);
+}
+
+.doc-snippet-hl-comment-doc {
+	color: var(--theme-token-comment-doc);
+}
+
+.doc-snippet-hl-regexp {
+	color: var(--theme-token-regexp);
+}
+
 /* Copy-to-clipboard button, top-right of the code — hidden until
    `.doc-snippet-body` is hovered, or the button itself has focus so it's
    reachable by keyboard. */
