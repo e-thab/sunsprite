@@ -8,6 +8,7 @@ export type ProjectRecord = {
     id: string
     name: string
     slug: string
+    isPublic: boolean
     createdAt: string
     updatedAt: string
 }
@@ -30,7 +31,7 @@ export const useProjectStore = defineStore('projects', () => {
         try {
             const { data, error } = await supabase
                 .from('projects')
-                .select('id, name, slug, created_at, updated_at')
+                .select('id, name, slug, is_public, created_at, updated_at')
                 .order('updated_at', { ascending: false })
             if (error) throw error
 
@@ -38,6 +39,7 @@ export const useProjectStore = defineStore('projects', () => {
                 id: row.id,
                 name: row.name,
                 slug: row.slug,
+                isPublic: row.is_public,
                 createdAt: row.created_at,
                 updatedAt: row.updated_at,
             }))
@@ -55,7 +57,7 @@ export const useProjectStore = defineStore('projects', () => {
             const { data, error } = await supabase
                 .from('projects')
                 .insert({ name, owner_id: authStore.user.id, slug: generateSlug() })
-                .select('id, name, slug, created_at, updated_at')
+                .select('id, name, slug, is_public, created_at, updated_at')
                 .single()
 
             if (error) {
@@ -67,6 +69,7 @@ export const useProjectStore = defineStore('projects', () => {
                 id: data.id,
                 name: data.name,
                 slug: data.slug,
+                isPublic: data.is_public,
                 createdAt: data.created_at,
                 updatedAt: data.updated_at,
             }
@@ -94,5 +97,13 @@ export const useProjectStore = defineStore('projects', () => {
         projects.value = projects.value.filter((p) => p.id !== id)
     }
 
-    return { projects, loading, fetchProjects, createProject, renameProject, deleteProject }
+    async function setPublic(id: string, isPublic: boolean) {
+        const { error } = await supabase.from('projects').update({ is_public: isPublic }).eq('id', id)
+        if (error) throw error
+
+        const project = projects.value.find((p) => p.id === id)
+        if (project) project.isPublic = isPublic
+    }
+
+    return { projects, loading, fetchProjects, createProject, renameProject, deleteProject, setPublic }
 })

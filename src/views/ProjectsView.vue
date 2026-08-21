@@ -24,11 +24,19 @@ async function onCreate() {
   errorMessage.value = ''
   try {
     const project = await projectStore.createProject(name)
-    router.push(`/projects/${project.slug}`)
+    router.push(`/edit/${project.slug}`)
   } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : 'Failed to create project'
   } finally {
     creating.value = false
+  }
+}
+
+async function onTogglePublic(project: { id: string, isPublic: boolean }, isPublic: boolean) {
+  try {
+    await projectStore.setPublic(project.id, isPublic)
+  } catch (err) {
+    errorMessage.value = err instanceof Error ? err.message : 'Failed to update visibility'
   }
 }
 
@@ -84,14 +92,25 @@ onMounted(() => projectStore.fetchProjects())
       <ul class="project-list">
         <li v-for="project in projectStore.projects" :key="project.id" class="project-row">
           <div class="project-row-info">
-            <UButton variant="link" @click="() => { router.push(`/projects/${project.slug}`) }" style="font-weight: bold;">
+            <UButton variant="link" @click="() => { router.push(`/edit/${project.slug}`) }" style="font-weight: bold;">
               {{ project.name }}
             </UButton>
             <span class="project-updated">Last edited {{ formatDate(project.updatedAt) }}</span>
           </div>
           <div class="project-row-actions">
+            <UTooltip :text="project.isPublic ? 'Public — anyone with the link can play' : 'Private — only you can access this'" ignore-non-keyboard-focus>
+              <USwitch
+                :model-value="project.isPublic"
+                unchecked-icon="tabler:lock"
+                checked-icon="tabler:world"
+                @update:model-value="(value: boolean) => onTogglePublic(project, value)"
+              />
+            </UTooltip>
+            <UTooltip text="Play" ignore-non-keyboard-focus>
+              <UButton icon="tabler:player-play-filled" variant="soft" color="neutral" size="sm" :to="`/play/${project.slug}`" target="_blank" />
+            </UTooltip>
             <UTooltip text="Rename" ignore-non-keyboard-focus>
-              <UButton icon="tabler:pencil" variant="ghost" color="neutral" size="sm" @click="onRename(project.id, project.name)" />
+              <UButton icon="tabler:pencil" variant="soft" color="neutral" size="sm" @click="onRename(project.id, project.name)" />
             </UTooltip>
             <UTooltip text="Delete" ignore-non-keyboard-focus>
               <UButton icon="tabler:trash" variant="ghost" color="error" size="sm" @click="onDelete(project.id, project.name)" />

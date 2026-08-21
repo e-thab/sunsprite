@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/assets/utils/supabase'
 import { useFileStore } from '@/stores/fileStore'
+import { useAuthStore } from '@/stores/authStore'
 import EditorView from './EditorView.vue'
 import ErrorView from './ErrorView.vue'
 
@@ -12,6 +13,7 @@ const props = defineProps<{
 
 const router = useRouter()
 const fileStore = useFileStore()
+const authStore = useAuthStore()
 
 const status = ref<'loading' | 'ready' | 'not-found' | 'error'>('loading')
 const errorMessage = ref('')
@@ -22,7 +24,7 @@ async function load(slug: string) {
 
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name')
+    .select('id, name, owner_id')
     .eq('slug', slug)
     .maybeSingle()
 
@@ -33,6 +35,18 @@ async function load(slug: string) {
   }
 
   if (!data) {
+    status.value = 'not-found'
+    return
+  }
+
+  // RLS already hides a private project from anyone but its owner (the
+  // .maybeSingle() above would have returned null), but a *public* project's
+  // row is readable by any signed-in user — the edit route still isn't
+  // theirs to open, only the play route is. That distinction only exists at
+  // the application layer, since RLS can't tell "read to edit" apart from
+  // "read to play" the same row.
+  await authStore.ready
+  if (data.owner_id !== authStore.user?.id) {
     status.value = 'not-found'
     return
   }

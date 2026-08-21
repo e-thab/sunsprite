@@ -446,7 +446,7 @@ onBeforeRouteLeave(() => {
   /* This used to come for free from App.vue's `.content` (RouterView
      forwards its class onto whichever route this mounts as), but that no
      longer sets overflow — and ProjectEditorView.vue's own `.content` only
-     wraps this when it's nested under /projects/:slug, not when it's the
+     wraps this when it's nested under /edit/:slug, not when it's the
      direct route at /sandbox. Panes (FileTree, AssetLibrary, OutputPane,
      Monaco) each own their own internal scroll; nothing here should ever
      need the page itself to scroll. */

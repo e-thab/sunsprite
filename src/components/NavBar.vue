@@ -135,7 +135,7 @@ async function onCreateProject() {
 
     try {
         const project = await projectStore.createProject(name)
-        router.push(`/projects/${project.slug}`)
+        router.push(`/edit/${project.slug}`)
     } catch (err) {
         window.alert(err instanceof Error ? err.message : 'Failed to create project')
     }
@@ -149,7 +149,7 @@ const projectMenuItems = computed(() => [
             label: p.name,
             description: timeAgo(p.updatedAt),
             icon: 'material-symbols:shapes',
-            onSelect: () => router.push(`/projects/${p.slug}`),
+            onSelect: () => router.push(`/edit/${p.slug}`),
         }))
         : [{ label: 'No projects yet', disabled: true }],
     [

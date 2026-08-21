@@ -32,10 +32,27 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/projects/:slug',
-      name: 'project',
+      path: '/edit/:slug',
+      name: 'edit',
       component: () => import('../views/ProjectEditorView.vue'),
       meta: { requiresAuth: true },
+      props: true,
+    },
+    {
+      // Old individual-project URL — kept as a redirect rather than a dead
+      // link for anything already bookmarked/shared before the /edit rename.
+      path: '/projects/:slug',
+      redirect: (to) => `/edit/${to.params.slug}`,
+    },
+    {
+      // Fullscreen, editor-free player for a single project — no requiresAuth,
+      // since a public project must be playable by a signed-out guest. Access
+      // is enforced by RLS instead (see the is_public policies in
+      // supabase/migrations): a private project's row simply doesn't resolve
+      // for anyone but its owner, the same way a nonexistent slug wouldn't.
+      path: '/play/:slug',
+      name: 'play',
+      component: () => import('../views/PlayView.vue'),
       props: true,
     },
     {
