@@ -153,6 +153,7 @@ enum Colors {
 
     // Custom
     Jade = "#00bd7e",
+    Periwinkle = "#ccccff"
 
     // Nord
     // NordBgDarker = '#23252b',

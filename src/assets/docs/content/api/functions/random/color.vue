@@ -8,21 +8,13 @@ export const meta = {
 
 <script setup lang="ts">
 import Random from '@/assets/api/Random'
-import { useThemeStore } from '@/stores/themeStore'
 import { getForegroundColor } from '@/assets/api/utility'
 
-const themeStore = useThemeStore()
-
 const exampleColor = Random.color()
-// const textShadow = themeStore.current.isLight ? '0px 0px 2px black' : '0px 0px 2px white'
-
 const randomColorStyle = {
 	color: getForegroundColor(exampleColor),
 	backgroundColor: exampleColor,
 	borderRadius: '0.2rem',
-	// border: `2px solid ${themeStore.current.bgInverted}`
-	// textShadow,
-	// TODO: finish this
 }
 </script>
 

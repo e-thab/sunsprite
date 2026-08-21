@@ -205,6 +205,17 @@ Make sure disabled buttons don't get the pointer cursor.
   cursor: default;
 }
 
+/**
+Automatically add a superscript arrow icon after links.
+Only targets non-image links that use target="_blank" to open in a new tab.
+*/
+a[target="_blank"]:not(:has(img))::after {
+  content: " \2197";
+  font-size: 0.7em;
+  vertical-align: super;
+  margin-left: -1px;
+}
+
 /* @media (hover: hover) {
   a:hover {
     background-color: hsla(160, 100%, 37%, 0.2);

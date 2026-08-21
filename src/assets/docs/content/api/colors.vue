@@ -9,15 +9,13 @@ export default {}
 </script>
 
 <template>
-	<DocSnippet><pre>enum Colors</pre></DocSnippet>
+	<!-- <DocSnippet><pre>enum Colors</pre></DocSnippet> -->
 
 	<DocSection id="content-1">
-		<p>A large set of standard named web colors, each mapping to a hex color string — a convenient alternative to typing hex codes by hand. Includes the full standard CSS color-name set (AliceBlue, Black, Blue, Coral, CornflowerBlue, Crimson, DarkGreen, Gold, HotPink, Indigo, Magenta, Orange, Purple, Red, SeaGreen, SkyBlue, Tomato, Violet, White, Yellow, and hundreds more).</p>
+		<p>A large set of named colors, whose values are hex color strings. Includes the full, extended set of <a target="_blank" href="https://en.wikipedia.org/wiki/Web_colors#HTML_color_names">CSS color names</a> (AliceBlue, SeaGreen, Tomato, etc.) along with a handful of custom Sunsprite colors.</p>
 	</DocSection>
 
-	<DocSnippet title="Example">
-<pre>rect.color = Colors.CornflowerBlue</pre>
-	</DocSnippet>
+	<DocSnippet title="Example"><pre>rect.color = Colors.Peru</pre></DocSnippet>
 
 	<DocSection id="palette" title="Palette">
 		<DocColorSwatches />
