@@ -3,11 +3,11 @@ import Random from '@/assets/api/Random'
 
 export const meta = {
 	title: 'Random',
-	icon: `tabler:dice-${Random.range(1, 6)}`,
+	icon: `tabler:dice-${Random.integer(1, 6)}`,
 	summary: 'Helpers for random numbers, colors, positions, and choices.',
 	order: [
-		'range',
-		'float',
+		'number',
+		'integer',
 		'coin-flip',
 		'roll',
 		'letter',

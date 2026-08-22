@@ -174,7 +174,7 @@ const themeMenuItems = computed(() => [
             if (t.id === themeStore.currentId) {
                 return 'tabler:check'
             } else if (t.id === 'random') {
-                return `tabler:dice-${Random.range(1, 6)}-filled`
+                return `tabler:dice-${Random.integer(1, 6)}-filled`
             } else {
                 return t.isLight ? 'tabler:sun-filled' : 'tabler:moon-filled'
             }

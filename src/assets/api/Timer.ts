@@ -30,7 +30,7 @@ export default class Timer {
 	}
 
 	/** Number of frames since creation */
-	frame: number = 0
+	// frame: number = 0
 
 	/** Time this run started in milliseconds since the Unix epoch */
 	startTimeMs: number = 0
@@ -77,7 +77,7 @@ export default class Timer {
 		this.startTimeMs = now
 		
 		this.timeMs = 0
-		this.frame = 0
+		// this.frame = 0
 		this._totalPauseElapsed = 0
 		this._lastPauseTime = 0
 	}
@@ -87,7 +87,7 @@ export default class Timer {
 		this.nowMs = Date.now()
 		if (!this.paused && !clock.paused) {
 			this.timeMs = this.ageMs - this._totalPauseElapsed
-			this.frame++
+			// this.frame++
 		}
 	}
 }

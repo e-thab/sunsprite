@@ -1,6 +1,6 @@
 <script lang="ts">
 export const meta = {
-	title: 'Random.range()',
+	title: 'Random.integer()',
 	icon: 'tabler:brackets-contain',
 	summary: 'A random integer in a given range.',
 }
@@ -9,7 +9,7 @@ export default {}
 </script>
 
 <template>
-	<DocSnippet><pre>Random.range(min: number, max: number): number</pre></DocSnippet>
+	<DocSnippet><pre>Random.integer(min: number, max: number): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random integer in a given range, min and max inclusive. If min &gt; max, they’re automatically swapped for you.</p>
@@ -23,7 +23,7 @@ export default {}
 	<DocReturns type="number">A random integer between min and max, inclusive.</DocReturns>
 
 	<DocSnippet title="Example">
-<pre>const sides = Random.range(1, 6)</pre>
+<pre>const sides = Random.integer(1, 6)</pre>
 	</DocSnippet>
 
 	<DocRelated :paths="['api/functions/random/float']" />

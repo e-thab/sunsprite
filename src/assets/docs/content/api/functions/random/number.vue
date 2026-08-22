@@ -1,6 +1,6 @@
 <script lang="ts">
 export const meta = {
-	title: 'Random.float()',
+	title: 'Random.number()',
 	icon: 'tabler:decimal',
 	summary: 'A random decimal value in a given range.',
 }
@@ -9,7 +9,9 @@ export default {}
 </script>
 
 <template>
-	<DocSnippet><pre>Random.float(min: number, max: number): number</pre></DocSnippet>
+	<DocSnippet>
+		<pre>Random.number(min: number, max: number): number
+Random.number(): number</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random float in a given range, min inclusive / max exclusive. If min &gt; max, they’re automatically swapped for you.</p>
@@ -23,7 +25,7 @@ export default {}
 	<DocReturns type="number">A random decimal value, min inclusive / max exclusive.</DocReturns>
 
 	<DocSnippet title="Example">
-<pre>bunny.scale = Random.float(0.5, 1.5)</pre>
+<pre>bunny.scale = Random.number(0.5, 1.5)</pre>
 	</DocSnippet>
 
 	<DocRelated :paths="['api/functions/random/range']" />

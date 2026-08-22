@@ -1,4 +1,4 @@
-import { allTimers } from "./core"
+// import { allTimers } from "./core"
 import Timer from "./Timer"
 
 export default class Clock {
@@ -9,9 +9,6 @@ export default class Clock {
 		this._timer = new Timer()
 	}
 
-    /** Number of frames since creation */
-	// frame: number = 0
-
     /** Actual (but smoothed) time since last frame in milliseconds */
 	deltaMs: number = 0
     /** Time since last frame normalized to 60fps (will usually be around 1) */
@@ -19,9 +16,11 @@ export default class Clock {
 		return this.deltaMs * 60 / 1000
 	}
 
-	get frame(): number {
-		return this._timer.frame
-	}
+	/** Number of frames since creation */
+	frame: number = 0
+	// get frame(): number {
+	// 	return this._timer.frame
+	// }
 
     /** Time since start in milliseconds, does not increment during pause */
 	get timeMs(): number {
@@ -79,11 +78,12 @@ export default class Clock {
 	_reset() {
 		this._timer.reset()
 		this.deltaMs = 0
-		allTimers.push(this._timer)
+		// allTimers.push(this._timer)
 	}
 
     _update(delta: number) {
         this.deltaMs = delta
-        // this.frame++
+		this._timer._update()
+        if (!this.paused) this.frame++
     }
 }

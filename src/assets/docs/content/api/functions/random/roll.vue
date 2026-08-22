@@ -3,7 +3,7 @@ import Random from '@/assets/api/Random'
 
 export const meta = {
 	title: 'Random.roll()',
-	icon: `tabler:dice-${Random.range(1, 6)}`,
+	icon: `tabler:dice-${Random.integer(1, 6)}`,
 	summary: 'The result of rolling a die with a given number of sides.',
 }
 

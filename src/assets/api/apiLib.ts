@@ -74,6 +74,7 @@ ${viewablePropsTypeDef}
 ${interactablePropsTypeDef}
 ${gameObjectPropsTypeDef}
 
+// TODO: Hide from API?
 namespace LibVars {
     export const mouseInputEvents = [
         'Click', 'Release', 'DoubleClick',
@@ -243,8 +244,8 @@ class Timer {
 	/** Time since start in seconds including pause time */
 	age: number
 
-	/** Number of frames since start */
-	frame: number
+	// /** Number of frames since start */
+	// frame: number
 
 	/** Time this run started in milliseconds since the Unix epoch */
 	startTimeMs: number
@@ -490,19 +491,26 @@ declare const console: {
  * A collection of functions useful for generating random values.
  */
 declare const Random: {
+    number: {
+        /**
+         * Returns a random float of any possible value, from -1.79 * 10^308 to 1.79 * 10^308.
+         */
+        (): number,
+
+        /**
+         * Returns a random float in a given range, min inclusive / max exclusive. If min > max, they're automatically swapped for you.
+         * @param min The low end of the range.
+         * @param max The high end of the range.
+         */
+        (min: number, max: number): number
+    },
+
     /**
      * Returns a random integer in a given range, min and max inclusive. If min > max, they're automatically swapped for you.
      * @param min The low end of the range.
      * @param max The high end of the range.
      */
-    range(min: number, max: number): number,
-
-    /**
-     * Returns a random float in a given range, min inclusive / max exclusive. If min > max, they're automatically swapped for you.
-     * @param min The low end of the range.
-     * @param max The high end of the range.
-     */
-    float(min: number, max: number): number,
+    integer(min: number, max: number): number,
 
     /**
      * Returns a random boolean, 50/50 chance for true/false.
