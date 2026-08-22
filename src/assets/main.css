@@ -32,6 +32,26 @@
   transition: none !important;
 }
 
+.splitpanes--vertical > .splitpanes__splitter {
+  background-color: var(--theme-bg-accented);
+  min-width: 6px;
+  transition: 0.15s 0.1s;
+}
+.splitpanes--vertical > .splitpanes__splitter:hover {
+  min-width: 9px;
+  background-color: var(--theme-text-muted);
+}
+
+.splitpanes--horizontal > .splitpanes__splitter {
+  background-color: var(--theme-bg-accented);
+  min-height: 6px;
+  transition: 0.15s 0.1s;
+}
+.splitpanes--horizontal > .splitpanes__splitter:hover {
+  min-height: 9px;
+  background-color: var(--theme-text-muted);
+}
+
 /* 
   Fix monaco hover tooltips flickering on ctrl+f menu
   via https://github.com/PostHog/posthog/pull/56025

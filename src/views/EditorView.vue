@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
-import { Splitpanes, Pane } from 'splitpanes';
+import type { SplitterItem } from '@nuxt/ui';
 import { resizeStage } from '@/sandbox/hostBridge';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useFileStore } from '@/stores/fileStore';
@@ -37,10 +37,6 @@ const treeSelectionStore = useTreeSelectionStore()
 // already awaits it before EditorView is mounted at all.
 if (!props.projectId) fileStore.loadGuestProject()
 
-// Move splitterDisplay to a component with more reason to have style unscoped,
-// also should just be computed()
-const splitterDisplay = ref<'inline' | 'none'>('inline')
-
 // FileTree (guest sandbox) and AssetLibrary (project mode) both bind their
 // UTree directly to treeSelectionStore.current as a shared v-model, so
 // selecting an image/script in either one is automatically reflected as the
@@ -73,93 +69,52 @@ function closePreview() {
 // preview is open just works.
 const explorerPixelWidth = ref(0)
 
-const canvasWidth = ref(44)
-const canvasHeight = ref(77)
-const canvasHeightBeforeCollapse = ref(77)
+const DOCS_PANE_OPEN_SIZE = 20
 
-const paneSize: { [index: string]: number } = {
-  // Column panes (left - middle - right)
-  'explorer-pane': 12,
-  'code-pane': 44,
-  'right-pane': 44,
-  'docs-pane': 20,
+const outerSplitterRef = useTemplateRef('outerSplitter')
+const rightSplitterRef = useTemplateRef('rightSplitter')
 
-  // Right side nested row panes (top right - bottom right)
-  'canvas-v-pane': 80,
-  'output-v-pane': 20
-}
+// Outer columns: explorer | docs | code | right. Docs stays permanently
+// registered (collapsible, never conditionally added/removed) rather than
+// v-if'd — USplitter/reka-ui recalculates every panel's size from
+// defaultSize whenever panel *membership* changes, which would wipe out
+// any live user-resized widths on every open/close. collapse()/expand()
+// (see the docsStore.isOpen watch below) resize just the adjacent sibling
+// instead, and since docs sits right before code-pane here, that sibling
+// is always code-pane — matching the old behavior of only ever borrowing
+// width from the code editor, never the explorer or right pane.
+const outerItems: SplitterItem[] = [
+  { id: 'explorer-pane', slot: 'explorer-pane', defaultSize: 12, class: 'hide-in-fullscreen' },
+  { id: 'docs-pane', slot: 'docs-pane', defaultSize: docsStore.isOpen ? DOCS_PANE_OPEN_SIZE : 0, collapsible: true, collapsedSize: 0, class: 'hide-in-fullscreen' },
+  { id: 'code-pane', slot: 'code-pane', defaultSize: docsStore.isOpen ? 44 - DOCS_PANE_OPEN_SIZE : 44, class: 'hide-in-fullscreen' },
+  { id: 'right-pane', slot: 'right-pane', defaultSize: 44 },
+]
 
-// docsStore.isOpen can already be true at mount (restored from localStorage
-// — see docsStore.ts), but splitpanes only fires `pane-add` for panes added
-// *after* its own initial mount, not ones present from the start, so
-// onDocsPaneAdd below would never run for a restored-open docs pane. Take
-// its width out of code-pane's share here instead, up front, so the initial
-// layout already matches what onDocsPaneAdd would have produced.
-if (docsStore.isOpen) paneSize['code-pane'] = (paneSize['code-pane'] ?? 0) - (paneSize['docs-pane'] ?? 0)
+// Right side nested row: game view | output. Output is collapsible so
+// collapseOutput() below can hide it via the same mechanism.
+const rightItems: SplitterItem[] = [
+  { id: 'canvas-v-pane', slot: 'canvas-v-pane', defaultSize: 77 },
+  { id: 'output-v-pane', slot: 'output-v-pane', defaultSize: 23, collapsible: true, collapsedSize: 0, class: 'hide-in-fullscreen' },
+]
 
-// explorer/code need to be refs (not static `size` props) so opening/
-// closing the docs pane can restore them after splitpanes' own forced
-// re-equalize (see onDocsPaneAdd/onDocsPaneRemove below).
-const explorerPaneWidth = ref(paneSize['explorer-pane'] ?? 0)
-const codePaneWidth = ref(paneSize['code-pane'] ?? 0)
-const docsPaneWidth = ref(docsStore.isOpen ? (paneSize['docs-pane'] ?? 0) : 0)
+// Explorer nested column: file tree | asset library.
+const explorerItems: SplitterItem[] = [
+  { id: 'file-tree-v-pane', slot: 'file-tree-v-pane', defaultSize: 65 },
+  { id: 'asset-library-v-pane', slot: 'asset-library-v-pane', defaultSize: 35 },
+]
 
-// splitpanes unconditionally redistributes every pane's size equally
-// whenever a pane is added or removed (its own equalize-after-add/remove
-// step doesn't consider prior sizes at all) — so opening the docs pane
-// clobbers the explorer/code/right widths the user already had. Restore
-// them here, taking the docs pane's width only out of the code editor's
-// share so the file tree and game/output panes are never affected.
-// splitpanes only re-reads a pane's `:size` prop when Vue's own patching
-// sees it change — but the target we're restoring to is often the exact
-// number the ref already held (nothing here ever touched it; only
-// splitpanes' internal state drifted via equalize), so writing the same
-// value back is a no-op vnode-diff-wise and the stale equalized width just
-// stays on screen. Multiple synchronous writes to the same ref within one
-// tick don't help either — Vue batches them and only the final value at
-// flush time reaches the child, so a same-tick "nudge away and back"
-// collapses right back into a no-op. Actually spanning two ticks (via
-// nextTick) is what forces a genuine, detectable change.
-async function forceSetSize(sizeRef: Ref<number>, value: number) {
-  if (sizeRef.value === value) {
-    sizeRef.value = value + 0.001
-    await nextTick()
-  }
-  sizeRef.value = value
-}
-
-async function onDocsPaneAdd() {
-  // paneSize['code-pane'] has to reflect the shrink too (not just the live
-  // ref) — onDocsPaneRemove reclaims space by reading this cache, and if
-  // it still held the pre-open width because only the ref was ever
-  // updated, closing without an intervening drag would double-count and
-  // hand code-pane more width than it's actually owed.
-  const shrunkCodeWidth = (paneSize['code-pane'] ?? 0) - (paneSize['docs-pane'] ?? 0)
-  paneSize['code-pane'] = shrunkCodeWidth
-
-  await forceSetSize(explorerPaneWidth, paneSize['explorer-pane'] ?? 0)
-  await forceSetSize(canvasWidth, paneSize['right-pane'] ?? 0)
-  await forceSetSize(docsPaneWidth, paneSize['docs-pane'] ?? 0)
-  await forceSetSize(codePaneWidth, shrunkCodeWidth)
-}
-
-async function onDocsPaneRemove() {
-  // Restoring code-pane to its pre-open cached width (like explorer/right)
-  // would only be correct if docs was never resized — dragging its
-  // splitter against the code editor updates paneSize['docs-pane'] and
-  // paneSize['code-pane'] (via storePaneSizes) but never reconciles that
-  // the freed space needs to land somewhere once docs is gone, leaving a
-  // gap the width of whatever docs had grown to. Reclaim docs' *current*
-  // width into code-pane specifically, since that's the only neighbor
-  // onDocsPaneAdd ever takes space from.
-  const reclaimedCodeWidth = (paneSize['code-pane'] ?? 0) + (paneSize['docs-pane'] ?? 0)
-  paneSize['code-pane'] = reclaimedCodeWidth
-
-  await forceSetSize(explorerPaneWidth, paneSize['explorer-pane'] ?? 0)
-  await forceSetSize(canvasWidth, paneSize['right-pane'] ?? 0)
-  await forceSetSize(codePaneWidth, reclaimedCodeWidth)
-  await forceSetSize(docsPaneWidth, 0)
-}
+// Opening always resizes to a fixed width rather than calling expand():
+// expand() restores whichever size was recorded at this panel's last
+// actual collapse() call, and a docs pane that starts closed at mount was
+// never collapse()'d (it just rendered at defaultSize: 0) — so on the
+// first open of a docs-closed session, expand() would find nothing
+// recorded and fall back to minSize instead of DOCS_PANE_OPEN_SIZE.
+watch(() => docsStore.isOpen, (isOpen) => {
+  const index = outerItems.findIndex((item) => item.id === 'docs-pane')
+  const panel = outerSplitterRef.value?.panelsRef[index]
+  if (isOpen) panel?.resize(DOCS_PANE_OPEN_SIZE)
+  else panel?.collapse()
+})
 
 function runMainScript() {
   // The game header's Restart always runs the project's canonical entry
@@ -176,48 +131,16 @@ function runNamedScript(fileName: string) {
   editor.value.runNamedScript(fileName)
 }
 
-async function toggleFullscreen() {
+function toggleFullscreen() {
   // Toggle fullscreen state (pinia store) when pressing fullscreen button
   Output.print('fullscreen')
-  if (fsStore.toggle()) {
-    splitterDisplay.value = 'none'
-    canvasWidth.value = 100
-    canvasHeight.value = 100
-  } else {
-    splitterDisplay.value = 'inline'
-    canvasWidth.value = paneSize['right-pane'] ?? 0
-    canvasHeight.value = paneSize['canvas-v-pane'] ?? 0
-  }
+  fsStore.toggle()
   resizeStage()
 }
 
-type EventPane = { el: HTMLElement, size: number }
-type ResizeEvent = { prevPane?: EventPane, nextPane?: EventPane }
-
-const storePaneSizes = ({ prevPane, nextPane }: ResizeEvent) => {
-  // Adding/removing a pane (see onDocsPaneAdd/onDocsPaneRemove) also fires
-  // `resized`, but without prevPane/nextPane — only a real splitter drag
-  // has those, which is the only case that should update this bookkeeping.
-  if (!prevPane || !nextPane) return
-
-  paneSize[`${prevPane.el.id}`] = prevPane.size
-  paneSize[`${nextPane.el.id}`] = nextPane.size
-
-  if (prevPane.el.id === 'canvas-v-pane') {
-    canvasHeight.value = prevPane.size
-  }
-  // console.log(prevPane.el.id)
-}
-
-function resizeSplitpanes(event: ResizeEvent) {
-  storePaneSizes(event)
-  resizeStage()
-}
-
-async function collapseOutput() {
-  canvasHeightBeforeCollapse.value = canvasHeight.value
-  canvasHeight.value = 100
-  resizeStage()
+function collapseOutput() {
+  const index = rightItems.findIndex((item) => item.id === 'output-v-pane')
+  rightSplitterRef.value?.panelsRef[index]?.collapse()
 }
 
 function loadScript(fileName: string) {
@@ -294,10 +217,10 @@ onMounted(async () => {
 
 	const explorer = document.getElementById('explorer-pane')
 	if (explorer) {
-		// Includes the splitpanes splitter's own width (its next sibling),
-		// not just the pane — otherwise the overlay's z-index sits directly
-		// on top of that splitter and blocks dragging it while a preview is
-		// open.
+		// Includes the USplitter resize handle's own width (its next
+		// sibling), not just the pane — otherwise the overlay's z-index sits
+		// directly on top of that handle and blocks dragging it while a
+		// preview is open.
 		const measure = () => {
 			const splitterWidth = (explorer.nextElementSibling as HTMLElement | null)?.clientWidth ?? 0
 			explorerPixelWidth.value = explorer.clientWidth + splitterWidth
@@ -356,71 +279,60 @@ onBeforeRouteLeave(() => {
 </script>
 
 <template>
-  <div class="editor-root">
-  <splitpanes
-    :push-other-panes="false"
-    @resize="resizeStage"
-    @resized="resizeSplitpanes"
-    @pane-add="onDocsPaneAdd"
-    @pane-remove="onDocsPaneRemove"
-  >
+  <div class="editor-root" :data-fullscreen="fsStore.fullscreen">
+  <USplitter ref="outerSplitter" :items="outerItems" orientation="horizontal" @layout="resizeStage">
 
     <!-- Left side pane: File explorer + built-in asset library -->
-    <pane id="explorer-pane" v-show="!fsStore.fullscreen" :size="explorerPaneWidth">
-      <splitpanes horizontal :push-other-panes="false">
-        <pane id="file-tree-v-pane" size="65">
+    <template #explorer-pane>
+      <USplitter :items="explorerItems" orientation="vertical">
+        <template #file-tree-v-pane>
           <FileTree @select-script="loadScript" @run-script="runNamedScript" />
-        </pane>
+        </template>
 
-        <pane id="asset-library-v-pane" size="35">
+        <template #asset-library-v-pane>
           <AssetLibrary />
-        </pane>
-      </splitpanes>
-    </pane>
+        </template>
+      </USplitter>
+    </template>
 
     <!-- Docs pane: toggled from the NavBar, closable from its own header -->
-    <pane v-if="docsStore.isOpen" id="docs-pane" v-show="!fsStore.fullscreen" :size="docsPaneWidth">
+    <template #docs-pane>
       <DocsPanel @close="docsStore.close()" />
-    </pane>
+    </template>
 
     <!-- Center pane: Code editor -->
-    <pane id="code-pane" v-show="!fsStore.fullscreen" :size="codePaneWidth">
+    <template #code-pane>
       <CodeEditor
         ref="editor"
         class="inner-pane"
         @ready="onEditorReady"
       />
-    </pane>
+    </template>
 
-    <!-- Right side pane: Nested game/output splitpanes -->
-    <pane id="right-pane":size="canvasWidth">
-      <splitpanes
-        horizontal
-        :push-other-panes="false"
-        @resize="resizeStage"
-        @resized="resizeSplitpanes"
-      >
+    <!-- Right side pane: Nested game/output splitter -->
+    <template #right-pane>
+      <USplitter ref="rightSplitter" :items="rightItems" orientation="vertical" @layout="resizeStage">
 
         <!-- Top right pane: Game view -->
-        <pane id="canvas-v-pane":size="canvasHeight">
+        <template #canvas-v-pane>
           <PhaserCanvas
             @ready="onCanvasReady"
             @run-game="runMainScript"
             @fullscreen="toggleFullscreen"
             class="inner-pane"
           />
-        </pane>
+        </template>
 
         <!-- Bottom left pane: Output -->
-        <pane id="output-v-pane" v-show="!fsStore.fullscreen" :size="100-canvasHeight">
+        <template #output-v-pane>
           <OutputPane
             @collapse-output="collapseOutput"
             @ready="onOutputReady"
           />
-        </pane>
-      </splitpanes>
-    </pane>
-  </splitpanes>
+        </template>
+      </USplitter>
+    </template>
+  </USplitter>
 
   <ImagePreviewModal
     v-if="previewImagePath"
@@ -469,25 +381,25 @@ onBeforeRouteLeave(() => {
   height: 100%;
 }
 
-.splitpanes--vertical > .splitpanes__splitter {
-  background-color: var(--theme-bg-accented);
-  min-width: 6px;
-  display: v-bind(splitterDisplay);
-  transition: 0.15s 0.1s;
-}
-.splitpanes--vertical > .splitpanes__splitter:hover {
-  min-width: 9px;
-  background-color: var(--theme-text-muted);
+.editor-root [data-slot="root"] {
+  background-color: var(--theme-bg-muted);
 }
 
-.splitpanes--horizontal > .splitpanes__splitter {
-  background-color: var(--theme-bg-accented);
-  min-height: 6px;
-  display: v-bind(splitterDisplay);
-  transition: 0.15s 0.1s;
+.editor-root [data-slot="panel"] {
+  background-color: var(--theme-bg-elevated);
+  border: 1px solid var(--theme-border);
+  border-radius: 0.75rem;
 }
-.splitpanes--horizontal > .splitpanes__splitter:hover {
-  min-height: 9px;
-  background-color: var(--theme-text-muted);
+/* A collapsed panel's flex-computed size is 0, but a 1px border can't
+   shrink away with it — left on, it renders as a thin stray line instead
+   of a clean gap. reka-ui marks collapsed panels with data-state, so drop
+   the border there specifically rather than on every zero-width panel. */
+.editor-root [data-slot="panel"][data-state="collapsed"] {
+  border: none;
+}
+
+.editor-root[data-fullscreen="true"] [data-slot="handle"],
+.editor-root[data-fullscreen="true"] [data-slot="panel"].hide-in-fullscreen {
+  display: none;
 }
 </style>

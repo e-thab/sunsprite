@@ -47,7 +47,7 @@ defineShortcuts({
 // Whether EditorView is the current route component (the sandbox/guest
 // route, or a loaded project) — it's the only place with a docs pane to
 // toggle, so the Docs nav button (below) branches its click behavior on this.
-const isEditorRoute = computed(() => route.name === 'sandbox' || route.name === 'project')
+const isEditorRoute = computed(() => route.name === 'sandbox' || route.name === 'edit')
 
 // The standalone full-page docs view (DocsView.vue) — as opposed to the
 // panel embedded in the editor, or anywhere else in the app.
