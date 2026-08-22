@@ -17,7 +17,22 @@ export default defineConfig(({ command }) => {
       // where it immediately throws reading localStorage, because a document
       // without allow-same-origin isn't allowed to have any.
       vueDevTools({ appendTo: 'src/main.ts' }),
-      ui()
+      ui({
+        ui: {
+          splitter: {
+            variants: {
+              orientation: {
+                horizontal: { handle: 'w-1' },
+                vertical: { handle: 'h-1' },
+              },
+            },
+
+            slots: {
+              handle: 'flex items-center justify-center'
+            }
+          },
+        },
+      })
     ],
     resolve: {
       alias: {
