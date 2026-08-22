@@ -297,6 +297,10 @@ export type Database = {
         Args: { lookup_username: string }
         Returns: string
       }
+      get_public_creator_username: {
+        Args: { creator_id: string }
+        Returns: string
+      }
       is_username_taken: { Args: { check_username: string }; Returns: boolean }
     }
     Enums: {

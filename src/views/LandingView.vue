@@ -10,7 +10,7 @@ const authStore = useAuthStore()
 const links = computed<ButtonProps[]>(() => [
   {
     label: 'Open Sandbox',
-    icon: 'tabler:device-gamepad-2-filled',
+    icon: 'tabler:sandbox',
     onClick: () => router.push('/sandbox'),
   },
   {

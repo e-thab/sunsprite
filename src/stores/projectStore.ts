@@ -27,11 +27,24 @@ export const useProjectStore = defineStore('projects', () => {
     const loading = ref(false)
 
     async function fetchProjects() {
+        const authStore = useAuthStore()
+        if (!authStore.user) {
+            projects.value = []
+            return
+        }
+
         loading.value = true
         try {
+            // Explicit owner filter, not just an RLS-shaped assumption: since
+            // the is_public policies (see supabase/migrations) additionally
+            // let this user read *anyone's* public project rows — required
+            // for /play/:slug — a bare select() here would return this
+            // user's own projects unioned with every public project on the
+            // site, not "my projects."
             const { data, error } = await supabase
                 .from('projects')
                 .select('id, name, slug, is_public, created_at, updated_at')
+                .eq('owner_id', authStore.user.id)
                 .order('updated_at', { ascending: false })
             if (error) throw error
 

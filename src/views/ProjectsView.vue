@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from '@nuxt/ui/composables'
 import { useProjectStore, MAX_PROJECT_NAME_LENGTH } from '@/stores/projectStore'
 import { useNamePromptStore } from '@/stores/namePromptStore'
 import { formatDate } from '@/assets/utils/timeAgo'
@@ -8,6 +9,7 @@ import { formatDate } from '@/assets/utils/timeAgo'
 const projectStore = useProjectStore()
 const namePromptStore = useNamePromptStore()
 const router = useRouter()
+const toast = useToast()
 
 const creating = ref(false)
 const errorMessage = ref('')
@@ -38,6 +40,16 @@ async function onTogglePublic(project: { id: string, isPublic: boolean }, isPubl
   } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : 'Failed to update visibility'
   }
+}
+
+async function onCopyPlayLink(slug: string) {
+  const url = `${window.location.origin}/play/${slug}`
+  await navigator.clipboard.writeText(url)
+  toast.add({
+    title: 'Play link copied to clipboard',
+    description: url,
+    icon: 'tabler:copy-filled',
+  })
 }
 
 async function onRename(id: string, currentName: string) {
@@ -92,29 +104,32 @@ onMounted(() => projectStore.fetchProjects())
       <ul class="project-list">
         <li v-for="project in projectStore.projects" :key="project.id" class="project-row">
           <div class="project-row-info">
-            <UButton variant="link" @click="() => { router.push(`/edit/${project.slug}`) }" style="font-weight: bold;">
+            <UButton variant="soft" @click="() => { router.push(`/edit/${project.slug}`) }" style="font-weight: bold;">
               {{ project.name }}
             </UButton>
-            <span class="project-updated">Last edited {{ formatDate(project.updatedAt) }}</span>
+            <span class="project-updated">{{ project.slug }} &middot; Last edited {{ formatDate(project.updatedAt) }}</span>
+            <div class="project-visibility-row">
+              <UTooltip :text="project.isPublic ? 'Public (anyone with the link can play)' : 'Private (only you can access this)'" ignore-non-keyboard-focus>
+                <USwitch
+                  :model-value="project.isPublic"
+                  :label="project.isPublic ? 'Public' : 'Private'"
+                  color="success"
+                  aria-label="Toggle privacy"
+                  unchecked-icon="tabler:lock"
+                  checked-icon="tabler:world"
+                  class="project-visibility-switch"
+                  @update:model-value="(value: boolean) => onTogglePublic(project, value)"
+                />
+              </UTooltip>
+              <UTooltip text="Copy play link" ignore-non-keyboard-focus>
+                <UButton icon="tabler:link" label="Copy Play Link" variant="soft" color="neutral" size="sm" @click="onCopyPlayLink(project.slug)" />
+              </UTooltip>
+            </div>
           </div>
           <div class="project-row-actions">
-            <UTooltip :text="project.isPublic ? 'Public — anyone with the link can play' : 'Private — only you can access this'" ignore-non-keyboard-focus>
-              <USwitch
-                :model-value="project.isPublic"
-                unchecked-icon="tabler:lock"
-                checked-icon="tabler:world"
-                @update:model-value="(value: boolean) => onTogglePublic(project, value)"
-              />
-            </UTooltip>
-            <UTooltip text="Play" ignore-non-keyboard-focus>
-              <UButton icon="tabler:player-play-filled" variant="soft" color="neutral" size="sm" :to="`/play/${project.slug}`" target="_blank" />
-            </UTooltip>
-            <UTooltip text="Rename" ignore-non-keyboard-focus>
-              <UButton icon="tabler:pencil" variant="soft" color="neutral" size="sm" @click="onRename(project.id, project.name)" />
-            </UTooltip>
-            <UTooltip text="Delete" ignore-non-keyboard-focus>
-              <UButton icon="tabler:trash" variant="ghost" color="error" size="sm" @click="onDelete(project.id, project.name)" />
-            </UTooltip>
+            <UButton icon="tabler:player-play-filled" label="Play" variant="soft" color="neutral" size="sm" :to="`/play/${project.slug}`" target="_blank" />
+            <UButton icon="tabler:pencil" label="Rename" variant="soft" color="neutral" size="sm" @click="onRename(project.id, project.name)" />
+            <UButton icon="tabler:trash" label="Delete" variant="ghost" color="error" size="sm" @click="onDelete(project.id, project.name)" />
           </div>
         </li>
       </ul>
@@ -169,9 +184,14 @@ onMounted(() => projectStore.fetchProjects())
 
 .project-row {
   display: flex;
-  align-items: center;
+  /* stretch (the default, but named here for clarity) so project-row-info
+     can size itself to the row's full height — driven by whichever of it or
+     project-row-actions is naturally taller — and push its own bottom row
+     down to match, rather than both columns just top-aligning independently. */
+  align-items: stretch;
   justify-content: space-between;
-  padding: 0.25em 0.75em;
+  gap: 0.75em;
+  padding: 0.5em 0.75em;
   border-radius: 6px;
   background-color: var(--ui-bg-elevated);
 }
@@ -180,11 +200,32 @@ onMounted(() => projectStore.fetchProjects())
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0;
+  /* gap is a floor, not the only spacing: once this column is stretched
+     taller than its three children need (see project-row above),
+     space-between grows the two gaps between them — title/stamp/bottom-row
+     stay pinned to their natural ends regardless of how tall the title
+     wraps or the actions column gets. */
+  justify-content: space-between;
+  gap: 0.35em;
   /* Lets this flex item actually shrink below its name's unwrapped width
      instead of pushing the row wider — flex items default to min-width:
      auto, so without this a long name would never be forced to wrap. */
   min-width: 0;
+}
+
+.project-visibility-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-top: 0.15em;
+}
+
+/* Fixed width sized for "Private" (the longer of the two label states) so
+   toggling doesn't shift the Copy Link button beside it — without this the
+   switch+label only takes as much space as whichever word is currently
+   showing. */
+.project-visibility-switch {
+  width: 7em;
 }
 
 /* Targets the name UButton's root element — it renders {{ project.name }}
@@ -206,7 +247,14 @@ onMounted(() => projectStore.fetchProjects())
 
 .project-row-actions {
   display: flex;
-  gap: 0.25em;
+  flex-direction: column;
+  align-self: center;
+  align-items: flex-start;
+  gap: 0.35em;
   flex-shrink: 0;
+  border-left: 1px solid var(--theme-border);
+  padding-left: 0.5em;
+  padding-right: 0.2em;
+  margin-right: -0.5em;
 }
 </style>

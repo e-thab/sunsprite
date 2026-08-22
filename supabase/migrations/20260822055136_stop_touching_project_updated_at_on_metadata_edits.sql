@@ -1,0 +1,15 @@
+-- A project's updated_at ("Last edited" on the My Projects page) should
+-- reflect when its *content* changed — scripts/folders/images/text_files,
+-- via touch_project_on_script_change() and its per-table counterparts (see
+-- 20260728200114_touch_project_on_script_change.sql) — not administrative
+-- edits to the project row itself. The generic set_updated_at() trigger
+-- (20260725055820_create_projects_schema.sql) fires on *any* column
+-- changing, so renaming a project (projectStore.ts's renameProject) or
+-- toggling its visibility (setPublic) was also bumping it, misrepresenting
+-- "last edited" as if the game's code had changed.
+--
+-- touch_project_on_script_change() sets updated_at directly via its own
+-- `update public.projects set updated_at = now() ...` statement rather than
+-- relying on this trigger, so dropping it here doesn't affect that path —
+-- confirmed by reading that function's body before writing this migration.
+drop trigger set_projects_updated_at on public.projects;

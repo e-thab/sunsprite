@@ -187,6 +187,63 @@ route — worth knowing if that button's behavior ever seems to "do nothing."
   entry in the local `projects` ref on success. No optimistic update before
   the round-trip — same as `renameProject`.
 
+**Bug found via live testing, fixed same day: `fetchProjects()` leaked every
+public project on the site into every signed-in user's My Projects list.**
+Reported by the user as "when signing into a fresh account, `[someone else's]
+project` is automatically added to the new user's project page" — confirmed
+by signing into a real second test account and seeing another user's public
+project sitting in an otherwise-empty list.
+
+Root cause: `fetchProjects()`'s query had no `owner_id` filter at all —
+
+```ts
+const { data, error } = await supabase
+    .from('projects')
+    .select('id, name, slug, is_public, created_at, updated_at')
+    .order('updated_at', { ascending: false })
+```
+
+— relying entirely on RLS to scope the results to "rows this user is allowed
+to see." That was safe before this feature, when the only SELECT policy was
+`owner_id = auth.uid()`, so "allowed to see" and "owns" were the same set.
+The visibility migration adds a second, additive SELECT policy — "anyone can
+read a public project's row" — specifically so `/play/:slug` works for
+non-owners. RLS now legitimately returns *this user's rows, OR any public
+row, from any owner*, and a query with no explicit scope has no way to ask
+for just the first half of that union. This is the exact same shape of
+mistake the ProjectEditorView ownership check (above) exists to prevent —
+just missed here on the first pass, because it wasn't obviously a "reading
+someone else's project" operation the way opening `/edit/:slug` is; it's
+just "list my projects," which used to be trustworthy to ask RLS for
+directly and silently stopped being so the moment the play-route policy
+shipped.
+
+Fix — add the filter back explicitly, and treat "no signed-in user" as "no
+projects" rather than letting the query run with nothing to scope it:
+
+```ts
+async function fetchProjects() {
+    const authStore = useAuthStore()
+    if (!authStore.user) {
+        projects.value = []
+        return
+    }
+    ...
+    .eq('owner_id', authStore.user.id)
+    ...
+}
+```
+
+This fixes both the My Projects page and NavBar's recent-projects dropdown
+in one place, since both read from this same function. Note that this was
+never a *write* vulnerability — `renameProject`/`deleteProject`/`setPublic`
+all still go through the unchanged, still-owner-only write RLS policies, so
+even with the leak, another user's project row appearing in your list
+couldn't actually be renamed/deleted/toggled (Supabase would silently no-op
+the write, not error) — but the read-side leak itself, letting any user
+enumerate the names of every public project on the site through their own
+My Projects page, was real and is what this fixes.
+
 ### `src/views/ProjectsView.vue`
 
 - The two `router.push`/`UButton` links that pointed at `/projects/${slug}`
@@ -225,7 +282,7 @@ until it's actually been regenerated.
 | `src/router/index.ts` | `/projects/:slug` → `/edit/:slug` (+ redirect for the old path), new `/play/:slug` |
 | `src/views/ProjectEditorView.vue` | Selects `owner_id`, adds the app-level ownership check |
 | `src/views/PlayView.vue` | New — fullscreen player, no ownership check needed, reuses `loadProject` |
-| `src/stores/projectStore.ts` | `ProjectRecord.isPublic`, `fetchProjects`/`createProject` updated, new `setPublic()` |
+| `src/stores/projectStore.ts` | `ProjectRecord.isPublic`, `fetchProjects`/`createProject` updated, new `setPublic()`; `fetchProjects()` given an explicit `owner_id` filter (see below — it was leaking every public project into every user's list) |
 | `src/views/ProjectsView.vue` | Route links, visibility `USwitch`, Play button |
 | `src/components/NavBar.vue` | Route links (project creation redirect, recent-projects dropdown) |
 | `src/views/EditorView.vue` | One stale comment referencing the old `/projects/:slug` path |
@@ -262,15 +319,27 @@ until it's actually been regenerated.
   typescript --linked`) once there's a working way to do that in this
   environment — the current `is_public` entries are a careful hand-match,
   not a guarantee.
+- **Any *other* "list mine" query against these five tables needs the same
+  explicit-owner-filter treatment `fetchProjects()` needed** — this already
+  bit once (see the `projectStore.ts` writeup above) and is easy to miss
+  again, because the query that needs fixing doesn't look like it's touching
+  someone else's data. The tell: if a query used to be safe *only* because
+  the sole matching RLS policy happened to equal "owns it," adding any
+  broader permissive policy for the same table (public read, shared-with,
+  team access, whatever comes next) silently invalidates that assumption
+  everywhere it was made, not just at the one call site the new policy was
+  written for.
 
 ## Testing this feature
 
 - `vue-tsc --build` passes clean on all of the above.
 - The migration has been pushed to the live linked Supabase project
   (`supabase db push`, confirmed by the user).
-- **Live browser verification was attempted but not yet completed.** A
-  Playwright-driven pass (dev server + a throwaway sign-up per test account)
-  hit two real Supabase Auth gotchas worth remembering for next time:
+- **Live browser verification completed, across two passes.**
+
+  The first pass (dev server + a throwaway sign-up per test account) hit two
+  real Supabase Auth gotchas before completing, worth remembering for next
+  time:
   - **`@example.com` addresses are rejected outright** (`400
     email_address_invalid`) — Supabase's signup validation blocklists RFC
     2606 reserved domains. Use a domain with real MX records instead (e.g.
@@ -281,17 +350,30 @@ until it's actually been regenerated.
     in the same session, even with a valid domain. This project has no
     custom SMTP configured, so it's on Supabase's shared low-volume test
     sender. Signing **in** doesn't send email and isn't affected — only
-    **signing up** is rate-limited this way.
-  - Plan going forward: create one persistent test account (`test`/`test`,
-    once the rate limit window clears) and reuse it for sign-in across
-    future test runs, rather than signing up a fresh throwaway account every
-    time.
-  - The full test plan (owner create → toggle public → guest plays → guest
-    blocked from edit → signed-in non-owner blocked from edit on a public
-    project → toggle back private → guest re-blocked from play → old route
-    redirect → cleanup) is written up as a Playwright script; nothing in it
-    ran far enough to produce a real pass or fail before the rate limit hit,
-    so none of those checks should be treated as verified yet.
+    **signing up** is.
+
+  A persistent `test`/`testing` account (created by the user once the rate
+  limit cleared) unblocked a full second pass, signing in rather than
+  signing up for the owner role — 9 of 10 checks passed; the tenth (signed-in
+  non-owner blocked from editing a public project) still needed a *second*
+  account and was skipped, the throwaway-signup path still being
+  rate-limited.
+
+  The user then manually found the `fetchProjects()` leak described above
+  while poking at a fresh account themselves, and provided two more real
+  persistent accounts (`test2`/`test3`) to test with. A third pass, signing
+  in as `test2` instead of signing up, completed the previously-skipped
+  check for real and added two more targeting the leak directly (does the
+  intruder's own My Projects list stay empty; is the leaked project's row
+  absent) — **13/13 passed** after the fix, confirmed both by the script's
+  assertions and by screenshot (an empty "My Projects" for the second
+  account, a running game with FPS counter for the guest-plays-public-project
+  case, the exact "Project not found" copy for the blocked cases).
+
+  Net lesson for testing this app specifically: prefer a small set of
+  **persistent** named test accounts (sign in) over throwaway signups for
+  anything beyond a one-off check — the shared auth email sender doesn't have
+  the headroom for repeated fresh signups within a session.
 
 ## Known characteristics, not gaps
 
