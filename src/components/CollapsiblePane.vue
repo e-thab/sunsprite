@@ -135,10 +135,13 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
+/* Matches UButton's own size="xs" icon sizing (Nuxt UI's button theme maps
+   xs to a size-4 leading/trailing icon, i.e. 1rem) — the same scale already
+   used on every other icon-bearing control throughout the editor's panes. */
 .collapsible-pane-icon {
-  width: 1.25em;
-  height: 1.25em;
-  font-size: 1.25rem;
+  width: 1rem;
+  height: 1rem;
+  font-size: 1rem;
   color: var(--theme-text-muted);
 }
 
