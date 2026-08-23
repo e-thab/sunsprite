@@ -48,9 +48,9 @@ defineProps<{
    button — flex layout positions siblings off box size, not painted
    overflow). Neither this group nor .header-actions below ever shrinks now;
    .docs-body-header's own ancestor pane already clips horizontal overflow
-   (splitpanes__pane { overflow: hidden }), so once there's no room left the
-   row just runs past the pane's edge and gets covered by it instead of
-   reflowing internally. */
+   (USplitter panels are inline-styled overflow: hidden), so once there's no
+   room left the row just runs past the pane's edge and gets covered by it
+   instead of reflowing internally. */
 .header-title-group {
 	display: flex;
 	align-items: center;

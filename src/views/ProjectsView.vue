@@ -170,7 +170,7 @@ onMounted(() => projectStore.fetchProjects())
               <div>Storage</div>
 
               <div class="project-row-actions">
-                <UButton icon="tabler:player-play-filled" label="Play" variant="soft" color="neutral" size="sm" :to="`/play/${project.slug}`" target="_blank" />
+                <UButton icon="streamline-plump:controller-1-solid" label="Play" variant="soft" color="neutral" size="sm" :to="`/play/${project.slug}`" target="_blank" />
                 <UButton icon="tabler:pencil" label="Rename" variant="soft" color="neutral" size="sm" @click="onRename(project.id, project.name)" />
                 <UButton icon="tabler:trash" label="Delete" variant="ghost" color="error" size="sm" @click="onDelete(project.id, project.name)" />
               </div>

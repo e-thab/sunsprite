@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, provide, reactive, ref, watch } from 'vue'
-import { Splitpanes, Pane } from 'splitpanes'
+import type { SplitterItem } from '@nuxt/ui'
 import { docsTree } from '@/assets/docs/docsContent'
 import { nodesByPath, ancestorsOf } from '@/assets/docs/docsIndex'
 import { searchDocs } from '@/assets/docs/docsSearch'
@@ -12,6 +12,11 @@ import DocsCategoryLanding from './docs/DocsCategoryLanding.vue'
 import DocsBody from './docs/DocsBody.vue'
 
 defineEmits<{ close: [] }>()
+
+const panelItems: SplitterItem[] = [
+	{ id: 'docs-tree-pane', slot: 'docs-tree-pane', defaultSize: 45 },
+	{ id: 'docs-content-pane', slot: 'docs-content-pane', defaultSize: 55 },
+]
 
 const searchQuery = ref('')
 const isSearching = computed(() => searchQuery.value.trim().length > 0)
@@ -96,84 +101,107 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 </script>
 
 <template>
-	<div class="panel-wrapper">
-		<div class="panel-bar">
-			<div></div>
-			<div>Docs</div>
-			<UTooltip text="Close">
-				<UButton icon="tabler:x" variant="ghost" color="neutral" size="xs" @click="$emit('close')" />
-			</UTooltip>
-		</div>
+	<USplitter :items="panelItems" orientation="vertical" class="docs-panes">
+		<template #docs-tree-pane>
+			<div class="panel-wrapper">
+				<div class="panel-bar">
+					<div></div>
+					<div>Docs</div>
+					<UTooltip text="Close">
+						<UButton icon="tabler:x" variant="ghost" color="neutral" size="xs" @click="$emit('close')" />
+					</UTooltip>
+				</div>
 
-		<div class="docs-search">
-			<UInput
-				v-model="searchQuery"
-				icon="fa7-solid:magnifying-glass"
-				placeholder="Search docs..."
-				size="sm"
-				class="docs-search-input"
-			>
-				<template v-if="searchQuery" #trailing>
-					<UButton icon="tabler:x" variant="link" color="neutral" size="xs" @click="() => { searchQuery = '' }" />
-				</template>
-			</UInput>
-		</div>
+				<div class="docs-search">
+					<UInput
+						v-model="searchQuery"
+						icon="fa7-solid:magnifying-glass"
+						placeholder="Search docs..."
+						size="sm"
+						class="docs-search-input"
+					>
+						<template v-if="searchQuery" #trailing>
+							<UButton icon="tabler:x" variant="link" color="neutral" size="xs" @click="() => { searchQuery = '' }" />
+						</template>
+					</UInput>
+				</div>
 
-		<div class="docs-breadcrumb-row">
-			<DocsBreadcrumb class="breadcrumb" />
-		</div>
+				<div class="docs-breadcrumb-row">
+					<DocsBreadcrumb class="breadcrumb" />
+				</div>
 
-		<splitpanes horizontal class="docs-panes" :push-other-panes="false">
-			<pane size="45" class="docs-tree-pane">
 				<div class="docs-tree-scroll">
 					<DocsTree v-if="!isSearching" :nodes="docsTree" />
 					<div v-else class="docs-search-results">
 						<DocsSearchResultsList :results="searchResults" @select="selectSearchResult" />
 					</div>
 				</div>
-			</pane>
+			</div>
+		</template>
 
-			<pane size="55" class="docs-content-pane">
-				<div class="docs-content-scroll">
-					<DocsCategoryLanding v-if="currentNode?.kind === 'category'" :node="currentNode">
-						<template #header-actions>
-							<UTooltip text="Open in new tab" ignore-non-keyboard-focus>
-								<UButton
-									icon="tabler:arrow-up-right"
-									variant="subtle"
-									color="primary"
-									size="xs"
-									:to="resolveHref(currentPath)"
-									target="_blank"
-								/>
-							</UTooltip>
-						</template>
-					</DocsCategoryLanding>
-					<DocsBody v-else-if="currentNode?.kind === 'entry'" :node="currentNode">
-						<template #header-actions>
-							<UTooltip text="Open in new tab" ignore-non-keyboard-focus>
-								<UButton
-									icon="tabler:arrow-up-right"
-									variant="subtle"
-									color="primary"
-									size="xs"
-									:to="resolveHref(currentPath)"
-									target="_blank"
-								/>
-							</UTooltip>
-						</template>
-					</DocsBody>
-				</div>
-			</pane>
-		</splitpanes>
-	</div>
+		<template #docs-content-pane>
+			<div class="docs-content-scroll">
+				<DocsCategoryLanding v-if="currentNode?.kind === 'category'" :node="currentNode">
+					<template #header-actions>
+						<UTooltip text="Open in new tab" ignore-non-keyboard-focus>
+							<UButton
+								icon="tabler:arrow-up-right"
+								variant="subtle"
+								color="primary"
+								size="xs"
+								:to="resolveHref(currentPath)"
+								target="_blank"
+							/>
+						</UTooltip>
+					</template>
+				</DocsCategoryLanding>
+				<DocsBody v-else-if="currentNode?.kind === 'entry'" :node="currentNode">
+					<template #header-actions>
+						<UTooltip text="Open in new tab" ignore-non-keyboard-focus>
+							<UButton
+								icon="tabler:arrow-up-right"
+								variant="subtle"
+								color="primary"
+								size="xs"
+								:to="resolveHref(currentPath)"
+								target="_blank"
+							/>
+						</UTooltip>
+					</template>
+				</DocsBody>
+			</div>
+		</template>
+	</USplitter>
 </template>
 
 <style scoped>
+/* .panel-wrapper/.panel-bar's base rules are global (main.css — shared with
+   OutputPane's own header), so only the bits specific to this new context
+   are added here, scoped: this wrapper used to be the component's own root
+   (reka gives every USplitter width/height:100% inline, so it no longer
+   needs to state that itself), and now instead sits inside docs-tree-pane,
+   a splitter panel — which, like every panel, is a row-direction flex
+   container by default. Row layout stretches cross-axis (height) for free
+   but never main-axis (width), the opposite of what this column of
+   header/search/breadcrumb/tree needs from its own children below. */
 .panel-wrapper {
 	display: flex;
 	flex-direction: column;
+	width: 100%;
 	height: 100%;
+}
+
+/* docs-tree-pane is framed (see EditorView.vue's general panel rule) with
+   rounded corners on all four of *its own* corners — but panel-bar and the
+   tree scroll area beneath it are opaque bands stacked edge-to-edge inside
+   that frame, not the frame itself, so nothing rounds them to match unless
+   told to. Only the two corners each actually touches: panel-bar is first
+   (top), the tree scroll is last (bottom); docs-search and the breadcrumb
+   row in between touch neither edge and stay square on all sides. */
+.panel-bar {
+	background-color: var(--theme-bg);
+	border-top-left-radius: 0.65rem;
+	border-top-right-radius: 0.65rem;
 }
 
 .docs-search {
@@ -188,10 +216,25 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 
 .docs-breadcrumb-row {
 	flex-shrink: 0;
+	position: relative;
 	display: flex;
 	align-items: center;
 	background-color: var(--theme-bg-elevated);
-	border-bottom: 1px solid var(--theme-border);
+}
+
+/* An inset divider rather than a plain border-bottom: docs-tree-pane (the
+   splitter panel this whole column lives in) is itself framed with a
+   border in the same color, and this row spans its full width — a
+   border-bottom reaching edge to edge would run straight into that frame's
+   left/right sides, crossing it in a hard T rather than stopping inside it. */
+.docs-breadcrumb-row::after {
+	content: '';
+	position: absolute;
+	left: 0.75em;
+	right: 0.75em;
+	bottom: 0;
+	height: 1px;
+	background-color: var(--theme-border);
 }
 
 .breadcrumb {
@@ -204,19 +247,20 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 	min-height: 0;
 }
 
-.docs-tree-pane {
-	height: 100%;
-}
-
-.docs-content-pane {
-	height: 100%;
-}
-
 .docs-tree-scroll {
-	height: 100%;
+	/* The last of four stacked children in .panel-wrapper's own column now
+	   (panel-bar/docs-search/docs-breadcrumb-row above it), not a splitter
+	   panel's sole direct child anymore — so unlike those three's fixed
+	   height, it needs flex-grow to claim whatever they don't, and
+	   min-height: 0 so that growth can still shrink below its content's
+	   natural height and scroll rather than overflowing the column. */
+	flex: 1 1 auto;
+	min-height: 0;
 	overflow-y: auto;
 	padding: 0.25em 0;
 	background-color: var(--theme-bg-elevated);
+	border-bottom-left-radius: 0.65rem;
+	border-bottom-right-radius: 0.65rem;
 }
 
 /* Results are bordered cards (see DocsSearchResultsList.vue), unlike the
@@ -228,6 +272,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 }
 
 .docs-content-scroll {
+	width: 100%;
 	height: 100%;
 	overflow-y: auto;
 	padding: 0.75em 1em;

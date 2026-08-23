@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
 import { RouterView, useRoute } from 'vue-router'
-import 'splitpanes/dist/splitpanes.css';
 import NavBar from './components/NavBar.vue';
 import NamePromptModal from './components/NamePromptModal.vue';
 import { useAuthStore } from './stores/authStore';

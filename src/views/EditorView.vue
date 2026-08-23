@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import type { SplitterItem } from '@nuxt/ui';
 import { resizeStage } from '@/sandbox/hostBridge';
@@ -85,6 +85,7 @@ const DOCS_PANE_OPEN_SIZE = 20
 const MIN_PANE_SIZE = 4
 
 const editorRootRef = useTemplateRef('editorRoot')
+const outerSplitterRef = useTemplateRef('outerSplitter')
 const rightSplitterRef = useTemplateRef('rightSplitter')
 
 // Outer columns: explorer | docs | code | right — docs present only while
@@ -113,14 +114,86 @@ const rightSplitterRef = useTemplateRef('rightSplitter')
 // [i, i+1] into the panel array — so every handle past the docs pane drove
 // the wrong pair of columns. Explicit orders make the sort authoritative
 // and keep the two views of the row aligned however the panes were mounted.
+const EXPLORER_DEFAULT_SIZE = 12
+const RIGHT_DEFAULT_SIZE = 44
+
 const outerItems = computed<SplitterItem[]>(() => [
-  { id: 'explorer-pane', slot: 'explorer-pane', order: 1, defaultSize: 12, minSize: MIN_PANE_SIZE, class: 'hide-in-fullscreen' },
+  { id: 'explorer-pane', slot: 'explorer-pane', order: 1, defaultSize: EXPLORER_DEFAULT_SIZE, minSize: MIN_PANE_SIZE, class: 'hide-in-fullscreen' },
   ...(docsStore.isOpen
     ? [{ id: 'docs-pane', slot: 'docs-pane', order: 2, defaultSize: DOCS_PANE_OPEN_SIZE, minSize: MIN_PANE_SIZE, class: 'hide-in-fullscreen' }]
     : []),
   { id: 'code-pane', slot: 'code-pane', order: 3, defaultSize: docsStore.isOpen ? 44 - DOCS_PANE_OPEN_SIZE : 44, minSize: MIN_PANE_SIZE, class: 'hide-in-fullscreen' },
-  { id: 'right-pane', slot: 'right-pane', order: 4, defaultSize: 44, minSize: MIN_PANE_SIZE },
+  { id: 'right-pane', slot: 'right-pane', order: 4, defaultSize: RIGHT_DEFAULT_SIZE, minSize: MIN_PANE_SIZE },
 ])
+
+// Remembers explorer/right's live widths — whatever the user last dragged
+// them to, not just their defaultSize — so the correction below can restore
+// *that* rather than silently snapping a customized layout back to
+// defaults every time docs toggles. Updated from every real layout change
+// (the outer splitter's own @layout, see onOuterLayout) except while
+// correctingDocsToggle is set: see that function for why.
+const rememberedExplorerSize = ref(EXPLORER_DEFAULT_SIZE)
+const rememberedRightSize = ref(RIGHT_DEFAULT_SIZE)
+let correctingDocsToggle = false
+
+function onOuterLayout(sizes: number[]) {
+  resizeStage()
+  if (correctingDocsToggle) return
+  const explorerIndex = outerItems.value.findIndex((item) => item.id === 'explorer-pane')
+  const rightIndex = outerItems.value.findIndex((item) => item.id === 'right-pane')
+  if (sizes[explorerIndex] != null) rememberedExplorerSize.value = sizes[explorerIndex]
+  if (sizes[rightIndex] != null) rememberedRightSize.value = sizes[rightIndex]
+}
+
+// Corrects a reka-ui limitation: code-pane's defaultSize prop does change
+// (44 -> 24) when docs opens, but code-pane itself never remounts (it's
+// matched by :key across the toggle), and SplitterPanel.vue's own watcher
+// for "did this panel's constraints meaningfully change" checks
+// collapsedSize/collapsible/maxSize/minSize/sizeUnit — not defaultSize. So
+// the group never learns code-pane's size changed, and calculates docs'
+// very first layout from code-pane's *stale* registered defaultSize (44,
+// from whenever it last mounted) instead of the current one. Concretely:
+// explorer(12) + docs(20) + code(44, stale) + right(44) sums to 120, gets
+// normalized down to sum to 100 — so *every* column drifts off its intended
+// size, right-pane (and the game canvas inside it) included, even though
+// nothing about docs opening should ever touch it.
+//
+// panelsRef[i].resize() bypasses defaultSize entirely and sets the group's
+// live layout directly, so it isn't subject to this staleness — but its
+// pivot is always the *adjacent* panel in array order (determinePivotIndices:
+// last panel pivots against the one before it, everything else pivots
+// against the one after), so a single resize() call only ever corrects the
+// pivot pair it targets, not the whole row. Fixing right-pane specifically
+// requires resizing it directly (pivots against code) rather than trusting
+// docs' own correction (pivots against code too, but leaves right's already-
+// wrong value untouched). Order matters here: each call's pivot partner must
+// be a panel this function is *about* to fix next, not one it already fixed,
+// or the later call undoes the earlier one. Resizing right, then explorer,
+// then docs last achieves that — each pivots into whichever panel is still
+// unset, and code-pane (never targeted directly) settles wherever that
+// leaves it, which is exactly its intended share since the other three are
+// now correct.
+//
+// correctingDocsToggle brackets the *entire* window from the toggle to the
+// last of these resize() calls, set synchronously before the first await —
+// reka's own broken recalculation (above) happens inside that window too,
+// during the render this awaits, and fires @layout with its wrong
+// intermediate sizes just like a real drag would. Without the guard,
+// onOuterLayout would "remember" that broken value as if the user had
+// dragged there, and the resize(rememberedRightSize.value) below would just
+// be re-applying the very number it's supposed to be correcting.
+watch(() => docsStore.isOpen, async (isOpen) => {
+  correctingDocsToggle = true
+  await nextTick()
+  if (isOpen) {
+    const panels = outerSplitterRef.value?.panelsRef
+    const indexOf = (id: string) => outerItems.value.findIndex((item) => item.id === id)
+    panels?.[indexOf('right-pane')]?.resize(rememberedRightSize.value)
+    panels?.[indexOf('explorer-pane')]?.resize(rememberedExplorerSize.value)
+    panels?.[indexOf('docs-pane')]?.resize(DOCS_PANE_OPEN_SIZE)
+  }
+  correctingDocsToggle = false
+})
 
 // reka's autoSaveId writes to localStorage unless it's handed a storage
 // object, which would quietly turn pane widths into a persisted setting —
@@ -323,6 +396,7 @@ onBeforeRouteLeave(() => {
 <template>
   <div ref="editorRoot" class="editor-root" :data-fullscreen="fsStore.fullscreen">
   <USplitter
+    ref="outerSplitter"
     orientation="horizontal"
     :items="outerItems"
     auto-save-id="editor-outer"
@@ -502,7 +576,7 @@ onBeforeRouteLeave(() => {
 .editor-root [data-slot="handle"]::after {
   content: '';
   flex: none;
-  background-color: var(--theme-border);
+  background-color: var(--theme-text-muted);
   border-radius: 1px;
 }
 
@@ -550,6 +624,22 @@ onBeforeRouteLeave(() => {
    the border there specifically rather than on every zero-width panel. */
 .editor-root [data-slot="panel"][data-state="collapsed"] {
   border: none;
+}
+
+/* docs-pane is the one panel in this layout whose nested USplitter isn't
+   its direct child (DocsPanel.vue wraps it in .panel-wrapper alongside a
+   search bar and breadcrumb row), so the :has() exemption above doesn't
+   reach it structurally — but it belongs in the same exempt group as
+   explorer-pane/right-pane for the same reason: docs-tree-pane/docs-
+   content-pane, the real leaves here, already match the general rule and
+   get their own full border on their own. Framing docs-pane too would be
+   a second, redundant border wrapped around that whole group (header
+   included) rather than the individual cards actually being split. */
+.editor-root #docs-pane {
+  border: none;
+  border-radius: 0;
+  /* border-top-left-radius: 0.65rem;
+  border-top-right-radius: 0.65rem; */
 }
 
 .editor-root[data-fullscreen="true"] [data-slot="handle"],

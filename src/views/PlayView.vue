@@ -95,7 +95,7 @@ function onFrameReady() {
   resizeStage()
 }
 
-// Unlike the editor's canvas panel, there's no splitpanes layout to
+// Unlike the editor's canvas panel, there's no resizable pane layout to
 // maximize into here — the canvas starts embedded in the normal page. This
 // just reuses fullscreenStore for what it already means to NavBar.vue (hide
 // the site chrome), so toggling it also expands the canvas to fill the page.

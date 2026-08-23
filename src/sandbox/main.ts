@@ -82,7 +82,7 @@ function handleMessage(message: HostMessage) {
     }
 }
 
-// The canvas is sized by the iframe element, which the app's splitpanes layout
+// The canvas is sized by the iframe element, which the app's USplitter layout
 // resizes directly — so watching our own container catches every layout change
 // without the host having to tell us about it. The host's explicit 'resize'
 // message stays as a belt-and-braces nudge for cases where the element's box
