@@ -4,6 +4,7 @@ import { fpsRef, mouseRef, pausedRef, pause, play } from '@/sandbox/hostBridge'
 import { useFullscreenStore } from '@/stores/fullscreen'
 import { useFileStore } from '@/stores/fileStore'
 import GameFrame from '@/components/GameFrame.vue'
+import CollapsiblePane from './CollapsiblePane.vue'
 import Output from '@/assets/api/output'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
@@ -59,6 +60,7 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 </script>
 
 <template>
+  <CollapsiblePane label="Game" icon="tabler:device-gamepad-filled">
   <div class="panel-wrapper">
     <div class="panel-bar">
       <!-- Play / Pause -->
@@ -101,6 +103,7 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
     <GameFrame @ready="$emit('ready')" />
   </div>
+  </CollapsiblePane>
 </template>
 
 <style scoped>

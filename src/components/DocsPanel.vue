@@ -10,13 +10,20 @@ import DocsSearchResultsList from './docs/DocsSearchResultsList.vue'
 import DocsBreadcrumb from './docs/DocsBreadcrumb.vue'
 import DocsCategoryLanding from './docs/DocsCategoryLanding.vue'
 import DocsBody from './docs/DocsBody.vue'
+import CollapsiblePane from './CollapsiblePane.vue'
+import { usePixelMinSize } from '@/composables/usePixelMinSize'
 
 defineEmits<{ close: [] }>()
 
-const panelItems: SplitterItem[] = [
-	{ id: 'docs-tree-pane', slot: 'docs-tree-pane', defaultSize: 45 },
-	{ id: 'docs-content-pane', slot: 'docs-content-pane', defaultSize: 55 },
-]
+// See usePixelMinSize's own comment for the full reasoning — this keeps
+// docs-tree-pane/docs-content-pane's own floor pixel-consistent with every
+// other pane in the editor, not just matched to each other.
+const minSize = usePixelMinSize('docs-tree-pane', 'height')
+
+const panelItems = computed<SplitterItem[]>(() => [
+	{ id: 'docs-tree-pane', slot: 'docs-tree-pane', defaultSize: 45, minSize: minSize.value },
+	{ id: 'docs-content-pane', slot: 'docs-content-pane', defaultSize: 55, minSize: minSize.value },
+])
 
 const searchQuery = ref('')
 const isSearching = computed(() => searchQuery.value.trim().length > 0)
@@ -103,6 +110,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 <template>
 	<USplitter :items="panelItems" orientation="vertical" class="docs-panes">
 		<template #docs-tree-pane>
+			<CollapsiblePane label="Docs" icon="tabler:book-filled">
 			<div class="panel-wrapper">
 				<div class="panel-bar">
 					<div></div>
@@ -137,9 +145,11 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 					</div>
 				</div>
 			</div>
+			</CollapsiblePane>
 		</template>
 
 		<template #docs-content-pane>
+			<CollapsiblePane :label="currentNode?.title ?? 'Docs'" :icon="currentNode?.icon ?? 'tabler:book-filled'">
 			<div class="docs-content-scroll">
 				<DocsCategoryLanding v-if="currentNode?.kind === 'category'" :node="currentNode">
 					<template #header-actions>
@@ -170,6 +180,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 					</template>
 				</DocsBody>
 			</div>
+			</CollapsiblePane>
 		</template>
 	</USplitter>
 </template>
@@ -200,8 +211,8 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
    row in between touch neither edge and stay square on all sides. */
 .panel-bar {
 	background-color: var(--theme-bg);
-	border-top-left-radius: 0.65rem;
-	border-top-right-radius: 0.65rem;
+	/* border-top-left-radius: 0.65rem;
+	border-top-right-radius: 0.65rem; */
 }
 
 .docs-search {
@@ -259,8 +270,8 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 	overflow-y: auto;
 	padding: 0.25em 0;
 	background-color: var(--theme-bg-elevated);
-	border-bottom-left-radius: 0.65rem;
-	border-bottom-right-radius: 0.65rem;
+	/* border-bottom-left-radius: 0.65rem;
+	border-bottom-right-radius: 0.65rem; */
 }
 
 /* Results are bordered cards (see DocsSearchResultsList.vue), unlike the

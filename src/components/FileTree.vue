@@ -19,6 +19,7 @@ import {
 	scriptFileType,
 	splitFileName,
 } from '@/assets/utils/fileTypes'
+import CollapsiblePane from './CollapsiblePane.vue'
 
 const fileStore = useFileStore()
 const treeSelectionStore = useTreeSelectionStore()
@@ -870,6 +871,7 @@ async function onDropOnRoot() {
 </script>
 
 <template>
+	<CollapsiblePane label="Files" icon="tabler:folder-filled">
 	<div class="panel-wrapper">
 		<div class="panel-bar">
 			<div class="spacer"></div>
@@ -989,6 +991,7 @@ async function onDropOnRoot() {
 			</div>
 		</UContextMenu>
 	</div>
+	</CollapsiblePane>
 </template>
 
 <style scoped>

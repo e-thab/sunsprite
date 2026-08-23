@@ -286,7 +286,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
 .bar {
     min-height: 2em;
     display: flex;
-    padding: 0 0.5em 0 0.5em;
+    padding: 0.2em 0.5em 0.1em 0.5em;
     justify-content: space-between;
     user-select: none;
     background-color: var(--theme-bg-accented);

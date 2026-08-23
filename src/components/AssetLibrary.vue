@@ -4,6 +4,7 @@ import { useToast } from '@nuxt/ui/composables'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
 import { exampleScriptNames } from '@/assets/api/examples'
 import { imagePath, animalFiles, cardFiles } from '@/assets/api/gameAssets'
+import CollapsiblePane from './CollapsiblePane.vue'
 
 const treeSelectionStore = useTreeSelectionStore()
 
@@ -86,6 +87,7 @@ const items: TreeItem[] = [
 </script>
 
 <template>
+	<CollapsiblePane label="Assets" icon="tabler:photo-filled">
 	<div class="panel-wrapper">
 		<div class="panel-bar">
 			<div class="spacer"></div>
@@ -115,6 +117,7 @@ const items: TreeItem[] = [
 			</UTree>
 		</div>
 	</div>
+	</CollapsiblePane>
 </template>
 
 <style scoped>

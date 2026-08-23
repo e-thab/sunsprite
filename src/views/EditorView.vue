@@ -7,6 +7,7 @@ import { useFullscreenStore } from '@/stores/fullscreen';
 import { useFileStore } from '@/stores/fileStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore';
+import { usePixelMinSize } from '@/composables/usePixelMinSize';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
@@ -71,18 +72,21 @@ const explorerPixelWidth = ref(0)
 
 const DOCS_PANE_OPEN_SIZE = 20
 
-// Floor for every outer column, as a percentage of the row. Its job is
-// geometric, not aesthetic: reka activates *every* handle whose hit area
-// contains the pointer (updateResizeHandlerStates flags each one in
-// intersectingHandles as active, with no nearest-wins tie-break), and each
-// hit area reaches 5px past the handle. Two handles therefore both light up
-// — and on mousedown both enter the drag state and keep resizing — as soon
-// as the column between them is under ~10px wide, which reka's own default
-// of minSize: 0 lets you drag it to. Keeping every column comfortably wider
-// than that is what makes "only one handle is live" true by construction.
-// 4% is ~24px at a 600px-wide window, still clear of the overlap, and a
-// sane smallest useful width for these panes at any size.
-const MIN_PANE_SIZE = 4
+// Floor for every column/row across all three splitters here, in percent —
+// but a *different* percent per splitter, not one shared constant. A flat
+// percentage would put reka's actual pixel floor at a different width than
+// height: the outer splitter's track is however wide the window is, a
+// nested vertical splitter's is however tall the editor is beneath the
+// navbar, and 1% of two different numbers is two different pixel counts.
+// usePixelMinSize watches each group's own live extent and keeps
+// recalculating the percentage that corresponds to the *same* pixel floor
+// for it specifically (see its own comment for the full reasoning and why
+// that floor sits below CollapsiblePane's presentation thresholds), so
+// dragging any pane in any of these three splitters to its limit stops at
+// the same actual size regardless of which one it belongs to.
+const outerMinSize = usePixelMinSize('explorer-pane', 'width')
+const explorerMinSize = usePixelMinSize('file-tree-v-pane', 'height')
+const rightMinSize = usePixelMinSize('canvas-v-pane', 'height')
 
 const editorRootRef = useTemplateRef('editorRoot')
 const outerSplitterRef = useTemplateRef('outerSplitter')
@@ -118,32 +122,13 @@ const EXPLORER_DEFAULT_SIZE = 12
 const RIGHT_DEFAULT_SIZE = 44
 
 const outerItems = computed<SplitterItem[]>(() => [
-  { id: 'explorer-pane', slot: 'explorer-pane', order: 1, defaultSize: EXPLORER_DEFAULT_SIZE, minSize: MIN_PANE_SIZE, class: 'hide-in-fullscreen' },
+  { id: 'explorer-pane', slot: 'explorer-pane', order: 1, defaultSize: EXPLORER_DEFAULT_SIZE, minSize: outerMinSize.value, class: 'hide-in-fullscreen' },
   ...(docsStore.isOpen
-    ? [{ id: 'docs-pane', slot: 'docs-pane', order: 2, defaultSize: DOCS_PANE_OPEN_SIZE, minSize: MIN_PANE_SIZE, class: 'hide-in-fullscreen' }]
+    ? [{ id: 'docs-pane', slot: 'docs-pane', order: 2, defaultSize: DOCS_PANE_OPEN_SIZE, minSize: outerMinSize.value, class: 'hide-in-fullscreen' }]
     : []),
-  { id: 'code-pane', slot: 'code-pane', order: 3, defaultSize: docsStore.isOpen ? 44 - DOCS_PANE_OPEN_SIZE : 44, minSize: MIN_PANE_SIZE, class: 'hide-in-fullscreen' },
-  { id: 'right-pane', slot: 'right-pane', order: 4, defaultSize: RIGHT_DEFAULT_SIZE, minSize: MIN_PANE_SIZE },
+  { id: 'code-pane', slot: 'code-pane', order: 3, defaultSize: docsStore.isOpen ? 44 - DOCS_PANE_OPEN_SIZE : 44, minSize: outerMinSize.value, class: 'hide-in-fullscreen' },
+  { id: 'right-pane', slot: 'right-pane', order: 4, defaultSize: RIGHT_DEFAULT_SIZE, minSize: outerMinSize.value },
 ])
-
-// Remembers explorer/right's live widths — whatever the user last dragged
-// them to, not just their defaultSize — so the correction below can restore
-// *that* rather than silently snapping a customized layout back to
-// defaults every time docs toggles. Updated from every real layout change
-// (the outer splitter's own @layout, see onOuterLayout) except while
-// correctingDocsToggle is set: see that function for why.
-const rememberedExplorerSize = ref(EXPLORER_DEFAULT_SIZE)
-const rememberedRightSize = ref(RIGHT_DEFAULT_SIZE)
-let correctingDocsToggle = false
-
-function onOuterLayout(sizes: number[]) {
-  resizeStage()
-  if (correctingDocsToggle) return
-  const explorerIndex = outerItems.value.findIndex((item) => item.id === 'explorer-pane')
-  const rightIndex = outerItems.value.findIndex((item) => item.id === 'right-pane')
-  if (sizes[explorerIndex] != null) rememberedExplorerSize.value = sizes[explorerIndex]
-  if (sizes[rightIndex] != null) rememberedRightSize.value = sizes[rightIndex]
-}
 
 // Corrects a reka-ui limitation: code-pane's defaultSize prop does change
 // (44 -> 24) when docs opens, but code-pane itself never remounts (it's
@@ -156,43 +141,154 @@ function onOuterLayout(sizes: number[]) {
 // explorer(12) + docs(20) + code(44, stale) + right(44) sums to 120, gets
 // normalized down to sum to 100 — so *every* column drifts off its intended
 // size, right-pane (and the game canvas inside it) included, even though
-// nothing about docs opening should ever touch it.
+// nothing about docs opening should ever touch it. Only right-pane's width
+// is actually guaranteed here — explorer drifting along with the rest of
+// this miscalculation is accepted.
 //
-// panelsRef[i].resize() bypasses defaultSize entirely and sets the group's
-// live layout directly, so it isn't subject to this staleness — but its
-// pivot is always the *adjacent* panel in array order (determinePivotIndices:
-// last panel pivots against the one before it, everything else pivots
-// against the one after), so a single resize() call only ever corrects the
-// pivot pair it targets, not the whole row. Fixing right-pane specifically
-// requires resizing it directly (pivots against code) rather than trusting
-// docs' own correction (pivots against code too, but leaves right's already-
-// wrong value untouched). Order matters here: each call's pivot partner must
-// be a panel this function is *about* to fix next, not one it already fixed,
-// or the later call undoes the earlier one. Resizing right, then explorer,
-// then docs last achieves that — each pivots into whichever panel is still
-// unset, and code-pane (never targeted directly) settles wherever that
-// leaves it, which is exactly its intended share since the other three are
-// now correct.
+// The fix reads right-pane's width synchronously, before anything has had
+// a chance to disturb it, then restores exactly that once the toggle (and
+// reka's own recalculation above) has finished. That's a snapshot taken
+// fresh on every toggle, not a value tracked continuously — an earlier
+// version instead updated a ref from the outer splitter's own @layout
+// event on every layout change and read that back here, which meant the
+// fix depended on that event listener staying correctly wired to the
+// function that updated the ref. It stopped being wired at some point
+// (@layout was still bound to the old plain resizeStage handler), and the
+// ref sat frozen at its initial value from then on — silently, since
+// nothing about that failure mode throws or looks broken. Reading the
+// real value directly, right here, has nothing upstream of it left to
+// break.
 //
-// correctingDocsToggle brackets the *entire* window from the toggle to the
-// last of these resize() calls, set synchronously before the first await —
-// reka's own broken recalculation (above) happens inside that window too,
-// during the render this awaits, and fires @layout with its wrong
-// intermediate sizes just like a real drag would. Without the guard,
-// onOuterLayout would "remember" that broken value as if the user had
-// dragged there, and the resize(rememberedRightSize.value) below would just
-// be re-applying the very number it's supposed to be correcting.
+// "Restores exactly that" means the same *pixel* width, not the same
+// percentage — reusing the old percentage as-is was an earlier version of
+// this fix, and it's wrong: docs' own handle is either in the row or it
+// isn't, and every handle claims a fixed pixel share of the group for
+// itself *before* percentages are applied to what's left over for
+// panels, so the same percentage of a row with one more handle in it is
+// a slightly smaller number of pixels. Converting through pixels needs
+// two numbers: right-pane's own width, and how much width panels
+// collectively have to divide up (the group's width minus however many
+// handles currently exist — measured by summing every *panel's* own
+// current width instead, since panels and handles together always fill
+// the group, which sidesteps needing to know or hardcode any one
+// handle's width).
+//
+// Both conversions — pixels-before to percent-before, and the restored
+// percent-after back to pixels — read right-pane's own share via
+// getSize(), never via a getBoundingClientRect() measurement of the
+// rendered DOM. That distinction is the difference between this being
+// stable and this slowly drifting every toggle: reka renders each
+// panel's flex-grow CSS value independently rounded to 3 significant
+// figures (computePanelFlexBoxStyle's toPrecision(3)), so the rendered
+// width can end up a hair off whatever percentage was actually
+// requested. That's harmless in isolation, but feeding *that*
+// already-slightly-off measurement back in as "before" on the next
+// toggle compounds the previous toggle's rounding instead of reproducing
+// it — an earlier version of this fix measured right-pane's own width
+// that way and drifted a little further narrower on every single toggle,
+// open or closed. getSize() reads reka's own internal layout value
+// directly, which is never rounded (only the CSS string generated *from*
+// it is), so every toggle computes from the same exact number and there's
+// nothing left to compound.
+//
+// The pre-toggle reads have to find right-pane by *position*, not by
+// outerItems.value.findIndex(...) the way the post-toggle write below
+// does: outerItems is a computed already reflecting docsStore.isOpen's
+// *new* value the instant it's read (computed properties re-evaluate
+// whenever accessed, independent of whether Vue has actually re-rendered
+// yet), but panelsRef/the DOM — reka mutates the former in place during
+// render — are still however many panels were on screen *before* this
+// toggle, since that render hasn't happened yet. Finding "right-pane" by
+// id against the new four-item list and reading that index out of the
+// still-three-item array points at nothing (or the wrong panel). Its
+// order (4, the highest of any column) means it's always the last
+// element of whichever array panelsRef currently holds, three items or
+// four, so reading it by position sidesteps the mismatch rather than
+// needing to resolve it.
+//
+// right-pane also gets its rendered width *pinned* over this same window,
+// via a CSS override rather than anything reka or Vue's reactivity knows
+// about — a different problem from the miscalculation above, and one a
+// resize()-after-the-fact correction can't reach. reka's broken
+// recalculation is a real (if momentary) layout, not just an internal
+// number: it actually gets applied to the DOM before this function ever
+// gets a chance to correct it, and the game inside the iframe detects its
+// *own* container resizing independently of anything the host tells it
+// (see sandbox/main.ts's own ResizeObserver, kept deliberately independent
+// so the host doesn't have to chase every layout change) — so suppressing
+// resizeStage's own postMessage calls during this window, an earlier
+// version of this fix, never addressed the actual cause: the iframe
+// resized regardless of whether the host said anything about it. Pinning
+// right-pane's flex sizing to its already-measured pixel width via
+// !important (the one thing that outranks reka's own inline style)
+// means its rendered size, and the iframe's, genuinely never changes
+// during the whole window, so the sandbox's observer has nothing to react
+// to no matter what reka's internal numbers do underneath. Unpinning
+// happens only after the resize() calls below have set the *correct*
+// internal value, so the release is seamless — reka's own styling takes
+// back over already agreeing with what was just being held in place.
+function availablePanelWidth(groupEl: Element) {
+  return Array.from(groupEl.querySelectorAll(':scope > [data-slot="panel"]'))
+    .reduce((sum, panel) => sum + panel.getBoundingClientRect().width, 0)
+}
+
 watch(() => docsStore.isOpen, async (isOpen) => {
-  correctingDocsToggle = true
-  await nextTick()
-  if (isOpen) {
-    const panels = outerSplitterRef.value?.panelsRef
-    const indexOf = (id: string) => outerItems.value.findIndex((item) => item.id === id)
-    panels?.[indexOf('right-pane')]?.resize(rememberedRightSize.value)
-    panels?.[indexOf('explorer-pane')]?.resize(rememberedExplorerSize.value)
-    panels?.[indexOf('docs-pane')]?.resize(DOCS_PANE_OPEN_SIZE)
+  const panels = outerSplitterRef.value?.panelsRef
+  const rightEl = document.getElementById('right-pane')
+  const rightBefore = panels?.[panels.length - 1]
+  // getSize(), not a getBoundingClientRect() measurement, on purpose: reka
+  // renders each panel's flex-grow CSS value independently rounded to 3
+  // significant figures (computePanelFlexBoxStyle's toPrecision(3)), so
+  // the rendered width can be a hair off whatever percentage was actually
+  // requested — nothing worth correcting on its own, but if the "before"
+  // read for the *next* toggle comes from that already-slightly-off
+  // rendered width instead of the exact percentage that produced it, each
+  // toggle compounds the previous one's rounding rather than reproducing
+  // it, and the drift keeps growing. getSize() reads reka's own internal
+  // layout value directly, which is never rounded (only the CSS string
+  // generated *from* it is) — converting pixels through that instead of
+  // through the DOM keeps every toggle computing from the same exact
+  // number, so there's nothing to compound.
+  const rightPercentBefore = rightBefore?.getSize()
+  const groupEl = rightEl?.parentElement
+  const availableWidthBefore = groupEl ? availablePanelWidth(groupEl) : null
+
+  if (rightEl) {
+    rightEl.style.setProperty('--pinned-width', `${rightEl.getBoundingClientRect().width}px`)
+    rightEl.classList.add('pinned-width')
   }
-  correctingDocsToggle = false
+  await nextTick()
+
+  if (rightPercentBefore != null && availableWidthBefore != null && groupEl) {
+    const rightPixelsBefore = (rightPercentBefore / 100) * availableWidthBefore
+    const availableWidthAfter = availablePanelWidth(groupEl)
+    if (availableWidthAfter > 0) {
+      panels?.[panels.length - 1]?.resize((rightPixelsBefore / availableWidthAfter) * 100)
+    }
+  }
+  if (isOpen) {
+    // Reaching DOCS_PANE_OPEN_SIZE by resizing explorer-pane, not by calling
+    // docs.resize(DOCS_PANE_OPEN_SIZE) directly: docs-pane's own resize()
+    // pivots against code-pane, and if code-pane has already been squeezed
+    // near its floor (e.g. a prior drag pushed docs to its min and then
+    // kept going, shrinking code-pane too), reka's cascade doesn't stop
+    // once code-pane is tapped out — it keeps walking rightward looking for
+    // more room and reaches right-pane, silently undoing the correction
+    // above before this function ever releases the pin. explorer-pane's own
+    // pivot partner is docs-pane directly (they're adjacent), so shrinking
+    // explorer by whatever docs needs to grow reaches the same target
+    // without the cascade ever being able to touch code-pane or right-pane.
+    const docsIndex = outerItems.value.findIndex((item) => item.id === 'docs-pane')
+    const docsPanel = panels?.[docsIndex]
+    const explorerPanel = panels?.[0]
+    const docsSizeBefore = docsPanel?.getSize()
+    const explorerSizeBefore = explorerPanel?.getSize()
+    if (docsSizeBefore != null && explorerSizeBefore != null) {
+      explorerPanel?.resize(explorerSizeBefore + (docsSizeBefore - DOCS_PANE_OPEN_SIZE))
+    }
+  }
+
+  rightEl?.classList.remove('pinned-width')
 })
 
 // reka's autoSaveId writes to localStorage unless it's handed a storage
@@ -209,16 +305,16 @@ const splitterStorage = {
 
 // Right side nested row: game view | output. Output is collapsible so
 // collapseOutput() below can hide it via the same mechanism.
-const rightItems: SplitterItem[] = [
-  { id: 'canvas-v-pane', slot: 'canvas-v-pane', defaultSize: 77 },
-  { id: 'output-v-pane', slot: 'output-v-pane', defaultSize: 23, collapsible: true, collapsedSize: 0, class: 'hide-in-fullscreen' },
-]
+const rightItems = computed<SplitterItem[]>(() => [
+  { id: 'canvas-v-pane', slot: 'canvas-v-pane', defaultSize: 77, minSize: rightMinSize.value },
+  { id: 'output-v-pane', slot: 'output-v-pane', defaultSize: 23, minSize: rightMinSize.value, collapsible: true, collapsedSize: 0, class: 'hide-in-fullscreen' },
+])
 
 // Explorer nested column: file tree | asset library.
-const explorerItems: SplitterItem[] = [
-  { id: 'file-tree-v-pane', slot: 'file-tree-v-pane', defaultSize: 65 },
-  { id: 'asset-library-v-pane', slot: 'asset-library-v-pane', defaultSize: 35 },
-]
+const explorerItems = computed<SplitterItem[]>(() => [
+  { id: 'file-tree-v-pane', slot: 'file-tree-v-pane', defaultSize: 65, minSize: explorerMinSize.value },
+  { id: 'asset-library-v-pane', slot: 'asset-library-v-pane', defaultSize: 35, minSize: explorerMinSize.value },
+])
 
 function runMainScript() {
   // The game header's Restart always runs the project's canonical entry
@@ -243,7 +339,7 @@ function toggleFullscreen() {
 }
 
 function collapseOutput() {
-  const index = rightItems.findIndex((item) => item.id === 'output-v-pane')
+  const index = rightItems.value.findIndex((item) => item.id === 'output-v-pane')
   rightSplitterRef.value?.panelsRef[index]?.collapse()
 }
 
@@ -578,6 +674,7 @@ onBeforeRouteLeave(() => {
   flex: none;
   background-color: var(--theme-text-muted);
   border-radius: 1px;
+  transition: background-color 0.15s ease-in-out;
 }
 
 /* data-orientation carries the *group's* direction, so "horizontal" is the
@@ -645,5 +742,15 @@ onBeforeRouteLeave(() => {
 .editor-root[data-fullscreen="true"] [data-slot="handle"],
 .editor-root[data-fullscreen="true"] [data-slot="panel"].hide-in-fullscreen {
   display: none;
+}
+
+/* Holds right-pane at an exact pixel width, ignoring whatever reka's own
+   flex-grow says underneath — see the docsStore.isOpen watch. !important
+   is the one thing that outranks an inline style (reka sets flex-basis/
+   flex-grow/flex-shrink inline via :style), which a plain .style.width
+   assignment from JS wouldn't: Vue's own patch of that same :style
+   binding, mid-transition, would just overwrite it right back. */
+.editor-root #right-pane.pinned-width {
+  flex: 0 0 var(--pinned-width) !important;
 }
 </style>

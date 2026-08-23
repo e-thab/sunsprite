@@ -4,6 +4,7 @@ import Output, { outputActivity } from '@/assets/api/output';
 import type { OutputItem } from '@/assets/api/output';
 import InfoPanel from '@/components/InfoPanel.vue';
 import WatchPanel from '@/components/WatchPanel.vue';
+import CollapsiblePane from './CollapsiblePane.vue';
 import { useWatchPanelStore } from '@/stores/watchPanelStore';
 
 type OutputTab = 'output' | 'info' | 'watch'
@@ -60,6 +61,20 @@ const tabItems = computed(() => [
     { label: 'Watch', value: 'watch', ui: flashWatch.value ? { label: 'tab-flash' } : undefined },
 ])
 
+// The collapsed-pane label and icon both track whichever tab is active,
+// rather than a fixed "Output" — the pane's own identity when squeezed to a
+// sliver is "whatever you'd see if you widened it back out", not just its
+// default tab. Kept separate from tabItems (which feeds UTabs directly)
+// rather than adding an icon field there — UTabs would render it into the
+// always-visible tab bar too, which isn't wanted here.
+const activeTabLabel = computed(() => tabItems.value.find((item) => item.value === activeTab.value)?.label ?? 'Output')
+const TAB_ICONS: Record<OutputTab, string> = {
+    output: 'tabler:terminal-2',
+    info: 'tabler:info-circle-filled',
+    watch: 'tabler:eye-filled',
+}
+const activeTabIcon = computed(() => TAB_ICONS[activeTab.value])
+
 const emit = defineEmits([ 'collapseOutput', 'ready' ])
 
 onUnmounted(() => {
@@ -100,6 +115,7 @@ onMounted(() => {
 
 
 <template>
+    <CollapsiblePane :label="activeTabLabel" :icon="activeTabIcon">
     <div class="output-wrapper">
         <!-- Header tabs -->
         <div class="output-header">
@@ -136,6 +152,7 @@ onMounted(() => {
             <WatchPanel />
         </div>
     </div>
+    </CollapsiblePane>
 </template>
 
 

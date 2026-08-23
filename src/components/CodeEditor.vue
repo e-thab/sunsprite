@@ -8,6 +8,7 @@ import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
 import { resolveSpecifierToName, listImportSpecifiers } from '@/assets/api/scriptResolution'
 import { TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
+import CollapsiblePane from './CollapsiblePane.vue'
 import '@/assets/code-completion/monaco-colors'
 import { ModuleDetectionKind } from 'typescript'
 
@@ -644,6 +645,7 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 </script>
 
 <template>
+	<CollapsiblePane label="Code" icon="tabler:code">
 	<div class="panel-wrapper">
 		<div id="editor-bar">
 			<div class="save-group">
@@ -704,6 +706,7 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 			/>
 		</div>
 	</div>
+	</CollapsiblePane>
 </template>
 
 <style scoped>
