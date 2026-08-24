@@ -43,16 +43,37 @@ const MIN_PANE_PX = MIN_PANE_CONTENT_PX + LEAF_BORDER_PX
  * splitter) — its parentElement is the group's own DOM node, the same
  * lookup EditorView.vue's availablePanelWidth already relies on.
  */
+// Every change to a panel's minSize makes reka reevaluate that panel's
+// constraints (SplitterPanel.vue's own watch on its constraints object) —
+// which, regardless of whether the reevaluation ends up actually resizing
+// anything, unconditionally flags the whole group's layout as changed
+// (reevaluatePanelConstraints sets panelDataArrayChanged = true) and queues
+// a full recalculation of it (SplitterGroup.vue's own watch on that flag).
+// Recalculating a *different* group's layout because *this* group's own
+// extent moved a fraction of a pixel — which happens continuously while
+// dragging pretty much any handle, since panes nest inside each other and
+// a parent resizing changes every child's rendered box too — stacks an
+// async, reactive recalculation on top of reka's own synchronous,
+// mousemove-driven one for however many groups happen to be listening, on
+// every single tick. That's a real mechanism (confirmed by reading reka's
+// own source), worth not doing regardless of how visible its effect turns
+// out to be in any one scenario — debouncing so a burst of resize events
+// collapses into one recalculation *after* things settle, rather than one
+// recalc per tick, keeps a live drag entirely in reka's own hands and lets
+// this only catch up once it's actually done.
+const SETTLE_DEBOUNCE_MS = 200
+
 export function usePixelMinSize(anchorPaneId: string, axis: 'width' | 'height') {
 	const percent = ref(1)
 	let observer: ResizeObserver | null = null
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 	onMounted(() => {
 		const groupEl = document.getElementById(anchorPaneId)?.parentElement
 		if (!groupEl) return
-		observer = new ResizeObserver(([entry]) => {
-			if (!entry) return
-			const handleExtent = Array.from(groupEl.querySelectorAll(':scope > [data-slot="handle"]'))
+
+		function recalculate(entry: ResizeObserverEntry) {
+			const handleExtent = Array.from(groupEl!.querySelectorAll(':scope > [data-slot="handle"]'))
 				.reduce((sum, handle) => {
 					const rect = handle.getBoundingClientRect()
 					return sum + (axis === 'width' ? rect.width : rect.height)
@@ -60,11 +81,31 @@ export function usePixelMinSize(anchorPaneId: string, axis: 'width' | 'height') 
 			const groupExtent = axis === 'width' ? entry.contentRect.width : entry.contentRect.height
 			const extent = groupExtent - handleExtent
 			if (extent > 0) percent.value = (MIN_PANE_PX / extent) * 100
+		}
+
+		// The very first callback (ResizeObserver always delivers one right
+		// after observe() starts) settles immediately, so the first real
+		// render already has a correct value instead of the ref(1) fallback
+		// for however long the debounce below would otherwise hold it off.
+		let isFirstCallback = true
+
+		observer = new ResizeObserver(([entry]) => {
+			if (!entry) return
+			if (isFirstCallback) {
+				isFirstCallback = false
+				recalculate(entry)
+				return
+			}
+			if (debounceTimer) clearTimeout(debounceTimer)
+			debounceTimer = setTimeout(() => recalculate(entry), SETTLE_DEBOUNCE_MS)
 		})
 		observer.observe(groupEl)
 	})
 
-	onBeforeUnmount(() => observer?.disconnect())
+	onBeforeUnmount(() => {
+		observer?.disconnect()
+		if (debounceTimer) clearTimeout(debounceTimer)
+	})
 
 	return percent
 }

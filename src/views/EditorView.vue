@@ -8,6 +8,7 @@ import { useFileStore } from '@/stores/fileStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore';
 import { usePixelMinSize } from '@/composables/usePixelMinSize';
+import { useStablePanelSizing } from '@/composables/useStablePanelSizing';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
@@ -91,6 +92,14 @@ const rightMinSize = usePixelMinSize('canvas-v-pane', 'height')
 const editorRootRef = useTemplateRef('editorRoot')
 const outerSplitterRef = useTemplateRef('outerSplitter')
 const rightSplitterRef = useTemplateRef('rightSplitter')
+const explorerSplitterRef = useTemplateRef('explorerSplitter')
+
+// See useStablePanelSizing's own comment for the full reasoning — this
+// keeps every *other* column stable while dragging any one of these
+// splitters' own handles, not just the two columns actually being resized.
+useStablePanelSizing(outerSplitterRef, 'width')
+useStablePanelSizing(explorerSplitterRef, 'height')
+useStablePanelSizing(rightSplitterRef, 'height')
 
 // Outer columns: explorer | docs | code | right — docs present only while
 // it's open, so closing it takes the pane *and* its resize handle out of
@@ -316,6 +325,56 @@ const explorerItems = computed<SplitterItem[]>(() => [
   { id: 'asset-library-v-pane', slot: 'asset-library-v-pane', defaultSize: 35, minSize: explorerMinSize.value },
 ])
 
+interface PaneExpandTarget {
+  // Item id (in outerItems) to resize for a width expand request — the
+  // pane's own id if it's a direct outer-splitter member (code-pane), or
+  // its containing column's id for every other leaf here, whose *width*
+  // is inherited from that ancestor rather than set by a handle of its own.
+  widthItemId?: string
+  // Which nested splitter (and item within it) owns this pane's own
+  // height, if any — code-pane has no nested splitter inside it, so its
+  // height is always the full row and never needs a target here.
+  heightSplitter?: 'explorer' | 'right'
+  heightItemId?: string
+}
+
+// Where a given pane's width and height actually come from — not always
+// the pane itself. docs-tree-pane/docs-content-pane only carry a width
+// target: their height is owned by DocsPanel.vue's own nested splitter, a
+// different component entirely, which handles that half from its own
+// listener on the same bubbling event and leaves this one to handle theirs
+// — see CollapsiblePane's own comment on why this travels as a DOM event
+// rather than a prop/emit chain threaded through every wrapper in between.
+const PANE_EXPAND_TARGETS: Record<string, PaneExpandTarget> = {
+  'file-tree-v-pane': { widthItemId: 'explorer-pane', heightSplitter: 'explorer', heightItemId: 'file-tree-v-pane' },
+  'asset-library-v-pane': { widthItemId: 'explorer-pane', heightSplitter: 'explorer', heightItemId: 'asset-library-v-pane' },
+  'code-pane': { widthItemId: 'code-pane' },
+  'canvas-v-pane': { widthItemId: 'right-pane', heightSplitter: 'right', heightItemId: 'canvas-v-pane' },
+  'output-v-pane': { widthItemId: 'right-pane', heightSplitter: 'right', heightItemId: 'output-v-pane' },
+  'docs-tree-pane': { widthItemId: 'docs-pane' },
+  'docs-content-pane': { widthItemId: 'docs-pane' },
+}
+
+function onPaneExpandRequest(event: Event) {
+  const { paneId, expandWidth, expandHeight } = (event as CustomEvent<{ paneId: string, expandWidth: boolean, expandHeight: boolean }>).detail
+  const target = PANE_EXPAND_TARGETS[paneId]
+  if (!target) return
+
+  if (expandWidth && target.widthItemId) {
+    const idx = outerItems.value.findIndex((item) => item.id === target.widthItemId)
+    const defaultSize = outerItems.value[idx]?.defaultSize
+    if (idx >= 0 && defaultSize != null) outerSplitterRef.value?.panelsRef[idx]?.resize(defaultSize)
+  }
+
+  if (expandHeight && target.heightSplitter && target.heightItemId) {
+    const items = target.heightSplitter === 'explorer' ? explorerItems.value : rightItems.value
+    const splitterRef = target.heightSplitter === 'explorer' ? explorerSplitterRef : rightSplitterRef
+    const idx = items.findIndex((item) => item.id === target.heightItemId)
+    const defaultSize = items[idx]?.defaultSize
+    if (idx >= 0 && defaultSize != null) splitterRef.value?.panelsRef[idx]?.resize(defaultSize)
+  }
+}
+
 function runMainScript() {
   // The game header's Restart always runs the project's canonical entry
   // point ("main.js"), independent of whichever script happens to be open
@@ -341,6 +400,32 @@ function toggleFullscreen() {
 function collapseOutput() {
   const index = rightItems.value.findIndex((item) => item.id === 'output-v-pane')
   rightSplitterRef.value?.panelsRef[index]?.collapse()
+}
+
+// The sandboxed game watches its own container via a ResizeObserver
+// (sandbox/main.ts) and resizes itself independently — the host's own
+// resizeStage() message, posted on @layout below, exists only as a
+// belt-and-braces nudge for whatever case that observer might miss, per
+// its own comment there. @layout fires on every layout change anywhere in
+// a splitter group though, not just ones that touch canvas-v-pane's own
+// box — bound straight to resizeStage(), that posts the message on every
+// tick of any drag in either splitter, including ones nowhere near
+// canvas-v-pane, each one telling the sandbox's already-independent
+// observer to go check itself for nothing: canvas.width/height assignments
+// (which is what a stage resize ultimately touches) clear and redraw the
+// canvas even when set to the same values, so a message posted on every
+// tick of an unrelated drag reads as the game canvas visibly flickering in
+// sync with a handle it isn't even attached to. This only actually posts
+// once canvas-v-pane's own rendered size has moved since the last check.
+let lastCanvasSize = { width: 0, height: 0 }
+function onLayoutMaybeResizeStage() {
+  const canvasEl = document.getElementById('canvas-v-pane')
+  if (canvasEl) {
+    const rect = canvasEl.getBoundingClientRect()
+    if (rect.width === lastCanvasSize.width && rect.height === lastCanvasSize.height) return
+    lastCanvasSize = { width: rect.width, height: rect.height }
+  }
+  resizeStage()
 }
 
 function loadScript(fileName: string) {
@@ -490,18 +575,18 @@ onBeforeRouteLeave(() => {
 </script>
 
 <template>
-  <div ref="editorRoot" class="editor-root" :data-fullscreen="fsStore.fullscreen">
+  <div ref="editorRoot" class="editor-root" :data-fullscreen="fsStore.fullscreen" @pane-expand-request="onPaneExpandRequest">
   <USplitter
     ref="outerSplitter"
     orientation="horizontal"
     :items="outerItems"
     auto-save-id="editor-outer"
     :storage="splitterStorage"
-    @layout="resizeStage"
+    @layout="onLayoutMaybeResizeStage"
   >
     <!-- Left side pane: File explorer + built-in asset library -->
     <template #explorer-pane>
-      <USplitter :items="explorerItems" orientation="vertical">
+      <USplitter ref="explorerSplitter" :items="explorerItems" orientation="vertical">
         <template #file-tree-v-pane>
           <FileTree @select-script="loadScript" @run-script="runNamedScript" />
         </template>
@@ -528,7 +613,7 @@ onBeforeRouteLeave(() => {
 
     <!-- Right side pane: Nested game/output splitter -->
     <template #right-pane>
-      <USplitter ref="rightSplitter" :items="rightItems" orientation="vertical" @layout="resizeStage">
+      <USplitter ref="rightSplitter" :items="rightItems" orientation="vertical" @layout="onLayoutMaybeResizeStage">
 
         <!-- Top right pane: Game view -->
         <template #canvas-v-pane>
@@ -661,33 +746,49 @@ onBeforeRouteLeave(() => {
   inset: -5px 0;
 }
 
-/* Grip glyph: a short line centred in every resize handle. Drawn on
-   ::after rather than as #resize-handle slot content — that slot is
-   per-instance, so the markup would have to be repeated in all three
-   splitters, while one rule here covers the outer one and both nested
-   ones. The handle is already a centring flex container (see the splitter
-   slots in vite.config.ts), so the pseudo-element positions itself in the
-   middle of the gutter. The radius is half the thickness, which rounds
-   the two ends off completely. */
+/* Grip glyph: three dots centred in every resize handle. Drawn on ::after
+   rather than as #resize-handle slot content — that slot is per-instance,
+   so the markup would have to be repeated in all three splitters, while
+   one rule here covers the outer one and both nested ones. The handle is
+   already a centring flex container (see the splitter slots in
+   vite.config.ts), so the pseudo-element positions itself in the middle of
+   the gutter. Only one real element exists to draw with (::after itself,
+   the centre dot) — the other two are box-shadow copies of it, offset
+   along the handle's own length, which is what lets a single dot's own
+   color and its shadows' colors change together: both sides read the same
+   --handle-dot-color custom property, so the hover/drag rule below only
+   has to override that once rather than restate every offset with a new
+   color.
+   Sized to 2px, matching the handle's own fixed 4px thickness (w-1/h-1,
+   see vite.config.ts) in parity, not just proportion — flex centers a
+   child by splitting (container − child) evenly across both sides, and an
+   *odd*-sized dot in that *even*-width gutter leaves a half-pixel
+   remainder neither side can actually render, so the browser rounds it
+   onto one side only and the dot reads as off-centre by a pixel. 4 − 2 = 2,
+   split evenly with nothing left over. */
 .editor-root [data-slot="handle"]::after {
   content: '';
   flex: none;
-  background-color: var(--theme-text-muted);
-  border-radius: 1px;
-  transition: background-color 0.15s ease-in-out;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background-color: var(--handle-dot-color, var(--theme-text-muted));
+  transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
 /* data-orientation carries the *group's* direction, so "horizontal" is the
-   one that splits left/right — a vertical gutter, with its line running
+   one that splits left/right — a vertical gutter, with its dots stacked
    down the y axis. */
 .editor-root [data-slot="handle"][data-orientation="horizontal"]::after {
-  width: 2px;
-  height: 2rem;
+  box-shadow:
+    0 -5px 0 var(--handle-dot-color, var(--theme-text-muted)),
+    0 5px 0 var(--handle-dot-color, var(--theme-text-muted));
 }
 
 .editor-root [data-slot="handle"][data-orientation="vertical"]::after {
-  width: 2rem;
-  height: 2px;
+  box-shadow:
+    -5px 0 0 var(--handle-dot-color, var(--theme-text-muted)),
+    5px 0 0 var(--handle-dot-color, var(--theme-text-muted));
 }
 
 /* Keyed off reka's own handle state rather than :hover — that state comes
@@ -698,7 +799,7 @@ onBeforeRouteLeave(() => {
    divider starts moving. */
 .editor-root [data-slot="handle"][data-resize-handle-state="hover"]::after,
 .editor-root [data-slot="handle"][data-resize-handle-state="drag"]::after {
-  background-color: var(--theme-primary);
+  --handle-dot-color: var(--theme-primary);
 }
 
 /* Only leaf panels are framed. A panel that hosts a nested USplitter

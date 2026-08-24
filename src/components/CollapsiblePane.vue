@@ -22,6 +22,14 @@ const COLLAPSE_THRESHOLD_PX = 60
 // against the overlay's edges right at the fit boundary.
 const LABEL_PADDING_PX = 16
 
+// How big an axis has to be, relative to the viewport in that dimension,
+// before a click-to-expand treats it as already usable rather than
+// something to grow. Checked independently per axis (not tied to `mode`,
+// which only tracks whichever axis collapsed *first*) so a pane that's
+// narrow but tall only grows narrower-axis, one that's short but wide only
+// grows the short axis, and one that's small in both grows both.
+const DECENT_VIEWPORT_FRACTION = 0.1
+
 const rootRef = useTemplateRef('root')
 const measureRef = useTemplateRef('measure')
 const width = ref(0)
@@ -53,6 +61,30 @@ const mode = computed<'normal' | 'width' | 'height' | 'icon'>(() => {
   }
   return 'normal'
 })
+
+// A splitter panel handle (panelsRef[i].resize/.collapse/etc) is only
+// reachable from whichever component owns the USplitter instance — several
+// layers up from here, and a different component entirely for a pane whose
+// width and height come from two different splitters (see
+// usePixelMinSize's own comment on that split). Reaching that far without
+// threading a prop/emit chain through every intermediate wrapper (FileTree,
+// AssetLibrary, CodeEditor, PhaserCanvas, OutputPane, DocsPanel) is exactly
+// what DOM event bubbling is for: this dispatches from the pane's own panel
+// element, and whichever ancestor actually owns the relevant splitter — an
+// outer one, a nested one, both, depending on the pane — listens for it and
+// acts, with no knowledge here of who that ends up being.
+function expand() {
+  const panel = rootRef.value?.closest<HTMLElement>('[data-slot="panel"]')
+  if (!panel?.id) return
+  panel.dispatchEvent(new CustomEvent('pane-expand-request', {
+    bubbles: true,
+    detail: {
+      paneId: panel.id,
+      expandWidth: width.value < window.innerWidth * DECENT_VIEWPORT_FRACTION,
+      expandHeight: height.value < window.innerHeight * DECENT_VIEWPORT_FRACTION,
+    },
+  }))
+}
 
 let rootObserver: ResizeObserver | null = null
 let measureObserver: ResizeObserver | null = null
@@ -89,10 +121,17 @@ onBeforeUnmount(() => {
     <div v-show="mode === 'normal'" class="collapsible-pane-content">
       <slot />
     </div>
-    <div v-if="mode !== 'normal'" class="collapsible-pane-overlay" :class="`is-collapsed-${mode}`">
+    <button
+      v-if="mode !== 'normal'"
+      type="button"
+      class="collapsible-pane-overlay"
+      :class="`is-collapsed-${mode}`"
+      :title="`${props.label} — click to expand`"
+      @click="expand"
+    >
       <UIcon v-if="mode === 'icon'" :name="props.icon" class="collapsible-pane-icon" />
       <span v-else class="collapsible-pane-label">{{ props.label }}</span>
-    </div>
+    </button>
     <!-- Never shown — exists purely so labelWidth reflects this exact text
          in this exact font, unrotated and unwrapped. -->
     <span ref="measure" class="collapsible-pane-label collapsible-pane-measure" aria-hidden="true">{{ props.label }}</span>
@@ -112,17 +151,39 @@ onBeforeUnmount(() => {
 }
 
 .collapsible-pane-overlay {
+  /* Reset <button>'s own chrome — used instead of a div so click-to-expand
+     gets keyboard activation and focus handling for free, without hand-
+     rolling role/tabindex/keydown. */
+  appearance: none;
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--theme-bg);
+  background-color: var(--theme-bg-muted);
+  transition: background-color 0.15s ease-in-out;
+}
+
+.collapsible-pane-overlay:hover,
+.collapsible-pane-overlay:focus-visible {
+  background-color: var(--theme-bg-elevated);
+}
+
+.collapsible-pane-overlay:focus-visible {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: -2px;
 }
 
 .collapsible-pane-label {
   color: var(--theme-text);
-  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+  /* font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif; */
   white-space: nowrap;
   user-select: none;
 }

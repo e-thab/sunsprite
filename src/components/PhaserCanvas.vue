@@ -60,7 +60,7 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 </script>
 
 <template>
-  <CollapsiblePane label="Game" icon="tabler:device-gamepad-filled">
+  <CollapsiblePane label="Game" icon="streamline-plump:controller-1-solid">
   <div class="panel-wrapper">
     <div class="panel-bar">
       <!-- Play / Pause -->

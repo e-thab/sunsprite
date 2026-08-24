@@ -47,7 +47,7 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
 
 .panel-bar {
   display: flex;
-	height: 24px;
+	height: 32px;
   flex-shrink: 0;
   padding-left: 0.1em;
   padding-right: 0.2em;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide, reactive, ref, watch } from 'vue'
+import { computed, provide, reactive, ref, useTemplateRef, watch } from 'vue'
 import type { SplitterItem } from '@nuxt/ui'
 import { docsTree } from '@/assets/docs/docsContent'
 import { nodesByPath, ancestorsOf } from '@/assets/docs/docsIndex'
@@ -12,6 +12,7 @@ import DocsCategoryLanding from './docs/DocsCategoryLanding.vue'
 import DocsBody from './docs/DocsBody.vue'
 import CollapsiblePane from './CollapsiblePane.vue'
 import { usePixelMinSize } from '@/composables/usePixelMinSize'
+import { useStablePanelSizing } from '@/composables/useStablePanelSizing'
 
 defineEmits<{ close: [] }>()
 
@@ -24,6 +25,28 @@ const panelItems = computed<SplitterItem[]>(() => [
 	{ id: 'docs-tree-pane', slot: 'docs-tree-pane', defaultSize: 45, minSize: minSize.value },
 	{ id: 'docs-content-pane', slot: 'docs-content-pane', defaultSize: 55, minSize: minSize.value },
 ])
+
+const docsSplitterRef = useTemplateRef('docsSplitter')
+
+// See useStablePanelSizing's own comment — keeps docs-tree-pane and
+// docs-content-pane from sub-pixel jittering against each other while
+// dragging their own handle.
+useStablePanelSizing(docsSplitterRef, 'height')
+
+// Handles the height half of a pane-expand-request for docs-tree-pane/
+// docs-content-pane specifically — the width half (their containing
+// docs-pane column, owned by EditorView's outer splitter) is handled by
+// EditorView's own listener further up; this one doesn't stop the event
+// from continuing to bubble there. See CollapsiblePane's own comment for
+// why this travels as a DOM event rather than a prop/emit chain, and
+// EditorView.vue's PANE_EXPAND_TARGETS for the width half.
+function onPaneExpandRequest(event: Event) {
+	const { paneId, expandHeight } = (event as CustomEvent<{ paneId: string, expandWidth: boolean, expandHeight: boolean }>).detail
+	if (!expandHeight) return
+	const idx = panelItems.value.findIndex((item) => item.id === paneId)
+	const defaultSize = panelItems.value[idx]?.defaultSize
+	if (idx >= 0 && defaultSize != null) docsSplitterRef.value?.panelsRef[idx]?.resize(defaultSize)
+}
 
 const searchQuery = ref('')
 const isSearching = computed(() => searchQuery.value.trim().length > 0)
@@ -108,7 +131,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 </script>
 
 <template>
-	<USplitter :items="panelItems" orientation="vertical" class="docs-panes">
+	<USplitter ref="docsSplitter" :items="panelItems" orientation="vertical" class="docs-panes" @pane-expand-request="onPaneExpandRequest">
 		<template #docs-tree-pane>
 			<CollapsiblePane label="Docs" icon="tabler:book-filled">
 			<div class="panel-wrapper">
@@ -210,7 +233,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
    (top), the tree scroll is last (bottom); docs-search and the breadcrumb
    row in between touch neither edge and stay square on all sides. */
 .panel-bar {
-	background-color: var(--theme-bg);
+	background-color: var(--theme-bg-muted);
 	/* border-top-left-radius: 0.65rem;
 	border-top-right-radius: 0.65rem; */
 }
