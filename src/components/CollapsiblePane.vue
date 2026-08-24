@@ -141,20 +141,22 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="collapsible-pane">
-    <div v-show="mode === 'normal'" class="collapsible-pane-content">
-      <slot />
+    <div class="collapsible-pane-frame">
+      <div v-show="mode === 'normal'" class="collapsible-pane-content">
+        <slot />
+      </div>
+      <button
+        v-if="mode !== 'normal'"
+        type="button"
+        class="collapsible-pane-overlay"
+        :class="`is-collapsed-${mode}`"
+        :title="`${props.label} — click to expand`"
+        @click="expand"
+      >
+        <UIcon v-if="mode === 'icon'" :name="props.icon" class="collapsible-pane-icon" />
+        <span v-else class="collapsible-pane-label">{{ props.label }}</span>
+      </button>
     </div>
-    <button
-      v-if="mode !== 'normal'"
-      type="button"
-      class="collapsible-pane-overlay"
-      :class="`is-collapsed-${mode}`"
-      :title="`${props.label} — click to expand`"
-      @click="expand"
-    >
-      <UIcon v-if="mode === 'icon'" :name="props.icon" class="collapsible-pane-icon" />
-      <span v-else class="collapsible-pane-label">{{ props.label }}</span>
-    </button>
     <!-- Never shown — exists purely so labelWidth reflects this exact text
          in this exact font, unrotated and unwrapped. -->
     <span ref="measure" class="collapsible-pane-label collapsible-pane-measure" aria-hidden="true">{{ props.label }}</span>
@@ -166,6 +168,36 @@ onBeforeUnmount(() => {
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+/* Every leaf pane's actual visible frame: a real border on the same
+   element whose own overflow: hidden + border-radius clips its real
+   content, so both are one rasterization pass rather than two separately-
+   rendered shapes that only nominally agree. That used to be split across
+   the splitter panel itself (the content-clip) and a ::before pseudo-
+   element (the border) — the panel because it's the one thing reka sizes
+   via flex-basis: 0, where a real border's own box-sizing: border-box
+   clamp would eat into siblings' shared free space (see EditorView.vue's
+   git history / usePixelMinSize's own comment on that). Splitting them
+   across two elements fixed *that* problem but traded it for this one: a
+   border and a clip that are each individually correct can still land on
+   different pixels along a curve, since anti-aliasing a shape is a
+   per-element rasterization detail, not something two elements agreeing
+   on the same border-radius value guarantees they'll agree on down to the
+   pixel. This element sidesteps needing either workaround: it's a plain
+   div sized via width/height: 100% (not flex-basis: 0, so a real border's
+   own minimum-box-size clamp is harmless — nothing else shares free space
+   with it), one level below .collapsible-pane specifically so it doesn't
+   touch what that element's own ResizeObserver measures (usePixelMinSize's
+   collapsedSize/minSize targets are calibrated against .collapsible-pane's
+   own content-box being exactly the panel's content-box — this frame's
+   border narrows *its own* content-box, not that ancestor's). */
+.collapsible-pane-frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--panel-border-radius);
 }
 
 .collapsible-pane-content {
@@ -206,7 +238,7 @@ onBeforeUnmount(() => {
 
 .collapsible-pane-label {
   color: var(--theme-text);
-  /* font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif; */
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
   white-space: nowrap;
   user-select: none;
 }

@@ -65,7 +65,7 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
     <div class="panel-bar">
       <!-- Play / Pause -->
       <!-- <UTooltip :text="playPauseLabel"> -->
-        <UButton :icon="playPauseIcon" variant="solid" color="primary" :label="playPauseLabel" size="xs" @click="togglePlayPause" />
+        <UButton :icon="playPauseIcon" variant="subtle" color="primary" :label="playPauseLabel" size="xs" @click="togglePlayPause" />
       <!-- </UTooltip> -->
 
       <!-- Restart / Run code -->

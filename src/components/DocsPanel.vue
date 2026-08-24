@@ -25,8 +25,8 @@ defineEmits<{ close: [] }>()
 const { minSize, collapsedSize } = usePixelMinSize('docs-tree-pane', 'height')
 
 const panelItems = computed<SplitterItem[]>(() => [
-	{ id: 'docs-tree-pane', slot: 'docs-tree-pane', defaultSize: 45, minSize: minSize.value },
-	{ id: 'docs-content-pane', slot: 'docs-content-pane', defaultSize: 55, minSize: minSize.value },
+	{ id: 'docs-tree-pane', slot: 'docs-tree-pane', defaultSize: 45, minSize: minSize.value, collapsible: true, collapsedSize: collapsedSize.value },
+	{ id: 'docs-content-pane', slot: 'docs-content-pane', defaultSize: 55, minSize: minSize.value, collapsible: true, collapsedSize: collapsedSize.value },
 ])
 
 const docsSplitterRef = useTemplateRef('docsSplitter')

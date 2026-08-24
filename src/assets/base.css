@@ -79,6 +79,11 @@
   --ui-border-inverted: var(--theme-border);
 }
 
+/* Custom vars */
+:root {
+  --panel-border-radius: 0.5rem;
+}
+
 /* Un-layered so it always wins over Tailwind's own utilities regardless of
  * specificity (CSS cascade layers rule: unlayered beats layered). Wrapping
  * in @layer base keeps the same zero-margin default everywhere, but lets

@@ -49,14 +49,15 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
   display: flex;
 	height: 32px;
   flex-shrink: 0;
-  padding-left: 0.1em;
-  padding-right: 0.2em;
+  padding-left: var(--spacing);
+  padding-right: var(--spacing);
   justify-content: space-between;
   align-items: center;
   color: var(--theme-text);
   background-color: var(--theme-bg-muted);
   font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
   user-select: none;
+  border-bottom: 1px solid var(--theme-border);
 }
 
 /* Shared "live value cards" layout, used by InfoPanel.vue and WatchPanel.vue

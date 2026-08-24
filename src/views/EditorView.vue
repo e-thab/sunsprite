@@ -322,14 +322,31 @@ const splitterStorage = {
   setItem: (name: string, value: string) => { layoutMemory.set(name, value) },
 }
 
-// Right side nested row: game view | output. Both collapsible, but to
-// different ends: output's collapsedSize is 0 so collapseOutput() can hide
-// it entirely via the same mechanism, while canvas — no "closed" concept
-// for the game view — only ever snaps to rightCollapsedSize, its own small-
-// but-visible floor, same as every column in outerItems above.
+// Whether output-v-pane's *own* collapse target is fully hidden (0) rather
+// than its ordinary small-but-visible floor. Output otherwise behaves
+// exactly like canvas-v-pane below it — collapsible: true with
+// rightCollapsedSize as the target — so dragging it small on its own stops
+// there, same as every other pane; only collapseOutput()'s explicit
+// "Collapse" button (OutputPane.vue's own control, unlike canvas there's a
+// real "closed" concept here) sets this true first so the *next* collapse
+// goes all the way to 0 instead. Never reset back to false anywhere yet:
+// nothing currently offers a way to reopen output-v-pane once fully
+// closed, so there's nothing that would need this true→false transition —
+// whichever future control adds that will need to reset it before
+// resizing output back open, or it'll immediately re-collapse to 0 on the
+// next small drag instead of stopping at the floor.
+const outputFullyClosed = ref(false)
+
+// Right side nested row: game view | output. Both collapsible to
+// rightCollapsedSize, the same small-but-visible floor every column in
+// outerItems above also uses — dragging either one down on its own stops
+// there, not at 0. output-v-pane's collapsedSize additionally switches to
+// 0 once outputFullyClosed is set, which is what lets collapseOutput()
+// hide it entirely via the same native mechanism instead of just resting
+// at its floor like canvas-v-pane always does.
 const rightItems = computed<SplitterItem[]>(() => [
   { id: 'canvas-v-pane', slot: 'canvas-v-pane', defaultSize: 77, minSize: rightMinSize.value, collapsible: true, collapsedSize: rightCollapsedSize.value },
-  { id: 'output-v-pane', slot: 'output-v-pane', defaultSize: 23, minSize: rightMinSize.value, collapsible: true, collapsedSize: 0, class: 'hide-in-fullscreen' },
+  { id: 'output-v-pane', slot: 'output-v-pane', defaultSize: 23, minSize: rightMinSize.value, collapsible: true, collapsedSize: outputFullyClosed.value ? 0 : rightCollapsedSize.value, class: 'hide-in-fullscreen' },
 ])
 
 // Explorer nested column: file tree | asset library. Collapsible for the
@@ -413,7 +430,15 @@ function toggleFullscreen() {
   resizeStage()
 }
 
-function collapseOutput() {
+async function collapseOutput() {
+  // Set before reading rightItems below, but reka's own registered
+  // collapsedSize constraint only updates once SplitterPanel.vue's
+  // :collapsed-size prop actually re-renders with it — a later effect than
+  // this ref changing, not the same tick. Without awaiting that, .collapse()
+  // below would still see the pre-close value (rightCollapsedSize, output's
+  // ordinary floor) and land there instead of at 0.
+  outputFullyClosed.value = true
+  await nextTick()
   const index = rightItems.value.findIndex((item) => item.id === 'output-v-pane')
   rightSplitterRef.value?.panelsRef[index]?.collapse()
 }
@@ -789,7 +814,12 @@ onBeforeRouteLeave(() => {
   height: 2px;
   border-radius: 50%;
   background-color: var(--handle-dot-color, var(--theme-text-muted));
-  transition: background-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition:
+    background-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out,
+    width 0.15s ease-in-out,
+    height 0.15s ease-in-out,
+    border-radius 0.15s ease-in-out;
 }
 
 /* data-orientation carries the *group's* direction, so "horizontal" is the
@@ -818,69 +848,66 @@ onBeforeRouteLeave(() => {
   --handle-dot-color: var(--theme-primary);
 }
 
-/* Only leaf panels are framed. A panel that hosts a nested USplitter
-   (explorer-pane, right-pane) renders that splitter's group as its
-   direct child, so :has() picks those two out and leaves them bare —
-   otherwise their frame would draw a second border around the group
-   *and* run its top/bottom edges straight across the handle gap between
-   the two panels inside it. The test is reka-ui's own data-panel-group
-   rather than [data-slot="root"]: *every* Nuxt UI component roots itself
-   with the latter, so a panel merely containing a UTree (FileTree,
-   AssetLibrary) or a button would match it and lose its frame too.
-   An inset box-shadow, not a real border: every leaf panel here sizes
-   itself via flex-basis: 0 (reka's computePanelFlexBoxStyle), and with
-   box-sizing: border-box (Tailwind's Preflight, global), a real border
-   can't shrink its own border-box below the border's own width — the
-   content-box can't go negative, so the box-sizing spec clamps a
-   flex-basis: 0 border-box up to at least 2px (1px each side) the moment
-   it has any border at all. That clamp doesn't just cap *this* panel: it
-   eats into the flex container's own free-space pool that every sibling's
-   flex-grow shares, throwing off the exact pixel target every leaf panel
-   in a group resolves to by however many of its siblings are also
-   bordered — confirmed by reproducing it in a bare, reka-free flexbox
-   page. A leaf pane's usePixelMinSize target (collapsedSize particularly)
-   was landing a few pixels bigger than intended as a direct result, and
-   CollapsiblePane's own width/height measurement — which reads this same
-   element's rendered content-box — inherited the same error. box-shadow
-   is purely a paint effect: it has no box-model presence at all, so
-   flex-basis: 0 means an *actual* zero, and (like border-radius) it
-   still clips to the rounded corners below. */
-.editor-root [data-slot="panel"]:not(:has(> [data-panel-group])) {
-  /* background-color: var(--theme-bg-elevated); */
-  box-shadow: inset 0 0 0 1px var(--theme-text-dimmed);
-  border-radius: 0.65rem;
-}
-/* A collapsed panel's flex-computed size is 0, but a 1px inset box-shadow
-   can't shrink away with it — left on, it renders as a thin stray line
-   instead of a clean gap. reka-ui marks collapsed panels with data-state,
-   so drop the frame there specifically rather than on every zero-width
-   panel. Scoped to output-v-pane by id rather than the general
-   [data-slot="panel"][data-state="collapsed"] selector: every other pane
-   is now also collapsible (see usePixelMinSize's collapsedSize), but
-   collapses to its small-but-visible pixel floor, not 0 — CollapsiblePane's
-   icon/label overlay still renders there and still wants its normal frame,
-   the same as at any other size. output-v-pane is the one pane whose
-   collapsedSize is actually 0 (collapseOutput()'s "hide the panel
-   entirely" case), so it's the one case this rule should still apply to. */
-.editor-root #output-v-pane[data-state="collapsed"] {
+/* Grip grows into a full-length divider line rather than staying three
+   dots once it's actually grabbable — flex's own align-items/justify-
+   content centering (unchanged from the dot state) keeps it growing
+   symmetrically from the middle outward instead of needing repositioning.
+   box-shadow only ever drew the other two dots, so it has nothing left to
+   do once this is one continuous shape; border-radius: 0 makes the two
+   ends flush rather than rounded caps poking past the handle's own width,
+   which would read as slightly wider than the 4px gutter it sits in. */
+.editor-root [data-slot="handle"][data-orientation="horizontal"][data-resize-handle-state="hover"]::after,
+.editor-root [data-slot="handle"][data-orientation="horizontal"][data-resize-handle-state="drag"]::after {
+  width: 2px;
+  height: 100%;
+  border-radius: 0;
   box-shadow: none;
 }
 
-/* docs-pane is the one panel in this layout whose nested USplitter isn't
-   its direct child (DocsPanel.vue wraps it in .panel-wrapper alongside a
-   search bar and breadcrumb row), so the :has() exemption above doesn't
-   reach it structurally — but it belongs in the same exempt group as
-   explorer-pane/right-pane for the same reason: docs-tree-pane/docs-
-   content-pane, the real leaves here, already match the general rule and
-   get their own full border on their own. Framing docs-pane too would be
-   a second, redundant border wrapped around that whole group (header
-   included) rather than the individual cards actually being split. */
-.editor-root #docs-pane {
-  border: none;
+.editor-root [data-slot="handle"][data-orientation="vertical"][data-resize-handle-state="hover"]::after,
+.editor-root [data-slot="handle"][data-orientation="vertical"][data-resize-handle-state="drag"]::after {
+  width: 100%;
+  height: 2px;
   border-radius: 0;
-  /* border-top-left-radius: 0.65rem;
-  border-top-right-radius: 0.65rem; */
+  box-shadow: none;
 }
+
+/* Every leaf panel's actual visible frame — a real border, an
+   overflow: hidden clip, and the rounded corners all together — lives in
+   CollapsiblePane.vue now, on a dedicated .collapsible-pane-frame div one
+   level inside the panel, not here on the panel itself. Three things ruled
+   out putting it directly on [data-slot="panel"]:
+   - A real border here clamps: every leaf panel sizes itself via
+     flex-basis: 0 (reka's computePanelFlexBoxStyle), and box-sizing:
+     border-box can't render a border-box smaller than its own border, so
+     a bordered flex-basis: 0 panel gets silently floored to ~2px — which
+     eats into the *group's* shared free-space pool by an amount that
+     depends on how many sibling panels are also bordered leaves versus
+     borderless containers, throwing off usePixelMinSize's pixel targets
+     for the whole group, not just this panel. Confirmed in a bare,
+     reka-free flexbox page.
+   - Moving just the border to an absolutely-positioned ::before sidesteps
+     that (a pseudo-element has no box-model presence in the parent's flex
+     layout at all) but reintroduces a *different* problem: the panel's
+     own content-clip and the ::before's border are then two independently
+     rasterized shapes on two different elements, and even an identical
+     border-radius value on an identical box doesn't guarantee they
+     anti-alias a curve onto the same pixels — straight edges never showed
+     it (nothing to rasterize differently there), but the curve could
+     leave a sliver of whatever's underneath (a canvas especially, being
+     its own composited layer) visible right at the corner.
+   - Widening that gap with an inset box-shadow masked the sliver but
+     visibly pushed real content away from the border along the *entire*
+     edge, not just the corners — trading one visible artifact for a more
+     obvious one.
+   .collapsible-pane-frame avoids all three by being a different kind of
+   element entirely: sized via width/height: 100% rather than flex-basis: 0
+   (so a real border's own minimum-size clamp is harmless — nothing shares
+   free space with it), and one level below .collapsible-pane specifically
+   so its border narrows *its own* content-box, not the ancestor
+   usePixelMinSize actually measures. Border and clip both being properties
+   of that same single element means there's only one shape being
+   rasterized, not two independently-drawn ones trying to agree. */
 
 .editor-root[data-fullscreen="true"] [data-slot="handle"],
 .editor-root[data-fullscreen="true"] [data-slot="panel"].hide-in-fullscreen {
