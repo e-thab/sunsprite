@@ -16,6 +16,8 @@ The goal is to rebuild this into something closer to a real docs site (Godot's d
 
 **First implementation step**: copy this plan document into the repo at `docs/plans/docs-panel-rebuild.md` (no existing `docs/`-at-root or `plans/` convention was found in this repo, so this is a new, sensibly-named location — adjust if a different spot is preferred) so it's kept for reference alongside the code it describes.
 
+> **Superseded in part (docs content is now SFCs).** §1's `DocBody`/`ProseBody`/`ApiMemberBody` shapes are gone: a docs page is a Vue SFC under `src/assets/docs/content/`, its place in the tree comes from where the file sits, and its `meta` export supplies title/icon/summary (sibling order is one list in the parent folder's `index.vue`). Pages compose the blocks in `src/components/docs/content/` (DocSnippet, DocParams, DocMethods, DocRelated, …). Everything else here — routing, breadcrumb, tree behaviour, search, the panel/full-page split — still describes the code as built.
+
 ## 1. Content data model
 
 New file `src/assets/docs/docsTypes.ts`, replacing the single flat `DocSection` interface in `docsContent.ts`:

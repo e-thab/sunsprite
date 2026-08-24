@@ -26,6 +26,17 @@ async function functionErrorMessage(error: unknown): Promise<string> {
     return error instanceof Error ? error.message : 'Request failed'
 }
 
+// The guest sandbox's entire localStorage-backed "project" — folders,
+// scripts, and text files, structurally identical to the cloud-project
+// records below, just serialized as one JSON blob instead of living in
+// Supabase. No images: uploads always require a real project (see
+// uploadImage) — the sandbox has no object storage to put them in.
+const GUEST_PROJECT_STORAGE_KEY = 'sunsprite-sandbox-project'
+
+function generateId(): string {
+    return crypto.randomUUID()
+}
+
 type codeSaveData = {
     fileName: string
     content: string
@@ -110,6 +121,22 @@ export const useFileStore = defineStore('files', () => {
         dirtyFiles.value = next
     }
 
+    // Name of the script whose runtime error is currently shown in the
+    // output panel, if its location was recoverable (see output.ts's
+    // onErrorLocation) — lets FileTree highlight which file to look at
+    // without the user having to open it first. Cleared the moment a fresh
+    // run starts (see CodeEditor.vue's runActiveUserCode), same lifecycle as
+    // the matching line highlight in the editor itself.
+    const erroredScriptName = ref<string | undefined>(undefined)
+
+    function setErroredScript(fileName: string) {
+        erroredScriptName.value = fileName
+    }
+
+    function clearErroredScript() {
+        erroredScriptName.value = undefined
+    }
+
     // CodeEditor.vue owns the live Monaco models (fileStore doesn't know
     // script content beyond what's already saved), so "save everything" has
     // to be delegated to whichever CodeEditor instance is currently mounted.
@@ -125,12 +152,14 @@ export const useFileStore = defineStore('files', () => {
         await saveAllHandler?.()
     }
 
-    // Project (cloud) mode: when projectId is set, getLocalCode/saveCode/etc.
-    // read and write `scripts` (backed by Supabase) instead of localStorage.
-    // Folders are purely an organizational layer for the tree UI — a
-    // script's `name` stays the single, project-wide-unique identifier used
-    // everywhere else (imports, Monaco models, activeFileName); folder_id
-    // only determines where it's shown.
+    // Project (cloud) mode: when projectId is set, every create/rename/
+    // delete/move below writes through to Supabase; when it's null (the
+    // guest sandbox), the exact same functions instead write to
+    // persistGuestProject's localStorage blob. Folders are purely an
+    // organizational layer for the tree UI — a script's `name` stays the
+    // single, project-wide-unique identifier used everywhere else (imports,
+    // Monaco models, activeFileName); folder_id only determines where it's
+    // shown.
     const projectId = ref<string | null>(null)
     const projectName = ref<string | null>(null)
     const scripts = ref<ScriptRecord[]>([])
@@ -155,9 +184,13 @@ export const useFileStore = defineStore('files', () => {
         return filesSavedThisSession.value.includes(fileName)
     }
 
+    // Old, pre-file-tree guest format: one raw localStorage entry per
+    // filename. Only still read from loadGuestProject below, to carry a
+    // returning guest's existing main.js save over into the structured
+    // format that replaces it, rather than silently discarding it.
     function getSaveData(fileName: string): codeSaveData | undefined {
         const localData = localStorage.getItem(fileName)
-        return localData ? JSON.parse(localData) : undefined //{ fileName: '', content: '', saveTime: '' }
+        return localData ? JSON.parse(localData) : undefined
     }
 
     function findScript(fileName: string): ScriptRecord | undefined {
@@ -177,18 +210,25 @@ export const useFileStore = defineStore('files', () => {
     }
 
     function getLocalCode(fileName: string): string | undefined {
-        if (projectId.value) return findScript(fileName)?.content ?? findTextFile(fileName)?.content
-        return getSaveData(fileName)?.content
+        return findScript(fileName)?.content ?? findTextFile(fileName)?.content
     }
 
     function getTimeSaved(fileName: string): string | undefined {
-        if (projectId.value) return findScript(fileName)?.saveTime ?? findTextFile(fileName)?.saveTime
-        return getSaveData(fileName)?.saveTime
+        return findScript(fileName)?.saveTime ?? findTextFile(fileName)?.saveTime
     }
 
     // function getTimeSinceSaved(fileName: string): string | undefined {
     //     const saveData = getSaveData(fileName)?.saveTime
     // }
+
+    // Guest sandbox only — writes the live scripts/folders/textFiles arrays
+    // back out as one JSON blob. Images are deliberately excluded: uploads
+    // always require a real project (see uploadImage), so the sandbox never
+    // has any.
+    function persistGuestProject() {
+        const data = { folders: folders.value, scripts: scripts.value, textFiles: textFiles.value }
+        localStorage.setItem(GUEST_PROJECT_STORAGE_KEY, JSON.stringify(data))
+    }
 
     function saveCode(fileName: string, content: string) {
         if (getLocalCode(fileName) === content) {
@@ -198,27 +238,30 @@ export const useFileStore = defineStore('files', () => {
 
         const saveTime = new Date().toLocaleTimeString()
 
-        if (projectId.value) {
-            const script = findScript(fileName)
-            if (script) {
-                script.content = content
-                script.saveTime = saveTime
+        const script = findScript(fileName)
+        if (script) {
+            script.content = content
+            script.saveTime = saveTime
+            if (projectId.value) {
                 supabase.from('scripts').update({ content }).eq('id', script.id).then(({ error }) => {
                     if (error) console.error(`Failed to save script "${fileName}"`, error)
                 })
             } else {
-                const textFile = findTextFile(fileName)
-                if (!textFile) return
+                persistGuestProject()
+            }
+        } else {
+            const textFile = findTextFile(fileName)
+            if (!textFile) return
 
-                textFile.content = content
-                textFile.saveTime = saveTime
+            textFile.content = content
+            textFile.saveTime = saveTime
+            if (projectId.value) {
                 supabase.from('text_files').update({ content }).eq('id', textFile.id).then(({ error }) => {
                     if (error) console.error(`Failed to save text file "${fileName}"`, error)
                 })
+            } else {
+                persistGuestProject()
             }
-        } else {
-            const saveData: codeSaveData = { fileName, content, saveTime }
-            localStorage.setItem(fileName, JSON.stringify(saveData))
         }
 
         if (!savedThisSession(fileName)) filesSavedThisSession.value.push(fileName)
@@ -281,9 +324,15 @@ export const useFileStore = defineStore('files', () => {
     }
 
     async function createFolder(name: string, parentId: string | null = null): Promise<string> {
-        if (!projectId.value) throw new Error('No active project')
-
         const position = nextPosition(parentId)
+
+        if (!projectId.value) {
+            const id = generateId()
+            folders.value.push({ id, name, parentId, position })
+            persistGuestProject()
+            return id
+        }
+
         const { data, error } = await supabase
             .from('folders')
             .insert({ project_id: projectId.value, parent_id: parentId, name, position })
@@ -299,22 +348,29 @@ export const useFileStore = defineStore('files', () => {
         const folder = folders.value.find((f) => f.id === id)
         if (!folder) throw new Error('Folder not found')
 
-        const { error } = await supabase.from('folders').update({ name: newName }).eq('id', id)
-        if (error) throw error
+        if (projectId.value) {
+            const { error } = await supabase.from('folders').update({ name: newName }).eq('id', id)
+            if (error) throw error
+        }
 
         folder.name = newName
+        if (!projectId.value) persistGuestProject()
     }
 
     async function deleteFolder(id: string) {
         const removedFolderIds = new Set(folderAndDescendantIds(id))
 
-        const { error } = await supabase.from('folders').delete().eq('id', id)
-        if (error) throw error
+        if (projectId.value) {
+            const { error } = await supabase.from('folders').delete().eq('id', id)
+            if (error) throw error
+        }
 
         folders.value = folders.value.filter((f) => !removedFolderIds.has(f.id))
         scripts.value = scripts.value.filter((s) => !(s.folderId !== null && removedFolderIds.has(s.folderId)))
         images.value = images.value.filter((img) => !(img.folderId !== null && removedFolderIds.has(img.folderId)))
         textFiles.value = textFiles.value.filter((f) => !(f.folderId !== null && removedFolderIds.has(f.folderId)))
+
+        if (!projectId.value) persistGuestProject()
     }
 
     // Reparent/reorder a script — the drag-drop target's folder (null for
@@ -323,11 +379,14 @@ export const useFileStore = defineStore('files', () => {
         const script = scripts.value.find((s) => s.id === id)
         if (!script) return
 
-        const { error } = await supabase.from('scripts').update({ folder_id: folderId, position }).eq('id', id)
-        if (error) throw error
+        if (projectId.value) {
+            const { error } = await supabase.from('scripts').update({ folder_id: folderId, position }).eq('id', id)
+            if (error) throw error
+        }
 
         script.folderId = folderId
         script.position = position
+        if (!projectId.value) persistGuestProject()
     }
 
     async function moveFolder(id: string, parentId: string | null, position: number) {
@@ -338,11 +397,14 @@ export const useFileStore = defineStore('files', () => {
         // here before the update round-trips.
         if (parentId !== null && (id === parentId || folderAndDescendantIds(id).includes(parentId))) return
 
-        const { error } = await supabase.from('folders').update({ parent_id: parentId, position }).eq('id', id)
-        if (error) throw error
+        if (projectId.value) {
+            const { error } = await supabase.from('folders').update({ parent_id: parentId, position }).eq('id', id)
+            if (error) throw error
+        }
 
         folder.parentId = parentId
         folder.position = position
+        if (!projectId.value) persistGuestProject()
     }
 
     // ---- Project (cloud) mode ----
@@ -420,10 +482,65 @@ export const useFileStore = defineStore('files', () => {
         projectName.value = name
     }
 
-    async function createScript(name: string, content: string = '', folderId: string | null = null) {
-        if (!projectId.value) throw new Error('No active project')
+    // ---- Guest (sandbox) mode ----
+    // A faux-project, structurally identical to a cloud one (folders,
+    // scripts, and text files, via the same CRUD functions throughout this
+    // file), but persisted to localStorage instead of Supabase and never
+    // given a projectId — that's what every create/rename/delete/move
+    // function above and below branches on to decide where to write.
 
+    function loadGuestProject() {
+        const raw = localStorage.getItem(GUEST_PROJECT_STORAGE_KEY)
+        if (raw) {
+            try {
+                const data = JSON.parse(raw) as { folders?: FolderRecord[], scripts?: ScriptRecord[], textFiles?: TextFileRecord[] }
+                folders.value = data.folders ?? []
+                scripts.value = data.scripts ?? []
+                textFiles.value = data.textFiles ?? []
+                filesSavedThisSession.value = []
+                dirtyFiles.value = new Set()
+                return
+            } catch {
+                // Corrupted data — fall through and reseed from scratch below.
+            }
+        }
+
+        // First-ever visit: seed the same shape a brand-new cloud project
+        // gets (see loadProject's own from-scratch branch above), carrying
+        // over a pre-existing localStorage['main.js'] save from this app's
+        // previous (pre-file-tree) guest mode, if there is one, rather than
+        // silently discarding it.
+        const legacyMain = getSaveData('main.js')
+        if (legacyMain) localStorage.removeItem('main.js')
+
+        const scriptsFolderId = generateId()
+        const mainScriptName = joinFileName('main', DEFAULT_SCRIPT_FILE_TYPE.extension)
+        folders.value = [{ id: scriptsFolderId, name: 'scripts', parentId: null, position: 0 }]
+        scripts.value = [{
+            id: generateId(),
+            name: mainScriptName,
+            content: legacyMain?.content ?? getExampleCode(),
+            saveTime: legacyMain?.saveTime ?? '',
+            folderId: scriptsFolderId,
+            position: 0,
+        }]
+        textFiles.value = []
+        filesSavedThisSession.value = []
+        dirtyFiles.value = new Set()
+        persistGuestProject()
+    }
+
+    // ---- Scripts ----
+
+    async function createScript(name: string, content: string = '', folderId: string | null = null) {
         const position = nextPosition(folderId)
+
+        if (!projectId.value) {
+            scripts.value.push({ id: generateId(), name, content, folderId, position, saveTime: new Date().toLocaleTimeString() })
+            persistGuestProject()
+            return
+        }
+
         const { data, error } = await supabase
             .from('scripts')
             .insert({ project_id: projectId.value, name, content, folder_id: folderId, position })
@@ -445,8 +562,10 @@ export const useFileStore = defineStore('files', () => {
         const script = findScript(oldName)
         if (!script) throw new Error(`Script "${oldName}" not found`)
 
-        const { error } = await supabase.from('scripts').update({ name: newName }).eq('id', script.id)
-        if (error) throw error
+        if (projectId.value) {
+            const { error } = await supabase.from('scripts').update({ name: newName }).eq('id', script.id)
+            if (error) throw error
+        }
 
         script.name = newName
         if (activeFileName.value === oldName) activeFileName.value = newName
@@ -454,20 +573,29 @@ export const useFileStore = defineStore('files', () => {
             markClean(oldName)
             markDirty(newName)
         }
+        if (!projectId.value) persistGuestProject()
     }
 
     async function deleteScript(name: string) {
         const script = findScript(name)
         if (!script) return
 
-        const { error } = await supabase.from('scripts').delete().eq('id', script.id)
-        if (error) throw error
+        if (projectId.value) {
+            const { error } = await supabase.from('scripts').delete().eq('id', script.id)
+            if (error) throw error
+        }
 
         scripts.value = scripts.value.filter((s) => s.id !== script.id)
         markClean(name)
+        if (!projectId.value) persistGuestProject()
     }
 
     // ---- Images ----
+    // Cloud-project only — the sandbox has no object storage to upload into.
+    // uploadImage's guard below is what ultimately keeps FileTree.vue's
+    // "Upload file" action from working anywhere but a real project (that
+    // action is also hidden entirely in the sandbox, but this is the actual
+    // enforcement point).
 
     async function uploadImage(file: File, folderId: string | null = null) {
         if (!projectId.value) throw new Error('No active project')
@@ -548,9 +676,14 @@ export const useFileStore = defineStore('files', () => {
     // single insert, same shape as createScript.
 
     async function createTextFile(name: string, content: string = '', folderId: string | null = null) {
-        if (!projectId.value) throw new Error('No active project')
-
         const position = nextPosition(folderId)
+
+        if (!projectId.value) {
+            textFiles.value.push({ id: generateId(), name, content, folderId, position, saveTime: new Date().toLocaleTimeString() })
+            persistGuestProject()
+            return
+        }
+
         const { data, error } = await supabase
             .from('text_files')
             .insert({ project_id: projectId.value, name, content, folder_id: folderId, position })
@@ -575,8 +708,10 @@ export const useFileStore = defineStore('files', () => {
         const textFile = textFiles.value.find((f) => f.id === id)
         if (!textFile) throw new Error('Text file not found')
 
-        const { error } = await supabase.from('text_files').update({ name: newName }).eq('id', id)
-        if (error) throw error
+        if (projectId.value) {
+            const { error } = await supabase.from('text_files').update({ name: newName }).eq('id', id)
+            if (error) throw error
+        }
 
         const oldName = textFile.name
         textFile.name = newName
@@ -585,28 +720,35 @@ export const useFileStore = defineStore('files', () => {
             markClean(oldName)
             markDirty(newName)
         }
+        if (!projectId.value) persistGuestProject()
     }
 
     async function deleteTextFile(id: string) {
         const textFile = textFiles.value.find((f) => f.id === id)
         if (!textFile) return
 
-        const { error } = await supabase.from('text_files').delete().eq('id', id)
-        if (error) throw error
+        if (projectId.value) {
+            const { error } = await supabase.from('text_files').delete().eq('id', id)
+            if (error) throw error
+        }
 
         textFiles.value = textFiles.value.filter((f) => f.id !== id)
         markClean(textFile.name)
+        if (!projectId.value) persistGuestProject()
     }
 
     async function moveTextFile(id: string, folderId: string | null, position: number) {
         const textFile = textFiles.value.find((f) => f.id === id)
         if (!textFile) return
 
-        const { error } = await supabase.from('text_files').update({ folder_id: folderId, position }).eq('id', id)
-        if (error) throw error
+        if (projectId.value) {
+            const { error } = await supabase.from('text_files').update({ folder_id: folderId, position }).eq('id', id)
+            if (error) throw error
+        }
 
         textFile.folderId = folderId
         textFile.position = position
+        if (!projectId.value) persistGuestProject()
     }
 
     return {
@@ -628,11 +770,15 @@ export const useFileStore = defineStore('files', () => {
         isTextFile,
         markDirty,
         markClean,
+        erroredScriptName,
+        setErroredScript,
+        clearErroredScript,
         registerSaveAllHandler,
         saveAll,
         loadProject,
         setProjectName,
         exitProject,
+        loadGuestProject,
         createScript,
         renameScript,
         deleteScript,

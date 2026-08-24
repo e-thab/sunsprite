@@ -1,0 +1,341 @@
+/* Styling for docs page content — every page under assets/docs/content is a
+   free-form SFC, so this is what its plain markup (paragraphs, headings,
+   lists, code) and the shared doc blocks (see components/docs/content) look
+   like. It's global rather than scoped because those blocks are separate
+   components: a row inside DocParams is its own DocParam component, and a
+   scoped rule in the parent couldn't reach it.
+
+   Tailwind's preflight has already stripped the browser defaults, so this is
+   restoring typography, not overriding it.
+
+   `.docs-page` is applied by DocsBody.vue and DocsCategoryLanding.vue around
+   whatever the page renders. */
+
+.docs-page {
+	color: var(--theme-text);
+}
+
+/* Pages are multi-root fragments, so their top-level blocks land here as
+   direct children — this is the page's vertical rhythm.
+
+   It applies inside a section too, since a page's prose is usually a run of
+   paragraphs wrapped in one: without this they'd have no separation at all
+   once they stopped being top-level. The heading is excluded so the block
+   directly under it keeps the tighter spacing set by .doc-section-title. */
+.docs-page > * + *,
+.docs-page .doc-section > :not(.doc-section-title) + * {
+	margin-top: 0.85em;
+}
+
+.docs-page p {
+	margin: 0;
+	line-height: 1.5;
+}
+
+.docs-page h2 {
+	margin: 0;
+	font-size: 0.95em;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--theme-text-toned);
+}
+
+.docs-page h3 {
+	margin: 0;
+	font-size: 0.9em;
+	color: var(--theme-text-highlighted);
+}
+
+.docs-page ul,
+.docs-page ol {
+	margin: 0;
+	padding-left: 1.3em;
+	line-height: 1.5;
+}
+
+.docs-page ul {
+	list-style: disc;
+}
+
+.docs-page ol {
+	list-style: decimal;
+}
+
+.docs-page li + li {
+	margin-top: 0.25em;
+}
+
+.docs-page strong {
+	color: var(--theme-text-highlighted);
+	font-weight: 600;
+}
+
+.docs-page code {
+	font-family: monospace;
+	font-size: 0.9em;
+	color: var(--theme-text-highlighted);
+}
+
+/* --- Doc blocks --------------------------------------------------------- */
+
+.doc-section {
+	margin-top: 1.25em;
+}
+
+.doc-section-title {
+	margin-bottom: 0.5em;
+}
+
+.doc-section-hint {
+	margin-bottom: 0.5em;
+	font-size: 0.85em;
+	color: var(--theme-text-toned);
+}
+
+.doc-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.9em;
+}
+
+.doc-table th {
+	padding: 0 0.5em 0.35em 0;
+	text-align: left;
+	font-size: 0.85em;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--theme-text-toned);
+}
+
+/* The first body row's own top border doubles as the rule under the head. */
+.doc-table td {
+	padding: 0.35em 0.5em 0.35em 0;
+	vertical-align: top;
+	border-top: 1px solid var(--theme-border);
+}
+
+.doc-name {
+	white-space: nowrap;
+	color: var(--theme-text-highlighted);
+	font-family: monospace;
+}
+
+.doc-optional {
+	color: var(--theme-text-toned);
+}
+
+.doc-type code {
+	color: var(--theme-text-toned);
+}
+
+.doc-desc {
+	color: var(--theme-text);
+}
+
+.doc-cards {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5em;
+}
+
+.doc-card {
+	display: flex;
+	text-decoration: none;
+	align-items: center;
+	gap: 0.4em;
+	padding: 0.4em 0.7em;
+	background-color: var(--theme-bg);
+	border: 1px solid var(--theme-border);
+	border-radius: 0.2rem;
+	color: var(--theme-text-highlighted);
+	cursor: pointer;
+	font-size: 0.9em;
+}
+
+.doc-card:hover {
+	background-color: var(--theme-bg-accented);
+}
+
+.doc-card-icon {
+	color: var(--theme-text-toned);
+}
+
+/* DocSnippet: `.doc-snippet-frame` always wraps the block — the language
+   selector, when there is one, plus `.doc-snippet-body` (the code and its
+   copy button, see below) — so the two read as one card instead of a pill
+   floating separately above the code. */
+.doc-snippet-frame .doc-snippet-tabs {
+	width: 100%;
+}
+
+/* Flattens `UTabs`' own padded, rounded pill capsule into a header strip
+   spanning the frame, with triggers left-aligned and sized to their label
+   rather than stretched to fill the row (its default under horizontal
+   orientation — see `w-full` on the list and `grow` on the triggers). The
+   top corners match the frame's own radius; the bottom is square, flush
+   with `.doc-snippet` below. */
+.doc-snippet-frame .doc-snippet-tabs [data-slot='list'] {
+	width: 100%;
+	/* padding: 0.3em 0.4em 0; */
+	background-color: var(--theme-bg);
+	border-radius: 0.2rem 0.2rem 0 0;
+	/* border-bottom: 0.1rem solid var(--theme-bg-elevated); */
+}
+
+.doc-snippet-frame .doc-snippet-tabs [data-slot='trigger'] {
+	flex: 0 0 auto;
+}
+
+/* Only squared off when the selector's actually there to butt against —
+   `.doc-snippet-frame` now wraps every snippet, tabs or not, so this can't
+   key off the frame alone. */
+.doc-snippet-tabs + .doc-snippet-body .doc-snippet {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}
+
+/* Positioning context for `.doc-snippet-copy` below — every snippet gets
+   one, framed or not. */
+.doc-snippet-body {
+	position: relative;
+}
+
+/* `.doc-snippet` is DocSnippet's own block, used when it's given the code as
+   a string; the bare `pre` is the same thing written inline in a page. */
+.doc-snippet,
+.docs-page pre {
+	padding: 0.75em;
+	margin: 0;
+	background-color: var(--theme-bg);
+	border-radius: 0.2rem;
+	font-family: monospace;
+	font-size: 0.85em;
+	overflow-x: auto;
+	white-space: pre;
+	color: var(--theme-text);
+}
+
+.doc-snippet code,
+.docs-page pre code {
+	font-size: inherit;
+	color: inherit;
+}
+
+/* Manually-colored tokens within a snippet, standing in for a real
+   language-aware highlighter — DocSnippet's `code` prop can mark a piece
+   `{ text, color }` instead of a plain string (see its own doc comment), or
+   a hand-written `<pre>` can use these classes directly. Named for the
+   syntax-token categories a theme's `TokenPalette` (@/assets/theme/themes)
+   defines for Monaco — the `--theme-token-*` vars themselves are set by
+   themeStore.ts's applyToDocument, so a highlighted snippet tracks whatever
+   editor theme is active instead of a fixed palette. */
+.doc-snippet-hl-default {
+	color: var(--theme-token-default);
+}
+
+.doc-snippet-hl-identifier {
+	color: var(--theme-token-identifier);
+}
+
+.doc-snippet-hl-keyword {
+	color: var(--theme-token-keyword);
+}
+
+.doc-snippet-hl-delimiter {
+	color: var(--theme-token-delimiter);
+}
+
+.doc-snippet-hl-type {
+	color: var(--theme-token-type);
+}
+
+.doc-snippet-hl-number {
+	color: var(--theme-token-number);
+}
+
+.doc-snippet-hl-number-hex {
+	color: var(--theme-token-number-hex);
+}
+
+.doc-snippet-hl-string {
+	color: var(--theme-token-string);
+}
+
+.doc-snippet-hl-string-escape {
+	color: var(--theme-token-string-escape);
+}
+
+.doc-snippet-hl-comment {
+	color: var(--theme-token-comment);
+}
+
+.doc-snippet-hl-comment-doc {
+	color: var(--theme-token-comment-doc);
+}
+
+.doc-snippet-hl-regexp {
+	color: var(--theme-token-regexp);
+}
+
+/* Copy-to-clipboard button, top-right of the code — hidden until
+   `.doc-snippet-body` is hovered, or the button itself has focus so it's
+   reachable by keyboard. */
+.doc-snippet-copy {
+	position: absolute;
+	top: 0.5em;
+	right: 0.5em;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.1s;
+}
+
+.doc-snippet-body:hover .doc-snippet-copy,
+.doc-snippet-body:focus-within .doc-snippet-copy {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.doc-related {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.5em;
+	margin-top: 1.25em;
+}
+
+.doc-related-label {
+	font-size: 0.85em;
+	color: var(--theme-text-toned);
+}
+
+/* Links in running prose only. Deliberately not a blanket `.docs-page a`:
+   this stylesheet is unlayered, so it would outrank the (layered) Tailwind
+   utilities @nuxt/ui's own link-ish components rely on and underline the
+   DocMixins cards and DocRelated buttons along with it. */
+.doc-link,
+.docs-page p a,
+.docs-page li a {
+	color: var(--theme-primary);
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+	cursor: pointer;
+	transition: color 0.15s;
+}
+
+/* .doc-link a:visited, */
+.docs-page p a:visited,
+.docs-page li a:visited {
+	color: var(--theme-secondary);
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+	cursor: pointer;
+}
+
+.docs-page p a:hover,
+.docs-page li a:hover {
+	color: var(--theme-bg-inverted);
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+	cursor: pointer;
+}

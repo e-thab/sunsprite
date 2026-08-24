@@ -14,7 +14,7 @@ const dracula: ThemePalette = {
     textDimmed: '#44475a',
     textMuted: '#6272a4',
     textToned: '#6272a4',
-    text: '#f8f8f2',
+    text: '#cccccc',
     textHighlighted: '#ffffff',
     textInverted: '#191a21', // Bogus
     primary: '#bd93f9',

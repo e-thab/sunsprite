@@ -1,3 +1,16 @@
+function getColorBrightness(hex: string): number {
+	const r = parseInt(hex.slice(1, 3), 16)
+	const g = parseInt(hex.slice(3, 5), 16)
+	const b = parseInt(hex.slice(5, 7), 16)
+	return (r * 0.299 + g * 0.587 + b * 0.114) / 255
+	// return Math.max(r, g, b) / 255
+}
+
+/** Returns either black or white hex, whichever is more visible when placed against backgroundHex */
+export function getForegroundColor(backgroundHex: string): string {
+	return getColorBrightness(backgroundHex) > 0.45 ? '#000000' : '#ffffff' 
+}
+
 export function deg2rad(deg: number): number {
     return deg * Math.PI / 180
 }

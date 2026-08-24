@@ -7,9 +7,11 @@ import { useFullscreenStore } from '@/stores/fullscreen';
 import { useAuthStore } from '@/stores/authStore';
 import { useFileStore } from '@/stores/fileStore';
 import { useThemeStore } from '@/stores/themeStore';
-import { useProjectStore } from '@/stores/projectStore';
+import { useProjectStore, MAX_PROJECT_NAME_LENGTH } from '@/stores/projectStore';
+import { useNamePromptStore } from '@/stores/namePromptStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useDocsSearchStore } from '@/stores/docsSearchStore';
+import { usePageTitle } from '@/composables/usePageTitle';
 import { timeAgo } from '@/assets/utils/timeAgo';
 import SignInModal from './SignInModal.vue';
 import SignUpModal from './SignUpModal.vue';
@@ -27,6 +29,7 @@ const authStore = useAuthStore()
 const fileStore = useFileStore()
 const themeStore = useThemeStore()
 const projectStore = useProjectStore()
+const namePromptStore = useNamePromptStore()
 const docsStore = useDocsStore()
 const docsSearchStore = useDocsSearchStore()
 const router = useRouter()
@@ -41,14 +44,35 @@ defineShortcuts({
     meta_k: () => docsSearchStore.toggle(),
 })
 
-// Docs toggles a pane inside EditorView (rendered on the home/guest route
-// and the loaded-project route) — showing it elsewhere would just flip
-// unused state with nothing on screen to reflect it.
-const isEditorRoute = computed(() => route.name === 'home' || route.name === 'project')
+// Whether EditorView is the current route component (the sandbox/guest
+// route, or a loaded project) — it's the only place with a docs pane to
+// toggle, so the Docs nav button (below) branches its click behavior on this.
+const isEditorRoute = computed(() => route.name === 'sandbox' || route.name === 'edit')
 
 // The standalone full-page docs view (DocsView.vue) — as opposed to the
 // panel embedded in the editor, or anywhere else in the app.
 const isDocsRoute = computed(() => route.name === 'docs')
+
+// The Docs nav button is dual-purpose: inside the editor it toggles the
+// embedded panel (nothing to navigate to — the panel is right there), but
+// everywhere else there's no panel on screen, so it instead navigates to
+// the full-page docs view.
+function onDocsClick() {
+    if (isEditorRoute.value) {
+        docsStore.toggle()
+    } else {
+        router.push('/docs')
+    }
+}
+
+// Center-bar label for whichever page is current — also what the browser
+// tab title is built from (see App.vue), so the two stay in sync by
+// construction. The 'project' route is deliberately absent from the
+// composable's own switch — that's the one page with something better to
+// show instead (a loaded project's name takes priority there), and left
+// blank falls through to nothing during the brief window before a loaded
+// project has a name yet.
+const pageTitle = usePageTitle()
 
 // Keeps --nav-height (base.css) in sync with the bar's real rendered height,
 // so anything elsewhere that needs to size/position itself around the
@@ -102,12 +126,16 @@ async function onSignOut() {
 }
 
 async function onCreateProject() {
-    const name = window.prompt('Project name:')
+    const name = await namePromptStore.prompt({
+        title: 'New project',
+        maxLength: MAX_PROJECT_NAME_LENGTH,
+        confirmLabel: 'Create',
+    })
     if (!name) return
 
     try {
         const project = await projectStore.createProject(name)
-        router.push(`/projects/${project.slug}`)
+        router.push(`/edit/${project.slug}`)
     } catch (err) {
         window.alert(err instanceof Error ? err.message : 'Failed to create project')
     }
@@ -121,7 +149,7 @@ const projectMenuItems = computed(() => [
             label: p.name,
             description: timeAgo(p.updatedAt),
             icon: 'material-symbols:shapes',
-            onSelect: () => router.push(`/projects/${p.slug}`),
+            onSelect: () => router.push(`/edit/${p.slug}`),
         }))
         : [{ label: 'No projects yet', disabled: true }],
     [
@@ -146,7 +174,7 @@ const themeMenuItems = computed(() => [
             if (t.id === themeStore.currentId) {
                 return 'tabler:check'
             } else if (t.id === 'random') {
-                return `tabler:dice-${Random.range(1, 6)}-filled`
+                return `tabler:dice-${Random.integer(1, 6)}-filled`
             } else {
                 return t.isLight ? 'tabler:sun-filled' : 'tabler:moon-filled'
             }
@@ -188,9 +216,21 @@ const accountMenuItems: DropdownMenuItem[][] = [
                 Sunsprite
             </UButton>
 
-            <!-- Docs button -->
-            <UTooltip v-if="isEditorRoute" text="Docs">
-                <UButton icon="tabler:book-filled" variant="ghost" :color="docsStore.isOpen ? 'primary' : 'neutral'" @click="docsStore.toggle">Docs</UButton>
+            <!-- Sandbox button: a faux-project, accessible without signing in,
+            that saves to localStorage. Not to be confused with the code
+            sandboxing (runner.html/src/sandbox) used internally to run user
+            code from its own origin. Hidden while already in the sandbox —
+            nothing to navigate to from there. -->
+            <UTooltip v-if="route.name !== 'sandbox'" text="Sandbox">
+                <UButton icon="tabler:sandbox" variant="ghost" color="neutral" @click="() => { router.push('/sandbox') }">Sandbox</UButton>
+            </UTooltip>
+
+            <!-- Docs button: toggles the embedded panel in the editor, or
+            navigates to the full-page docs view everywhere else. Hidden only
+            on the full-page docs view itself, which has no more-docs place
+            left to send you. -->
+            <UTooltip v-if="!isDocsRoute" text="Docs">
+                <UButton icon="tabler:book-filled" variant="ghost" :color="isEditorRoute && docsStore.isOpen ? 'primary' : 'neutral'" @click="onDocsClick">Docs</UButton>
             </UTooltip>
 
             <!-- Docs search: only shown in the full-page docs view — the
@@ -204,8 +244,8 @@ const accountMenuItems: DropdownMenuItem[][] = [
 
         <!-- Try a fieldgroup here -->
         <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
-            <span class="project-name">{{ fileStore.projectName }}</span>
-            
+            <span class="project-name" :title="pageTitle">{{ pageTitle }}</span>
+
             <UTooltip text="Save all files">
                 <UButton
                     icon="tabler:device-floppy-filled"
@@ -216,6 +256,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
                 >{{ fileStore.hasUnsavedChanges ? 'Save All' : 'Saved' }}</UButton>
             </UTooltip>
         </div>
+        <span v-else-if="pageTitle" class="page-title">{{ pageTitle }}</span>
 
         <div class="right-group">
             <UDropdownMenu :items="themeMenuItems">
@@ -245,7 +286,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
 .bar {
     min-height: 2em;
     display: flex;
-    padding: 0 0.5em 0 0.5em;
+    padding: 0.2em 0.5em 0.1em 0.5em;
     justify-content: space-between;
     user-select: none;
     background-color: var(--theme-bg-accented);
@@ -257,6 +298,11 @@ const accountMenuItems: DropdownMenuItem[][] = [
     display: flex;
     align-items: center;
     gap: 0.5em;
+    /* The project name (.project-header, below) is the one thing in this
+       bar that should give up space first — these hold the actual nav
+       controls (home, docs, theme, account) and should never get squeezed
+       to make room for a long name. */
+    flex-shrink: 0;
 }
 
 .logo-button {
@@ -273,10 +319,38 @@ const accountMenuItems: DropdownMenuItem[][] = [
     gap: 0.6em;
     margin-left: 0.5em;
     color: var(--theme-text);
+    /* Lets this flex item actually shrink below the name's unwrapped width
+       instead of pushing .right-group's nav controls out — flex items
+       default to min-width: auto, which would otherwise block that. */
+    min-width: 0;
 }
 
 .project-name {
     font-weight: bold;
     font-size: 0.9em;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Same slot as .project-header above (mutually exclusive with it), so it
+   gets the same treatment: the flex/align-items/margin/color/min-width here
+   match .project-header exactly — without display:flex + align-items:center
+   of its own, a bare span just stretches to the bar's full height (.bar's
+   own align-items defaults to stretch) and its text sits at the top instead
+   of centering. It also shrinks before the nav controls do, and ellipses
+   rather than wrapping/overflowing if it ever runs out of room. */
+.page-title {
+    display: flex;
+    align-items: center;
+    margin-left: 0.5em;
+    color: var(--theme-text);
+    font-weight: bold;
+    font-size: 0.9em;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 </style>

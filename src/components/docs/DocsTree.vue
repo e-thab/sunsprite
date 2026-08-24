@@ -11,28 +11,28 @@ const props = defineProps<{
 
 const nav = inject(docsNavigationKey)!
 
-// Categories never select (that's what the label's own click does, see
-// item-label below) and never toggle natively either — onToggle's
-// preventDefault blocks Tree's own click-to-expand/reveal-selected behavior
-// entirely, so the chevron's own explicit click handler (below) is the only
-// thing that ever changes expand state. This is deliberately stricter than
-// just suppressing onSelect: Tree's native toggle-on-select can otherwise
-// silently expand/collapse categories unrelated to whatever the user
-// actually clicked (e.g. when selecting a deeply-nested item reveals its
-// ancestors), which fights the "expand state is entirely user-controlled"
-// requirement — routing every change through nav.toggleExpanded ourselves is
-// what makes that guarantee actually hold.
-function preventCategorySelect(event: Event) {
-	event.preventDefault()
-}
-
+// Categories never toggle natively — onToggle's preventDefault blocks Tree's
+// own click-to-expand/reveal-selected behavior entirely, so the chevron's
+// own explicit click handler (below) is the only thing that ever changes
+// expand state. This is deliberately stricter than just leaving toggle
+// alone: Tree's native toggle-on-select can otherwise silently expand/
+// collapse categories unrelated to whatever the user actually clicked (e.g.
+// when selecting a deeply-nested item reveals its ancestors), which fights
+// the "expand state is entirely user-controlled" requirement — routing every
+// change through nav.toggleExpanded ourselves is what makes that guarantee
+// actually hold. select and toggle are separate custom-event dispatches (see
+// onCategorySelect below), so preventing one here doesn't touch the other.
 function preventNativeToggle(event: Event) {
 	event.preventDefault()
 }
 
-// The label does double duty: it navigates to the category's own landing
-// page, and — depending on the category's current state — may also toggle
-// expand/collapse, so collapsing isn't chevron-only:
+// Wired to onSelect (fired by Tree's own native click handling on the row
+// itself) rather than a click handler scoped to just the label span — a
+// row's hover highlight covers the whole thing, icon and padding included,
+// and a click anywhere in that same area should do something, not just the
+// label text. A category's click does double duty: it navigates to its own
+// landing page, and — depending on current state — may also toggle expand/
+// collapse, so collapsing isn't chevron-only:
 //   - collapsed -> always expands (regardless of whether it's already
 //     current, e.g. re-clicking a category you'd collapsed while viewing it).
 //   - expanded, not the current page -> just navigates; doesn't collapse.
@@ -40,45 +40,46 @@ function preventNativeToggle(event: Event) {
 //     print() -> back to Output) without it collapsing out from under you.
 //   - expanded, and already the current page -> a second, deliberate click
 //     on the same spot is what collapses it.
-function onCategoryLabelClick(path: string) {
+//
+// The template invokes this with (event, item) even though TreeItem.onSelect's
+// declared type only requires the event, so item is typed optional here.
+function onCategorySelect(_event: Event, item?: TreeItem) {
+	if (!item?.path) return
+	const path = item.path as string
 	const wasCurrent = nav.currentPath.value === path
 	const wasExpanded = nav.isExpanded(path)
 	nav.navigate(path)
 	if (!wasExpanded || wasCurrent) nav.toggleExpanded(path)
 }
 
-// Paths aren't stored on DocNode itself — they're positional (slugs joined
-// by ancestry), and filterTree() can return cloned category objects while
-// pruning to matches, so a node -> path reverse lookup wouldn't be reliable.
-// Recomputing by threading parentPath through, same as docsIndex.ts's own
-// walk(), is what stays correct regardless of node identity.
-function buildItems(nodes: DocNode[], parentPath: string | null): TreeItem[] {
+// Each node carries its own path (built from where its file sits, see
+// docsContent.ts) — so nothing here has to reconstruct it.
+function buildItems(nodes: DocNode[]): TreeItem[] {
 	return nodes.map((node): TreeItem => {
-		const path = parentPath ? `${parentPath}/${node.slug}` : node.slug
 		if (node.kind === 'category') {
 			return {
-				id: path,
+				id: node.path,
 				label: node.title,
 				icon: node.icon,
-				path,
+				path: node.path,
 				isCategory: true,
-				onSelect: preventCategorySelect,
+				onSelect: onCategorySelect,
 				onToggle: preventNativeToggle,
-				children: buildItems(node.children, path),
+				children: buildItems(node.children),
 			}
 		}
 		return {
-			id: path,
+			id: node.path,
 			label: node.title,
 			icon: node.icon,
-			path,
+			path: node.path,
 			isCategory: false,
-			onSelect: () => nav.navigate(path),
+			onSelect: () => nav.navigate(node.path),
 		}
 	})
 }
 
-const items = computed(() => buildItems(props.nodes, null))
+const items = computed(() => buildItems(props.nodes))
 
 // UTree's v-model expects the selected TreeItem object itself (matched
 // against `items` by `getKey`, not by identity) — driving it from
@@ -111,10 +112,22 @@ const expandedPaths = computed(() => categoryPaths.value.filter((path) => nav.is
 </script>
 
 <template>
+	<!-- selection-behavior="replace": Reka's own default ('toggle') deselects
+	a leaf internally when it's clicked again while already selected — since
+	:model-value below is one-way (no @update:model-value), nothing ever
+	tells it to re-select once nav.currentPath stops changing (re-navigating
+	to the same path is a no-op), so it stays deselected. That only cost the
+	icon its highlight (Nuxt UI colors it from the row's own ambient
+	`selected` state) — the label kept its color regardless, since
+	.doc-title-current below is driven straight off nav.currentPath, not
+	Reka's internal selection. 'replace' always re-selects on click instead
+	of toggling, keeping Reka's own state in sync with the one true source of
+	truth here. -->
 	<UTree
 		:items="items"
 		:get-key="(item: TreeItem) => item.id"
 		:model-value="selectedItem"
+		selection-behavior="replace"
 		:expanded="expandedPaths"
 		:ui="{ linkLabel: 'flex-1 min-w-0' }"
 		class="docs-tree"
@@ -127,20 +140,29 @@ const expandedPaths = computed(() => categoryPaths.value.filter((path) => nav.is
 
 		<!-- The label wrapper is stretched to fill the row (via the `ui`
 		override above) so this span's own box — not just its text — spans the
-		full gap up to the trailing chevron. That's deliberate: it's what
-		makes clicking the empty space next to a category's title behave the
-		same as clicking the title text itself, per onCategoryLabelClick. -->
+		full gap up to the trailing chevron, matching the row's own hover area
+		instead of shrink-wrapping to the title text. Navigation itself is
+		wired to onSelect (see onCategorySelect/buildItems above), which
+		covers the whole row natively — this span no longer needs its own
+		click handler. -->
 		<template #item-label="{ item }">
+			<!-- transition-colors, only while not current: the same Tailwind
+			utility Nuxt UI's own row carries only on its `selected: false`
+			compound variant (see .doc-title:hover below) — its `selected:
+			true` one (text-${color}, what the icon inherits once current)
+			carries no transition at all, snapping instantly instead. Leaving
+			transition-colors on unconditionally here made .doc-title itself
+			keep easing into its new color on select same as on hover, so it
+			visibly lagged the icon's already-instant snap to primary — this
+			keeps the transition for hover (still wanted, and still what
+			fixed the icon/text hover-timing mismatch) but drops it the
+			instant the item becomes current, matching the icon exactly. -->
 			<span
-				v-if="item.isCategory"
 				class="doc-title doc-title-fill"
-				:class="{ 'doc-title-current': item.path === nav.currentPath.value }"
-				@click.stop="onCategoryLabelClick(item.path)"
-			>{{ item.label }}</span>
-			<span
-				v-else
-				class="doc-title doc-title-fill"
-				:class="{ 'doc-title-current': item.path === nav.currentPath.value }"
+				:class="{
+					'doc-title-current': item.path === nav.currentPath.value,
+					'transition-colors': item.path !== nav.currentPath.value,
+				}"
 			>{{ item.label }}</span>
 		</template>
 
@@ -222,7 +244,6 @@ this contained without depending on that. */
 .docs-tree [data-slot='link']:hover .doc-title {
 	color: var(--theme-text-highlighted);
 }
-/* Color transition here doesn't match Nuxt UI default hover transition */
 
 /* :hover on the row outweighs the plain .doc-title-current rule (higher
    specificity), so without this, hovering the current item would fall back

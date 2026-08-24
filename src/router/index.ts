@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import EditorView from '../views/EditorView.vue'
+import LandingView from '../views/LandingView.vue'
 import { useAuthStore } from '@/stores/authStore'
 
 const router = createRouter({
@@ -8,7 +8,16 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: EditorView,
+      component: LandingView,
+    },
+    {
+      // A faux-project accessible without signing in — same EditorView as a
+      // real project, just never given a projectId, so fileStore's guest
+      // mode (see getLocalCode/saveCode) reads and writes localStorage
+      // instead of Supabase.
+      path: '/sandbox',
+      name: 'sandbox',
+      component: () => import('../views/EditorView.vue'),
     },
     {
       path: '/account',
@@ -23,10 +32,27 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/projects/:slug',
-      name: 'project',
+      path: '/edit/:slug',
+      name: 'edit',
       component: () => import('../views/ProjectEditorView.vue'),
       meta: { requiresAuth: true },
+      props: true,
+    },
+    {
+      // Old individual-project URL — kept as a redirect rather than a dead
+      // link for anything already bookmarked/shared before the /edit rename.
+      path: '/projects/:slug',
+      redirect: (to) => `/edit/${to.params.slug}`,
+    },
+    {
+      // Fullscreen, editor-free player for a single project — no requiresAuth,
+      // since a public project must be playable by a signed-out guest. Access
+      // is enforced by RLS instead (see the is_public policies in
+      // supabase/migrations): a private project's row simply doesn't resolve
+      // for anyone but its owner, the same way a nonexistent slug wouldn't.
+      path: '/play/:slug',
+      name: 'play',
+      component: () => import('../views/PlayView.vue'),
       props: true,
     },
     {

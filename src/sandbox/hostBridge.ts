@@ -1,13 +1,12 @@
 import { ref } from 'vue'
 import Output from '@/assets/api/output'
-import { getExampleCode } from '@/assets/api/examples'
 import { useFileStore } from '@/stores/fileStore'
 import { useWatchPanelStore } from '@/stores/watchPanelStore'
 import type { ThemePalette } from '@/assets/theme/themes'
 import { HOST_ORIGIN_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
 
 // Host side of the sandbox. User code no longer runs in the editor app at all:
-// it runs in sandbox.html inside an `<iframe sandbox="allow-scripts">`, which
+// it runs in runner.html inside an `<iframe sandbox="allow-scripts">`, which
 // the browser gives an *opaque* origin. That's the security boundary — same
 // origin policy means the frame can't read `parent.document`, the app's
 // localStorage (where the Supabase session lives), or any of its DOM, no matter
@@ -40,12 +39,19 @@ export { fpsRef, mouseRef, pausedRef, clockRef, screenRef }
 let frame: HTMLIFrameElement | null = null
 let sandboxReady = false
 
-/** Set while the sandbox is still booting, so an early Run isn't dropped. */
-let queuedRun: { code: string, theme?: ThemePalette } | null = null
+/** seq of the last 'set-paused' command sent — see protocol.ts's comment on that type. */
+let sentPauseSeq = 0
 
-/** URL for the sandbox document, carrying our origin so it can address replies. */
+/** Set while the sandbox is still booting, so an early Run isn't dropped. */
+let queuedRun: { code: string, entryName: string, theme?: ThemePalette } | null = null
+
+/**
+ * URL for the sandbox document, carrying our origin so it can address replies.
+ * The file itself is named runner.html, not sandbox.html — see the comment on
+ * vite.config.ts's build.rollupOptions.input for why the two are kept apart.
+ */
 export function sandboxUrl(): string {
-    const base = `${import.meta.env.BASE_URL}sandbox.html`
+    const base = `${import.meta.env.BASE_URL}runner.html`
     return `${base}?${HOST_ORIGIN_PARAM}=${encodeURIComponent(window.location.origin)}`
 }
 
@@ -102,7 +108,7 @@ function onSandboxMessage(event: MessageEvent) {
             break
 
         case 'output':
-            Output.render(message.kind, message.text, message.frame)
+            Output.render(message.kind, message.text, message.frame, message.location)
             break
 
         case 'output-clear':
@@ -112,7 +118,12 @@ function onSandboxMessage(event: MessageEvent) {
         case 'status':
             fpsRef.value = message.fps
             mouseRef.value = { mouseX: message.mouseX, mouseY: message.mouseY }
-            pausedRef.value = message.paused
+            // A snapshot older than the last command we sent predates it being
+            // applied sandbox-side; trusting it would flicker pausedRef back to
+            // the pre-click value for one tick. See protocol.ts's 'set-paused'.
+            if (message.pauseSeq >= sentPauseSeq) {
+                pausedRef.value = message.paused
+            }
             clockRef.value = { time: message.time, deltaMs: message.deltaMs, frame: message.frame }
             screenRef.value = {
                 width: message.screenWidth,
@@ -130,34 +141,32 @@ function onSandboxMessage(event: MessageEvent) {
 
 /**
  * Same content source CodeEditor.vue resolves models against, so the editor and
- * the running game always agree on what './helper.js' means. Guest (local) mode
- * has default example content per file; project scripts are fully user-defined,
- * so a miss there is a real error and stays undefined.
+ * the running game always agree on what './helper.js' means. A miss — in a
+ * loaded project or the guest sandbox alike, both real record-backed file
+ * lists now — is a genuine error and stays undefined.
  */
 function resolveScript(name: string): string | undefined {
-    const fileStore = useFileStore()
-    const local = fileStore.getLocalCode(name)
-    if (local !== undefined) return local
-    if (!fileStore.projectId) return getExampleCode(name)
-    return undefined
+    return useFileStore().getLocalCode(name)
 }
 
-export function runUserCode(code: string, theme?: ThemePalette) {
+export function runUserCode(code: string, entryName: string, theme?: ThemePalette) {
     if (!sandboxReady) {
-        queuedRun = { code, theme }
+        queuedRun = { code, entryName, theme }
         return
     }
-    post({ type: 'run', code, theme })
+    post({ type: 'run', code, entryName, theme })
 }
 
 export function pause() {
     pausedRef.value = true
-    post({ type: 'set-paused', paused: true })
+    sentPauseSeq += 1
+    post({ type: 'set-paused', paused: true, seq: sentPauseSeq })
 }
 
 export function play() {
     pausedRef.value = false
-    post({ type: 'set-paused', paused: false })
+    sentPauseSeq += 1
+    post({ type: 'set-paused', paused: false, seq: sentPauseSeq })
 }
 
 export function resizeStage() {

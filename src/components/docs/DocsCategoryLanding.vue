@@ -3,10 +3,8 @@ import { inject } from 'vue'
 import type { DocCategoryNode } from '@/assets/docs/docsTypes'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
 
-const props = defineProps<{
+defineProps<{
 	node: DocCategoryNode
-	/** This category's own resolved path, needed to build each child's path. */
-	path: string
 }>()
 
 const nav = inject(docsNavigationKey)!
@@ -19,10 +17,14 @@ const nav = inject(docsNavigationKey)!
 				<UIcon v-if="node.icon" :name="node.icon" class="header-icon" />
 				<h1 class="header-title">{{ node.title }}</h1>
 			</div>
-			<slot name="header-actions" />
+			<div class="header-actions">
+				<slot name="header-actions" />
+			</div>
 		</header>
 
-		<p v-if="node.intro" class="landing-intro">{{ node.intro }}</p>
+		<div v-if="node.component" class="docs-page landing-intro">
+			<component :is="node.component" />
+		</div>
 
 		<div class="landing-cards">
 			<button
@@ -30,7 +32,7 @@ const nav = inject(docsNavigationKey)!
 				:key="child.slug"
 				type="button"
 				class="landing-card"
-				@click="nav.navigate(`${path}/${child.slug}`, { reveal: true })"
+				@click="nav.navigate(child.path, { reveal: true })"
 			>
 				<UIcon v-if="child.icon" :name="child.icon" class="card-icon" />
 				<div class="card-body">
@@ -56,11 +58,13 @@ const nav = inject(docsNavigationKey)!
 	margin-bottom: 0.5em;
 }
 
+/* flex-shrink: 0 rather than the min-width: 0 this used to carry — see the
+   matching block in DocsBody.vue for why. */
 .header-title-group {
 	display: flex;
 	align-items: center;
 	gap: 0.5em;
-	min-width: 0;
+	flex-shrink: 0;
 }
 
 .header-icon {
@@ -72,11 +76,15 @@ const nav = inject(docsNavigationKey)!
 	margin: 0;
 	font-size: 1.3em;
 	color: var(--theme-text-highlighted);
+	white-space: nowrap;
+}
+
+.header-actions {
+	flex-shrink: 0;
 }
 
 .landing-intro {
-	margin: 0 0 1.25em;
-	line-height: 1.5;
+	margin-bottom: 1.25em;
 	color: var(--theme-text-toned);
 }
 

@@ -74,6 +74,7 @@ ${viewablePropsTypeDef}
 ${interactablePropsTypeDef}
 ${gameObjectPropsTypeDef}
 
+// TODO: Hide from API?
 namespace LibVars {
     export const mouseInputEvents = [
         'Click', 'Release', 'DoubleClick',
@@ -239,17 +240,12 @@ class Timer {
 	time: number
 
 	/** Time since start in milliseconds including pause time */
-	totalTimeMs: number
+	ageMs: number
 	/** Time since start in seconds including pause time */
-	totalTime: number
+	age: number
 
-	/** Actual (but smoothed) time since last frame in milliseconds */
-	deltaMs: number
-	/** Time since last frame normalized to 60fps (will usually be around 1) */
-	delta: number
-
-	/** Number of frames since start */
-	frame: number
+	// /** Number of frames since start */
+	// frame: number
 
 	/** Time this run started in milliseconds since the Unix epoch */
 	startTimeMs: number
@@ -275,9 +271,46 @@ class Timer {
 }
 
 /**
- * Game clock, instance of the Timer class.
+ * Game clock, derived largely from Timer but with some key differences.
  */
-declare const Clock: Timer
+declare const Clock: {
+    /** Actual (but smoothed) time since last frame in milliseconds */
+	deltaMs: number
+	/** Time since last frame normalized to 60fps (will usually be around 1) */
+	delta: number
+
+    /** Time since start in milliseconds, does not increment during pause */
+	timeMs: number 
+	/** Time since start in seconds, does not increment during pause */
+	time: number
+
+    /** Time since start in milliseconds including pause time */
+	ageMs: number
+	/** Time since start in seconds including pause time */
+	age: number
+
+	/** Number of frames since start */
+	frame: number
+
+	/** Time this run started in milliseconds since the Unix epoch */
+	startTimeMs: number
+	/** Time this run started in seconds since the Unix epoch */
+	startTime: number
+
+	/** Current time in milliseconds */
+	nowMs: number = 0
+	/** Current time in seconds */
+	now: number
+
+	/** Is the game currently paused? */
+	paused: boolean
+
+	/** Pause the game */
+	pause(): void
+
+	/** Resume the game */
+	play(): void
+}
 
 /**
  * An array of all keys currently pressed.
@@ -458,19 +491,26 @@ declare const console: {
  * A collection of functions useful for generating random values.
  */
 declare const Random: {
+    number: {
+        /**
+         * Returns a random float of any possible value, from -1.79 * 10^308 to 1.79 * 10^308.
+         */
+        (): number,
+
+        /**
+         * Returns a random float in a given range, min inclusive / max exclusive. If min > max, they're automatically swapped for you.
+         * @param min The low end of the range.
+         * @param max The high end of the range.
+         */
+        (min: number, max: number): number
+    },
+
     /**
      * Returns a random integer in a given range, min and max inclusive. If min > max, they're automatically swapped for you.
      * @param min The low end of the range.
      * @param max The high end of the range.
      */
-    range(min: number, max: number): number,
-
-    /**
-     * Returns a random float in a given range, min inclusive / max exclusive. If min > max, they're automatically swapped for you.
-     * @param min The low end of the range.
-     * @param max The high end of the range.
-     */
-    float(min: number, max: number): number,
+    integer(min: number, max: number): number,
 
     /**
      * Returns a random boolean, 50/50 chance for true/false.

@@ -30,6 +30,19 @@
   --theme-warning: #ebcb8b;
   --theme-error: #bf616a;
   --theme-info: #81a1c1;
+
+  --theme-token-default: #d8dee9;
+  --theme-token-identifier: #d8dee9;
+  --theme-token-keyword: #81a1c1;
+  --theme-token-delimiter: #d8dee9;
+  --theme-token-type: #8fbcbb;
+  --theme-token-number: #b48ead;
+  --theme-token-number-hex: #d08770;
+  --theme-token-string: #a3be8c;
+  --theme-token-string-escape: #d08770;
+  --theme-token-comment: #818a9b;
+  --theme-token-comment-doc: #ebcb8b;
+  --theme-token-regexp: #d08770;
 }
 
 /* Nuxt vars */
@@ -64,6 +77,11 @@
   --ui-border-muted: var(--theme-border);
   --ui-border-accented: var(--theme-border);
   --ui-border-inverted: var(--theme-border);
+}
+
+/* Custom vars */
+:root {
+  --panel-border-radius: 0.5rem;
 }
 
 /* Un-layered so it always wins over Tailwind's own utilities regardless of

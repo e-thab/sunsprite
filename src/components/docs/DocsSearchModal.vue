@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
 import { useDocsSearchStore } from '@/stores/docsSearchStore'
-import { searchDocs } from '@/assets/docs/docsSearch'
+import { searchDocs, type SnippetPart } from '@/assets/docs/docsSearch'
 
 const searchStore = useDocsSearchStore()
 const router = useRouter()
@@ -12,6 +12,19 @@ const searchTerm = ref('')
 function select(path: string) {
 	router.push(`/docs/${path}`)
 	searchStore.close()
+}
+
+function escapeHtml(text: string): string {
+	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// UCommandPalette renders descriptionHtml via v-html, so this is the one
+// place that needs real HTML rather than the plain SnippetPart[] the other
+// two search surfaces hand straight to a template loop (see
+// DocsSearchResultsList.vue) — same query-in-context excerpt, just built as
+// a string instead of rendered directly.
+function snippetHtml(parts: SnippetPart[]): string {
+	return parts.map((part) => (part.matched ? `<mark class="docs-search-mark">${escapeHtml(part.text)}</mark>` : escapeHtml(part.text))).join('')
 }
 
 // Grouped by top-level category (the first segment of breadcrumbLabel), same
@@ -31,7 +44,14 @@ const groups = computed<CommandPaletteGroup[]>(() => {
 		}
 		byCategory.get(topLabel)!.push({
 			label: entry.node.title,
-			description: entry.breadcrumbLabel,
+			// Plain-text description as a fallback (accessibility, anything
+			// Nuxt UI derives from the item besides the rendered row) plus the
+			// highlighted excerpt for the actual visible row — same
+			// query-in-context snippet as the other two search surfaces, so
+			// all three read as one feature instead of the command palette
+			// being the one place still showing just a bare breadcrumb.
+			description: entry.snippet ? entry.snippet.map((part) => part.text).join('') : entry.node.summary,
+			descriptionHtml: entry.snippet ? snippetHtml(entry.snippet) : escapeHtml(entry.node.summary),
 			icon: entry.node.icon,
 			to: `/docs/${entry.path}`,
 			onSelect: () => select(entry.path),
@@ -71,9 +91,18 @@ function onContentCloseAutoFocus(event: Event) {
 		@update:open="onUpdateOpen"
 	>
 		<template #content>
+			<!-- Nuxt UI's own default for itemDescription is a single-line
+			`truncate` (hard pixel-width cutoff, mid-word if that's where the
+			width runs out) — fine for a short plain description, but it was
+			re-truncating the already width-aware snippet built by
+			docsSearch.ts's windowAroundMatch independently of it, sometimes
+			slicing right through the highlighted match. line-clamp lets it wrap
+			instead, which — being text-reflow-based — only ever breaks on a
+			word boundary. -->
 			<UCommandPalette
 				v-model:search-term="searchTerm"
 				:groups="groups"
+				:ui="{ itemDescription: 'whitespace-normal line-clamp-3' }"
 				icon="fa7-solid:magnifying-glass"
 				placeholder="Search docs..."
 				close
@@ -82,3 +111,19 @@ function onContentCloseAutoFocus(event: Event) {
 		</template>
 	</UModal>
 </template>
+
+<style>
+/* Deliberately unscoped: descriptionHtml (see snippetHtml above) is rendered
+by UCommandPalette via v-html, so the <mark> it produces lands inside that
+component's own template, outside this component's scope boundary — a
+scoped rule here would never reach it. Same reasoning DocsTree.vue's own
+unscoped block documents for UTree. Matches .result-match's treatment in
+DocsSearchResultsList.vue, the other two search surfaces' highlight style. */
+.docs-search-mark {
+	background-color: color-mix(in srgb, var(--theme-primary) 35%, transparent);
+	color: var(--theme-text-highlighted);
+	border-radius: 0.2em;
+	padding: 0 0.15em;
+	font-weight: 600;
+}
+</style>

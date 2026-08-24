@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import type { DropdownMenuItem, TreeItem } from '@nuxt/ui'
 import { useToast } from '@nuxt/ui/composables'
 import { useFileStore, type TreeNode } from '@/stores/fileStore'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
-import { imagePath, animalFiles, cardFiles } from '@/assets/api/gameAssets'
+import { useNamePromptStore } from '@/stores/namePromptStore'
 import {
 	ALLOWED_IMAGE_CONTENT_TYPES,
 	DEFAULT_SCRIPT_FILE_TYPE,
@@ -13,14 +13,35 @@ import {
 	IMAGE_ACCEPT_ATTR,
 	imageDisplayName,
 	imageFileTypeForExtension,
+	isFileNameTooLong,
 	joinFileName,
+	MAX_FILE_NAME_LENGTH,
 	scriptFileType,
 	splitFileName,
 } from '@/assets/utils/fileTypes'
+import CollapsiblePane from './CollapsiblePane.vue'
 
 const fileStore = useFileStore()
 const treeSelectionStore = useTreeSelectionStore()
+const namePromptStore = useNamePromptStore()
 const toast = useToast()
+
+// The project's canonical entry point — always what the game header's
+// Restart button runs (see CodeEditor.vue's runMainScript). Can't be
+// deleted from here (see itemMenuItems) so that invariant always holds.
+const MAIN_SCRIPT_NAME = 'main.js'
+
+// Shared by every create/rename path below (scripts, text files, images,
+// folders) — the rename input also caps typing itself via :maxlength, so
+// this mainly catches image uploads, which have no equivalent way to limit
+// their (source-file-derived) name as it's typed. Always takes the *base*
+// name — the extension doesn't count against the limit (see
+// MAX_FILE_NAME_LENGTH) — so split first if what you have is a full name.
+function checkNameLength(base: string): boolean {
+	if (!isFileNameTooLong(base)) return true
+	window.alert(`Names can't be longer than ${MAX_FILE_NAME_LENGTH} characters.`)
+	return false
+}
 
 async function copyImageUrl(path: string) {
 	await navigator.clipboard.writeText(path)
@@ -33,19 +54,8 @@ async function copyImageUrl(path: string) {
 
 const emit = defineEmits<{
 	selectScript: [fileName: string]
+	runScript: [fileName: string]
 }>()
-
-// No onSelect needed here — EditorView watches the shared selection store
-// (bound below as this tree's own v-model) and opens/closes the preview
-// from whatever item ends up selected, image or not.
-function imageLeaf(category: string, fileName: string): TreeItem {
-	const path = imagePath(category, fileName)
-	return {
-		label: fileName,
-		thumbnail: path,
-		path,
-	}
-}
 
 // Reads the script name from the item's own data rather than the clicked
 // element's rendered text — the label slot appends a "*" for unsaved
@@ -66,151 +76,7 @@ function preventFolderSelect(event: Event) {
 	event.preventDefault()
 }
 
-// https://icones.js.org/collection/tabler
-// https://icones.js.org/collection/catppuccin
-
-const guestItems: TreeItem[] = [
-	// {
-	// 	label: 'images',
-	// 	defaultExpanded: false,
-	// 	children: [
-	// 		{
-	// 			label: 'animals',
-	// 			defaultExpanded: false,
-	// 			children: animalFiles.map((f) => imageLeaf('animals', f)),
-	// 		},
-	// 		{
-	// 			label: 'cards',
-	// 			defaultExpanded: false,
-	// 			children: cardFiles.map((f) => imageLeaf('cards', f)),
-	// 		},
-	// 	]
-	// },
-
-	// {
-	//   label: 'Sounds',
-	//   defaultExpanded: true,
-	//   children: [
-	//     {
-	//       label: 'sound.wav',
-	//       icon: 'catppuccin:audio'
-	//     },
-	//   ]
-	// },
-
-	{
-		label: 'scripts',
-		defaultExpanded: true,
-		onSelect: preventFolderSelect,
-		children: [
-			// {
-			//   label: 'main.ts',
-			//   icon: 'catppuccin:typescript'
-			// },
-			// {
-			// 	label: 'examples',
-			// 	defaultExpanded: true,
-			// 	children: [
-			// 		{
-			// 			label: 'input.js',
-			// 			icon: 'catppuccin:javascript',
-			// 			onSelect: () => emit('selectScript', 'input.js'),
-			// 		}
-			// 		{
-			// 		  label: 'labels.js',
-			// 		  icon: 'catppuccin:javascript',
-			// 		  onSelect: (event) => {
-			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-			// 		  }
-			// 		},
-			// 		{
-			// 		  label: 'lines.js',
-			// 		  icon: 'catppuccin:javascript',
-			// 		  onSelect: (event) => {
-			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-			// 		  }
-			// 		},
-			// 		{
-			// 		  label: 'rectangles.js',
-			// 		  icon: 'catppuccin:javascript',
-			// 		  onSelect: (event) => {
-			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-			// 		  }
-			// 		},
-			// 		{
-			// 		  label: 'rectSpiral.js',
-			// 		  icon: 'catppuccin:javascript',
-			// 		  onSelect: (event) => {
-			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-			// 		  }
-			// 		},
-			// 		{
-			// 		  label: 'sprites.js',
-			// 		  icon: 'catppuccin:javascript',
-			// 		  onSelect: (event) => {
-			// 		    if (event.target) emit('selectScript', (event.target as HTMLElement).innerText)
-			// 		  }
-			// 		},
-			// 	]
-			// },
-
-			// {
-			// 	label: 'temp.js',
-			// 	icon: 'catppuccin:javascript',
-			// 	onSelect: () => emit('selectScript', 'temp.js'),
-			// },
-
-			{
-				label: 'main.js',
-				icon: 'fluent:javascript-24-filled',
-				onSelect: () => emit('selectScript', 'main.js'),
-			},
-		]
-	},
-	// {
-	//   label: 'app/',
-	//   defaultExpanded: true,
-	//   children: [
-	//     {
-	//       label: 'composables/',
-	//       children: [
-	//         {
-	//           label: 'useAuth.js',
-	//           icon: 'catppuccin:javascript'
-	//         },
-	//         {
-	//           label: 'useUser.ts',
-	//           icon: 'catppuccin:typescript'
-	//         }
-	//       ]
-	//     },
-	//     {
-	//       label: 'components/',
-	//       defaultExpanded: false,
-	//       children: [
-	//         {
-	//           label: 'Card.vue',
-	//           icon: 'catppuccin:vue'
-	//         },
-	//         {
-	//           label: 'Button.vue',
-	//           icon: 'catppuccin:vue'
-	//         }
-	//       ]
-	//     },
-	//   ]
-	// },
-	// {
-	//   label: 'app.vue',
-	//   icon: 'catppuccin:vue'
-	// },
-	// {
-	//   label: 'nuxt.config.ts',
-	//   icon: 'catppuccin:nuxt'
-	// },
-]
-
-// ---- Project mode: real folders + scripts ----
+// ---- Folders + scripts, in a loaded project or the guest sandbox alike ----
 
 // Hovering a folder's own header means "drop inside, at the end" (the only
 // shape onDragOverItem's folder branch ever produces — index always equals
@@ -252,16 +118,8 @@ function ensureFolderExpanded(folderId: string) {
 	expandedFolderIds.value = [...expandedFolderIds.value, folderId]
 }
 
-// Guest mode's tree is static and still leans on the guestItems' own
-// per-item `defaultExpanded` (uncontrolled) — switching it over to a
-// controlled `expanded` array too would need its own seeding logic for no
-// real benefit, since none of it ever changes after mount anyway. Passing
-// `undefined` for the prop is the same as not binding it at all, so this
-// only takes over in project mode, leaving guest mode exactly as before.
-const controlledExpandedIds = computed(() => fileStore.projectId ? expandedFolderIds.value : undefined)
-
 function onUpdateExpanded(ids: string[]) {
-	if (fileStore.projectId) expandedFolderIds.value = ids
+	expandedFolderIds.value = ids
 }
 
 function buildNode(node: TreeNode, parentId: string | null): TreeItem {
@@ -311,11 +169,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 	}
 }
 
-const items = computed<TreeItem[]>(() => {
-	return fileStore.projectId ? fileStore.childNodes(null).map(
-		(node) => buildNode(node, null)
-	) : guestItems
-})
+const items = computed<TreeItem[]>(() => fileStore.childNodes(null).map((node) => buildNode(node, null)))
 
 // A dropped-into row shifting position because a placeholder row got
 // spliced in right next to it — the previous approach — moves the row out
@@ -353,6 +207,16 @@ function fileExtension(item: TreeItem): string {
 	return splitFileName(scriptName(item)).extension
 }
 
+// Drives the name/icon coloring below: a script that just threw takes
+// priority over merely being unsaved, so the row reads as "look here" rather
+// than the two states visually competing.
+function itemStateClass(item: TreeItem): string | undefined {
+	const name = scriptName(item)
+	if (fileStore.erroredScriptName === name) return 'item-state-error'
+	if (fileStore.isDirty(name)) return 'item-state-dirty'
+	return undefined
+}
+
 // Human label for the rename/delete tooltips below — a plain if-chain reads
 // better here than a 4-way ternary once 'text' joins 'folder'/'image'/'script'.
 function kindLabel(item: TreeItem): string {
@@ -365,7 +229,12 @@ function kindLabel(item: TreeItem): string {
 // ---- Create ----
 
 async function addScript(folderId: string | null) {
-	const input = window.prompt(`New script name ("${joinFileName('', DEFAULT_SCRIPT_FILE_TYPE.extension)}" is added automatically):`)
+	const input = await namePromptStore.prompt({
+		title: 'New script',
+		description: `"${joinFileName('', DEFAULT_SCRIPT_FILE_TYPE.extension)}" is added automatically.`,
+		maxLength: MAX_FILE_NAME_LENGTH,
+		confirmLabel: 'Create',
+	})
 	if (!input) return
 
 	// Whatever's typed becomes the base name, full stop — mirrors the rename
@@ -383,7 +252,11 @@ async function addScript(folderId: string | null) {
 }
 
 async function addFolder(parentId: string | null) {
-	const name = window.prompt('New folder name:')
+	const name = await namePromptStore.prompt({
+		title: 'New folder',
+		maxLength: MAX_FILE_NAME_LENGTH,
+		confirmLabel: 'Create',
+	})
 	if (!name) return
 
 	const hasNameCollision = fileStore.childNodes(parentId).some((node) => node.kind === 'folder' && node.name === name)
@@ -416,7 +289,9 @@ function uploadFile(folderId: string | null) {
 		// The name it'll actually be stored under — its recognized type's
 		// canonical extension, not necessarily whatever this source file was
 		// called (see imageDisplayName) — is what has to be unique, not file.name.
-		if (fileStore.images.some((img) => img.name === imageDisplayName(file))) {
+		const name = imageDisplayName(file)
+		if (!checkNameLength(splitFileName(name).base)) return
+		if (fileStore.images.some((img) => img.name === name)) {
 			window.alert('A file with that name already exists in this project.')
 			return
 		}
@@ -433,7 +308,12 @@ function uploadFile(folderId: string | null) {
 // Blank creation, same shape as addScript — not upload-based: there's no
 // file picker here, just a name prompt and an empty new row.
 async function addTextFile(folderId: string | null) {
-	const input = window.prompt(`New text file name ("${joinFileName('', DEFAULT_TEXT_FILE_TYPE.extension)}" is added automatically):`)
+	const input = await namePromptStore.prompt({
+		title: 'New text file',
+		description: `"${joinFileName('', DEFAULT_TEXT_FILE_TYPE.extension)}" is added automatically.`,
+		maxLength: MAX_FILE_NAME_LENGTH,
+		confirmLabel: 'Create',
+	})
 	if (!input) return
 
 	const base = splitFileName(input.trim()).base
@@ -451,13 +331,17 @@ async function addTextFile(folderId: string | null) {
 // Dropdown shown behind the header's own "+" for the project root — folderId
 // is null for root. Also folded into itemMenuItems below for folder rows,
 // rather than getting its own separate trigger button on those rows.
-function folderMenuItems(folderId: string | null) {
-	return [
+// Upload only ever appears in a real project — the guest sandbox has no
+// object storage to put an uploaded file in (see fileStore.uploadImage's own
+// guard, the actual enforcement point).
+function folderMenuItems(folderId: string | null): DropdownMenuItem[] {
+	const items: DropdownMenuItem[] = [
 		{ label: 'New script', icon: 'tabler:script-plus', onSelect: () => addScript(folderId) },
 		{ label: 'New text file', icon: 'tabler:file-plus', onSelect: () => addTextFile(folderId) },
 		{ label: 'New folder', icon: 'tabler:folder-plus', onSelect: () => addFolder(folderId) },
-		{ label: 'Upload file', icon: 'tabler:upload', onSelect: () => uploadFile(folderId) },
 	]
+	if (fileStore.projectId) items.push({ label: 'Upload file', icon: 'tabler:upload', onSelect: () => uploadFile(folderId) })
+	return items
 }
 
 // Every row's actions collapsed into one dropdown behind one trigger button
@@ -468,16 +352,25 @@ function folderMenuItems(folderId: string | null) {
 function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 	const primary: DropdownMenuItem[] = []
 
+	if (item.kind === 'script') {
+		primary.push({ label: 'Run script', icon: 'tabler:player-play-filled', onSelect: () => emit('runScript', scriptName(item)) })
+	}
 	if (item.kind === 'folder') primary.push(...folderMenuItems(item.id))
 	if (item.kind === 'image' && item.path) {
 		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyImageUrl(item.path) })
 	}
 	primary.push({ label: `Rename ${kindLabel(item)}`, icon: 'tabler:pencil-filled', onSelect: () => startRename(item) })
 
-	return [
-		primary,
-		[{ label: `Delete ${kindLabel(item)}`, icon: 'tabler:trash-filled', color: 'error', onSelect: () => deleteItem(item) }],
-	]
+	const groups = [primary]
+
+	// The canonical entry script can be renamed (that stays a legitimate
+	// reorganization) but never deleted from here — nothing else guarantees
+	// a project always has one, and Restart depends on it existing.
+	if (!(item.kind === 'script' && scriptName(item) === MAIN_SCRIPT_NAME)) {
+		groups.push([{ label: `Delete ${kindLabel(item)}`, icon: 'tabler:trash-filled', color: 'error', onSelect: () => deleteItem(item) }])
+	}
+
+	return groups
 }
 
 // Right-clicking anywhere on a row opens itemMenuItems at the cursor via the
@@ -538,6 +431,44 @@ const renamingItemId = ref<string | null>(null)
 const renamingValue = ref('')
 const renameInputRef = ref<HTMLInputElement | null>(null)
 
+// Bound to both the row's UContextMenu (right-click) and its UDropdownMenu
+// ("..." button) via :content="{ onCloseAutoFocus: preventCloseAutoFocus }".
+// Both close as part of selecting "Rename", and Reka's Menu primitive
+// explicitly moves focus back to whatever triggered it as part of that close
+// — which, since the rename <input> has almost always already claimed focus
+// by then, *blurs* it and fires commitRename via its own @blur handler
+// before the user can type a single character. Confirmed via the actual
+// stack trace (FocusScope's focus() call landing in our onBlur) rather than
+// assumed — this is the primitive's own designed-in behavior, not a bug in
+// it, so preventing it here is the correct fix rather than trying to win a
+// timing race against it.
+function preventCloseAutoFocus(event: Event) {
+	event.preventDefault()
+}
+
+// Not reactive — only ever read imperatively from onDocumentMouseDown below,
+// which needs the actual item (commitRename's signature) and not just its id.
+let renamingItem: TreeItem | null = null
+
+// Backstop for "click outside closes the rename" on top of the existing
+// blur/row-click handling above: blur alone isn't reliable here, since any
+// *other* element's own mousedown handler calling preventDefault() (a
+// legitimate technique elsewhere for its own unrelated reasons, e.g.
+// preserving a selection) has the side effect of blocking the browser's
+// default focus-shift too, which means this input never loses focus and
+// blur never fires. A capture-phase document listener runs regardless of
+// what any other handler does with the same event, so it can't be starved
+// the same way.
+function onDocumentMouseDown(event: MouseEvent) {
+	if (!renamingItem) return
+	const target = event.target
+	if (target instanceof HTMLElement && target.closest('.rename-editing')) return
+	commitRename(renamingItem)
+}
+
+onMounted(() => document.addEventListener('mousedown', onDocumentMouseDown, true))
+onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMouseDown, true))
+
 // A click on the row to the right of the input (rather than on the input
 // itself) should just commit-and-close the rename. The naive approach —
 // let the browser blur the input as normal, commit on blur — races: mousedown
@@ -559,18 +490,51 @@ function onRowClick(event: MouseEvent, item: TreeItem) {
 	commitRename(item)
 }
 
+// The tree root has its own roving-tabindex keyboard nav (arrow keys to
+// move the active item, Home/End, type-ahead search, ...) bound at the
+// tree/treeitem level — which the rename <input> sits *inside*, so every
+// keystroke while typing a new name also bubbles up into it unless stopped
+// here. Left unstopped, ordinary text editing (Home/End to jump within the
+// typed name, arrow keys, letters) doubles as tree navigation underneath.
+// One handler for the whole keydown, rather than @keydown.stop *and*
+// separate @keydown.enter/.escape ones — a real DOM element can only carry
+// one `keydown` listener from a template, so Enter/Escape have to be
+// dispatched from in here too.
+function onRenameKeydown(event: KeyboardEvent, item: TreeItem) {
+	event.stopPropagation()
+	if (event.key === 'Enter') commitRename(item)
+	else if (event.key === 'Escape') cancelRename()
+}
+
 async function startRename(item: TreeItem) {
+	// Belt-and-braces alongside preventCloseAutoFocus above: forces the
+	// dropdown closed immediately rather than waiting on its own close, in
+	// case anything else is watching actionsMenuOpenKey in the meantime.
+	if (actionsMenuOpenKey.value === rowKey(item)) actionsMenuOpenKey.value = null
+
 	renamingItemId.value = item.id
+	renamingItem = item
 	// The input only ever holds the base name — folders have no extension to
 	// strip, scripts/images do (rejoined with it in commitRename below).
 	renamingValue.value = item.kind === 'folder' ? scriptName(item) : splitFileName(scriptName(item)).base
 	await nextTick()
-	renameInputRef.value?.focus()
-	renameInputRef.value?.select()
+
+	// preventCloseAutoFocus (above) stops the menu from actively stealing
+	// focus back to a specific target, but the right-click ContextMenu's
+	// FocusScope still unwinds itself on its own timing regardless —
+	// observed landing focus on <body> afterward even with that prevented.
+	// Deferring past it with a macrotask, same reasoning as the comment that
+	// used to be here, is still needed on top of preventCloseAutoFocus, not
+	// instead of it.
+	setTimeout(() => {
+		renameInputRef.value?.focus()
+		renameInputRef.value?.select()
+	}, 0)
 }
 
 function cancelRename() {
 	renamingItemId.value = null
+	renamingItem = null
 }
 
 async function renameScript(current: string, name: string) {
@@ -626,12 +590,19 @@ function commitRename(item: TreeItem) {
 	if (renamingItemId.value !== item.id) return
 	const typed = renamingValue.value.trim()
 	renamingItemId.value = null
+	renamingItem = null
 	if (!typed) return
 
 	if (item.kind === 'folder') {
+		if (!checkNameLength(typed)) return
 		renameFolder(item.id, scriptName(item), item.parentId ?? null, typed)
 		return
 	}
+
+	// Checked against the base (typed), before the extension is re-attached
+	// below — the input's own :maxlength already keeps this under the limit
+	// by construction, so this is a backstop, not the primary defense.
+	if (!checkNameLength(typed)) return
 
 	// The extension itself was never part of renamingValue (see startRename),
 	// so it's re-attached here rather than trusted from what was typed.
@@ -644,6 +615,12 @@ function commitRename(item: TreeItem) {
 // ---- Delete ----
 
 async function deleteScript(name: string) {
+	// Belt-and-braces: itemMenuItems already omits the Delete entry entirely
+	// for main.js, so this only matters if some other path ever calls here.
+	if (name === MAIN_SCRIPT_NAME) {
+		window.alert("The main script can't be deleted.")
+		return
+	}
 	if (fileStore.scripts.length <= 1) {
 		window.alert("Can't delete the last script in a project.")
 		return
@@ -720,8 +697,7 @@ function deleteItem(item: TreeItem) {
 // (appended at the end); dropping on a script makes the dragged item that
 // script's sibling, inserted just before it; dropping on the tree's own
 // background (nothing more specific claimed the event) sends it to the
-// project root. Guest-mode rows never set `.kind`, so `draggable` is false
-// for them and none of this activates outside project mode.
+// project root (or the guest sandbox's own root, in the sandbox).
 //
 // `dropTarget` mirrors whichever of those three outcomes is currently
 // hovered as a { folderId, index } pair — withDropPlaceholder (above)
@@ -895,38 +871,47 @@ async function onDropOnRoot() {
 </script>
 
 <template>
+	<CollapsiblePane label="Files" icon="tabler:folder-filled">
 	<div class="panel-wrapper">
 		<div class="panel-bar">
 			<div class="spacer"></div>
 
 			<div>Files</div>
 
-			<UDropdownMenu v-if="fileStore.projectId" :items="folderMenuItems(null)" style="flex: 0 1 auto;">
+			<UDropdownMenu :items="folderMenuItems(null)" style="flex: 0 1 auto;">
 				<UTooltip text="Add..." ignore-non-keyboard-focus>
 					<UButton icon="tabler:plus" variant="ghost" color="neutral" size="xs" />
 				</UTooltip>
 			</UDropdownMenu>
-			<div v-else class="spacer"></div>
 		</div>
 
-		<UContextMenu :disabled="!fileStore.projectId" :items="folderMenuItems(null)">
+		<UContextMenu :items="folderMenuItems(null)">
 			<div class="file-tree" @dragover.prevent="onDragOverRoot" @dragleave="onDragLeaveRoot" @drop="onDropOnRoot">
+				<!-- selection-behavior="replace": Reka's own default ('toggle')
+				deselects an item when it's clicked again while already
+				selected, which — since this is a real v-model straight to the
+				shared store — actually cleared the selection (see
+				treeSelectionStore.ts; AssetLibrary.vue's UTree needs the same
+				fix, sharing that same store/model). 'replace' always
+				re-selects on click instead, so re-clicking the active item is
+				a no-op rather than deactivating it. -->
 				<UTree
 					v-model="treeSelectionStore.current"
 					:items="items"
 					:get-key="(item: TreeItem) => item.id ?? item.label"
-					:expanded="controlledExpandedIds"
+					selection-behavior="replace"
+					:expanded="expandedFolderIds"
 					@update:expanded="onUpdateExpanded"
 					class="file-tree"
 				>
 					<template #item-leading="{ item, expanded }">
 						<img v-if="item.thumbnail" :src="item.thumbnail" :title="item.typeLabel" class="thumbnail-icon" alt="" />
-						<UIcon v-else-if="item.icon" :name="item.icon" :title="item.typeLabel" class="leading-icon" />
+						<UIcon v-else-if="item.icon" :name="item.icon" :title="item.typeLabel" class="leading-icon" :class="itemStateClass(item)" />
 						<UIcon v-else-if="item.kind === 'folder' || item.children?.length" :name="expanded ? 'tabler:folder-open-filled' : 'tabler:folder-filled'" class="leading-icon" />
 					</template>
 
 					<template #item-label="{ item }">
-						<UContextMenu :disabled="!fileStore.projectId" :items="itemMenuItems(item)">
+						<UContextMenu :items="itemMenuItems(item)" :content="{ onCloseAutoFocus: preventCloseAutoFocus }">
 							<div
 								class="tree-row-dnd"
 								:ref="(el) => setRowDndRef(item, el)"
@@ -958,10 +943,10 @@ async function onDropOnRoot() {
 								class="rename-input"
 								autocomplete="off"
 								spellcheck="false"
+								:maxlength="MAX_FILE_NAME_LENGTH"
 								@click.stop
 								@mousedown.stop
-								@keydown.enter="commitRename(item)"
-								@keydown.escape="cancelRename"
+								@keydown="onRenameKeydown($event, item)"
 								@blur="commitRename(item)"
 							/>
 							<!-- Static, not part of renamingValue — the whole point is that
@@ -970,15 +955,16 @@ async function onDropOnRoot() {
 							<span v-if="fileExtension(item)" class="rename-extension">.{{ fileExtension(item) }}</span>
 						</div>
 						<template v-else>
-							{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span>
+							<span :class="itemStateClass(item)">{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span></span>
 						</template>
 					</template>
 
-					<template v-if="fileStore.projectId" #item-trailing="{ item }">
+					<template #item-trailing="{ item }">
 						<div v-if="renamingItemId !== item.id" class="item-actions" @contextmenu="forwardRowContextMenu($event, item)">
 							<UDropdownMenu
 								:items="itemMenuItems(item)"
 								:open="actionsMenuOpenKey === rowKey(item)"
+								:content="{ onCloseAutoFocus: preventCloseAutoFocus }"
 								@update:open="(value: boolean) => actionsMenuOpenKey = value ? (rowKey(item) ?? null) : null"
 							>
 								<!-- <UTooltip text="Actions" ignore-non-keyboard-focus> -->
@@ -1005,6 +991,7 @@ async function onDropOnRoot() {
 			</div>
 		</UContextMenu>
 	</div>
+	</CollapsiblePane>
 </template>
 
 <style scoped>
@@ -1021,8 +1008,19 @@ async function onDropOnRoot() {
 }
 
 .dirty-marker {
-	color: var(--theme-warning);
+	/* Inherits from whichever of .item-state-error/.item-state-dirty is on
+	   the wrapping span below — the marker only ever renders alongside one
+	   of those two, so it always ends up the same color as the name next to it. */
+	color: inherit;
 	margin-left: 0.15em;
+}
+
+.item-state-dirty {
+	color: var(--theme-warning);
+}
+
+.item-state-error {
+	color: var(--theme-error);
 }
 
 .thumbnail-icon {
@@ -1064,18 +1062,6 @@ async function onDropOnRoot() {
 	position: absolute;
 	inset: 0;
 	border-radius: 0.25rem;
-}
-
-/* Applied to Nuxt UI's own row element (rather than as a Tailwind class via
-   the tree's `:ui` prop) so it paints as a real background behind the row's
-   own content — icon and label included — instead of a layer stacked above
-   it. `:hover` here fires from *any* descendant, .item-actions' own button
-   included, since hover state bubbles to every ancestor regardless of which
-   element the pointer is actually over; the :has() exclusion is what keeps
-   that button's own hover (see .item-actions below) as a highlight on just
-   the button, rather than both it and the row lighting up together. */
-:deep([data-slot="link"]:hover:not(:has(.item-actions:hover))) {
-	background-color: var(--theme-bg-accented);
 }
 
 /* .tree-row-dnd needs to *stay* interactive while renaming (not

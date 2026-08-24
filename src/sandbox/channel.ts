@@ -17,7 +17,7 @@ const hostOrigin = new URLSearchParams(window.location.search).get(HOST_ORIGIN_P
 
 export function postToHost(message: SandboxMessage) {
     // Addressed to the host's exact origin rather than '*', so that if someone
-    // else ever frames sandbox.html the browser silently drops the message
+    // else ever frames runner.html the browser silently drops the message
     // instead of handing them the game's output.
     if (!hostOrigin || hostWindow === window) return
     hostWindow.postMessage(message, hostOrigin)

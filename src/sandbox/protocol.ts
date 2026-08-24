@@ -9,11 +9,27 @@ import type { ThemePalette } from '@/assets/theme/themes'
 
 /** host -> sandbox */
 export type HostMessage =
-    /** Start a fresh run. `code` is the entry script (main.js equivalent). */
-    | { type: 'run', code: string, theme?: ThemePalette }
+    /**
+     * Start a fresh run. `code` is the entry script's content — whichever
+     * file was active in the editor, not necessarily "main.js" — and
+     * `entryName` is that file's real name, so compiled stack traces (and
+     * therefore locateError) attribute errors to it correctly instead of
+     * always assuming "main.js".
+     */
+    | { type: 'run', code: string, entryName: string, theme?: ThemePalette }
     /** Reply to a 'script-request'. `content: null` means "no such script". */
     | { type: 'script-response', id: number, content: string | null }
-    | { type: 'set-paused', paused: boolean }
+    /**
+     * `seq` is a host-side counter incremented on every 'set-paused' sent,
+     * echoed back as `status.pauseSeq` once the sandbox applies it. Without
+     * it, hostBridge.ts's optimistic `pausedRef` write on click can get
+     * clobbered by a 'status' snapshot that was already in flight when the
+     * click happened — the snapshot reflects the pre-click state, but lands
+     * after the optimistic write, flickering the button back before the next
+     * (correct) snapshot arrives. Gating on `seq` lets the host recognize and
+     * discard those stale snapshots instead of trusting whichever arrives last.
+     */
+    | { type: 'set-paused', paused: boolean, seq: number }
     /** Nudge the game to re-measure its container (splitter drags, etc.). */
     | { type: 'resize' }
     /**
@@ -42,7 +58,7 @@ export type SandboxMessage =
      * in-page runner used to read the store directly.
      */
     | { type: 'script-request', id: number, name: string }
-    | { type: 'output', kind: OutputKind, text: string, frame: number }
+    | { type: 'output', kind: OutputKind, text: string, frame: number, location?: OutputLocation }
     | { type: 'output-clear' }
     /** Periodic telemetry for the canvas panel's FPS badge / mouse readout, and the Info panel. */
     | {
@@ -51,6 +67,8 @@ export type SandboxMessage =
         mouseX: number,
         mouseY: number,
         paused: boolean,
+        /** The `seq` of the last 'set-paused' this snapshot reflects having applied. See that type's comment. */
+        pauseSeq: number,
         frame: number,
         time: number,
         deltaMs: number,
@@ -67,6 +85,17 @@ export type SandboxMessage =
 export type OutputKind = 'print' | 'warn' | 'error' | 'start'
 
 /**
+ * Where in the user's own scripts a runtime error was thrown, if it could be
+ * recovered from the error's stack trace (see moduleRunner.ts's locateError).
+ * `line` is already corrected for the one-line prelude every compiled script
+ * carries, so it's directly a line the user's editor can point at.
+ */
+export interface OutputLocation {
+    script: string
+    line: number
+}
+
+/**
  * A watch() card's values, already formatted to display strings sandbox-side
  * — getters may close over live game objects that aren't structured-cloneable
  * (or that throw), so only their rendered text crosses the boundary.
@@ -80,7 +109,7 @@ export interface WatchCardSnapshot {
  * The host passes its own origin in the iframe URL so the sandbox can address
  * replies to exactly that origin instead of '*'. An opaque origin has no way to
  * discover its embedder otherwise, and '*' would leak game output to any third
- * party that framed sandbox.html.
+ * party that framed runner.html.
  */
 export const HOST_ORIGIN_PARAM = 'hostOrigin'
 

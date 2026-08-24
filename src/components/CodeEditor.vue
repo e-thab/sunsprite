@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch, handleError } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, handleError } from 'vue'
 
 import { useFileStore } from '@/stores/fileStore'
 import { useThemeStore } from '@/stores/themeStore'
@@ -8,6 +8,8 @@ import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
 import { resolveSpecifierToName, listImportSpecifiers } from '@/assets/api/scriptResolution'
 import { TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
+import CollapsiblePane from './CollapsiblePane.vue'
+import '@/assets/code-completion/monaco-colors'
 import { ModuleDetectionKind } from 'typescript'
 
 // CodeMirror
@@ -58,11 +60,29 @@ for (const palette of themes) {
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
-const editorInstance = ref<monaco.editor.IStandaloneCodeEditor>()
+// shallowRef, not ref: a plain ref() deep-reactive-wraps whatever object is
+// assigned to it, and Monaco's editor instance leans hard on private/WeakMap-
+// keyed internal state that's keyed by the *real* object's identity. Calling
+// a method through Vue's reactive Proxy invokes it with `this` bound to the
+// proxy instead of the real editor, which silently breaks anything relying
+// on that internal state — observed as e.g. editorInstance.value.getModel()
+// returning something that isn't === the model actually attached via
+// setModel(), and revealLineInCenter() becoming a silent no-op.
+const editorInstance = shallowRef<monaco.editor.IStandaloneCodeEditor>()
 
 function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	editorInstance.value = editor
 	monaco.editor.setTheme(monacoThemeName(themeStore.currentId))
+
+	// Registering this as a Monaco command (rather than a plain window
+	// keydown listener) is what stops the browser's own "Save Page As"
+	// dialog from appearing — Monaco's keybinding service calls
+	// preventDefault() on the triggering keydown once a command claims it.
+	// Rebound on every remount since commands live on the editor instance,
+	// not the model (see the :key remount below).
+	editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+		saveCurrentCode()
+	})
 
 	// TODO: Look into setting up CodeLens, maybe for running specific sections of the code..?
 
@@ -108,6 +128,11 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 			editor.updateOptions({ renderValidationDecorations: 'off' })
 			editor.setModel(activeModel)
 			refreshDiagnostics(editor, activeModel, importedNames)
+		}
+
+		if (pendingReveal && pendingReveal.script === fileStore.activeFileName) {
+			editor.revealLineInCenter(pendingReveal.line)
+			pendingReveal = null
 		}
 	}
 
@@ -196,30 +221,38 @@ watch(activeMonacoTheme, (name) => monaco.editor.setTheme(name))
 type ModelEntry = { model: monaco.editor.ITextModel, recordId?: string, isText?: boolean }
 const modelEntries = new Map<string, ModelEntry>()
 
-// Same content source moduleRunner.ts reads at runtime, so the editor and
-// the actual game execution always agree on what a script resolves to.
-// In project mode a script that genuinely doesn't exist resolves to
-// undefined (no phantom model, so Monaco correctly flags a real typo);
-// guest mode always has example-code fallback content.
-function resolveContent(name: string): string | undefined {
-	const local = fileStore.getLocalCode(name)
-	if (local !== undefined) return local
-	if (!fileStore.projectId) return getExampleCode(name)
-	return undefined
-}
+// Highlight for the line a runtime error was thrown on (see revealErrorLine).
+// Decorations live on the model, not the editor instance, so this survives
+// the inner <CodeEditor>'s remount on file switch (:key="activeFileName"
+// below) — only one is ever live at a time, matching "the current error".
+let currentErrorDecoration: { model: monaco.editor.ITextModel, ids: string[], line: number } | null = null
 
+// Watches the decorated model for edits that land on the decorated line
+// itself, so fixing the offending line clears the highlight (editor and
+// FileTree both) without waiting for the next run — see applyErrorDecoration.
+let errorDecorationWatcher: monaco.IDisposable | null = null
+
+// Set when revealErrorLine targets a script that isn't the one currently
+// attached to the (possibly not-yet-remounted) editor; handleMount consumes
+// it once that script's model actually gets attached.
+let pendingReveal: { script: string, line: number } | null = null
+
+// Same content source moduleRunner.ts reads at runtime, so the editor and
+// the actual game execution always agree on what a script resolves to. A
+// script that genuinely doesn't exist — in the loaded project or the guest
+// sandbox alike, both real record-backed file lists now — resolves to
+// undefined, so Monaco correctly flags a real typo instead of phantom-
+// resolving it to placeholder content.
 function ensureModel(name: string): monaco.editor.ITextModel | undefined {
 	const existing = modelEntries.get(name)
 	if (existing) return existing.model
 
-	const content = resolveContent(name)
+	const content = fileStore.getLocalCode(name)
 	if (content === undefined) return undefined
 
 	const isText = fileStore.isTextFile(name)
 	const model = monaco.editor.createModel(content, isText ? TEXT_MONACO_LANGUAGE : 'javascript', monaco.Uri.parse('file:///' + name))
-	const record = fileStore.projectId
-		? (fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name))
-		: undefined
+	const record = fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name)
 	modelEntries.set(name, { model, recordId: record?.id, isText })
 	return model
 }
@@ -247,6 +280,95 @@ function ensureImportedModels(source: string, visited: Set<string> = new Set()):
 function switchToScript(name: string) {
 	const model = ensureModel(name)
 	if (model && !fileStore.isTextFile(name)) ensureImportedModels(model.getValue())
+}
+
+function applyErrorDecoration(model: monaco.editor.ITextModel, line: number) {
+	errorDecorationWatcher?.dispose()
+	errorDecorationWatcher = null
+	if (currentErrorDecoration) {
+		currentErrorDecoration.model.deltaDecorations(currentErrorDecoration.ids, [])
+	}
+	const clampedLine = Math.min(Math.max(1, line), model.getLineCount())
+	const ids = model.deltaDecorations([], [{
+		range: new monaco.Range(clampedLine, 1, clampedLine, 1),
+		options: {
+			isWholeLine: true,
+			className: 'error-line-highlight',
+			marginClassName: 'error-line-margin',
+		},
+	}])
+	currentErrorDecoration = { model, ids, line: clampedLine }
+
+	const decorationId = ids[0]
+	if (!decorationId) return
+
+	errorDecorationWatcher = model.onDidChangeContent((event) => {
+		// setValue()-driven resets (refreshDiagnostics's forced re-check below)
+		// flag as a "flush", not a real edit — reapplyErrorDecoration handles
+		// restoring the decoration those cause on its own, right after.
+		if (event.isFlush) return
+		if (!currentErrorDecoration || currentErrorDecoration.model !== model) return
+
+		// The decoration's own tracked range, not the line it was created at —
+		// edits elsewhere in the file (adding lines above it, say) shift where
+		// it actually sits, and this stays correct through all of that.
+		const liveRange = model.getDecorationRange(decorationId)
+		if (!liveRange) return
+
+		const touchedDecoratedLine = event.changes.some((change) =>
+			change.range.startLineNumber <= liveRange.startLineNumber && change.range.endLineNumber >= liveRange.startLineNumber
+		)
+		if (touchedDecoratedLine) clearErrorDecoration()
+	})
+}
+
+// refreshDiagnostics (below) forces a fresh model.setValue() to re-trigger
+// the TS worker, which — being a full content replace rather than an edit —
+// silently drops any decorations that were sitting on the model, including
+// the error highlight. Called right after that setValue so the highlight
+// reappears immediately instead of vanishing for whatever's left of
+// refreshDiagnostics's settle window.
+function reapplyErrorDecoration(model: monaco.editor.ITextModel) {
+	if (currentErrorDecoration && currentErrorDecoration.model === model) {
+		applyErrorDecoration(model, currentErrorDecoration.line)
+	}
+}
+
+// Full reset of every bit of "there's a current runtime error" state — the
+// Monaco decoration, its edit watcher, a still-pending reveal, and FileTree's
+// matching highlight (see fileStore.erroredScriptName) — all of which only
+// ever point at one error at a time, so nothing here needs to be selective.
+function clearErrorDecoration() {
+	errorDecorationWatcher?.dispose()
+	errorDecorationWatcher = null
+	if (currentErrorDecoration) {
+		currentErrorDecoration.model.deltaDecorations(currentErrorDecoration.ids, [])
+		currentErrorDecoration = null
+	}
+	pendingReveal = null
+	fileStore.clearErroredScript()
+}
+
+/**
+ * Highlights the line a runtime error was thrown on, in whichever script it
+ * happened in — called from EditorView when the user clicks a runtime
+ * error's "at script:line" link in the output panel (see output.ts's
+ * onJumpToError). The target script may not be the one currently open, so
+ * this only scrolls it into view immediately when it already is; otherwise
+ * handleMount finishes the job once switchToScript's remount attaches it.
+ */
+function revealErrorLine(script: string, line: number) {
+	const model = ensureModel(script)
+	if (!model) return
+
+	applyErrorDecoration(model, line)
+
+	if (editorInstance.value && editorInstance.value.getModel() === model) {
+		editorInstance.value.revealLineInCenter(line)
+		pendingReveal = null
+	} else {
+		pendingReveal = { script, line }
+	}
 }
 
 // Resolves once no marker-change event has landed for `uri` for `quietMs`,
@@ -319,7 +441,10 @@ async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, m
 		.filter((uri): uri is monaco.Uri => uri !== undefined)
 	try {
 		await syncWithRetry(model.uri, relatedUris)
-		if (!model.isDisposed()) model.setValue(model.getValue())
+		if (!model.isDisposed()) {
+			model.setValue(model.getValue())
+			reapplyErrorDecoration(model)
+		}
 	} catch (err) {
 		console.error(`Failed to sync ${model.uri} with the TS worker after retries`, err)
 	}
@@ -337,16 +462,15 @@ async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, m
 	if (editor.getModel()) editor.updateOptions({ renderValidationDecorations: 'on' })
 }
 
-// Project scripts *and text files* renamed/deleted via FileTree.vue: Monaco
-// models can't be renamed in place, so a rename carries the live (possibly
-// unsaved) content over to a fresh model at the new URI; a deletion just
-// disposes the orphaned one. One place owns this instead of threading it
-// through every fileStore.renameScript/renameTextFile/delete* call site.
+// Scripts *and text files* renamed/deleted via FileTree.vue — in a loaded
+// project or the guest sandbox alike — Monaco models can't be renamed in
+// place, so a rename carries the live (possibly unsaved) content over to a
+// fresh model at the new URI; a deletion just disposes the orphaned one. One
+// place owns this instead of threading it through every
+// fileStore.renameScript/renameTextFile/delete* call site.
 watch(
 	() => [...fileStore.scripts.map((s) => ({ id: s.id, name: s.name })), ...fileStore.textFiles.map((f) => ({ id: f.id, name: f.name }))],
 	() => {
-		if (!fileStore.projectId) return
-
 		for (const [name, entry] of [...modelEntries]) {
 			if (!entry.recordId) continue
 
@@ -370,9 +494,8 @@ watch(
 	{ deep: true },
 )
 
-// Switching projects (or leaving one for the guest sandbox): project-backed
-// models from the *previous* project are stale and must not bleed into
-// the next one — guest-mode models (no recordId) are left alone.
+// Switching projects (or leaving one for the guest sandbox): stale models
+// from whatever was loaded before must not bleed into whatever comes next.
 watch(() => fileStore.projectId, () => {
 	for (const [name, entry] of [...modelEntries]) {
 		if (!entry.recordId) continue
@@ -383,6 +506,7 @@ watch(() => fileStore.projectId, () => {
 
 onBeforeUnmount(() => {
 	fileStore.registerSaveAllHandler(null)
+	errorDecorationWatcher?.dispose()
 	for (const entry of modelEntries.values()) entry.model.dispose()
 	modelEntries.clear()
 })
@@ -418,8 +542,28 @@ async function saveAll() {
 	updateSaveMsg()
 }
 
+// Runs `name` as the entry script regardless of which file is currently
+// active/visible — used for the game header's Restart (always "main.js",
+// see runMainScript) and FileTree's per-script "Run" action, neither of
+// which should yank the editor over to a different tab just to run it.
+// ensureModel loads a script that's never been opened from its last saved
+// content; one that's already open (with live, possibly unsaved edits)
+// keeps using that model, same as running the active file always has.
+function runNamedScript(name: string) {
+	clearErrorDecoration()
+	const code = ensureModel(name)?.getValue() ?? ''
+	runUserCode(code, name, themeStore.current)
+}
+
 function runActiveUserCode() {
-	runUserCode(getCode(), themeStore.current)
+	runNamedScript(fileStore.activeFileName)
+}
+
+// The game header's Restart button always runs this — "main.js" is the
+// project's canonical entry point regardless of whichever script happens to
+// be open in the editor at the time.
+function runMainScript() {
+	runNamedScript('main.js')
 }
 
 function onEditorChange(value: string) {
@@ -445,7 +589,7 @@ function updateSaveMsg(checkCode?: string) {
 }
 
 const emit = defineEmits(['ready'])
-defineExpose({ runActiveUserCode, setCode, getCode, updateSaveMsg, switchToScript })
+defineExpose({ runActiveUserCode, runMainScript, runNamedScript, setCode, getCode, updateSaveMsg, switchToScript, revealErrorLine })
 
 onMounted(() => {
 	self.MonacoEnvironment = {
@@ -501,15 +645,28 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 </script>
 
 <template>
+	<CollapsiblePane label="Code" icon="tabler:code">
 	<div class="panel-wrapper">
-		<div id="editor-bar">
+		<div id="editor-bar" class="panel-bar">
 			<div class="save-group">
 				<UTooltip text="Save">
 					<UButton icon="tabler:device-floppy-filled" variant="ghost" :color="saveStatusColor" size="xs" @click="saveCurrentCode">{{ saveStatusText }}</UButton>
 				</UTooltip>
 			</div>
 
-			<div id="file-name">{{ fileStore.activeFileName }}</div>
+			<div id="file-name">
+				<!-- Names are capped at 40 chars (see MAX_FILE_NAME_LENGTH), but
+				     the bar itself can get much narrower than that at small
+				     panel widths — title gives the full name back on hover. -->
+				<span class="file-name-text" :title="fileStore.activeFileName">{{ fileStore.activeFileName }}</span>
+
+				<!-- Runs just this script as the entry point, regardless of
+				     which one the game header's Restart button runs (always
+				     main.js — see runMainScript). Text files aren't scripts. -->
+				<UTooltip v-if="!fileStore.isTextFile(fileStore.activeFileName)" text="Run this script">
+					<UButton icon="tabler:player-play-filled" variant="subtle" color="primary" size="xs" @click="runActiveUserCode" />
+				</UTooltip>
+			</div>
 
 			<div class="reset-group">
 				<!-- TODO: Right now I'm only checking if the user is signed in to decide how to display reset,
@@ -520,7 +677,7 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 
 				<!-- TODO: Version selector -->
 				<UFieldGroup>
-					<UBadge color="primary" variant="subtle" size="md">v1.0.0</UBadge>
+					<UBadge color="primary" variant="subtle" size="xs" style="font-size: x-small;">v1.0.0</UBadge>
 					<UDropdownMenu :items="exampleVersionItems">
 					<UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs"/>
 					</UDropdownMenu>
@@ -549,6 +706,7 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 			/>
 		</div>
 	</div>
+	</CollapsiblePane>
 </template>
 
 <style scoped>
@@ -569,8 +727,25 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 }
 
 #file-name {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25em;
 	color: var(--theme-text);
 	justify-self: center;
+	/* Lets this grid item actually shrink below its content's width instead
+	   of overflowing the column — grid items default to min-width: auto,
+	   same trap flex items have. max-width keeps it from claiming more than
+	   its column ever has to give. */
+	min-width: 0;
+	max-width: 100%;
+}
+
+.file-name-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .save-group {
@@ -584,5 +759,18 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 .reset-group {
 	justify-self: end;
 	transform: translate(-1px, -1px)
+}
+</style>
+
+<!-- Unscoped: these target Monaco's own decoration DOM, which it creates
+     outside this component's scoped-attribute reach regardless of where
+     the model is attached. -->
+<style>
+.error-line-highlight {
+	background-color: color-mix(in srgb, var(--theme-error) 18%, transparent);
+}
+
+.error-line-margin {
+	border-left: 3px solid var(--theme-error);
 }
 </style>

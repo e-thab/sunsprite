@@ -17,21 +17,6 @@
   background-color: #252a33;
 } */
 
-/* Splitpanes customization */
-.splitpanes {
-  background-color: var(--theme-bg-muted);
-}
-
-.splitpanes__pane {
-  /* background: linear-gradient(-45deg, #EE7752, #E73C7E, #23A6D5, #23D5AB); */
-  /* box-shadow: 0 0 5px rgba(255, 255, 255, 0.05) inset; */
-  /* justify-content: center; */
-  /* align-items: center; */
-  /* display: flex; */
-  background-color: var(--theme-bg-elevated);
-  transition: none !important;
-}
-
 /* 
   Fix monaco hover tooltips flickering on ctrl+f menu
   via https://github.com/PostHog/posthog/pull/56025
@@ -62,16 +47,17 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
 
 .panel-bar {
   display: flex;
-	height: 24px;
+	height: 32px;
   flex-shrink: 0;
-  padding-left: 0.1em;
-  padding-right: 0.2em;
+  padding-left: var(--spacing);
+  padding-right: var(--spacing);
   justify-content: space-between;
   align-items: center;
   color: var(--theme-text);
   background-color: var(--theme-bg-muted);
   font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
   user-select: none;
+  border-bottom: 1px solid var(--theme-border);
 }
 
 /* Shared "live value cards" layout, used by InfoPanel.vue and WatchPanel.vue
@@ -203,6 +189,21 @@ Make sure disabled buttons don't get the pointer cursor.
 */
 :disabled {
   cursor: default;
+}
+
+/**
+Automatically add a superscript arrow icon after links.
+Only targets non-image links that use target="_blank" to open in a new tab,
+and only when that tab leaves sunsprite.dev — an absolute URL to some other
+domain. Internal target="_blank" links (e.g. DocsPanel's "open full docs")
+use a relative href and never match [href^="http"], so they're excluded
+without needing a condition of their own.
+*/
+a[target="_blank"][href^="http"]:not([href*="sunsprite.dev"]):not(:has(img))::after {
+  content: " \2197";
+  font-size: 0.7em;
+  vertical-align: super;
+  margin-left: -2px;
 }
 
 /* @media (hover: hover) {

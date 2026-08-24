@@ -6,7 +6,7 @@ import type { ThemePalette } from '../theme/themes'
 import { Mouse } from './types'
 import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
-import { runEntryModule } from './moduleRunner'
+import { runEntryModule, locateError } from './moduleRunner'
 import Output from '@/sandbox/output'
 import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 
@@ -20,6 +20,7 @@ import Line from './Line'
 import HLine from './HLine'
 import VLine from './VLine'
 import Timer from './Timer'
+import Clock from './Clock'
 // import Camera from './Camera';  --  needs phaser attention
 
 // export const outputItems: {
@@ -37,12 +38,69 @@ import Timer from './Timer'
 // read out of here by src/sandbox/main.ts and forwarded to the host as plain
 // data; hostBridge.ts turns it back into refs on the app side.
 
+/**
+ * Normalizes anything a user script might throw into a real Error with a
+ * readable message — `throw "oops"` or `throw {code: 1}` are legal JS and
+ * shouldn't degrade into a bare "[object Object]" in the output panel just
+ * because they aren't `instanceof Error` (which also means locateError has
+ * no stack to recover a line from, but the message stays useful).
+ */
+function toDisplayError(e: unknown): Error {
+	if (e instanceof Error) return e
+	if (typeof e === 'string') return new Error(e)
+	try {
+		return new Error(JSON.stringify(e))
+	} catch {
+		return new Error(String(e))
+	}
+}
+
+/** Single place that turns "something a user script threw" into output panel content. */
+function reportUserError(e: unknown) {
+	const err = toDisplayError(e)
+	Output.runtimeError(err.toString(), locateError(err))
+	console.error('User code error:', err)
+}
+
+/**
+ * Runs a user-supplied callback — forever(), repeat(), onKey(), a mouse
+ * handler, whatever — catching and reporting anything it throws the same way
+ * the initial script run already is. Unlike that one-time run, all of these
+ * fire from Phaser's own update loop or its event emitter, on every frame or
+ * every input event, for the entire lifetime of the game — with nothing
+ * wrapping them before now, a throwing forever() body just died silently in
+ * the sandbox's own (invisible) console and was never seen again.
+ *
+ * `fallback` is what callers get back when `fn` throws, so a broken
+ * predicate (repeatUntil's condition, etc.) fails toward whatever behavior
+ * is safest for its caller rather than propagating further.
+ */
+function runUserCallback<T>(fn: () => T, fallback: T): T {
+	try {
+		return fn()
+	} catch (e) {
+		reportUserError(e)
+		return fallback
+	}
+}
+
+/**
+ * Same as runUserCallback, but for a callback handed off to Phaser's own
+ * event emitter (mouse input) instead of one we call ourselves — Phaser owns
+ * invocation timing here, so this wraps the function once at registration
+ * time. The wrapped function is what must be stored for later `.off()` calls
+ * too, since Phaser's emitter removes listeners by reference.
+ */
+function wrapUserCallback<A extends unknown[]>(fn: (...args: A) => void): (...args: A) => void {
+	return (...args: A) => runUserCallback(() => fn(...args), undefined)
+}
+
 export function pause() {
-	Clock.pause()
+	clock.pause()
 	paused = true
 }
 export function play() {
-	Clock.play()
+	clock.play()
 	paused = false
 }
 
@@ -59,6 +117,9 @@ export let allPositionables: { _updatePosition(): void }[] = []
 
 /** A map associating Phaser objects to custom Sunsprite objects */
 export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
+
+/** All timer objects that need updating each frame */
+export let allTimers: Timer[] = []
 
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
@@ -120,20 +181,27 @@ export function updatePositions() {
 	}
 }
 
+function updateTimers() {
+	for (const timer of allTimers) {
+		timer._update()
+	}
+}
+
 function _runForevers() {
 	for (const forever of _forevers) {
-		forever(Clock.delta)
+		runUserCallback(() => forever(clock.delta), undefined)
 	}
 }
 
 function _runRepeats() {
 	for (const repeat of _repeats) {
-		repeat.fn(repeat.i)
+		runUserCallback(() => repeat.fn(repeat.i), undefined)
 		repeat.count -= 1
 		repeat.i += 1
 
 		if (repeat.count <= 0 && repeat.then) {
-			repeat.then()
+			const then = repeat.then
+			runUserCallback(() => then(), undefined)
 		}
 	}
 	_repeats = _repeats.filter(repeat => repeat.count > 0)
@@ -141,28 +209,37 @@ function _runRepeats() {
 
 function _runRepeatUntils() {
 	for (const repeatUntil of _repeatUntils) {
-		if (repeatUntil.condition()) {
+		// A throwing condition() is treated as "yes, done" (see runUserCallback's
+		// fallback below) so a broken repeatUntil finishes and gets cleaned up by
+		// the filter() at the bottom, rather than re-throwing every frame forever.
+		if (runUserCallback(() => repeatUntil.condition(), true)) {
 			// Once condition first becomes true, run then() and remove repeatUntil()
-			if (repeatUntil.then) repeatUntil.then(repeatUntil.i)
+			if (repeatUntil.then) {
+				const then = repeatUntil.then
+				runUserCallback(() => then(repeatUntil.i), undefined)
+			}
 		} else {
 			// Run as long as condition is false
-			repeatUntil.fn(repeatUntil.i)
+			runUserCallback(() => repeatUntil.fn(repeatUntil.i), undefined)
 			repeatUntil.i += 1
 		}
 	}
-	_repeatUntils = _repeatUntils.filter(repeatUntil => !repeatUntil.condition())
+	_repeatUntils = _repeatUntils.filter(repeatUntil => !runUserCallback(() => repeatUntil.condition(), true))
 }
 
 function _runRepeatWhiles() {
 	for (const repeatWhile of _repeatWhiles) {
-		const thisCheck = repeatWhile.condition()
+		// A throwing condition() is treated as "no, stop" (see runUserCallback's
+		// fallback below), same reasoning as repeatUntil above but inverted.
+		const thisCheck = runUserCallback(() => repeatWhile.condition(), false)
 		if (thisCheck) {
 			// Run as long as the condition is true
-			repeatWhile.fn(repeatWhile.i)
+			runUserCallback(() => repeatWhile.fn(repeatWhile.i), undefined)
 			repeatWhile.i += 1
 		} else if (repeatWhile.lastCheck && repeatWhile.then) {
 			// Once the condition first becomes false, run then() and reset
-			repeatWhile.then(repeatWhile.i)
+			const then = repeatWhile.then
+			runUserCallback(() => then(repeatWhile.i), undefined)
 			repeatWhile.i = 0
 		}
 		repeatWhile.lastCheck = thisCheck
@@ -173,7 +250,7 @@ function _runAfters(delta: number) {
 	for (const after of _afters) {
 		after.elapsedMs += delta
 		if (after.elapsedMs >= after.lifetimeMs) {
-			after.fn()
+			runUserCallback(() => after.fn(), undefined)
 		}
 	}
 	_afters = _afters.filter(after => after.elapsedMs < after.lifetimeMs)
@@ -183,7 +260,7 @@ function _runEverys(delta: number) {
 	for (const every of _everys) {
 		every.elapsedMs += delta
 		if (every.elapsedMs >= every.lifetimeMs) {
-			every.fn()
+			runUserCallback(() => every.fn(), undefined)
 			every.elapsedMs = 0
 		}
 	}
@@ -191,9 +268,9 @@ function _runEverys(delta: number) {
 
 function _runWhens() {
 	for (const when of _whens) {
-		const thisCheck = when.condition()
+		const thisCheck = runUserCallback(() => when.condition(), false)
 		if (thisCheck && !when.lastCheck) {
-			when.fn()
+			runUserCallback(() => when.fn(), undefined)
 		}
 		when.lastCheck = thisCheck
 	}
@@ -201,26 +278,26 @@ function _runWhens() {
 
 function _runOnKeyActions() {
 	for (const [key, action] of _keyPressActions) {
-		if (action && keyJustPressed(key)) action()
+		if (action && keyJustPressed(key)) runUserCallback(() => action(), undefined)
 	}
 
 	for (const [key, action] of _keyHoldActions) {
-		if (action && keyPressed(key)) action()
+		if (action && keyPressed(key)) runUserCallback(() => action(), undefined)
 	}
 
 	for (const [key, action] of _keyReleaseActions) {
-		if (action && keyJustReleased(key)) action()
+		if (action && keyJustReleased(key)) runUserCallback(() => action(), undefined)
 	}
-	 
+
 	const anyPressAction = _keyPressActions.get('any')
 	if (keysJustPressed.size > 0 && anyPressAction) {
-		anyPressAction()
-	} 
+		runUserCallback(() => anyPressAction(), undefined)
+	}
 
 	const anyHoldAction = _keyHoldActions.get('any')
 	if (keysPressed.length > 0 && anyHoldAction) {
-		anyHoldAction()
-	} 
+		runUserCallback(() => anyHoldAction(), undefined)
+	}
 }
 
 const _propUpdaters: Map<string, (() => any)> = new Map()
@@ -257,7 +334,7 @@ function _clearKeysJustReleased(frame: number) {
 
 function _releaseAllKeys() {
 	for (const key of keysPressed) {
-		keysJustReleased.set(key, Clock.frame)
+		keysJustReleased.set(key, clock.frame)
 	}
 	keysPressed = []
 }
@@ -296,7 +373,7 @@ export let game: Game
 export let scene: Scene
 export let camera: Phaser.Cameras.Scene2D.Camera
 export const mouse = new Mouse()
-export const Clock: Timer = new Timer()
+export const clock: Clock = new Clock()
 export let paused = false
 
 // TODO: Turn Timer into a class, but still provide the default singleton
@@ -579,8 +656,9 @@ function _registerMouseInputAction(eventName: string, action?: PointerAction) {
 	}
 
 	if (action) {
-		_mouseInputActions.set(eventName, action)
-		scene.input.on(eventName, action)
+		const wrapped = wrapUserCallback(action)
+		_mouseInputActions.set(eventName, wrapped)
+		scene.input.on(eventName, wrapped)
 	} else {
 		_mouseInputActions.delete(eventName)
 	}
@@ -592,8 +670,9 @@ function _registerMouseHoldAction(eventName: string, action?: PointerAction) {
 	}
 
 	if (action) {
-		_mouseHoldActions.set(eventName, action)
-		scene.input.on(eventName, action)
+		const wrapped = wrapUserCallback(action)
+		_mouseHoldActions.set(eventName, wrapped)
+		scene.input.on(eventName, wrapped)
 	} else {
 		_mouseHoldActions.delete(eventName)
 	}
@@ -623,11 +702,14 @@ const UserOutput = {
  */
 class UserScene extends Scene {
 	JScode: string
+	/** Real name of the active script JScode came from — see runEntryModule. */
+	entryName: string
 	guy?: Phaser.GameObjects.Sprite
 
-	constructor(JScode: string) {
+	constructor(JScode: string, entryName: string) {
 		super('main')
 		this.JScode = JScode
+		this.entryName = entryName
 		scene = this
 	}
 	
@@ -743,8 +825,8 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, /*Point,*/
-			Clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, /*Point,*/
+			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			Output: UserOutput, print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
@@ -801,17 +883,16 @@ class UserScene extends Scene {
 		
 		// Another problem post-phaser: user code errors prevent reloading of the game sometimes?
 		try {
-			await runEntryModule(this.JScode, api)
-		} catch (e: any) {
-			const err = (e as Error)
-			Output.error(err.toString())
-			console.error('User code error:', err)
+			await runEntryModule(this.JScode, api, this.entryName)
+		} catch (e) {
+			reportUserError(e)
 		}
 	}
 	
 	update(time: number, delta: number) {
 		// onUpdate()
-		Clock._update(delta)
+		clock._update(delta)
+		updateTimers()
 
 		// Only update mouse pos while mouse is over canvas, otherwise clicking code editor updates
 		if (mouseOverCanvas()) {
@@ -826,8 +907,8 @@ class UserScene extends Scene {
 			_runRepeats()
 			_runRepeatUntils()
 			_runRepeatWhiles()
-			_runAfters(Clock.deltaMs)
-			_runEverys(Clock.deltaMs)
+			_runAfters(clock.deltaMs)
+			_runEverys(clock.deltaMs)
 
 			_runPropUpdaters()
 		}
@@ -836,12 +917,12 @@ class UserScene extends Scene {
 		// state; keydown/keyup arrive async between ticks and get stamped with whatever
 		// Clock.frame was at that moment, so clearing before _runOnKeyActions() would wipe
 		// them out one tick before anything ever reads them.
-		_clearKeysJustPressed(Clock.frame)
-		_clearKeysJustReleased(Clock.frame)
+		_clearKeysJustPressed(clock.frame)
+		_clearKeysJustReleased(clock.frame)
 	}
 }
 
-export async function runUserCode(code: string, theme?: ThemePalette): Promise<void> {
+export async function runUserCode(code: string, entryName: string, theme?: ThemePalette): Promise<void> {
 	Output.clear()
 
 	if (_sessionCount > 0) console.groupEnd()
@@ -857,6 +938,7 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 	_repeatUntils = []
 	_repeatWhiles = []
 	allPositionables = []
+	allTimers = []
 
 	_keyPressActions.clear()
 	_keyHoldActions.clear()
@@ -874,19 +956,19 @@ export async function runUserCode(code: string, theme?: ThemePalette): Promise<v
 	// timer.time = 0
 	// timer.totalTime = 0
 	// timer.frame = 0
-	// Clock.frame = 0
+	// clock.frame = 0
 	_nextObjectId = 0
 	_lastLeftClickTime = 0
 	
-	Output.printStartMsg()
-	Clock.reset()
+	Output.printStartMsg(entryName)
+	clock._reset()
 	play()
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
 	
 	if (game) game.destroy(true)
 
-	scene = new UserScene(code)
+	scene = new UserScene(code, entryName)
 
 	let config: Types.Core.GameConfig = {
 		type: AUTO,
@@ -993,21 +1075,21 @@ export function setup() {
 		// Add specific key to keysJustPressed map
 		if (keyCode && !keysPressed.includes(keyCode)) {
 			keysPressed.push(keyCode)
-			keysJustPressed.set(keyCode, Clock.frame)
+			keysJustPressed.set(keyCode, clock.frame)
 			
 			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keysPressed.includes('shift')) {
 				keysPressed.push('shift')
-				keysJustPressed.set('shift', Clock.frame)
+				keysJustPressed.set('shift', clock.frame)
 			}
 
 			else if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keysPressed.includes('ctrl')) {
 				keysPressed.push('ctrl')
-				keysJustPressed.set('ctrl', Clock.frame)
+				keysJustPressed.set('ctrl', clock.frame)
 			}
 
 			else if ((keyCode === 'altleft' || keyCode === 'altright') && keysPressed.includes('alt')) {
 				keysPressed.push('alt')
-				keysJustPressed.set('alt', Clock.frame)
+				keysJustPressed.set('alt', clock.frame)
 			}
 		}
 	}
@@ -1021,24 +1103,24 @@ export function setup() {
 			keysPressed.splice(keysPressed.indexOf(keyCode), 1)
 			// Only add to map if it was being pressed. This prevents potential extra release events
 			// if releasing key after window regains focus
-			keysJustReleased.set(keyCode, Clock.frame)
+			keysJustReleased.set(keyCode, clock.frame)
 
 			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keyPressed('shiftleft') && !keyPressed('shiftright')) {
 				// console.log('clear shift')
 				keysPressed.splice(keysPressed.indexOf('shift'), 1)
-				keysJustReleased.set('shift', Clock.frame)
+				keysJustReleased.set('shift', clock.frame)
 			}
 
 			if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keyPressed('ctrlleft') && !keyPressed('ctrlright')) {
 				// console.log('clear ctrl')
 				keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
-				keysJustReleased.set('ctrl', Clock.frame)
+				keysJustReleased.set('ctrl', clock.frame)
 			}
 
 			if ((keyCode === 'altleft' || keyCode === 'altright') && !keyPressed('altleft') && !keyPressed('altright')) {
 				// console.log('clear alt')
 				keysPressed.splice(keysPressed.indexOf('alt'), 1)
-				keysJustReleased.set('alt', Clock.frame)
+				keysJustReleased.set('alt', clock.frame)
 			}
 		}
 	}
@@ -1067,15 +1149,21 @@ export function setup() {
 	// 		updatePositions()
 	// 	})
 	// })
-	
-	// window.addEventListener('error', (errorEvent) => {
-	// 	console.log(errorEvent)
 
-	// 	const { lineno, colno } = errorEvent;
-	// 	console.log(`Error thrown at: ${lineno}:${colno}`);
-
-	// 	errorEvent.preventDefault()
-	// })
+	// Last line of defense: anything a user script throws that doesn't reach
+	// one of runUserCallback's try/catches above — a promise the user's own
+	// code never awaited or caught, an error from somewhere genuinely
+	// unwrapped — still deserves to reach the output panel instead of
+	// silently vanishing into this iframe's own (invisible, to the user)
+	// devtools console.
+	window.addEventListener('error', (event) => {
+		reportUserError(event.error ?? event.message)
+		event.preventDefault()
+	})
+	window.addEventListener('unhandledrejection', (event) => {
+		reportUserError(event.reason)
+		event.preventDefault()
+	})
 
 	// app.stage.eventMode = 'dynamic'
 	// app.stage.on('globalmousemove', event => {

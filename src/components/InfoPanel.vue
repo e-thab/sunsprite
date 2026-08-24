@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, watch } from 'vue'
-import { mouseRef, screenRef, clockRef } from '@/sandbox/hostBridge'
+import { mouseRef, screenRef, clockRef, pausedRef } from '@/sandbox/hostBridge'
 import { infoFieldLabels, infoFieldOrder, useInfoPanelStore, type InfoFieldKey } from '@/stores/infoPanelStore'
 import { PANEL_PADDING, useCardPacking } from '@/composables/useCardPacking'
 import type { DropdownMenuItem } from '@nuxt/ui'
@@ -68,6 +68,9 @@ function fieldRows(key: InfoFieldKey): InfoSubItem[][] {
                     { label: 'Frame', value: String(clockRef.value.frame), minChars: 6 },
                     { label: 'delta Ms', value: `${round(clockRef.value.deltaMs, 1)}ms`, minChars: 7 },
                 ],
+                [
+                    { label: 'Paused?', value: `${pausedRef.value ? 'Yes' : 'No'}`, minChars: 6 }
+                ]
             ]
     }
 }

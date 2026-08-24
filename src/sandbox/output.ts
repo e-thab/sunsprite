@@ -1,8 +1,8 @@
 import Colors from '@/assets/api/Colors'
-import { Clock } from '@/assets/api/core'
+import { clock } from '@/assets/api/core'
 import type { Printable } from '@/assets/api/types'
 import { postToHost } from './channel'
-import type { OutputKind } from './protocol'
+import type { OutputKind, OutputLocation } from './protocol'
 
 // Sandbox-side stand-in for the output panel. Shares the shape of the host's
 // Output (src/assets/api/output.ts) so core.ts and the user-facing print/warn/
@@ -10,7 +10,7 @@ import type { OutputKind } from './protocol'
 // is stringified and posted to the host, which does the rendering.
 
 const Output = {
-    print, warn, error, clear, printStartMsg
+    print, warn, error, clear, printStartMsg, runtimeError
 }
 export default Output
 
@@ -33,8 +33,8 @@ function joinArgs(args: Printable[]): string {
     return msg
 }
 
-function send(kind: OutputKind, text: string) {
-    postToHost({ type: 'output', kind, text, frame: Clock.frame })
+function send(kind: OutputKind, text: string, location?: OutputLocation) {
+    postToHost({ type: 'output', kind, text, frame: clock.frame, location })
 }
 
 export function print(...args: Printable[]) {
@@ -52,13 +52,24 @@ function error(...args: Printable[]) {
     send('error', joinArgs(args))
 }
 
-function printStartMsg() {
+/**
+ * Distinct from the user-facing error() above: this is for a user script that
+ * *threw*, rather than one that called Output.error() itself, so it carries
+ * an optional source location (see moduleRunner.ts's locateError) instead of
+ * varargs to print.
+ */
+function runtimeError(message: string, location?: OutputLocation) {
+    console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, message)
+    send('error', message, location)
+}
+
+function printStartMsg(scriptName: string) {
     const time = new Date()
     const hr = withLeadingZeroes(time.getHours(), 2)
     const min = withLeadingZeroes(time.getMinutes(), 2)
     const sec = withLeadingZeroes(time.getSeconds(), 2)
     const milli = withLeadingZeroes(time.getMilliseconds(), 3)
-    send('start', `Running @ ${hr}:${min}:${sec}.${milli}`)
+    send('start', `Running ${scriptName} @ ${hr}:${min}:${sec}.${milli}`)
 }
 
 function clear() {

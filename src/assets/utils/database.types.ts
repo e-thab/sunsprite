@@ -166,6 +166,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_public: boolean
           name: string
           owner_id: string
           slug: string
@@ -174,6 +175,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_public?: boolean
           name: string
           owner_id: string
           slug: string
@@ -182,6 +184,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_public?: boolean
           name?: string
           owner_id?: string
           slug?: string
@@ -292,6 +295,10 @@ export type Database = {
     Functions: {
       get_email_for_username: {
         Args: { lookup_username: string }
+        Returns: string
+      }
+      get_public_creator_username: {
+        Args: { creator_id: string }
         Returns: string
       }
       is_username_taken: { Args: { check_username: string }; Returns: boolean }

@@ -133,6 +133,13 @@ onMounted(loadProfile)
 .account-view {
   width: 100%;
   height: 100%;
+  /* Nothing here was ever expected to overflow, so this was never given a
+     way to reach any that did — App.vue's `.content` used to force
+     `overflow-y: hidden` on every route's root regardless, silently
+     matching that assumption. Now that each view owns its own overflow
+     (see App.vue), this needs its own fallback rather than one that only
+     happened to be right by accident. */
+  overflow-y: auto;
   display: flex;
   align-items: center;
   justify-content: center;

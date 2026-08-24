@@ -105,7 +105,3 @@ export function generateSlug(): string {
 
   return `${first}-${second}-${pick(nouns)}`
 }
-
-for (let i=0; i<10; i++) {
-  console.log(generateSlug())
-}

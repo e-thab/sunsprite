@@ -39,7 +39,7 @@ export interface ThemePalette {
     bgElevated: string
     /** Navbar and splitter color, not currently used within Nuxt components */
     bgAccented: string
-    /** Not currently used */
+    /** Currently only used for docs page link hover highlights */
     bgInverted: string
     
     /** Nuxt component borders, file tree lines */

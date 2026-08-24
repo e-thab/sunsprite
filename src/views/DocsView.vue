@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { docsTree } from '@/assets/docs/docsContent'
 import { nodesByPath, ancestorsOf } from '@/assets/docs/docsIndex'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
+import { provideDocsToc } from '@/assets/docs/docsToc'
 import DocsTree from '@/components/docs/DocsTree.vue'
 import DocsBreadcrumb from '@/components/docs/DocsBreadcrumb.vue'
 import DocsCategoryLanding from '@/components/docs/DocsCategoryLanding.vue'
@@ -14,13 +15,30 @@ import ErrorView from './ErrorView.vue'
 const route = useRoute()
 const router = useRouter()
 
-const currentPath = computed(() => {
+const routePath = computed(() => {
 	const raw = route.params.pathMatch
 	return Array.isArray(raw) ? raw.join('/') : (raw ?? '')
 })
 
+// router.push() below is async — actual navigation (route match, guards, the
+// page's own re-render) can lag a click by several ms, which visibly showed
+// as the clicked tree item's highlight briefly holding its hover color
+// before snapping to the current-page one once the route caught up.
+// optimisticPath tracks the just-clicked target so currentPath — and
+// everything driven by it (tree highlight, page content, TOC) — updates the
+// instant navigate() runs, with the real route/URL following shortly after
+// in the background. Cleared once that push settles (resolved or rejected;
+// .finally() covers both) — guarded on still being the same path in case a
+// second click landed before the first's push settled, so that one's own
+// clear doesn't stomp the second click's own still-pending state.
+const optimisticPath = ref<string | null>(null)
+const currentPath = computed(() => optimisticPath.value ?? routePath.value)
+
 function navigate(path: string, opts?: { reveal?: boolean }) {
-	router.push(`/docs/${path}`)
+	optimisticPath.value = path
+	router.push(`/docs/${path}`).finally(() => {
+		if (optimisticPath.value === path) optimisticPath.value = null
+	})
 	if (opts?.reveal) {
 		for (const entry of ancestorsOf(path)) expandOverrides.set(entry.path, true)
 	}
@@ -60,6 +78,11 @@ watch(currentPath, (path) => {
 provide(docsNavigationKey, { currentPath, navigate, resolveHref, isExpanded, toggleExpanded })
 
 const currentNode = computed(() => nodesByPath.get(currentPath.value))
+
+// Filled in by the page itself as it mounts, so it changes a tick after
+// currentPath does — which is why the TOC's own width is re-measured on
+// tocSections rather than only on navigation.
+const tocSections = provideDocsToc()
 
 // The TOC is what gives first when the window gets tight: it drops out once the
 // body column would be squeezed below this. In rem so it tracks the user's font
@@ -130,12 +153,13 @@ function update() {
 }
 
 onMounted(update)
-// The root's own resizes come from the observer. These cover the two things
-// that move the boundary without resizing it: expanding or collapsing a branch
-// widens the tree's fit-content track, and navigating changes what the TOC
-// holds (or whether it renders at all).
+// The root's own resizes come from the observer. These cover what moves the
+// boundary without resizing it: expanding or collapsing a branch widens the
+// tree's fit-content track, and the TOC's own contents change (a tick after
+// navigation, once the new page has mounted and registered its sections).
 watch(expandOverrides, measure, { flush: 'post' })
 watch(currentPath, update, { flush: 'post' })
+watch(tocSections, measure, { flush: 'post' })
 onBeforeUnmount(() => observer?.disconnect())
 </script>
 
@@ -160,13 +184,13 @@ onBeforeUnmount(() => observer?.disconnect())
 
 		<UPageBody>
 			<UContainer class="docs-view-container">
-				<DocsCategoryLanding v-if="currentNode.kind === 'category'" :node="currentNode" :path="currentPath" />
+				<DocsCategoryLanding v-if="currentNode.kind === 'category'" :node="currentNode" />
 				<DocsBody v-else :node="currentNode" />
 			</UContainer>
 		</UPageBody>
 
 		<template #right>
-			<DocsToc v-if="showToc" :node="currentNode" />
+			<DocsToc v-if="showToc" :sections="tocSections" />
 		</template>
 	</UPage>
 </template>
