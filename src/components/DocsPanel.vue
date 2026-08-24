@@ -18,8 +18,11 @@ defineEmits<{ close: [] }>()
 
 // See usePixelMinSize's own comment for the full reasoning — this keeps
 // docs-tree-pane/docs-content-pane's own floor pixel-consistent with every
-// other pane in the editor, not just matched to each other.
-const minSize = usePixelMinSize('docs-tree-pane', 'height')
+// other pane in the editor, not just matched to each other, and
+// collapsible below lets a drag toward it snap the rest of the way past
+// the halfway point instead of stopping smoothly at any arbitrary size
+// between CollapsiblePane's own icon/label threshold and this floor.
+const { minSize, collapsedSize } = usePixelMinSize('docs-tree-pane', 'height')
 
 const panelItems = computed<SplitterItem[]>(() => [
 	{ id: 'docs-tree-pane', slot: 'docs-tree-pane', defaultSize: 45, minSize: minSize.value },
@@ -232,11 +235,11 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
    told to. Only the two corners each actually touches: panel-bar is first
    (top), the tree scroll is last (bottom); docs-search and the breadcrumb
    row in between touch neither edge and stay square on all sides. */
-.panel-bar {
+/* .panel-bar {
 	background-color: var(--theme-bg-muted);
-	/* border-top-left-radius: 0.65rem;
-	border-top-right-radius: 0.65rem; */
-}
+	border-top-left-radius: 0.65rem;
+	border-top-right-radius: 0.65rem;
+} */
 
 .docs-search {
 	flex-shrink: 0;

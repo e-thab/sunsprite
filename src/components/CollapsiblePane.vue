@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
+import { COLLAPSE_THRESHOLD_PX } from '@/composables/usePixelMinSize'
 
 const props = defineProps<{
   label: string
@@ -9,14 +10,16 @@ const props = defineProps<{
 // Below this, in either dimension, a pane is too small to show real content
 // (a scrollable tree, an editor, a canvas) usefully — the label overlay
 // takes over instead of the pane trying to render its normal content into a
-// sliver. Not tied to any specific splitter's minSize: a pane can end up
-// this small from its *own* handle being dragged to its floor, or just as
-// easily from an ancestor pane shrinking around it (an outer column
-// narrowing squeezes every nested pane inside it down to the same width,
-// with none of their own handles ever moving) — a live pixel measurement of
-// this component's own rendered box catches both the same way a percentage
-// check tied to one specific splitter wouldn't.
-const COLLAPSE_THRESHOLD_PX = 60
+// sliver. Imported rather than declared locally: usePixelMinSize's own
+// minSize now uses this same pixel point as reka's collapse-drag trigger
+// (see its comment), so a live pixel measurement here still has to be the
+// thing driving *this* component's own presentation — a pane can end up
+// this small from an ancestor shrinking around it, with none of its own
+// handles ever moving, which a percentage check tied to one specific
+// splitter wouldn't catch — but the two need to agree on exactly which
+// pixel size that is, or a pane could sit in collapsed *content* for a
+// stretch of drag that hasn't actually reached reka's own collapse trigger
+// yet, or vice versa.
 
 // Breathing room on either side of the label so it doesn't render flush
 // against the overlay's edges right at the fit boundary.
@@ -42,6 +45,26 @@ const height = ref(0)
 // this is watching that span directly, not the label string.
 const labelWidth = ref(0)
 
+// usePixelMinSize's minSize targets this exact pixel point so a drag stops
+// tracking the cursor smoothly right where this component's own overlay
+// would take over anyway (see its own comment) — meaning a pane resting at
+// reka's sticky, not-yet-collapsed point *should* measure at exactly
+// COLLAPSE_THRESHOLD_PX here, landing this check on the "normal" side. In
+// practice it can land a hair under instead: reka renders each panel's
+// share as flex-grow rounded to 3 significant figures
+// (computePanelFlexBoxStyle's toPrecision(3)), so the pixel size this
+// component actually measures is reka's *rounded* result, not the exact
+// target it was given — off by at most a few hundredths of a pixel for any
+// window size this app runs at. Comparing against the bare threshold read
+// that rounding as "already too small," swapping to collapsed content one
+// drag step before the pane had genuinely reached its resting floor. A
+// pane doesn't need to be pixel-exact at the boundary to still clearly
+// have real, usable content at that size, so erring a hair generous here
+// (content stays visible a fraction of a pixel longer than strictly
+// necessary) is the safe direction to round — the reverse, showing the
+// overlay a hair early, is the bug this exists to avoid.
+const RESIZE_ROUNDING_SLACK_PX = 1
+
 // Which presentation this pane is in. A pane collapses width-first (if it's
 // narrow, the label rotates to run along its height, regardless of how
 // short that height also is) — matching which axis the pane actually lost
@@ -53,10 +76,10 @@ const labelWidth = ref(0)
 // "Code" might never need the icon at all, while a long doc page title
 // falls back to it well before the pane hits any fixed pixel floor.
 const mode = computed<'normal' | 'width' | 'height' | 'icon'>(() => {
-  if (width.value < COLLAPSE_THRESHOLD_PX) {
+  if (width.value < COLLAPSE_THRESHOLD_PX - RESIZE_ROUNDING_SLACK_PX) {
     return labelWidth.value + LABEL_PADDING_PX <= height.value ? 'width' : 'icon'
   }
-  if (height.value < COLLAPSE_THRESHOLD_PX) {
+  if (height.value < COLLAPSE_THRESHOLD_PX - RESIZE_ROUNDING_SLACK_PX) {
     return labelWidth.value + LABEL_PADDING_PX <= width.value ? 'height' : 'icon'
   }
   return 'normal'

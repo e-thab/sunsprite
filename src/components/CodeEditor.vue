@@ -647,7 +647,7 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 <template>
 	<CollapsiblePane label="Code" icon="tabler:code">
 	<div class="panel-wrapper">
-		<div id="editor-bar">
+		<div id="editor-bar" class="panel-bar">
 			<div class="save-group">
 				<UTooltip text="Save">
 					<UButton icon="tabler:device-floppy-filled" variant="ghost" :color="saveStatusColor" size="xs" @click="saveCurrentCode">{{ saveStatusText }}</UButton>

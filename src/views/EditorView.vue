@@ -85,9 +85,9 @@ const DOCS_PANE_OPEN_SIZE = 20
 // that floor sits below CollapsiblePane's presentation thresholds), so
 // dragging any pane in any of these three splitters to its limit stops at
 // the same actual size regardless of which one it belongs to.
-const outerMinSize = usePixelMinSize('explorer-pane', 'width')
-const explorerMinSize = usePixelMinSize('file-tree-v-pane', 'height')
-const rightMinSize = usePixelMinSize('canvas-v-pane', 'height')
+const { minSize: outerMinSize, collapsedSize: outerCollapsedSize } = usePixelMinSize('explorer-pane', 'width')
+const { minSize: explorerMinSize, collapsedSize: explorerCollapsedSize } = usePixelMinSize('file-tree-v-pane', 'height')
+const { minSize: rightMinSize, collapsedSize: rightCollapsedSize } = usePixelMinSize('canvas-v-pane', 'height')
 
 const editorRootRef = useTemplateRef('editorRoot')
 const outerSplitterRef = useTemplateRef('outerSplitter')
@@ -130,13 +130,23 @@ useStablePanelSizing(rightSplitterRef, 'height')
 const EXPLORER_DEFAULT_SIZE = 12
 const RIGHT_DEFAULT_SIZE = 44
 
+// collapsible/collapsedSize on every column here (not just docs/output's
+// own pre-existing use of the same mechanism) means dragging any of them
+// down toward outerMinSize now snaps the rest of the way to
+// outerCollapsedSize past the halfway point, the same native reka behavior
+// that already made output-v-pane snap fully shut — see usePixelMinSize's
+// own comment. Landing on outerCollapsedSize rather than 0 keeps every one
+// of these visible at a real, if small, floor: unlike docs/output there's
+// no "closed" concept for the explorer, code, or game/output column, only
+// a smallest usable size, which CollapsiblePane's own icon/label overlay
+// already renders at exactly that floor.
 const outerItems = computed<SplitterItem[]>(() => [
-  { id: 'explorer-pane', slot: 'explorer-pane', order: 1, defaultSize: EXPLORER_DEFAULT_SIZE, minSize: outerMinSize.value, class: 'hide-in-fullscreen' },
+  { id: 'explorer-pane', slot: 'explorer-pane', order: 1, defaultSize: EXPLORER_DEFAULT_SIZE, minSize: outerMinSize.value, collapsible: true, collapsedSize: outerCollapsedSize.value, class: 'hide-in-fullscreen' },
   ...(docsStore.isOpen
-    ? [{ id: 'docs-pane', slot: 'docs-pane', order: 2, defaultSize: DOCS_PANE_OPEN_SIZE, minSize: outerMinSize.value, class: 'hide-in-fullscreen' }]
+    ? [{ id: 'docs-pane', slot: 'docs-pane', order: 2, defaultSize: DOCS_PANE_OPEN_SIZE, minSize: outerMinSize.value, collapsible: true, collapsedSize: outerCollapsedSize.value, class: 'hide-in-fullscreen' }]
     : []),
-  { id: 'code-pane', slot: 'code-pane', order: 3, defaultSize: docsStore.isOpen ? 44 - DOCS_PANE_OPEN_SIZE : 44, minSize: outerMinSize.value, class: 'hide-in-fullscreen' },
-  { id: 'right-pane', slot: 'right-pane', order: 4, defaultSize: RIGHT_DEFAULT_SIZE, minSize: outerMinSize.value },
+  { id: 'code-pane', slot: 'code-pane', order: 3, defaultSize: docsStore.isOpen ? 44 - DOCS_PANE_OPEN_SIZE : 44, minSize: outerMinSize.value, collapsible: true, collapsedSize: outerCollapsedSize.value, class: 'hide-in-fullscreen' },
+  { id: 'right-pane', slot: 'right-pane', order: 4, defaultSize: RIGHT_DEFAULT_SIZE, minSize: outerMinSize.value, collapsible: true, collapsedSize: outerCollapsedSize.value },
 ])
 
 // Corrects a reka-ui limitation: code-pane's defaultSize prop does change
@@ -312,17 +322,23 @@ const splitterStorage = {
   setItem: (name: string, value: string) => { layoutMemory.set(name, value) },
 }
 
-// Right side nested row: game view | output. Output is collapsible so
-// collapseOutput() below can hide it via the same mechanism.
+// Right side nested row: game view | output. Both collapsible, but to
+// different ends: output's collapsedSize is 0 so collapseOutput() can hide
+// it entirely via the same mechanism, while canvas — no "closed" concept
+// for the game view — only ever snaps to rightCollapsedSize, its own small-
+// but-visible floor, same as every column in outerItems above.
 const rightItems = computed<SplitterItem[]>(() => [
-  { id: 'canvas-v-pane', slot: 'canvas-v-pane', defaultSize: 77, minSize: rightMinSize.value },
+  { id: 'canvas-v-pane', slot: 'canvas-v-pane', defaultSize: 77, minSize: rightMinSize.value, collapsible: true, collapsedSize: rightCollapsedSize.value },
   { id: 'output-v-pane', slot: 'output-v-pane', defaultSize: 23, minSize: rightMinSize.value, collapsible: true, collapsedSize: 0, class: 'hide-in-fullscreen' },
 ])
 
-// Explorer nested column: file tree | asset library.
+// Explorer nested column: file tree | asset library. Collapsible for the
+// same reason as outerItems above — snaps to explorerCollapsedSize's real
+// floor past the halfway point instead of leaving a dead zone between
+// CollapsiblePane's own icon/label threshold and that floor.
 const explorerItems = computed<SplitterItem[]>(() => [
-  { id: 'file-tree-v-pane', slot: 'file-tree-v-pane', defaultSize: 65, minSize: explorerMinSize.value },
-  { id: 'asset-library-v-pane', slot: 'asset-library-v-pane', defaultSize: 35, minSize: explorerMinSize.value },
+  { id: 'file-tree-v-pane', slot: 'file-tree-v-pane', defaultSize: 65, minSize: explorerMinSize.value, collapsible: true, collapsedSize: explorerCollapsedSize.value },
+  { id: 'asset-library-v-pane', slot: 'asset-library-v-pane', defaultSize: 35, minSize: explorerMinSize.value, collapsible: true, collapsedSize: explorerCollapsedSize.value },
 ])
 
 interface PaneExpandTarget {
@@ -810,18 +826,44 @@ onBeforeRouteLeave(() => {
    the two panels inside it. The test is reka-ui's own data-panel-group
    rather than [data-slot="root"]: *every* Nuxt UI component roots itself
    with the latter, so a panel merely containing a UTree (FileTree,
-   AssetLibrary) or a button would match it and lose its border too. */
+   AssetLibrary) or a button would match it and lose its frame too.
+   An inset box-shadow, not a real border: every leaf panel here sizes
+   itself via flex-basis: 0 (reka's computePanelFlexBoxStyle), and with
+   box-sizing: border-box (Tailwind's Preflight, global), a real border
+   can't shrink its own border-box below the border's own width — the
+   content-box can't go negative, so the box-sizing spec clamps a
+   flex-basis: 0 border-box up to at least 2px (1px each side) the moment
+   it has any border at all. That clamp doesn't just cap *this* panel: it
+   eats into the flex container's own free-space pool that every sibling's
+   flex-grow shares, throwing off the exact pixel target every leaf panel
+   in a group resolves to by however many of its siblings are also
+   bordered — confirmed by reproducing it in a bare, reka-free flexbox
+   page. A leaf pane's usePixelMinSize target (collapsedSize particularly)
+   was landing a few pixels bigger than intended as a direct result, and
+   CollapsiblePane's own width/height measurement — which reads this same
+   element's rendered content-box — inherited the same error. box-shadow
+   is purely a paint effect: it has no box-model presence at all, so
+   flex-basis: 0 means an *actual* zero, and (like border-radius) it
+   still clips to the rounded corners below. */
 .editor-root [data-slot="panel"]:not(:has(> [data-panel-group])) {
   /* background-color: var(--theme-bg-elevated); */
-  border: 1px solid var(--theme-text-dimmed);
+  box-shadow: inset 0 0 0 1px var(--theme-text-dimmed);
   border-radius: 0.65rem;
 }
-/* A collapsed panel's flex-computed size is 0, but a 1px border can't
-   shrink away with it — left on, it renders as a thin stray line instead
-   of a clean gap. reka-ui marks collapsed panels with data-state, so drop
-   the border there specifically rather than on every zero-width panel. */
-.editor-root [data-slot="panel"][data-state="collapsed"] {
-  border: none;
+/* A collapsed panel's flex-computed size is 0, but a 1px inset box-shadow
+   can't shrink away with it — left on, it renders as a thin stray line
+   instead of a clean gap. reka-ui marks collapsed panels with data-state,
+   so drop the frame there specifically rather than on every zero-width
+   panel. Scoped to output-v-pane by id rather than the general
+   [data-slot="panel"][data-state="collapsed"] selector: every other pane
+   is now also collapsible (see usePixelMinSize's collapsedSize), but
+   collapses to its small-but-visible pixel floor, not 0 — CollapsiblePane's
+   icon/label overlay still renders there and still wants its normal frame,
+   the same as at any other size. output-v-pane is the one pane whose
+   collapsedSize is actually 0 (collapseOutput()'s "hide the panel
+   entirely" case), so it's the one case this rule should still apply to. */
+.editor-root #output-v-pane[data-state="collapsed"] {
+  box-shadow: none;
 }
 
 /* docs-pane is the one panel in this layout whose nested USplitter isn't
