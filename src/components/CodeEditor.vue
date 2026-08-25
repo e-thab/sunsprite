@@ -525,6 +525,14 @@ function resetCode() {
 	updateSaveMsg()
 }
 
+function revertCode() {
+	if (!confirm(`Discard unsaved changes to ${fileStore.activeFileName} and revert to last saved version?`)) return
+	const savedCode = fileStore.getLocalCode(fileStore.activeFileName)
+	if (savedCode === undefined) return
+	setCode(savedCode)
+	updateSaveMsg()
+}
+
 function saveCurrentCode() {
 	if (!fileStore.isDirty(fileStore.activeFileName)) return
 	fileStore.saveCode(fileStore.activeFileName, getCode())
@@ -652,6 +660,9 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 				<UTooltip text="Save">
 					<UButton icon="tabler:device-floppy-filled" variant="ghost" :color="saveStatusColor" size="xs" @click="saveCurrentCode">{{ saveStatusText }}</UButton>
 				</UTooltip>
+				<UTooltip v-if="!fileStore.activeFileIsSaved" text="Discard unsaved changes">
+					<UButton icon="tabler:arrow-back-up" variant="ghost" color="neutral" size="xs" @click="revertCode">Revert</UButton>
+				</UTooltip>
 			</div>
 
 			<div id="file-name">
@@ -677,7 +688,7 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 
 				<!-- TODO: Version selector -->
 				<UFieldGroup>
-					<UBadge color="primary" variant="subtle" size="xs" style="font-size: x-small;">v1.0.0</UBadge>
+					<UBadge color="primary" variant="subtle" size="xs">v1.0.0</UBadge>
 					<UDropdownMenu :items="exampleVersionItems">
 					<UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs"/>
 					</UDropdownMenu>
@@ -750,15 +761,17 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 
 .save-group {
 	display: inline-flex;
-	/* align-items: center; */
-	/* gap: 0.5em; */
+	align-self: center;
+	gap: 0.5em;
 	justify-self: start;
 }
 
 
 .reset-group {
+	display: inline-flex;
 	justify-self: end;
-	transform: translate(-1px, -1px)
+	align-self: center;
+	/* transform: translate(-1px, -1px) */
 }
 </style>
 
