@@ -719,6 +719,21 @@ declare function round(num: number): number
  */
 const PI = ${Math.PI}`,
 
+// Camera
+// TODO: jsdoc
+`
+declare const Camera = {
+    ${positionableApi}
+
+    zoom: number
+
+    shake(duration?: number, intensity?: number | Phaser.Math.Vector2, force?: boolean, callback?: Function): void
+
+    reset(): void
+
+
+}`,
+
 // Sprite
 // TODO: include default values
 `

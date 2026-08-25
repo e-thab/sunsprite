@@ -688,7 +688,7 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 
 				<!-- TODO: Version selector -->
 				<UFieldGroup>
-					<UBadge color="primary" variant="subtle" size="xs">v1.0.0</UBadge>
+					<UBadge color="primary" variant="subtle" size="xs" style="font-size: small;">v1.0.0</UBadge>
 					<UDropdownMenu :items="exampleVersionItems">
 					<UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs"/>
 					</UDropdownMenu>

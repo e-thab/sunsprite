@@ -244,13 +244,13 @@ export function Positionable<Base extends Class>(base: Base) {
 
         _updateX() {
             // if (this._refObj) this._refObj.x = this.x + app.screen.width / 2 - camera.x
-            if (this._refObj) this._refObj.x = this.x + screen.width / 2 - camera.x
+            if (this._refObj) this._refObj.x = this.x + screen.width / 2 /*- camera.x*/
             // if (this._refObj) console.log(`setting actual x to ${this.x + screen.width / 2 - camera.x}`)
         }
 
         _updateY() { 
             // if (this._refObj) this._refObj.y = -this.y + app.screen.height / 2 + camera.y
-            if (this._refObj) this._refObj.y = -this.y + screen.height / 2 + camera.y
+            if (this._refObj) this._refObj.y = -this.y + screen.height / 2 /*+ camera.y*/
         }
     }
 }

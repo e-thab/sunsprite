@@ -682,7 +682,7 @@ onBeforeRouteLeave(() => {
     :path="previewImagePath"
     :label="previewImageLabel"
     class="image-preview-overlay"
-    :style="{ left: explorerPixelWidth + 'px', width: `calc(100% - ${explorerPixelWidth}px)` }"
+    :style="{ left: explorerPixelWidth + 'px', width: `calc(100% - ${explorerPixelWidth}px - 0.35rem)` }"
     @close="closePreview"
   />
   </div>
@@ -727,11 +727,26 @@ onBeforeRouteLeave(() => {
 /* Docks over the docs/code/right panes only — left edge tracks the
    explorer pane's live width so the file tree/asset library stay visible
    and clickable underneath, letting the user pick another image while a
-   preview is already open. */
+   preview is already open. Inset on the bottom/right by the same 0.35rem
+   gutter .editor-root pads its own edges with (left comes for free —
+   explorerPixelWidth already lands right at the splitter handle), so the
+   panel's rounded corners (added in ImagePreviewModal.vue) read against
+   the accented background the same way every CollapsiblePane-framed pane's
+   corners do, instead of being flush-cropped at the true viewport edge.
+   height: auto is load-bearing here — ImagePreviewModal's own root also
+   matches .panel-wrapper (shared with every other pane), which sets an
+   unscoped height: 100%. Left at its default `auto`, a non-auto top +
+   non-auto bottom together determine an absolutely positioned box's
+   height; but the moment *any* rule gives it an explicit height instead,
+   the spec has that win over bottom, and bottom is solved-for (i.e.
+   silently discarded) rather than actually constraining the box — which
+   is exactly how this shipped flush against the true bottom edge the
+   first time despite the rule above already setting bottom: 0.35rem. */
 .image-preview-overlay {
   position: absolute;
   top: 0;
-  bottom: 0;
+  bottom: 0.35rem;
+  height: auto;
   z-index: 20;
 }
 

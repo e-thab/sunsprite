@@ -102,7 +102,7 @@ function onPointerUp() {
 			/>
 		</div>
 
-		<div class="viewer-controls">
+		<div class="panel-bar viewer-controls">
 			<UTooltip text="Zoom out">
 				<UButton icon="tabler:zoom-out" variant="ghost" color="neutral" size="sm" @click="zoomBy(1 / BUTTON_ZOOM_STEP)" />
 			</UTooltip>
@@ -118,6 +118,15 @@ function onPointerUp() {
 </template>
 
 <style scoped>
+/* Matches CollapsiblePane's own .collapsible-pane-frame treatment — this
+   modal floats over the editor rather than living inside a splitter panel,
+   so it never gets that frame from an ancestor and has to draw it itself. */
+.panel-wrapper {
+	border: 1px solid var(--theme-border);
+	border-radius: var(--panel-border-radius);
+	overflow: hidden;
+}
+
 .image-viewer {
 	position: relative;
 	flex: 1 1 auto;
@@ -155,7 +164,8 @@ function onPointerUp() {
 	gap: 0.5em;
 	flex-shrink: 0;
 	padding: 0.5em;
-	background-color: var(--theme-bg-elevated);
+	background-color: var(--theme-bg-muted);
+	border-top: 1px solid var(--theme-border)
 }
 
 .zoom-level {

@@ -2,7 +2,7 @@
 export const meta = {
 	title: 'Challenges',
 	icon: 'tabler:target-arrow',
-	summary: 'Small project ideas to practice what you’ve learned.',
+	summary: 'Small project ideas to practice what you\'ve learned.',
 }
 
 export default {}
@@ -10,6 +10,6 @@ export default {}
 
 <template>
 	<DocSection id="content-1">
-		<p>Small project ideas to practice what you’ve learned.</p>
+		<p>Small project ideas to practice what you've learned.</p>
 	</DocSection>
 </template>

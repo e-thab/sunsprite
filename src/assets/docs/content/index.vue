@@ -3,7 +3,7 @@
 // so this file exists only to hold the top-level page order, the same way
 // every category's own index.vue holds the order of its children.
 export const meta = {
-	order: ['getting-started', 'api', 'tutorials', 'challenges', 'tips', 'ui'],
+	order: ['getting-started', 'api', 'tutorials', 'concepts', 'challenges', 'tips', 'ui'],
 }
 
 export default {}

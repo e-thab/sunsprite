@@ -21,7 +21,7 @@ import HLine from './HLine'
 import VLine from './VLine'
 import Timer from './Timer'
 import Clock from './Clock'
-// import Camera from './Camera';  --  needs phaser attention
+import Camera from './Camera'
 
 // export const outputItems: {
 // 	stamps: HTMLElement[],
@@ -371,7 +371,8 @@ export function getGamePoint(point: Point): Point {
 // Idea: setScreenSize() ?
 export let game: Game
 export let scene: Scene
-export let camera: Phaser.Cameras.Scene2D.Camera
+// export let camera: Phaser.Cameras.Scene2D.Camera
+export let camera: Camera
 export const mouse = new Mouse()
 export const clock: Clock = new Clock()
 export let paused = false
@@ -418,10 +419,10 @@ let keysJustReleased: Map<string, number | undefined> = new Map()
 
 export const screen: Screen = {
 	get width(): number {
-		return camera?.width ?? 0
+		return camera?._refObj.width ?? 0
 	},
 	get height(): number {
-		return camera?.height ?? 0
+		return camera?._refObj.height ?? 0
 	},
 	get top(): number {
 		return camera ? camera.y + this.height / 2 : 0
@@ -448,7 +449,7 @@ export const screen: Screen = {
 
 export function setBackgroundColor(color: string) {
 	// Web color name support?
-	camera.setBackgroundColor(color)
+	camera._refObj.setBackgroundColor(color)
 }
 
 async function setBackgroundImage(src: string) {
@@ -744,7 +745,12 @@ class UserScene extends Scene {
 		console.log('create')
 
 		mouse._setPointer(this.input.activePointer)
-		camera = this.cameras.main
+		
+		if (camera) {
+			camera._setCam(this.cameras.main)
+		} else {
+			camera = new Camera(this.cameras.main)
+		}
 
 		// Set poll always to allow cursors to change when pointer isn't moving
 		this.input.setPollAlways()
@@ -896,8 +902,10 @@ class UserScene extends Scene {
 
 		// Only update mouse pos while mouse is over canvas, otherwise clicking code editor updates
 		if (mouseOverCanvas()) {
-			mouse.x = clamp(this.input.activePointer.x - screen.width / 2, screen.left, screen.right)
-			mouse.y = clamp(screen.height / 2 - this.input.activePointer.y, screen.bottom, screen.top)
+			// mouse.x = clamp(this.input.activePointer.worldX - screen.width / 2, screen.left, screen.right)
+			// mouse.y = clamp(screen.height / 2 - this.input.activePointer.worldY, screen.bottom, screen.top)
+			mouse.x = this.input.activePointer.worldX - screen.width / 2
+			mouse.y = screen.height / 2 - this.input.activePointer.worldY
 		}
 
 		if (!paused) {
