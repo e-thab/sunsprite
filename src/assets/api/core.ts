@@ -419,22 +419,29 @@ let keysJustReleased: Map<string, number | undefined> = new Map()
 
 export const screen: Screen = {
 	get width(): number {
-		return camera?._refObj.width ?? 0
+		return camera?._cam.displayWidth
 	},
 	get height(): number {
-		return camera?._refObj.height ?? 0
+		return camera?._cam.displayHeight
 	},
 	get top(): number {
-		return camera ? camera.y + this.height / 2 : 0
+		// return camera ? camera.y + this.height / 2 : 0
+		// return camera?._cam.getBounds().top
 	},
 	get bottom(): number {
-		return camera ? camera.y - this.height / 2 : 0
+		// return camera ? camera.y - this.height / 2 : 0
+		// return camera?._cam.getBounds().bottom
 	},
 	get left(): number {
-		return camera ? camera.x - this.width / 2 : 0
+		// return camera ? camera.x - this.width / 2 : 0
+		// return getGamePoint({ x: camera?._cam.getBounds().left, y: 0 }).x
+		return camera?._cam.getWorldPoint(camera?._cam.getBounds().left, 0).x
 	},
 	get right(): number {
-		return camera ? camera.x + this.width / 2 : 0
+		// return camera ? camera.x + this.width / 2 : 0
+		// return getGamePoint({ x: camera?._cam.getBounds().right, y: 0 }).x
+		// return camera?._cam.getBounds().right
+		return camera?._cam.getWorldPoint(camera?._cam.getBounds().right, 0).x
 	},
 	// get center(): [number, number] {
 	// 	return [this.width / 2, this.height / 2]
@@ -449,7 +456,7 @@ export const screen: Screen = {
 
 export function setBackgroundColor(color: string) {
 	// Web color name support?
-	camera._refObj.setBackgroundColor(color)
+	camera._cam.setBackgroundColor(color)
 }
 
 async function setBackgroundImage(src: string) {

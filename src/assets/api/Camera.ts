@@ -4,14 +4,14 @@ import { Vector2, type Point } from "./Point"
 
 
 export default class Camera {
-    _refObj: Phaser.Cameras.Scene2D.Camera
+    _cam: Phaser.Cameras.Scene2D.Camera
     _pos: Vector2 = new Vector2(0, 0)
     _zoom: number = 1
     _x: number = 0
     _y: number = 0
 
     constructor(cam: Phaser.Cameras.Scene2D.Camera) {
-        this._refObj = cam
+        this._cam = cam
         this.reset()
     }
 
@@ -24,8 +24,8 @@ export default class Camera {
         // this._refObj.setPosition(pos.x, pos.y)
         // this._refObj.x = pos.x
         // this._refObj.centerOnX(x)
-        this._refObj.scrollX = x
-        console.log(this._x, x, this._refObj.scrollX)
+        this._cam.scrollX = x
+        console.log(this._x, x, this._cam.scrollX)
     }
 
     get y() {
@@ -37,8 +37,8 @@ export default class Camera {
         // this._refObj.setPosition(pos.x, pos.y)
         // this._refObj.centerOnY(pos.y)
         // this._refObj.y = pos.y
-        this._refObj.scrollY = -y
-        console.log(this._y, -y, this._refObj.scrollY)
+        this._cam.scrollY = -y
+        console.log(this._y, -y, this._cam.scrollY)
     }
 
     get position() {
@@ -54,7 +54,7 @@ export default class Camera {
     }
     set zoom(zoom: number) {
         this._zoom = zoom
-        this._refObj.setZoom(zoom, zoom)
+        this._cam.setZoom(zoom, zoom)
     }
 
     zoomToward(pos: Point, factor: number) {
@@ -87,7 +87,7 @@ export default class Camera {
         if (duration !== undefined) duration *= 0.001
         if (intensity !== undefined) intensity *= 0.001
 
-        this._refObj.shake(duration ?? 1000, intensity ?? 0.01, false, callback)
+        this._cam.shake(duration ?? 1000, intensity ?? 0.01, false, callback)
     }
 
     reset() {
@@ -97,7 +97,7 @@ export default class Camera {
     }
 
     _setCam(cam: Phaser.Cameras.Scene2D.Camera) {
-        this._refObj = cam
+        this._cam = cam
         this.reset()
     }
 }
