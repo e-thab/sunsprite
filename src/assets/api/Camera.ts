@@ -25,7 +25,7 @@ export default class Camera {
         // this._refObj.x = pos.x
         // this._refObj.centerOnX(x)
         this._cam.scrollX = x
-        console.log(this._x, x, this._cam.scrollX)
+        // console.log(this._x, x, this._cam.scrollX)
     }
 
     get y() {
@@ -38,7 +38,7 @@ export default class Camera {
         // this._refObj.centerOnY(pos.y)
         // this._refObj.y = pos.y
         this._cam.scrollY = -y
-        console.log(this._y, -y, this._cam.scrollY)
+        // console.log(this._y, -y, this._cam.scrollY)
     }
 
     get position() {

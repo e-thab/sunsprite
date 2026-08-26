@@ -1,3 +1,4 @@
+import { camera, screen } from "./core"
 import type { Point } from "./Point"
 
 /**
@@ -114,16 +115,24 @@ export type MouseInputAction = {
 // }
 
 export class Mouse {
-	_pointer?: Phaser.Input.Pointer
-	x: number = 0
-	y: number = 0
+	_pointer: Phaser.Input.Pointer
+	// _x: number = 0
+	// _y: number = 0
 
-	constructor(pointer?: Phaser.Input.Pointer) {
+	constructor(pointer: Phaser.Input.Pointer) {
 		this._pointer = pointer
 	}
 
 	_setPointer(pointer: Phaser.Input.Pointer) {
 		this._pointer = pointer
+	}
+
+	get x() {
+		return this._pointer.worldX - screen.width / 2 * camera.zoom
+	}
+
+	get y() {
+		return -this._pointer.worldY + screen.width / 2 * camera.zoom
 	}
 
 	get position(): Point {

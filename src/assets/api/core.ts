@@ -373,7 +373,7 @@ export let game: Game
 export let scene: Scene
 // export let camera: Phaser.Cameras.Scene2D.Camera
 export let camera: Camera
-export const mouse = new Mouse()
+export let mouse: Mouse
 export const clock: Clock = new Clock()
 export let paused = false
 
@@ -425,23 +425,17 @@ export const screen: Screen = {
 		return camera?._cam.displayHeight
 	},
 	get top(): number {
-		// return camera ? camera.y + this.height / 2 : 0
-		// return camera?._cam.getBounds().top
+		// return -(camera?._cam.midPoint.y - camera?._cam.displayHeight)
+		return -camera?._cam.worldView.top + this.height / 2
 	},
 	get bottom(): number {
-		// return camera ? camera.y - this.height / 2 : 0
-		// return camera?._cam.getBounds().bottom
+		return -camera?._cam.worldView.bottom + this.height / 2
 	},
 	get left(): number {
-		// return camera ? camera.x - this.width / 2 : 0
-		// return getGamePoint({ x: camera?._cam.getBounds().left, y: 0 }).x
-		return camera?._cam.getWorldPoint(camera?._cam.getBounds().left, 0).x
+		return camera?._cam.worldView.left - this.width / 2
 	},
 	get right(): number {
-		// return camera ? camera.x + this.width / 2 : 0
-		// return getGamePoint({ x: camera?._cam.getBounds().right, y: 0 }).x
-		// return camera?._cam.getBounds().right
-		return camera?._cam.getWorldPoint(camera?._cam.getBounds().right, 0).x
+		return camera?._cam.worldView.right - this.width / 2
 	},
 	// get center(): [number, number] {
 	// 	return [this.width / 2, this.height / 2]
@@ -750,8 +744,12 @@ class UserScene extends Scene {
 	async create() {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
-
-		mouse._setPointer(this.input.activePointer)
+		
+		if (mouse) {
+			mouse._setPointer(this.input.activePointer)
+		} else {
+			mouse = new Mouse(this.input.activePointer)
+		}
 		
 		if (camera) {
 			camera._setCam(this.cameras.main)
@@ -911,8 +909,8 @@ class UserScene extends Scene {
 		if (mouseOverCanvas()) {
 			// mouse.x = clamp(this.input.activePointer.worldX - screen.width / 2, screen.left, screen.right)
 			// mouse.y = clamp(screen.height / 2 - this.input.activePointer.worldY, screen.bottom, screen.top)
-			mouse.x = this.input.activePointer.worldX - screen.width / 2
-			mouse.y = screen.height / 2 - this.input.activePointer.worldY
+			// mouse.x = this.input.activePointer.worldX - screen.width / 2
+			// mouse.y = screen.height / 2 - this.input.activePointer.worldY
 		}
 
 		if (!paused) {
