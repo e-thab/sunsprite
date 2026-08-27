@@ -15,6 +15,8 @@ export default class HLine extends
     })) {
 
     readonly _line: Line
+    private _lastZoom: number = 1
+    private _thickness: number = 1
     _y: number
 
     constructor(props?: HLineProps) {
@@ -33,9 +35,15 @@ export default class HLine extends
         if (props?.color) this.color = props.color
         if (props?.thickness) this.thickness = props.thickness
 
+        // Moving to cam.x to seem infinite, scaling thickness w/ zoom
+        this._lastZoom = camera.zoom
         forever(() => {
             this._line._line.x = camera._cam.scrollX
             this._line._line.displayWidth = screen.width
+            if (camera.zoom !== this._lastZoom) {
+                this._line.thickness = this._thickness * 1/camera.zoom
+                this._lastZoom = camera.zoom
+            }
         })
     }
 
@@ -61,6 +69,7 @@ export default class HLine extends
         return this._line.thickness
     }
     set thickness(thickness: number) {
+        this._thickness = thickness
         this._line.thickness = thickness
     }
 }

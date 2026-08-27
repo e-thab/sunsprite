@@ -1,4 +1,4 @@
-import { mouse } from "./core"
+import { camera, getOurPoint, mouse, repeatUntil, screen } from "./core"
 import { Vector2, type Point } from "./Point"
 
 
@@ -9,6 +9,8 @@ export default class Camera {
     _zoom: number = 1
     _x: number = 0
     _y: number = 0
+    panning: boolean = false
+    following?: { _refObj: any }
 
     constructor(cam: Phaser.Cameras.Scene2D.Camera) {
         this._cam = cam
@@ -75,19 +77,39 @@ export default class Camera {
         this.zoomToward(mouse, zoom)
     }
 
-    // Shakes the Camera by the given intensity over the duration specified.
-    // @param duration — The duration of the effect in seconds. Default 1.
-    // @param intensity — The intensity of the shake. Default 1.
-    // @param force — Force the shake effect to start immediately, even if already running. Default false.
-    // @param callback
-    // This callback will be invoked every frame for the duration of the effect. It is sent two arguments: A reference to the camera and a progress amount between 0 and 1 indicating how complete the effect is.
-    // @param context — The context in which the callback is invoked. Defaults to the Scene to which the Camera belongs.
-    // @returns — This Camera instance.
+    /** 
+     * Shakes the Camera by the given intensity over the duration specified.
+     * @param duration The duration of the effect in seconds. Default 1.
+     * @param intensity The intensity of the shake. Default 1.
+     */
     shake(duration?: number, intensity?: number, callback?: Function) {
         if (duration !== undefined) duration *= 0.001
         if (intensity !== undefined) intensity *= 0.001
 
         this._cam.shake(duration ?? 1000, intensity ?? 0.01, false, callback)
+    }
+
+    easeTo(pos: Vector2, duration?: number) {
+        // const x = pos.x - this.zoom * (screen.right - this.x)
+        // const y = -pos.y - this.zoom * (screen.right - this.x)
+        const targetPos = getOurPoint(pos)
+        this._cam.pan(targetPos.x, targetPos.y, duration ?? 1000, 'Power3', true, (cam, progress, x, y) => {
+            this._x = x
+            this._y = -y
+        })
+    }
+
+    follow(gameObject: { _refObj: any }) {
+        this.following = gameObject
+        this._cam.startFollow(gameObject._refObj, false, 0.05, 0.05)
+        repeatUntil(() => !this.following, () => {
+            this._x = this._cam.scrollX
+            this._y = -this._cam.scrollY
+        })
+    }
+
+    stopFollow() {
+        this._cam.stopFollow()
     }
 
     reset() {

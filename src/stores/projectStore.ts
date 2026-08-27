@@ -13,7 +13,7 @@ export type ProjectRecord = {
     updatedAt: string
 }
 
-const MAX_SLUG_ATTEMPTS = 5
+const MAX_SLUG_ATTEMPTS = 32
 
 // A generous cap, not a technical constraint — see MAX_FILE_NAME_LENGTH in
 // fileTypes.ts for the equivalent on scripts/folders/images/text files.

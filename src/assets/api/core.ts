@@ -351,10 +351,20 @@ export function releaseAllKeys() {
 	_releaseAllKeys()
 }
 
+/** Converts Phaser coordinate point to our coord system. */
 export function getGamePoint(point: Point): Point {
 	return {
-		x: point.x - screen.right,
-		y: -point.y + screen.top
+		// top minds spent 2000 hours on this problem
+		x: point.x - camera.zoom * (screen.right - camera.x),
+		y: -point.y + camera.zoom * (screen.top - camera.y)
+	}
+}
+
+/** Inverse of getGamePoint; Converts coordinate point from our coord system to Phaser's. */
+export function getOurPoint(point: Point): Point {
+	return {
+		x: point.x + camera.zoom * (screen.right - camera.x),
+		y: -point.y + camera.zoom * (screen.top - camera.y)
 	}
 }
 
