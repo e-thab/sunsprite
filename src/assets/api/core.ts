@@ -426,16 +426,16 @@ export const screen: Screen = {
 	},
 	get top(): number {
 		// return -(camera?._cam.midPoint.y - camera?._cam.displayHeight)
-		return -camera?._cam.worldView.top + this.height / 2
+		return -camera?._cam.worldView.top + this.height / 2 * camera.zoom
 	},
 	get bottom(): number {
-		return -camera?._cam.worldView.bottom + this.height / 2
+		return -camera?._cam.worldView.bottom + this.height / 2 * camera.zoom
 	},
 	get left(): number {
-		return camera?._cam.worldView.left - this.width / 2
+		return camera?._cam.worldView.left - this.width / 2 * camera.zoom
 	},
 	get right(): number {
-		return camera?._cam.worldView.right - this.width / 2
+		return camera?._cam.worldView.right - this.width / 2 * camera.zoom
 	},
 	// get center(): [number, number] {
 	// 	return [this.width / 2, this.height / 2]

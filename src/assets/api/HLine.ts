@@ -1,4 +1,4 @@
-import { screen } from "./core"
+import { camera, forever, screen } from "./core"
 import { Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "./Line"
 
@@ -32,6 +32,11 @@ export default class HLine extends
 
         if (props?.color) this.color = props.color
         if (props?.thickness) this.thickness = props.thickness
+
+        forever(() => {
+            this._line._line.x = camera._cam.scrollX
+            this._line._line.displayWidth = screen.width
+        })
     }
 
     get y(): number {

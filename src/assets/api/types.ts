@@ -132,7 +132,7 @@ export class Mouse {
 	}
 
 	get y() {
-		return -this._pointer.worldY + screen.width / 2 * camera.zoom
+		return -this._pointer.worldY + screen.height / 2 * camera.zoom
 	}
 
 	get position(): Point {
