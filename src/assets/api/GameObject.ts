@@ -8,10 +8,10 @@ import type { Point } from './Point'
  */
 export default abstract class GameObject extends
     Sizable(
-    Positionable(
     Rotatable(
     Viewable(
     Interactable(
+    Positionable(
     Timeable(class {
         constructor() {
             // If at any point it becomes useful for mixins to have access to object

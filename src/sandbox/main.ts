@@ -106,6 +106,7 @@ function watchContainerSize() {
 // the eye while staying well clear of that cost.
 function startStatusReports() {
     setInterval(() => {
+        if (!mouse || !clock || !screen) return
         postToHost({
             type: 'status',
             fps: currentFps(),
