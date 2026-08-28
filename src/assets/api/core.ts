@@ -1,17 +1,21 @@
 import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
-import type { Repeatable, Delayable, Screen, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
+import type { Repeatable, Delayable, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
 import type { ThemePalette } from '../theme/themes'
 import { Mouse } from './types'
 import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from './utility'
 import { type Point, type PointArg, Vector2 } from './Point'
 import { runEntryModule, locateError } from './moduleRunner'
-import Output from '@/sandbox/output'
 import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 
-import Colors from './Colors'
+import Output from '@/sandbox/output'
 import Random from './Random'
+import Colors from './Colors'
+import Timer from './Timer'
+import Clock from './Clock'
+import Camera from './Camera'
+import Screen from './Screen'
 import Sprite from './Sprite'
 import Rectangle from './Rectangle'
 import Circle from './Circle'
@@ -19,9 +23,6 @@ import Label from './Label'
 import Line from './Line'
 import HLine from './HLine'
 import VLine from './VLine'
-import Timer from './Timer'
-import Clock from './Clock'
-import Camera from './Camera'
 
 // export const outputItems: {
 // 	stamps: HTMLElement[],
@@ -355,16 +356,16 @@ export function releaseAllKeys() {
 export function getGamePoint(point: Point): Point {
 	return {
 		// top minds spent 2000 hours on this problem
-		x: point.x - camera.zoom * (screen.right - camera.x),
-		y: -point.y + camera.zoom * (screen.top - camera.y)
+		x: point.x - camera.zoom * (camera.right - camera.x),
+		y: -point.y + camera.zoom * (camera.top - camera.y)
 	}
 }
 
 /** Inverse of getGamePoint; Converts coordinate point from our coord system to Phaser's. */
 export function getOurPoint(point: Point): Point {
 	return {
-		x: point.x + camera.zoom * (screen.right - camera.x),
-		y: -point.y + camera.zoom * (screen.top - camera.y)
+		x: point.x + camera.zoom * (camera.right - camera.x),
+		y: -point.y + camera.zoom * (camera.top - camera.y)
 	}
 }
 
@@ -383,6 +384,7 @@ export let game: Game
 export let scene: Scene
 // export let camera: Phaser.Cameras.Scene2D.Camera
 export let camera: Camera
+export let screen: Screen
 export let mouse: Mouse
 export const clock: Clock = new Clock()
 export let paused = false
@@ -427,36 +429,58 @@ let keysPressed: string[] = []
 let keysJustPressed: Map<string, number | undefined> = new Map()
 let keysJustReleased: Map<string, number | undefined> = new Map()
 
-export const screen: Screen = {
-	get width(): number {
-		return camera?._cam.displayWidth
-	},
-	get height(): number {
-		return camera?._cam.displayHeight
-	},
-	get top(): number {
-		// return -(camera?._cam.midPoint.y - camera?._cam.displayHeight)
-		return -camera?._cam.worldView.top + this.height / 2 * camera.zoom
-	},
-	get bottom(): number {
-		return -camera?._cam.worldView.bottom + this.height / 2 * camera.zoom
-	},
-	get left(): number {
-		return camera?._cam.worldView.left - this.width / 2 * camera.zoom
-	},
-	get right(): number {
-		return camera?._cam.worldView.right - this.width / 2 * camera.zoom
-	},
-	// get center(): [number, number] {
-	// 	return [this.width / 2, this.height / 2]
-	// }
-	get center(): Point {
-		return {
-			x: this.width / 2,
-			y: this.height / 2
-		}
-	}
-}
+// export const screen: Screen = {
+// 	get width(): number {
+// 		return camera?._cam.displayWidth
+// 	},
+// 	get height(): number {
+// 		return camera?._cam.displayHeight
+// 	},
+// 	get viewportWidth(): number {
+// 		return camera?._cam.width
+// 	},
+// 	get viewportHeight(): number {
+// 		return camera?._cam.height
+// 	},
+
+// 	get top(): number {
+// 		// return -(camera?._cam.midPoint.y - camera?._cam.displayHeight)
+// 		return -camera?._cam.worldView.top + this.height / 2 * camera.zoom
+// 	},
+// 	get bottom(): number {
+// 		return -camera?._cam.worldView.bottom + this.height / 2 * camera.zoom
+// 	},
+// 	get left(): number {
+// 		return camera?._cam.worldView.left - this.width / 2 * camera.zoom
+// 	},
+// 	get right(): number {
+// 		return camera?._cam.worldView.right - this.width / 2 * camera.zoom
+// 	},
+
+// 	get viewportTop(): number {
+// 		return camera?._cam.getBounds().top
+// 	},
+// 	get viewportBottom(): number {
+// 		return 0
+// 	},
+// 	get viewportLeft(): number {
+// 		return 0
+// 	},
+// 	get viewportRight(): number {
+// 		return 0
+// 	},
+
+// 	// get center(): [number, number] {
+// 	// 	return [this.width / 2, this.height / 2]
+// 	// }
+// 	get center(): Point {
+// 		return {
+// 			// TODO: Fix screen.center
+// 			x: camera?._cam.midPoint.x,
+// 			y: camera?._cam.midPoint.y
+// 		}
+// 	}
+// }
 
 export function setBackgroundColor(color: string) {
 	// Web color name support?
@@ -754,17 +778,24 @@ class UserScene extends Scene {
 	async create() {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
-		
+
 		if (mouse) {
 			mouse._setPointer(this.input.activePointer)
 		} else {
 			mouse = new Mouse(this.input.activePointer)
 		}
-		
+
+		const cam = this.cameras.main
 		if (camera) {
-			camera._setCam(this.cameras.main)
+			camera._setCam(cam)
 		} else {
-			camera = new Camera(this.cameras.main)
+			camera = new Camera(cam)
+		}
+
+		if (screen) {
+			screen._setCam(cam)
+		} else {
+			screen = new Screen(cam)
 		}
 
 		// Set poll always to allow cursors to change when pointer isn't moving

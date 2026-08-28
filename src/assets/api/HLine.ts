@@ -1,4 +1,4 @@
-import { camera, forever, screen } from "./core"
+import { camera, forever } from "./core"
 import { Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "./Line"
 
@@ -25,8 +25,8 @@ export default class HLine extends
         this._y = props?.y ?? 0
         
         this._line = new Line({
-            pointA: { x: screen.left, y: this._y },
-            pointB: { x: screen.right, y: this._y }
+            pointA: { x: camera.left, y: this._y },
+            pointB: { x: camera.right, y: this._y }
         })
         
         this._refObj = this._line._refObj
@@ -39,7 +39,7 @@ export default class HLine extends
         this._lastZoom = camera.zoom
         forever(() => {
             this._line._line.x = camera._cam.scrollX
-            this._line._line.displayWidth = screen.width
+            this._line._line.displayWidth = camera.width
             if (camera.zoom !== this._lastZoom) {
                 this._line.thickness = this._thickness * 1/camera.zoom
                 this._lastZoom = camera.zoom
@@ -53,8 +53,8 @@ export default class HLine extends
     set y(y: number) {
         this._y = y
         this._line.setPoints(
-            { x: screen.left, y },
-            { x: screen.right, y }
+            { x: camera.left, y },
+            { x: camera.right, y }
         )
     }
 

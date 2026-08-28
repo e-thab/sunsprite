@@ -17,7 +17,7 @@ import { HOST_ORIGIN_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage
 // api/core.ts, so from a component's point of view little has changed.
 
 const fpsRef = ref(0)
-const mouseRef = ref({ mouseX: 0, mouseY: 0 })
+const mouseRef = ref({ mouseX: 0, mouseY: 0, screenX: 0, screenY: 0 })
 const pausedRef = ref(false)
 const clockRef = ref({
     time: 0,
@@ -33,8 +33,9 @@ const clockRef = ref({
     // nowMs: 0,
 })
 const screenRef = ref({ width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0 })
+const camRef = ref({ x: 0, y: 0, width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0, zoom: 0 })
 
-export { fpsRef, mouseRef, pausedRef, clockRef, screenRef }
+export { fpsRef, mouseRef, pausedRef, clockRef, screenRef, camRef }
 
 let frame: HTMLIFrameElement | null = null
 let sandboxReady = false
@@ -117,7 +118,12 @@ function onSandboxMessage(event: MessageEvent) {
 
         case 'status':
             fpsRef.value = message.fps
-            mouseRef.value = { mouseX: message.mouseX, mouseY: message.mouseY }
+            mouseRef.value = {
+                mouseX: message.mouseX,
+                mouseY: message.mouseY,
+                screenX: message.mouseScreenX,
+                screenY: message.mouseScreenY
+            }
             // A snapshot older than the last command we sent predates it being
             // applied sandbox-side; trusting it would flicker pausedRef back to
             // the pre-click value for one tick. See protocol.ts's 'set-paused'.
@@ -132,6 +138,17 @@ function onSandboxMessage(event: MessageEvent) {
                 bottom: message.screenBottom,
                 left: message.screenLeft,
                 right: message.screenRight,
+            }
+            camRef.value = {
+                x: message.cameraX,
+                y: message.cameraY,
+                width: message.cameraWidth,
+                height: message.cameraHeight,
+                top: message.cameraTop,
+                bottom: message.cameraBottom,
+                left: message.cameraLeft,
+                right: message.cameraRight,
+                zoom: message.cameraZoom
             }
             useWatchPanelStore().syncFromSandbox(message.watch)
             Output.setFrame(message.frame)

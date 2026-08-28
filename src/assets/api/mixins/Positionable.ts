@@ -1,5 +1,5 @@
 import { pointFrom, type Point, type PointArg } from "../Point"
-import { screen, camera } from "../core"
+import { camera } from "../core"
 import Random from "../Random"
 import type { ReferenceObject } from "../types"
 import type { Class } from "./shared"
@@ -172,13 +172,13 @@ export function Positionable<Base extends Class>(base: Base) {
 
         _updateX() {
             // if (this._refObj) this._refObj.x = this.x + app.screen.width / 2 - camera.x
-            if (this._refObj) this._refObj.x = this.x + screen.width / 2 * camera.zoom
+            if (this._refObj) this._refObj.x = this.x + camera.width / 2 * camera.zoom
             // if (this._refObj) console.log(`setting actual x to ${this.x + screen.width / 2 - camera.x}`)
         }
 
         _updateY() {
             // if (this._refObj) this._refObj.y = -this.y + app.screen.height / 2 + camera.y
-            if (this._refObj) this._refObj.y = -this.y + screen.height / 2 * camera.zoom
+            if (this._refObj) this._refObj.y = -this.y + camera.height / 2 * camera.zoom
         }
     }
 }

@@ -1,4 +1,4 @@
-import { screen } from "./core"
+import { camera, screen } from "./core"
 import type { Point } from "./Point";
 
 function randomNumber(): number
@@ -103,15 +103,25 @@ const Random = {
         return this.position()
     },
 
-    // Random x coordinate inside screen
+    // Random visible x coordinate
     x(): number {
-        return this.integer(screen.left, screen.right)
+        return this.integer(camera.left, camera.right)
     },
     
-    // Random y coordinate inside screen
+    // Random visible y coordinate
     y(): number {
-        return this.integer(screen.bottom, screen.top)
+        return this.integer(camera.bottom, camera.top)
     },
+
+    // Random screen x coordinate
+    screenX(): number {
+        return this.integer(screen.left, screen.right)
+    },
+
+    // Random screen y coordinate
+    screenY(): number {
+        return this.integer(screen.bottom, screen.top)
+    }
 }
 
 export default Random

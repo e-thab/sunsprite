@@ -2,7 +2,7 @@
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
 import type { Returnable } from "./types";
-import { _clearPropUpdater, _registerPropUpdater, getNextObjectId, scene, screen } from "./core";
+import { _clearPropUpdater, _registerPropUpdater, camera, getNextObjectId, scene } from "./core";
 import { pointFrom, type Point, type PointArg } from "./Point";
 import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins";
 import Phaser from "phaser";
@@ -136,10 +136,10 @@ export default class Line extends
 
     _updatePoints() {
         this._line.setTo(
-            this.pointA.x + screen.right,
-            -this.pointA.y + screen.top,
-            this.pointB.x + screen.right,
-            -this.pointB.y + screen.top
+            this.pointA.x + camera.right,
+            -this.pointA.y + camera.top,
+            this.pointB.x + camera.right,
+            -this.pointB.y + camera.top
         )
     }
 }

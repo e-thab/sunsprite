@@ -1,8 +1,6 @@
 import { camera, getOurPoint, mouse, repeatUntil, screen } from "./core"
 import { Vector2, type Point } from "./Point"
 
-
-
 export default class Camera {
     _cam: Phaser.Cameras.Scene2D.Camera
     _pos: Vector2 = new Vector2(0, 0)
@@ -17,38 +15,49 @@ export default class Camera {
         this.reset()
     }
 
-    get x() {
+    get x(): number {
         return this._x
     }
     set x(x) {
         this._x = x
-        // const pos = getGamePoint({ x, y: this.y })
-        // this._refObj.setPosition(pos.x, pos.y)
-        // this._refObj.x = pos.x
-        // this._refObj.centerOnX(x)
         this._cam.scrollX = x
-        // console.log(this._x, x, this._cam.scrollX)
     }
 
-    get y() {
+    get y(): number {
         return this._y
     }
     set y(y) {
         this._y = y
-        // const pos = getGamePoint({ x: this.x, y })
-        // this._refObj.setPosition(pos.x, pos.y)
-        // this._refObj.centerOnY(pos.y)
-        // this._refObj.y = pos.y
         this._cam.scrollY = -y
-        // console.log(this._y, -y, this._cam.scrollY)
     }
 
-    get position() {
+    get top(): number {
+        // return -(camera?._cam.midPoint.y - camera?._cam.displayHeight)
+        return -this._cam.worldView.top + this.height / 2 * this._cam.zoom
+    }
+    get bottom(): number {
+        return -this._cam.worldView.bottom + this.height / 2 * this._cam.zoom
+    }
+    get left(): number {
+        return this._cam.worldView.left - this.width / 2 * this._cam.zoom
+    }
+    get right(): number {
+        return this._cam.worldView.right - this.width / 2 * this._cam.zoom
+    }
+
+    get position(): Vector2 {
         return this._pos
     }
     set position(pos: Vector2) {
         this._pos = pos
         // this._refObj.centerOn(pos.x, pos.y)
+    }
+
+    get width(): number {
+        return this._cam.displayWidth
+    }
+    get height(): number {
+        return this._cam.displayHeight
     }
 
     get zoom(): number {

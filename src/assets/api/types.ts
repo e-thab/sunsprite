@@ -1,4 +1,4 @@
-import { camera, screen } from "./core"
+import { camera, game } from "./core"
 import type { Point } from "./Point"
 
 /**
@@ -62,17 +62,6 @@ export interface Conditional {
 	fn: Action,
 }
 
-export interface Screen {
-	width: number
-	height: number
-	top: number
-	bottom: number
-	left: number
-	right: number
-	// center: [number, number] // <- at some point, make this required so it can be spread '...center'
-	center: Point
-}
-
 const keyCodes = [
 	'Backquote', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Minus', 'Equal', 'Backspace',
 	'Tab', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'BracketLeft', 'BracketRight', 'Backslash',
@@ -127,12 +116,20 @@ export class Mouse {
 		this._pointer = pointer
 	}
 
-	get x() {
-		return this._pointer.worldX - screen.width / 2 * camera.zoom
+	get x(): number {
+		return this._pointer.worldX - camera.width / 2 * camera.zoom
 	}
 
-	get y() {
-		return -this._pointer.worldY + screen.height / 2 * camera.zoom
+	get y(): number {
+		return -this._pointer.worldY + camera.height / 2 * camera.zoom
+	}
+
+	get screenX(): number {
+		return this._pointer.x - camera.width / 2 * camera.zoom
+	}
+
+	get screenY(): number {
+		return -this._pointer.y + camera.height  / 2 * camera.zoom
 	}
 
 	get position(): Point {
@@ -147,19 +144,23 @@ export class Mouse {
 		return this.position
 	}
 
-	get leftButtonDown() {
+	get leftButtonDown(): boolean {
 		return this._pointer?.leftButtonDown()
 	}
 
-	get rightButtonDown() {
+	get rightButtonDown(): boolean {
 		return this._pointer?.rightButtonDown()
 	}
 
-	get middleButtonDown() {
+	get middleButtonDown(): boolean {
 		return this._pointer?.middleButtonDown()
 	}
 
-	get anyButtonDown() {
+	get anyButtonDown(): boolean {
 		return this._pointer?.isDown
+	}
+
+	get isOnScreen(): boolean {
+		return game.canvas.matches(':hover')
 	}
 }

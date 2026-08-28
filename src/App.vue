@@ -32,11 +32,17 @@ const isDocsPage = computed(() => route.name === 'docs')
 watch([pageTitle, isDocsPage], ([title, isDocs]) => {
   // const segments = [title, isDocs ? 'Docs' : null, SITE_NAME].filter((segment): segment is string => !!segment)
   // document.title = segments.join(' | ')
+  if (!title) {
+    document.title = SITE_NAME
+    return
+  }
+  
   let docTitle = title
   docTitle += ' | ' + SITE_NAME
   if (isDocs) {
     docTitle += ' Docs'
   }
+
   document.title = docTitle
 }, { immediate: true })
 

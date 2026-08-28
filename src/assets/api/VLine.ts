@@ -1,4 +1,4 @@
-import { camera, forever, screen } from "./core"
+import { camera, forever } from "./core"
 import { Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "./Line"
 
@@ -25,8 +25,8 @@ export default class VLine extends
         this._x = props?.x ?? 0
 
         this._line = new Line({
-            pointA: { x: this._x, y: screen.top },
-            pointB: { x: this._x, y: screen.bottom }
+            pointA: { x: this._x, y: camera.top },
+            pointB: { x: this._x, y: camera.bottom }
         })
 
         this._refObj = this._line._refObj
@@ -39,7 +39,7 @@ export default class VLine extends
         this._lastZoom = camera.zoom
         forever(() => {
             this._line._line.y = camera._cam.scrollY
-            this._line._line.displayHeight = screen.height
+            this._line._line.displayHeight = camera.height
             if (camera.zoom !== this._lastZoom) {
                 this._line.thickness = this._thickness * 1/camera.zoom
                 this._lastZoom = camera.zoom
@@ -53,8 +53,8 @@ export default class VLine extends
     set x(x: number) {
         this._x = x
         this._line.setPoints(
-            { x, y: screen.top },
-            { x, y: screen.bottom }
+            { x, y: camera.top },
+            { x, y: camera.bottom }
         )
     }
 

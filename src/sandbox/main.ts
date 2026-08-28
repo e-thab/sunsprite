@@ -10,6 +10,7 @@ import {
     resizeStage,
     runUserCode,
     screen,
+    camera,
     setup,
     clock,
 } from '@/assets/api/core'
@@ -110,19 +111,34 @@ function startStatusReports() {
         postToHost({
             type: 'status',
             fps: currentFps(),
-            mouseX: Math.round(mouse.x),
-            mouseY: Math.round(mouse.y),
             paused,
             pauseSeq: appliedPauseSeq,
             frame: clock.frame,
             time: clock.time,
             deltaMs: clock.deltaMs,
+
+            mouseX: Math.round(mouse.x),
+            mouseY: Math.round(mouse.y),
+            mouseScreenX: Math.round(mouse.screenX),
+            mouseScreenY: Math.round(mouse.screenY),
+
+            cameraX: Math.round(camera.x),
+            cameraY: Math.round(camera.y),
+            cameraWidth: Math.round(camera.width),
+            cameraHeight: Math.round(camera.height),
+            cameraTop: Math.round(camera.top),
+            cameraBottom: Math.round(camera.bottom),
+            cameraLeft: Math.round(camera.left),
+            cameraRight: Math.round(camera.right),
+            cameraZoom: parseFloat(camera.zoom.toFixed(3)),
+
             screenWidth: Math.round(screen.width),
             screenHeight: Math.round(screen.height),
             screenTop: Math.round(screen.top),
             screenBottom: Math.round(screen.bottom),
             screenLeft: Math.round(screen.left),
             screenRight: Math.round(screen.right),
+
             watch: collectWatchSnapshot(),
         })
     }, 60)
