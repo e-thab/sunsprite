@@ -38,6 +38,36 @@ import {
 } from "./generated/apiDeclarations.generated"
 import Colors from './Colors'
 
+/**
+ * The subset of apiLib's content that varies by API version — everything
+ * produced by scripts/api-codegen (see src/assets/api/generated/apiDeclarations.generated.ts
+ * and each versions/<version>/generated.ts). Core/Utilities/Camera/Types-preamble
+ * below stay fixed across versions; only these get swapped when hot-loading
+ * a historical version into Monaco (see src/assets/api/versions/index.ts).
+ */
+export interface VersionedApiConstants {
+    positionableApi: string
+    positionablePropsTypeDef: string
+    sizablePropsTypeDef: string
+    rotatablePropsTypeDef: string
+    viewablePropsTypeDef: string
+    interactablePropsTypeDef: string
+    spritePropsFields: string
+    spriteMembers: string
+    rectanglePropsFields: string
+    rectangleMembers: string
+    circlePropsFields: string
+    circleMembers: string
+    labelPropsFields: string
+    labelMembers: string
+    linePropsFields: string
+    lineMembers: string
+    hLinePropsFields: string
+    hLineMembers: string
+    vLinePropsFields: string
+    vLineMembers: string
+}
+
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
 // so that peeking definitions doesn't look so crowded?
 
@@ -65,7 +95,8 @@ declare enum Colors ${
  * file with no top-level import/export would otherwise be scoped to itself
  * instead of staying globally ambient to every script.
  */
-export const apiLib = 'declare global {\n' + [
+export function buildApiLib(v: VersionedApiConstants): string {
+    return 'declare global {\n' + [
 // Types
 // `
 // declare enum Colors ${
@@ -77,11 +108,11 @@ export const apiLib = 'declare global {\n' + [
 // PointArgs include union w/ number[] in setter params because
 // JS array literals are inferred as <T>[], not [<T>, <T>, ...]
 `
-${positionablePropsTypeDef}
-${sizablePropsTypeDef}
-${rotatablePropsTypeDef}
-${viewablePropsTypeDef}
-${interactablePropsTypeDef}
+${v.positionablePropsTypeDef}
+${v.sizablePropsTypeDef}
+${v.rotatablePropsTypeDef}
+${v.viewablePropsTypeDef}
+${v.interactablePropsTypeDef}
 type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps
 `,
 
@@ -738,7 +769,7 @@ const PI = ${Math.PI}`,
 // TODO: jsdoc
 `
 declare const Camera: {
-    ${positionableApi}
+    ${v.positionableApi}
 
     zoom: number
 
@@ -753,7 +784,7 @@ declare const Camera: {
 // TODO: include default values
 `
 type SpriteProps = GameObjectProps & {
-${spritePropsFields}
+${v.spritePropsFields}
 }
 
 class Sprite {
@@ -763,13 +794,13 @@ class Sprite {
      */
     constructor(options?: SpriteProps)
 
-${spriteMembers}
+${v.spriteMembers}
 }`,
 
 // Rectangle
 `
 type RectangleProps = GameObjectProps & {
-${rectanglePropsFields}
+${v.rectanglePropsFields}
 }
 
 class Rectangle {
@@ -779,7 +810,7 @@ class Rectangle {
      */
     constructor(options?: RectangleProps)
 
-${rectangleMembers}
+${v.rectangleMembers}
 }`,
 
 // Line
@@ -788,7 +819,7 @@ ${rectangleMembers}
 // when just doing something like line.pointA = [x, y] it raises an error along
 // the lines of 'number[] not assignable to [number, number] (Target requires 2 element(s) but source may have fewer)'
 `type LineProps = RotatableProps & ViewableProps & {
-${linePropsFields}
+${v.linePropsFields}
 }
 
 class Line {
@@ -798,12 +829,12 @@ class Line {
      */
     constructor(options?: LineProps)
 
-${lineMembers}
+${v.lineMembers}
 }`,
 
 // VLine
 `type VLineProps = ViewableProps & {
-${vLinePropsFields}
+${v.vLinePropsFields}
 }
 
 class VLine {
@@ -813,12 +844,12 @@ class VLine {
      */
     constructor(options?: VLineProps)
 
-${vLineMembers}
+${v.vLineMembers}
 }`,
 
 // HLine
 `type HLineProps = ViewableProps & {
-${hLinePropsFields}
+${v.hLinePropsFields}
 }
 
 class HLine {
@@ -828,12 +859,12 @@ class HLine {
      */
     constructor(options?: HLineProps)
 
-${hLineMembers}
+${v.hLineMembers}
 }`,
 
 // Label
 `type LabelProps = GameObjectProps & {
-${labelPropsFields}
+${v.labelPropsFields}
 }
 
 class Label {
@@ -843,12 +874,12 @@ class Label {
      */
     constructor(options?: LabelProps)
 
-${labelMembers}
+${v.labelMembers}
 }`,
 
 // Circle
 `type CircleProps = GameObjectProps & {
-${circlePropsFields}
+${v.circlePropsFields}
 }
 
 class Circle {
@@ -858,14 +889,27 @@ class Circle {
      */
     constructor(options?: CircleProps)
 
-${circleMembers}
+${v.circleMembers}
 }`,
 
 // Vector2
 `/**
- * 
+ *
  */
 class Vector2 {
     // TODO: Vector2
 }`,
-].join('\n') + '\n}\nexport {}'
+    ].join('\n') + '\n}\nexport {}'
+}
+
+export const apiLib = buildApiLib({
+    positionableApi,
+    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef,
+    spritePropsFields, spriteMembers,
+    rectanglePropsFields, rectangleMembers,
+    circlePropsFields, circleMembers,
+    labelPropsFields, labelMembers,
+    linePropsFields, lineMembers,
+    hLinePropsFields, hLineMembers,
+    vLinePropsFields, vLineMembers,
+})

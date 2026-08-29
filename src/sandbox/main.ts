@@ -1,28 +1,27 @@
-import {
-    currentFps,
-    handleKeyDown,
-    handleKeyUp,
-    mouse,
-    paused,
-    pause,
-    play,
-    releaseAllKeys,
-    resizeStage,
-    runUserCode,
-    screen,
-    camera,
-    setup,
-    clock,
-} from '@/assets/api/core'
 import { setScriptResolver } from '@/assets/api/moduleRunner'
+import { loadVersionedRuntime, loadLatestRuntime } from '@/assets/api/versions/runtime'
 import { onHostMessage, postToHost } from './channel'
-import { collectWatchSnapshot } from './watch'
-import type { HostMessage } from './protocol'
+import { API_VERSION_PARAM, type HostMessage } from './protocol'
 
 // Entry point for runner.html — the document inside
 // `<iframe sandbox="allow-scripts">`. Phaser, the Sunsprite API, and every line
 // of user code live in here, at an opaque origin with no way to reach the
 // editor app. This file is the only thing that talks to the host.
+//
+// core/watch are resolved dynamically, not statically imported, because which
+// copy loads depends on a version requested via this document's own URL (see
+// hostBridge.ts's sandboxUrl()) — read once, here, before anything else runs.
+// moduleRunner.ts is never versioned (it's generic script-compilation engine,
+// not part of the scripting API itself), so it stays a plain static import.
+const requestedVersion = new URLSearchParams(location.search).get(API_VERSION_PARAM) ?? 'latest'
+let activeVersion = requestedVersion
+let runtime = requestedVersion === 'latest' ? await loadLatestRuntime() : await loadVersionedRuntime(requestedVersion)
+if (!runtime) {
+    console.error(`API version "${requestedVersion}" not found — falling back to latest.`)
+    activeVersion = 'latest'
+    runtime = await loadLatestRuntime()
+}
+const { core, watch } = runtime
 
 /**
  * Import resolution round trip. Only the host has the file store, so a script
@@ -47,7 +46,7 @@ setScriptResolver((name) => {
 function handleMessage(message: HostMessage) {
     switch (message.type) {
         case 'run':
-            runUserCode(message.code, message.entryName, message.theme)
+            core.runUserCode(message.code, message.entryName, message.theme)
             break
 
         case 'script-response': {
@@ -59,26 +58,26 @@ function handleMessage(message: HostMessage) {
         }
 
         case 'set-paused':
-            if (message.paused) pause()
-            else play()
+            if (message.paused) core.pause()
+            else core.play()
             appliedPauseSeq = message.seq
             break
 
         case 'resize':
-            resizeStage()
+            core.resizeStage()
             break
 
         case 'key':
-            if (message.kind === 'down') handleKeyDown(message.code)
-            else handleKeyUp(message.code)
+            if (message.kind === 'down') core.handleKeyDown(message.code)
+            else core.handleKeyUp(message.code)
             break
 
         case 'release-keys':
-            releaseAllKeys()
+            core.releaseAllKeys()
             break
 
         case 'ping':
-            postToHost({ type: 'ready' })
+            postToHost({ type: 'ready', apiVersion: activeVersion })
             break
     }
 }
@@ -92,7 +91,7 @@ function watchContainerSize() {
     const container = document.getElementById('game-container')
     if (!container) return
 
-    new ResizeObserver(() => resizeStage()).observe(container)
+    new ResizeObserver(() => core.resizeStage()).observe(container)
 
     // Right-click is a game input, not a request for the browser menu. This
     // used to be attached from PhaserCanvas.vue; the canvas lives in here now,
@@ -107,11 +106,12 @@ function watchContainerSize() {
 // the eye while staying well clear of that cost.
 function startStatusReports() {
     setInterval(() => {
+        const { mouse, clock, screen, camera } = core
         if (!mouse || !clock || !screen) return
         postToHost({
             type: 'status',
-            fps: currentFps(),
-            paused,
+            fps: core.currentFps(),
+            paused: core.paused,
             pauseSeq: appliedPauseSeq,
             frame: clock.frame,
             time: clock.time,
@@ -139,13 +139,13 @@ function startStatusReports() {
             screenLeft: Math.round(screen.left),
             screenRight: Math.round(screen.right),
 
-            watch: collectWatchSnapshot(),
+            watch: watch.collectWatchSnapshot(),
         })
     }, 60)
 }
 
-setup()
+core.setup()
 watchContainerSize()
 startStatusReports()
 onHostMessage(handleMessage)
-postToHost({ type: 'ready' })
+postToHost({ type: 'ready', apiVersion: activeVersion })

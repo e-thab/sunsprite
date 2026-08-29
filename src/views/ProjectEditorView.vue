@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { supabase } from '@/assets/utils/supabase'
 import { useFileStore } from '@/stores/fileStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useApiVersionStore } from '@/stores/apiVersionStore'
 import EditorView from './EditorView.vue'
 import ErrorView from './ErrorView.vue'
 
@@ -14,6 +15,7 @@ const props = defineProps<{
 const router = useRouter()
 const fileStore = useFileStore()
 const authStore = useAuthStore()
+const apiVersionStore = useApiVersionStore()
 
 const status = ref<'loading' | 'ready' | 'not-found' | 'error'>('loading')
 const errorMessage = ref('')
@@ -24,7 +26,7 @@ async function load(slug: string) {
 
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, owner_id')
+    .select('id, name, owner_id, api_version')
     .eq('slug', slug)
     .maybeSingle()
 
@@ -53,6 +55,10 @@ async function load(slug: string) {
 
   resolvedProjectId.value = data.id
   fileStore.setProjectName(data.name)
+  // Pins the editor and sandbox to whatever this project was last saved
+  // against, before EditorView (and everything downstream that reads this
+  // store) ever mounts — see apiVersionStore.ts's own comment.
+  apiVersionStore.selectedVersion = data.api_version
 
   try {
     await fileStore.loadProject(data.id)

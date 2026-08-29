@@ -2,10 +2,16 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+export const REPO_ROOT = path.resolve(__dirname, '../..')
 const API_DIR = path.resolve(__dirname, '../../src/assets/api')
+const SANDBOX_DIR = path.resolve(__dirname, '../../src/sandbox')
 
 export function apiPath(...segments: string[]): string {
     return path.join(API_DIR, ...segments)
+}
+
+export function sandboxPath(...segments: string[]): string {
+    return path.join(SANDBOX_DIR, ...segments)
 }
 
 export const MIXINS = [
@@ -41,4 +47,51 @@ export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
 export const SET_TYPE_OVERRIDES: Record<string, string> = {
     'Line.pointA': 'Returnable<PointArg | number[]>',
     'Line.pointB': 'Returnable<PointArg | number[]>',
+}
+
+/**
+ * Files under src/assets/api/ that are part of the real, runnable API surface
+ * but aren't already named by MIXINS/CONCRETE_CLASSES/GAME_OBJECT_FILE above —
+ * core.ts included, since it's not a clean "engine" layer underneath the API,
+ * it's mutually circular with it (Camera/Random/Timer/types/the mixins all
+ * import live bindings back from it, and it imports the concrete classes).
+ * Deliberately excluded, confirmed safe: moduleRunner.ts/scriptResolution.ts
+ * (generic script-compilation engine, version-agnostic), examples.ts/gameAssets.ts
+ * (zero imports, host-only), api.d.ts/apiLib.ts (the declaration system itself,
+ * not runtime code), and src/assets/api/output.ts (the *host-side* DOM output
+ * renderer — a different file from src/sandbox/output.ts below, which is the
+ * one core.ts actually imports).
+ */
+export const SUPPORTING_API_FILES = [
+    apiPath('Point.ts'),
+    apiPath('utility.ts'),
+    apiPath('Colors.ts'),
+    apiPath('Timer.ts'),
+    apiPath('Clock.ts'),
+    apiPath('Camera.ts'),
+    apiPath('Random.ts'),
+    apiPath('Screen.ts'),
+    apiPath('core.ts'),
+    apiPath('types.ts'),
+    apiPath('mixins', 'index.ts'),
+    apiPath('mixins', 'shared.ts'),
+]
+
+/**
+ * Two files outside src/assets/api/ that core.ts circularly imports live
+ * (watch/unwatch/clearWatchCards, and the Output/print machinery) — confirmed
+ * in scope with the user despite being diagnostic tooling rather than
+ * game-behavior API, since core.ts can't run without them.
+ */
+export const SANDBOX_RUNTIME_FILES = [sandboxPath('watch.ts'), sandboxPath('output.ts')]
+
+/** The full set of real source files copied into each permanent version snapshot. */
+export function runtimeCopySet(): string[] {
+    return [
+        ...MIXINS.map((m) => m.file),
+        ...CONCRETE_CLASSES.map((c) => c.file),
+        GAME_OBJECT_FILE,
+        ...SUPPORTING_API_FILES,
+        ...SANDBOX_RUNTIME_FILES,
+    ]
 }

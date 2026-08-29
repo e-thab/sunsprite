@@ -6,6 +6,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useFullscreenStore } from '@/stores/fullscreen'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useApiVersionStore } from '@/stores/apiVersionStore'
 import { runUserCode, resizeStage } from '@/sandbox/hostBridge'
 import { formatDate } from '@/assets/utils/timeAgo'
 import GameFrame from '@/components/GameFrame.vue'
@@ -25,6 +26,7 @@ const fileStore = useFileStore()
 const fullscreenStore = useFullscreenStore()
 const themeStore = useThemeStore()
 const authStore = useAuthStore()
+const apiVersionStore = useApiVersionStore()
 
 const status = ref<'loading' | 'ready' | 'not-found' | 'error'>('loading')
 const errorMessage = ref('')
@@ -48,7 +50,7 @@ async function load(slug: string) {
   // like a nonexistent one would.
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, owner_id, updated_at')
+    .select('id, name, owner_id, updated_at, api_version')
     .eq('slug', slug)
     .maybeSingle()
 
@@ -65,6 +67,11 @@ async function load(slug: string) {
 
   fileStore.setProjectName(data.name)
   updatedAt.value = data.updated_at
+  // Pins the sandbox to whatever this project was last saved against, before
+  // runGame() below ever calls runUserCode() — see apiVersionStore.ts's own
+  // comment. A public project keeps behaving the way its owner last verified
+  // even if "latest" has since moved past a breaking major-version boundary.
+  apiVersionStore.selectedVersion = data.api_version
 
   // The owner already has their own username client-side (authStore.username)
   // — no need to round-trip for it. Anyone else only ever reaches this line
@@ -115,6 +122,9 @@ onUnmounted(() => {
   // route too, if the visitor toggled fullscreen before navigating away.
   fullscreenStore.fullscreen = false
   fileStore.exitProject()
+  // Session-local by design (see apiVersionStore.ts) — don't let a played
+  // project's pinned version leak into whatever's opened next.
+  apiVersionStore.reset()
 })
 </script>
 

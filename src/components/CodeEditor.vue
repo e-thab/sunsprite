@@ -148,6 +148,7 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 }
 
 import { apiLib, apiModel } from '@/assets/api/apiLib'
+import { listApiVersions, loadVersionedApiLib } from '@/assets/api/versions'
 import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
 const libUri = 'file:///lib.ts'
@@ -182,7 +183,11 @@ monaco.typescript.javascriptDefaults.setCompilerOptions({
 })
 
 monaco.typescript.javascriptDefaults.addExtraLib(apiModel, modelUri)
-monaco.typescript.javascriptDefaults.addExtraLib(apiLib, libUri)
+// Tracked so selectApiVersion (below) can dispose the previous registration
+// before swapping in a different version's declarations at the same URI —
+// addExtraLib doesn't replace in place, it layers, so the old one must be
+// disposed first or the two would conflict.
+let apiLibDisposable: monaco.IDisposable = monaco.typescript.javascriptDefaults.addExtraLib(apiLib, libUri)
 
 // Add a command to the palette that allows inspecting tokens, for theme debugging
 monaco.editor.addEditorAction({
@@ -631,25 +636,77 @@ onMounted(() => {
 // TO FIX:
 //	- Editor bar gets very cramped at small widths, text overlaps, button shrinks instead of disappearing
 import type { DropdownMenuItem } from '@nuxt/ui'
-const exampleVersionItems: DropdownMenuItem[][] = [
-  [
-    { label: 'v2.1.0', icon: 'uil:angle-double-up' },
-    { label: 'v2.0.8', icon: 'uil:angle-double-up' },
-  ],
-  [
-    { label: 'v1.9.2', icon: 'uil:angle-up' },
-    { label: 'v1.5.0', icon: 'tabler:check', color: 'primary' },
-    { label: 'v1.2.3', icon: 'uil:angle-down' },
-    { label: 'v1.0.6', icon: 'uil:angle-down' },
-  ],
-  [
-    { label: 'v0.1.0', icon: 'uil:angle-double-down' },
-    { label: 'v0.1.1', icon: 'uil:angle-double-down' },
-    { label: 'v0.0.12', icon: 'uil:angle-double-down' },
-    { label: 'v0.0.7', icon: 'uil:angle-double-down' },
-    { label: 'v0.0.3', icon: 'uil:angle-double-down' },
-  ]
-]
+import { useApiVersionStore } from '@/stores/apiVersionStore'
+import { useProjectStore } from '@/stores/projectStore'
+
+// 'latest' is the live, unversioned apiLib (current source, not a snapshot);
+// anything else names a permanent folder under src/assets/api/versions/.
+// Session-local, shared with hostBridge.ts (via the store) so the sandboxed
+// game's next run uses the same version this dropdown selects — not just
+// Monaco's declarations.
+const apiVersionStore = useApiVersionStore()
+const projectStore = useProjectStore()
+
+const apiVersionItems = computed<DropdownMenuItem[][]>(() => {
+	const checkIfSelected = (version: string): Partial<DropdownMenuItem> =>
+		version === apiVersionStore.selectedVersion ? { icon: 'tabler:check', color: 'primary' } : {}
+
+	// No separate 'Latest' entry: listApiVersions() is already sorted
+	// newest-first (see versions/index.ts), so index 0 *is* the most
+	// up-to-date real version — 'Latest' is just a label on it here, not a
+	// distinct selectable state. Selecting it pins the project to that
+	// version exactly like any other row; it won't silently track newer
+	// versions cut afterward.
+	return [
+		listApiVersions().map((version, index) => ({
+			label: index === 0 ? `${version} (Latest)` : version,
+			onSelect: () => selectApiVersion(version),
+			...checkIfSelected(version),
+		})),
+	]
+})
+
+// Swaps which API version's declarations Monaco's TS language service sees.
+// The historical-version branch loads versions/<version>/generated.ts (bare,
+// ambient-ready constants — see that folder's index.ts) and rebuilds the same
+// `declare global` lib apiLib.ts already exports for "latest", just from
+// frozen constants instead of the live imports.
+async function selectApiVersion(version: string) {
+	if (version === apiVersionStore.selectedVersion) return
+
+	const newLib = version === 'latest' ? apiLib : await loadVersionedApiLib(version)
+	if (newLib === undefined) {
+		console.error(`API version "${version}" not found among available snapshots`)
+		return
+	}
+
+	apiLibDisposable.dispose()
+	apiLibDisposable = monaco.typescript.javascriptDefaults.addExtraLib(newLib, libUri)
+	apiVersionStore.selectedVersion = version
+
+	// Write straight through to the project record, same immediacy as every
+	// other per-project setting (setPublic, renameProject) — no separate save
+	// step. Skipped for 'latest': it names the live, ever-moving source, not
+	// a canonical tier, so there's nothing meaningful to pin the project to.
+	// Also skipped in guest mode (no project to persist to at all).
+	if (fileStore.projectId && version !== 'latest') {
+		projectStore.setApiVersion(fileStore.projectId, version).catch((err) => {
+			console.error('Failed to save API version selection', err)
+		})
+	}
+
+	// Nudge the currently active model to re-validate against the swapped
+	// declarations — same mechanism handleMount already uses after attaching
+	// a model (see refreshDiagnostics above), needed here for the same reason:
+	// Monaco's TS worker doesn't automatically repaint already-open squiggles
+	// just because the ambient lib changed underneath it.
+	const editor = editorInstance.value
+	const model = editor?.getModel()
+	if (editor && model && !fileStore.isTextFile(fileStore.activeFileName)) {
+		const importedNames = ensureImportedModels(model.getValue())
+		refreshDiagnostics(editor, model, importedNames)
+	}
+}
 </script>
 
 <template>
@@ -686,10 +743,9 @@ const exampleVersionItems: DropdownMenuItem[][] = [
 					<UButton icon="tabler:arrow-back-up" label="Reset" variant="ghost" color="neutral" size="xs" @click="resetCode" />
 				</UTooltip> -->
 
-				<!-- TODO: Version selector -->
 				<UFieldGroup>
-					<UBadge color="primary" variant="subtle" size="xs" style="font-size: small;">v1.0.0</UBadge>
-					<UDropdownMenu :items="exampleVersionItems">
+					<UBadge color="primary" variant="subtle" size="xs" style="font-size: small;">{{ apiVersionStore.selectedVersion === 'latest' ? 'Latest' : apiVersionStore.selectedVersion }}</UBadge>
+					<UDropdownMenu :items="apiVersionItems">
 					<UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs"/>
 					</UDropdownMenu>
 				</UFieldGroup>

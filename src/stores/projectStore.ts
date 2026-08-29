@@ -3,12 +3,14 @@ import { ref } from "vue";
 import { supabase } from "@/assets/utils/supabase";
 import { useAuthStore } from "./authStore";
 import { generateSlug } from "@/assets/utils/slugWords";
+import { latestApiVersion } from "@/assets/api/versions";
 
 export type ProjectRecord = {
     id: string
     name: string
     slug: string
     isPublic: boolean
+    apiVersion: string
     createdAt: string
     updatedAt: string
 }
@@ -43,7 +45,7 @@ export const useProjectStore = defineStore('projects', () => {
             // site, not "my projects."
             const { data, error } = await supabase
                 .from('projects')
-                .select('id, name, slug, is_public, created_at, updated_at')
+                .select('id, name, slug, is_public, api_version, created_at, updated_at')
                 .eq('owner_id', authStore.user.id)
                 .order('updated_at', { ascending: false })
             if (error) throw error
@@ -53,6 +55,7 @@ export const useProjectStore = defineStore('projects', () => {
                 name: row.name,
                 slug: row.slug,
                 isPublic: row.is_public,
+                apiVersion: row.api_version,
                 createdAt: row.created_at,
                 updatedAt: row.updated_at,
             }))
@@ -69,8 +72,8 @@ export const useProjectStore = defineStore('projects', () => {
         for (let attempt = 1; attempt <= MAX_SLUG_ATTEMPTS; attempt++) {
             const { data, error } = await supabase
                 .from('projects')
-                .insert({ name, owner_id: authStore.user.id, slug: generateSlug() })
-                .select('id, name, slug, is_public, created_at, updated_at')
+                .insert({ name, owner_id: authStore.user.id, slug: generateSlug(), api_version: latestApiVersion() })
+                .select('id, name, slug, is_public, api_version, created_at, updated_at')
                 .single()
 
             if (error) {
@@ -83,6 +86,7 @@ export const useProjectStore = defineStore('projects', () => {
                 name: data.name,
                 slug: data.slug,
                 isPublic: data.is_public,
+                apiVersion: data.api_version,
                 createdAt: data.created_at,
                 updatedAt: data.updated_at,
             }
@@ -118,5 +122,13 @@ export const useProjectStore = defineStore('projects', () => {
         if (project) project.isPublic = isPublic
     }
 
-    return { projects, loading, fetchProjects, createProject, renameProject, deleteProject, setPublic }
+    async function setApiVersion(id: string, version: string) {
+        const { error } = await supabase.from('projects').update({ api_version: version }).eq('id', id)
+        if (error) throw error
+
+        const project = projects.value.find((p) => p.id === id)
+        if (project) project.apiVersion = version
+    }
+
+    return { projects, loading, fetchProjects, createProject, renameProject, deleteProject, setPublic, setApiVersion }
 })

@@ -24,6 +24,8 @@ import Line from './Line'
 import HLine from './HLine'
 import VLine from './VLine'
 
+export const VERSION = '1.0'
+
 // export const outputItems: {
 // 	stamps: HTMLElement[],
 // 	msgs: HTMLElement[]
@@ -726,13 +728,6 @@ function mouseOverCanvas() {
 	return game.canvas.matches(':hover')
 }
 
-const UserOutput = {
-	print: Output.print,
-	error: Output.error,
-	warn: Output.warn,
-	clear: Output.clear
-}
-
 /**
  * API utility
  */
@@ -881,7 +876,14 @@ class UserScene extends Scene {
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			Output: UserOutput, print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
+			// Built here, not as a module-level const, deliberately: core.ts and
+			// output.ts are mutually circular (output.ts imports `clock` from
+			// here), and this only runs once the game actually starts — long
+			// after every module has finished loading — so referencing Output's
+			// methods here can never race its own module's initialization the
+			// way a top-level reference could.
+			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
+			print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -982,7 +984,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	if (_sessionCount > 0) console.groupEnd()
 	// Be cool to print the group header in the theme primary color, but can't use the theme store here
 	// console.group(`%cSunsprite session ${++_sessionCount}`, `color: ${theme?.primary ?? 'white'}; font-weight: bold;`)
-	console.group(`%cSunsprite session ${++_sessionCount}`, `color: ${Colors.HotPink}; font-weight: bold;`)
+	console.group(`%cSunsprite v${VERSION} session ${++_sessionCount}`, `color: ${Colors.HotPink}; font-weight: bold;`)
 
 	_forevers = []
 	_repeats = []

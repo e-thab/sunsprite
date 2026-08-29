@@ -164,6 +164,7 @@ export type Database = {
       }
       projects: {
         Row: {
+          api_version: string
           created_at: string
           id: string
           is_public: boolean
@@ -173,6 +174,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          api_version: string
           created_at?: string
           id?: string
           is_public?: boolean
@@ -182,6 +184,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          api_version?: string
           created_at?: string
           id?: string
           is_public?: boolean

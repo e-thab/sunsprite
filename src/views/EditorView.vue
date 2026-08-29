@@ -4,6 +4,7 @@ import { onBeforeRouteLeave } from 'vue-router';
 import type { SplitterItem } from '@nuxt/ui';
 import { resizeStage } from '@/sandbox/hostBridge';
 import { useFullscreenStore } from '@/stores/fullscreen';
+import { useApiVersionStore } from '@/stores/apiVersionStore';
 import { useFileStore } from '@/stores/fileStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore';
@@ -25,6 +26,7 @@ const props = defineProps<{
 
 const editor = ref()
 const fsStore = useFullscreenStore()
+const apiVersionStore = useApiVersionStore()
 const fileStore = useFileStore()
 const docsStore = useDocsStore()
 const treeSelectionStore = useTreeSelectionStore()
@@ -598,6 +600,10 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
 	window.removeEventListener('beforeunload', onBeforeUnload)
+	// Session-local by design (see apiVersionStore.ts) — don't let a version
+	// picked while editing this project silently carry over into whatever's
+	// opened next.
+	apiVersionStore.reset()
 })
 
 function onBeforeUnload(event: BeforeUnloadEvent) {
