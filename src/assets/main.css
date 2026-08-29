@@ -48,6 +48,23 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
 .panel-bar {
   display: flex;
 	height: 32px;
+  /* What actually holds that 32px. A panel bar is a flex item in
+     .panel-wrapper's column, and a column flex item's default
+     min-height: auto floors it at its own min-content height — so a button
+     label wrapping to two lines at a narrow pane width silently outvoted the
+     declared height and pushed the header taller, taking the space out of the
+     pane's real content beneath it. min-height: 0 removes that floor, nowrap
+     stops the wrap at its source (a header's labels are short by design;
+     nothing up here reads better on two lines), and overflow: hidden settles
+     what a bar does once it genuinely runs out of room — clip at its own edge
+     instead of spilling over the content below. Menus and tooltips opened
+     from inside a bar are unaffected by that clip: Reka portals them out to
+     the body. A bar that deliberately wants a different height has to say so
+     itself, and override min-height too — see ImagePreviewModal.vue's
+     .viewer-controls, the only one that does. */
+  min-height: 0;
+  white-space: nowrap;
+  overflow: hidden;
   flex-shrink: 0;
   padding-left: var(--spacing);
   padding-right: var(--spacing);

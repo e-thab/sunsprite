@@ -211,6 +211,13 @@ monaco.editor.addEditorAction({
 const fileStore = useFileStore()
 
 const saveStatusText = ref('')
+// The timestamp half of a "Saved 10:42:15 AM" status, kept separate from the
+// word in front of it rather than baked into one string: the bar is a fixed
+// 32px that no longer lets a long label wrap (see main.css's .panel-bar), so
+// a narrow code pane drops this part and leaves just "Saved" — a container
+// query on #editor-bar hides it, no width measuring here. Empty whenever
+// there's no save time to show ("Save", "Unchanged").
+const saveStatusTime = ref('')
 const saveStatusColor = computed(() => fileStore.activeFileIsSaved ? 'neutral' : 'warning')
 
 const activeMonacoTheme = computed(() => monacoThemeName(themeStore.currentId))
@@ -594,11 +601,12 @@ function updateSaveMsg(checkCode?: string) {
 	else fileStore.markDirty(activeFile)
 
 	if (fileStore.activeFileIsSaved) {
-		saveStatusText.value = fileStore.savedThisSession(activeFile)
-			? `Saved ${fileStore.getTimeSaved(activeFile)}`
-			: 'Unchanged'
+		const savedNow = fileStore.savedThisSession(activeFile)
+		saveStatusText.value = savedNow ? 'Saved' : 'Unchanged'
+		saveStatusTime.value = savedNow ? fileStore.getTimeSaved(activeFile) ?? '' : ''
 	} else {
 		saveStatusText.value = 'Save'
+		saveStatusTime.value = ''
 	}
 }
 
@@ -736,8 +744,11 @@ async function selectApiVersion(version: string) {
 	<div class="panel-wrapper">
 		<div id="editor-bar" class="panel-bar">
 			<div class="save-group">
-				<UTooltip text="Save">
-					<UButton icon="tabler:device-floppy-filled" variant="ghost" :color="saveStatusColor" size="xs" @click="saveCurrentCode">{{ saveStatusText }}</UButton>
+				<!-- The tooltip carries the save time whenever there is one, so
+				     the timestamp is still reachable in the narrow-pane case
+				     where the label itself has dropped it. -->
+				<UTooltip :text="saveStatusTime ? `Saved ${saveStatusTime}` : 'Save'">
+					<UButton icon="tabler:device-floppy-filled" variant="ghost" :color="saveStatusColor" size="xs" @click="saveCurrentCode">{{ saveStatusText }}<span v-if="saveStatusTime" class="save-time">&nbsp;{{ saveStatusTime }}</span></UButton>
 				</UTooltip>
 				<UTooltip v-if="!fileStore.activeFileIsSaved" text="Discard unsaved changes">
 					<UButton icon="tabler:arrow-back-up" variant="ghost" color="neutral" size="xs" @click="revertCode">Revert</UButton>
@@ -801,12 +812,36 @@ async function selectApiVersion(version: string) {
 <style scoped>
 .editor {
 	flex: 1 1 auto;
+	/* The same automatic-minimum-size floor .panel-bar documents in main.css,
+	   and the one thing that made it self-sustaining here. monaco-editor-vue3
+	   nests two height: 100% divs inside this one, and Monaco writes an
+	   explicit pixel height onto .monaco-editor below them — a percentage
+	   height counts as auto for intrinsic sizing, so this flex item's
+	   min-content height *is* whatever pixel height Monaco last laid out at.
+	   Left at min-height: auto, dragging the code pane shorter couldn't shrink
+	   this box past that: it kept its old height and simply overhung the pane,
+	   with the overhang clipped by .collapsible-pane-frame. Monaco's own
+	   automaticLayout observes this element, saw a size that had never
+	   changed, and so never re-laid-out to match — the two held each other in
+	   place. What got clipped away first was the bottom edge of the editor,
+	   which is exactly where the horizontal scrollbar is drawn, so a long line
+	   overflowed with no visible way to scroll to it. Every sibling pane's
+	   scroll area already pairs flex: 1 1 auto with this (FileTree's
+	   .file-tree, AssetLibrary, DocsPanel, ImagePreviewModal's viewer); this
+	   one was the omission. */
+	min-height: 0;
 	overflow: visible;
 }
 
 #editor-bar {
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr;
+	/* Makes this bar's own width queryable by .save-time below. Named rather
+	   than anonymous so the query can't accidentally resolve against some
+	   other ancestor that later becomes a container. Safe to contain on the
+	   inline axis here: the bar is a block-level grid stretched to the pane's
+	   width, so its width never depended on its contents to begin with. */
+	container: editor-bar / inline-size;
 	/* display: flex; */
 	/* align-items: end; */
 	/* justify-items: center; */
@@ -842,6 +877,21 @@ async function selectApiVersion(version: string) {
 	align-self: center;
 	gap: 0.5em;
 	justify-self: start;
+	/* Same grid-item escape hatch #file-name documents above: without it this
+	   column can't shrink past its own content and the three columns overflow
+	   the bar (now clipped, not wrapped) well before they need to. */
+	min-width: 0;
+}
+
+/* Below this the save button is the widest thing in the row — one third of
+   the bar stops fitting "Saved 10:42:15 AM" at xs, and it's the label that
+   would have wrapped the header taller back when it could. Dropping the time
+   leaves "Saved", which fits down to widths where the whole bar is in
+   trouble anyway; the tooltip still has the full value. */
+@container editor-bar (max-width: 480px) {
+	.save-time {
+		display: none;
+	}
 }
 
 
@@ -849,6 +899,7 @@ async function selectApiVersion(version: string) {
 	display: inline-flex;
 	justify-self: end;
 	align-self: center;
+	min-width: 0;
 	/* transform: translate(-1px, -1px) */
 }
 </style>

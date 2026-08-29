@@ -53,6 +53,13 @@ export default class Camera {
         // this._refObj.centerOn(pos.x, pos.y)
     }
 
+    get pos(): Vector2 {
+        return this.position
+    }
+    set pos(pos: Vector2) {
+        this.position = pos
+    }
+
     get width(): number {
         return this._cam.displayWidth
     }

@@ -165,8 +165,17 @@ onMounted(() => {
     background-color: var(--theme-bg-elevated);
 }
 
+/* Not a .panel-bar (the tabs bring their own height, so there's no fixed
+   32px strip to pin here), but it owes the pane below it the same guarantee:
+   a header never grows by wrapping. nowrap keeps a tab label or the collapse
+   button on one line at any pane width, and overflow: hidden clips whatever
+   no longer fits rather than letting it push the header taller and take the
+   room out of the output itself. */
 .output-header {
     display: flex;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
     /* justify-content: space-between; */
     /* align-items: center; */
     /* color: var(--theme-text); */

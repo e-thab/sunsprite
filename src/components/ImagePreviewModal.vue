@@ -157,12 +157,19 @@ function onPointerUp() {
 	user-select: none;
 }
 
+/* Reuses .panel-bar for its surface and borders, but not its size: these are
+   size="sm" buttons with real padding around them, not a 32px strip of xs
+   ones. Both properties are needed to say that — .panel-bar now pins its
+   height with min-height: 0 as well (see main.css), so releasing only
+   `height` would still leave this floored at nothing and clip the buttons. */
 .viewer-controls {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	gap: 0.5em;
 	flex-shrink: 0;
+	height: auto;
+	min-height: auto;
 	padding: 0.5em;
 	background-color: var(--theme-bg-muted);
 	border-top: 1px solid var(--theme-border)
