@@ -148,7 +148,8 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 }
 
 import { apiLib, apiModel } from '@/assets/api/apiLib'
-import { listApiVersions, loadVersionedApiLib } from '@/assets/api/versions'
+import { DEV_VERSION_AVAILABLE, latestApiVersion, listApiVersions, loadVersionedApiLib } from '@/assets/api/versions'
+import { DEV_VERSION } from '@/assets/api/versions/constants'
 import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
 const libUri = 'file:///lib.ts'
@@ -639,7 +640,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
 import { useProjectStore } from '@/stores/projectStore'
 
-// 'latest' is the live, unversioned apiLib (current source, not a snapshot);
+// 'dev' is the live, unversioned apiLib (current source, not a snapshot);
 // anything else names a permanent folder under src/assets/api/versions/.
 // Session-local, shared with hostBridge.ts (via the store) so the sandboxed
 // game's next run uses the same version this dropdown selects — not just
@@ -651,30 +652,48 @@ const apiVersionItems = computed<DropdownMenuItem[][]>(() => {
 	const checkIfSelected = (version: string): Partial<DropdownMenuItem> =>
 		version === apiVersionStore.selectedVersion ? { icon: 'tabler:check', color: 'primary' } : {}
 
-	// No separate 'Latest' entry: listApiVersions() is already sorted
-	// newest-first (see versions/index.ts), so index 0 *is* the most
-	// up-to-date real version — 'Latest' is just a label on it here, not a
-	// distinct selectable state. Selecting it pins the project to that
-	// version exactly like any other row; it won't silently track newer
-	// versions cut afterward.
+	// Two groups in a dev build, so the separator between them carries the one
+	// distinction that actually matters here: 'dev' tracks the live source and
+	// changes under the project whenever the API does, while every row below it
+	// is a permanent snapshot that never moves again. 'Latest' is only a label on
+	// whichever snapshot currently sorts newest (latestApiVersion(), the tier
+	// new projects are created against) — selecting it pins the project to
+	// that version exactly like any other row, and it won't silently follow
+	// newer versions cut afterward.
+	const newestSnapshot = latestApiVersion()
+
+	const snapshotGroup = listApiVersions().map((version) => ({
+		label: version === newestSnapshot ? `${version} (Latest)` : version,
+		onSelect: () => selectApiVersion(version),
+		...checkIfSelected(version),
+	}))
+
+	// Production drops the group entirely rather than emitting it empty — an
+	// empty array still renders its own separator, leaving a stray rule above
+	// the first snapshot with nothing on the other side of it. See
+	// DEV_VERSION_AVAILABLE for why the whole branch is compiled out there.
+	if (!DEV_VERSION_AVAILABLE) return [snapshotGroup]
+
 	return [
-		listApiVersions().map((version, index) => ({
-			label: index === 0 ? `${version} (Latest)` : version,
-			onSelect: () => selectApiVersion(version),
-			...checkIfSelected(version),
-		})),
+		[{
+			label: `${DEV_VERSION} (Live)`,
+			onSelect: () => selectApiVersion(DEV_VERSION),
+			...checkIfSelected(DEV_VERSION),
+		}],
+		snapshotGroup,
 	]
 })
 
 // Swaps which API version's declarations Monaco's TS language service sees.
-// The historical-version branch loads versions/<version>/generated.ts (bare,
+// A historical version loads versions/<version>/generated.ts (bare,
 // ambient-ready constants — see that folder's index.ts) and rebuilds the same
-// `declare global` lib apiLib.ts already exports for "latest", just from
-// frozen constants instead of the live imports.
+// `declare global` lib apiLib.ts already exports, just from frozen constants
+// instead of the live imports; 'dev' hands back that live lib itself, i.e.
+// exactly the string installed on mount above.
 async function selectApiVersion(version: string) {
 	if (version === apiVersionStore.selectedVersion) return
 
-	const newLib = version === 'latest' ? apiLib : await loadVersionedApiLib(version)
+	const newLib = await loadVersionedApiLib(version)
 	if (newLib === undefined) {
 		console.error(`API version "${version}" not found among available snapshots`)
 		return
@@ -686,10 +705,13 @@ async function selectApiVersion(version: string) {
 
 	// Write straight through to the project record, same immediacy as every
 	// other per-project setting (setPublic, renameProject) — no separate save
-	// step. Skipped for 'latest': it names the live, ever-moving source, not
-	// a canonical tier, so there's nothing meaningful to pin the project to.
+	// step. Skipped for 'dev': it names the live, ever-moving source, not a
+	// canonical tier, so there's nothing meaningful to pin the project to —
+	// and projects.api_version's own format constraint would reject it
+	// anyway. Reopening the project therefore comes back up on whatever
+	// snapshot it's actually pinned to, not on dev.
 	// Also skipped in guest mode (no project to persist to at all).
-	if (fileStore.projectId && version !== 'latest') {
+	if (fileStore.projectId && version !== DEV_VERSION) {
 		projectStore.setApiVersion(fileStore.projectId, version).catch((err) => {
 			console.error('Failed to save API version selection', err)
 		})
@@ -744,7 +766,7 @@ async function selectApiVersion(version: string) {
 				</UTooltip> -->
 
 				<UFieldGroup>
-					<UBadge color="primary" variant="subtle" size="xs" style="font-size: small;">{{ apiVersionStore.selectedVersion === 'latest' ? 'Latest' : apiVersionStore.selectedVersion }}</UBadge>
+					<UBadge color="primary" variant="subtle" size="xs" style="font-size: small;">{{ apiVersionStore.selectedVersion }}</UBadge>
 					<UDropdownMenu :items="apiVersionItems">
 					<UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs"/>
 					</UDropdownMenu>

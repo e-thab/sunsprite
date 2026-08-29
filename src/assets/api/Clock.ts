@@ -77,6 +77,7 @@ export default class Clock {
 
 	_reset() {
 		this._timer.reset()
+		this.frame = 0
 		this.deltaMs = 0
 		// allTimers.push(this._timer)
 	}

@@ -57,8 +57,9 @@ async function load(slug: string) {
   fileStore.setProjectName(data.name)
   // Pins the editor and sandbox to whatever this project was last saved
   // against, before EditorView (and everything downstream that reads this
-  // store) ever mounts — see apiVersionStore.ts's own comment.
-  apiVersionStore.selectedVersion = data.api_version
+  // store) ever mounts — or to the live source in a dev build, which is the
+  // one case that ignores the pin; see hydrateFromProject's own comment.
+  apiVersionStore.hydrateFromProject(data.api_version)
 
   try {
     await fileStore.loadProject(data.id)

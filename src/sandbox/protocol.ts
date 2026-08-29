@@ -51,7 +51,7 @@ export type HostMessage =
 export type SandboxMessage =
     /**
      * Sandbox booted and is ready to accept 'run'. `apiVersion` is whichever
-     * version actually loaded — the requested one, or 'latest' if the
+     * version actually loaded — the requested one, or 'dev' if the
      * requested version wasn't found (see versions/runtime.ts) — so a silent
      * fallback is at least observable host-side instead of invisible.
      */
@@ -135,8 +135,8 @@ export const HOST_ORIGIN_PARAM = 'hostOrigin'
  * at main.ts's own module top level, before setup() runs and before the
  * ready handshake. A HostMessage field can't do this job: it would need a
  * full postMessage round trip, arriving too late to influence which module
- * graph gets imported in the first place. Omitted (or 'latest') for the
- * live, unversioned engine.
+ * graph gets imported in the first place. Omitted (or 'dev') for the live
+ * engine — see src/assets/api/versions/constants.ts.
  */
 export const API_VERSION_PARAM = 'apiVersion'
 

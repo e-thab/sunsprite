@@ -7,6 +7,7 @@ import { createProgram } from './api-codegen/extract'
 import { findTypeAlias } from './api-codegen/ast'
 import { CONCRETE_CLASSES, apiPath, runtimeCopySet } from './api-codegen/sources'
 import { copyAndRewriteRuntime, verifyStandalone } from './api-codegen/runtimeCopy'
+import { DEV_VERSION } from '../src/assets/api/versions/constants'
 
 const MIXIN_TYPE_NAMES: Record<string, string> = {
     Positionable: 'PositionableProps',
@@ -32,6 +33,16 @@ function main() {
     const version = process.argv[2]
     if (!version) {
         console.error('Usage: pnpm run snapshot-api -- <version>  (e.g. pnpm run snapshot-api -- 1.0.0)')
+        process.exit(1)
+    }
+
+    // 'dev' isn't a folder — it's the reserved id for the live source (see
+    // src/assets/api/versions/constants.ts). A versions/dev/ directory would be
+    // picked up by index.ts's and runtime.ts's globs and shadow that entry with
+    // a frozen copy of the very thing it exists to bypass, so the editor would
+    // silently start offering a stale "dev".
+    if (version === DEV_VERSION) {
+        console.error(`"${DEV_VERSION}" is reserved for the live, unsnapshotted API — pick a numeric version label.`)
         process.exit(1)
     }
 

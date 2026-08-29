@@ -132,7 +132,7 @@ onMounted(() => projectStore.fetchProjects())
                 <UButton variant="soft" @click="() => { router.push(`/edit/${project.slug}`) }" style="font-weight: bold;">
                   {{ project.name }}
                 </UButton>
-                <span class="project-updated">{{ project.slug }} &middot; Last edited {{ formatDate(project.updatedAt) }}</span>
+                <span class="project-updated">{{ project.slug }} &middot; v{{ project.apiVersion }} &middot; Last edited {{ formatDate(project.updatedAt) }}</span>
                 <div class="project-visibility-row">
                   <UTooltip :text="project.isPublic ? 'Public (anyone with the link can play)' : 'Private (only you can access this)'" ignore-non-keyboard-focus>
                     <USwitch

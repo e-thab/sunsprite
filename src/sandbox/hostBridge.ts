@@ -3,6 +3,7 @@ import Output from '@/assets/api/output'
 import { useFileStore } from '@/stores/fileStore'
 import { useWatchPanelStore } from '@/stores/watchPanelStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
+import { DEV_VERSION } from '@/assets/api/versions/constants'
 import type { ThemePalette } from '@/assets/theme/themes'
 import { HOST_ORIGIN_PARAM, API_VERSION_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
 
@@ -42,7 +43,7 @@ let frame: HTMLIFrameElement | null = null
 let sandboxReady = false
 
 /** Which version the currently-attached document was actually built with — see runUserCode(). */
-let loadedVersion = 'latest'
+let loadedVersion: string = DEV_VERSION
 
 /** seq of the last 'set-paused' command sent — see protocol.ts's comment on that type. */
 let sentPauseSeq = 0
@@ -52,8 +53,8 @@ let queuedRun: { code: string, entryName: string, theme?: ThemePalette } | null 
 
 /**
  * URL for the sandbox document, carrying our origin so it can address replies,
- * plus which permanent API version it should load (omitted for 'latest' — the
- * live, unversioned engine, main.ts's own default). See src/assets/api/versions/runtime.ts.
+ * plus which permanent API version it should load (omitted for 'dev' — the
+ * live engine, main.ts's own default). See src/assets/api/versions/runtime.ts.
  * The file itself is named runner.html, not sandbox.html — see the comment on
  * vite.config.ts's build.rollupOptions.input for why the two are kept apart.
  */
@@ -61,7 +62,7 @@ export function sandboxUrl(): string {
     const base = `${import.meta.env.BASE_URL}runner.html`
     const params = new URLSearchParams({ [HOST_ORIGIN_PARAM]: window.location.origin })
     const version = useApiVersionStore().selectedVersion
-    if (version !== 'latest') params.set(API_VERSION_PARAM, version)
+    if (version !== DEV_VERSION) params.set(API_VERSION_PARAM, version)
     return `${base}?${params.toString()}`
 }
 
@@ -93,7 +94,7 @@ export function detachSandbox() {
     removeKeyForwarding()
     frame = null
     sandboxReady = false
-    loadedVersion = 'latest'
+    loadedVersion = DEV_VERSION
 }
 
 function onSandboxMessage(event: MessageEvent) {
@@ -108,7 +109,7 @@ function onSandboxMessage(event: MessageEvent) {
     switch (message.type) {
         case 'ready':
             sandboxReady = true
-            // Confirms what actually loaded — main.ts falls back to 'latest'
+            // Confirms what actually loaded — main.ts falls back to 'dev'
             // (rather than failing) when a requested version isn't found, so
             // this can legitimately differ from what sandboxUrl() last asked for.
             loadedVersion = message.apiVersion

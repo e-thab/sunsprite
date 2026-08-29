@@ -1,5 +1,6 @@
 import { setScriptResolver } from '@/assets/api/moduleRunner'
-import { loadVersionedRuntime, loadLatestRuntime } from '@/assets/api/versions/runtime'
+import { loadVersionedRuntime, loadDevRuntime } from '@/assets/api/versions/runtime'
+import { DEV_VERSION } from '@/assets/api/versions/constants'
 import { onHostMessage, postToHost } from './channel'
 import { API_VERSION_PARAM, type HostMessage } from './protocol'
 
@@ -13,13 +14,13 @@ import { API_VERSION_PARAM, type HostMessage } from './protocol'
 // hostBridge.ts's sandboxUrl()) — read once, here, before anything else runs.
 // moduleRunner.ts is never versioned (it's generic script-compilation engine,
 // not part of the scripting API itself), so it stays a plain static import.
-const requestedVersion = new URLSearchParams(location.search).get(API_VERSION_PARAM) ?? 'latest'
+const requestedVersion = new URLSearchParams(location.search).get(API_VERSION_PARAM) ?? DEV_VERSION
 let activeVersion = requestedVersion
-let runtime = requestedVersion === 'latest' ? await loadLatestRuntime() : await loadVersionedRuntime(requestedVersion)
+let runtime = await loadVersionedRuntime(requestedVersion)
 if (!runtime) {
-    console.error(`API version "${requestedVersion}" not found — falling back to latest.`)
-    activeVersion = 'latest'
-    runtime = await loadLatestRuntime()
+    console.error(`API version "${requestedVersion}" not found — falling back to ${DEV_VERSION}.`)
+    activeVersion = DEV_VERSION
+    runtime = await loadDevRuntime()
 }
 const { core, watch } = runtime
 

@@ -68,10 +68,13 @@ async function load(slug: string) {
   fileStore.setProjectName(data.name)
   updatedAt.value = data.updated_at
   // Pins the sandbox to whatever this project was last saved against, before
-  // runGame() below ever calls runUserCode() — see apiVersionStore.ts's own
-  // comment. A public project keeps behaving the way its owner last verified
-  // even if "latest" has since moved past a breaking major-version boundary.
-  apiVersionStore.selectedVersion = data.api_version
+  // runGame() below ever calls runUserCode() — see hydrateFromProject's own
+  // comment. A deployed public project keeps behaving the way its owner last
+  // verified even if the live API has since moved past a breaking change;
+  // playing one from a dev server is the deliberate exception, running it
+  // against the working tree so an API change can be checked on the play page
+  // and not just in the editor.
+  apiVersionStore.hydrateFromProject(data.api_version)
 
   // The owner already has their own username client-side (authStore.username)
   // — no need to round-trip for it. Anyone else only ever reaches this line

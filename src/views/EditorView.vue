@@ -935,6 +935,28 @@ onBeforeRouteLeave(() => {
   display: none;
 }
 
+/* Fullscreen drops the framing every other pane is presented in: the game
+   is the whole screen now, not one panel in a layout. Two things draw that
+   frame and both have to go, or the canvas stops a pixel or so short of the
+   viewport with a strip of the accented backdrop (or a clipped corner)
+   showing through — the outer gutter .editor-root pads its own edges with
+   above, and the border + rounded corners on the leaf pane's own frame.
+   The frame lives in CollapsiblePane.vue under `scoped`, which only appends
+   a [data-v-*] attribute to that component's own selectors; the rule below
+   still outranks it on specificity (three classes/attributes to its two),
+   so it doesn't need to be reached from inside that component. Written
+   against .collapsible-pane-frame generally rather than #canvas-v-pane's
+   specifically since the game pane is the only one still displayed by the
+   rule above. */
+.editor-root[data-fullscreen="true"] {
+  padding: 0;
+}
+
+.editor-root[data-fullscreen="true"] .collapsible-pane-frame {
+  border: none;
+  border-radius: 0;
+}
+
 /* Holds right-pane at an exact pixel width, ignoring whatever reka's own
    flex-grow says underneath — see the docsStore.isOpen watch. !important
    is the one thing that outranks an inline style (reka sets flex-basis/
