@@ -8,6 +8,7 @@ import Phaser from 'phaser'
  */
 
 type RectangleProps = GameObjectProps & {
+    /** The fill color. */
     color?: string
     // outlineColor?: string
 }
@@ -31,14 +32,15 @@ export default class Rectangle extends GameObject {
         rect.getCenter()
 
         // Set mixin props
-        this.initMixins(props)
+        this._initMixins(props)
 
         // Rectangles may flicker on creation without this delay
-        this.queueShow()
+        this._queueShow()
         
         allPositionables.push(this)
 	}
 
+    /** The fill color. */
     get color() {
         return this._color
     }

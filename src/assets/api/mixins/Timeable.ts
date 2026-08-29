@@ -10,21 +10,14 @@ export function Timeable<Base extends Class>(base: Base) {
             this._initTime = clock.time
         }
 
+        /** How long this object has existed, in seconds (not including paused time). */
         get age(): number {
-            // Returns this object's age in seconds not including pause time
             return (clock.time - this._initTime) / 1000
         }
 
+        /** How long this object has existed, in milliseconds (not including paused time). */
         get ageMs(): number {
             return clock.time - this._initTime
         }
     }
 }
-export const timeableApi = [
-    // Props
-    `/** How long this object has existed in seconds. */
-    age: number`,
-
-    // Methods
-    // ...
-].join('\n')

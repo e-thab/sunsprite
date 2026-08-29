@@ -4,34 +4,11 @@ import type { ReferenceObject } from "../types"
 import type { Class } from "./shared"
 
 export type RotatableProps = {
+    /** Rotation angle in degrees. */
     rotation?: number
+    /** Rotation angle in radians. */
     radians?: number
 }
-
-const propDescription: Record<keyof RotatableProps, string> = {
-    rotation: `Rotation angle in degrees.`,
-    radians: `Rotation angle in radians.`,
-}
-
-export const rotatablePropsTypeDef = `
-type RotatableProps = {
-    /** ${propDescription.rotation} */
-    rotation?: number
-
-    /** ${propDescription.radians} */
-    radians?: number
-}`
-export const rotatableApi = [
-    // Props
-    `/** ${propDescription.rotation} */
-    rotation: number`,
-
-    `/** ${propDescription.radians} */
-    radians: number`
-
-    // Methods
-    // ...
-].join('\n')
 
 export function Rotatable<Base extends Class>(base: Base) {
     return class Rotatable extends base {
@@ -42,7 +19,7 @@ export function Rotatable<Base extends Class>(base: Base) {
             super()
         }
 
-        initRotatable(props?: RotatableProps) {
+        _initRotatable(props?: RotatableProps) {
             // Can't null-ish coalesce since rotation & radians overwrite each other
             if (props?.rotation && props?.radians) {
                 // warn?
@@ -56,6 +33,7 @@ export function Rotatable<Base extends Class>(base: Base) {
             }
         }
 
+        /** Rotation angle in degrees. */
         get rotation(): number {
             return this._rotation
         }
@@ -64,6 +42,7 @@ export function Rotatable<Base extends Class>(base: Base) {
             if (this._refObj) this._refObj.rotation = deg2rad(angle)
         }
 
+        /** Rotation angle in radians. */
         get radians(): number {
             return deg2rad(this._rotation)
         }
@@ -72,7 +51,8 @@ export function Rotatable<Base extends Class>(base: Base) {
             if (this._refObj) this._refObj.rotation = rad
         }
 
-        lookAt(other: Point) {
+        _lookAt(other: Point) {
+            // temp private
             // TODO: lookAt()
         }
     }

@@ -9,7 +9,24 @@ export type Predicate = (...args: any[]) => boolean
 export type Returnable<T> = T | (() => T)
 export type Optional<T> = T | undefined | null
 export type Printable = { toString(): string }
-export type PointerAction = ((x: number, y: number) => void) | (() => void) | null
+
+// TODO: verify jsdoc descriptions... are they pointer coords
+// or offset coords?
+export type PointerAction = (
+	/**
+     * @param x The cursor's x coordinate.
+     * @param y The cursor's y coordinate.
+     */
+	(x: number, y: number) => void
+) | (() => void) | null
+
+export type ScrollAction = (
+    /**
+     * @param x The horizontal distance scrolled.
+     * @param y The vertical distance scrolled.
+     */
+    (x: number, y: number) => void
+) | (() => void) | null
 
 export type ReferenceObject = 
 	| Phaser.GameObjects.Text

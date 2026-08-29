@@ -25,7 +25,17 @@
 //     PI: Math.PI,
 // }
 // export default api
-import { positionableApi, sizableApi, rotatableApi, viewableApi, interactableApi, timeableApi, gameObjectApi, gameObjectPropsTypeDef, positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef } from "./mixins"
+import {
+    positionableApi,
+    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef,
+    spritePropsFields, spriteMembers,
+    rectanglePropsFields, rectangleMembers,
+    circlePropsFields, circleMembers,
+    labelPropsFields, labelMembers,
+    linePropsFields, lineMembers,
+    hLinePropsFields, hLineMembers,
+    vLinePropsFields, vLineMembers,
+} from "./generated/apiDeclarations.generated"
 import Colors from './Colors'
 
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
@@ -64,7 +74,7 @@ export const apiLib = 'declare global {\n' + [
 //     .replace(/"([^"]+)":/g, '$1 =') // Unquote keys and replace colons with =
 // }`,
 
-// PointArgs include union w/ number[] in setter params because 
+// PointArgs include union w/ number[] in setter params because
 // JS array literals are inferred as <T>[], not [<T>, <T>, ...]
 `
 ${positionablePropsTypeDef}
@@ -72,8 +82,11 @@ ${sizablePropsTypeDef}
 ${rotatablePropsTypeDef}
 ${viewablePropsTypeDef}
 ${interactablePropsTypeDef}
-${gameObjectPropsTypeDef}
+type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps
+`,
 
+// Types (hand-written — not derived from source, see mixin/class-derived block above)
+`
 // TODO: Hide from API?
 namespace LibVars {
     export const mouseInputEvents = [
@@ -130,13 +143,15 @@ type Returnable<T> = T | (() => T)
 
 type Printable = { toString(): string }
 
+type Optional<T> = T | undefined | null
+
 type MouseInputEvent = typeof LibVars.mouseInputEvents[number]
 type MouseInputAction = {
     [key in MouseInputEvent]?: Action | null
 }
 
 type MouseHoldEvent = typeof LibVars.mouseHoldEvents[number]
-type MouseInputAction = {
+type MouseHoldAction = {
     [key in MouseHoldEvent]?: Action | null
 }
 
@@ -722,12 +737,12 @@ const PI = ${Math.PI}`,
 // Camera
 // TODO: jsdoc
 `
-declare const Camera = {
+declare const Camera: {
     ${positionableApi}
 
     zoom: number
 
-    shake(duration?: number, intensity?: number | Phaser.Math.Vector2, force?: boolean, callback?: Function): void
+    shake(duration?: number, intensity?: number, callback?: Function): void
 
     reset(): void
 
@@ -738,8 +753,7 @@ declare const Camera = {
 // TODO: include default values
 `
 type SpriteProps = GameObjectProps & {
-    /** A URL path to the sprite's image. */
-    src?: string
+${spritePropsFields}
 }
 
 class Sprite {
@@ -748,18 +762,14 @@ class Sprite {
      * @param options TODO: describe
      */
     constructor(options?: SpriteProps)
-    
-    ${gameObjectApi}
 
-    /** A URL path to the sprite's image. */
-    src: string
+${spriteMembers}
 }`,
 
 // Rectangle
 `
 type RectangleProps = GameObjectProps & {
-    /** The fill color. */
-    color?: string
+${rectanglePropsFields}
 }
 
 class Rectangle {
@@ -769,10 +779,7 @@ class Rectangle {
      */
     constructor(options?: RectangleProps)
 
-    ${gameObjectApi}
-
-    /** The fill color. */
-    color: string
+${rectangleMembers}
 }`,
 
 // Line
@@ -781,17 +788,7 @@ class Rectangle {
 // when just doing something like line.pointA = [x, y] it raises an error along
 // the lines of 'number[] not assignable to [number, number] (Target requires 2 element(s) but source may have fewer)'
 `type LineProps = RotatableProps & ViewableProps & {
-    /** Position of end point A. */
-    pointA?: Returnable<PointArg>
-
-    /** Position of end point B. */
-    pointB?: Returnable<PointArg>
-
-    /** The color of the line. */
-    color?: string
-
-    /** The thickness of the line. (Default = 2) */
-    thickness?: number
+${linePropsFields}
 }
 
 class Line {
@@ -801,35 +798,12 @@ class Line {
      */
     constructor(options?: LineProps)
 
-    ${rotatableApi}
-    ${timeableApi}
-    ${viewableApi}
-
-    /** Position of end point A. */
-    get pointA(): Point
-    set pointA(pointA: Returnable<PointArg | number[]>)
-
-    /** Position of end point B. */
-    get pointB(): Point
-    set pointB(pointB: Returnable<PointArg | number[]>)
-
-    /** The color of the line. */
-    color: string
-
-    /** The thickness of the line. */
-    thickness: number
+${lineMembers}
 }`,
 
 // VLine
 `type VLineProps = ViewableProps & {
-    /** The horizontal position of the line. */
-    x?: number
-
-    /** The color of the line */
-    color?: string
-
-    /** The thickness of the line. */
-    thickness?: number
+${vLinePropsFields}
 }
 
 class VLine {
@@ -839,28 +813,12 @@ class VLine {
      */
     constructor(options?: VLineProps)
 
-    ${viewableApi}
-
-    /** The horizontal position of the line. */
-    x: number
-
-    /** The color of the line */
-    color: string
-
-    /** The thickness of the line. */
-    thickness: number
+${vLineMembers}
 }`,
 
 // HLine
 `type HLineProps = ViewableProps & {
-    /** The vertical position of the line. */
-    y?: number
-
-    /** The color of the line */
-    color?: string
-
-    /** The thickness of the line. */
-    thickness?: number
+${hLinePropsFields}
 }
 
 class HLine {
@@ -870,32 +828,12 @@ class HLine {
      */
     constructor(options?: HLineProps)
 
-    ${viewableApi}
-
-    /** The vertical position of the line. */
-    y: number
-
-    /** The color of the line */
-    color: string
-
-    /** The thickness of the line. */
-    thickness: number
-}`
-,
+${hLineMembers}
+}`,
 
 // Label
 `type LabelProps = GameObjectProps & {
-    /** Text content of the label. */
-    text?: string | string[]
-
-    /** Font size. */
-    size?: number
-
-    /** Font family. */
-    font?: string
-
-    /** Fill color. */
-    color?: string
+${labelPropsFields}
 }
 
 class Label {
@@ -905,27 +843,12 @@ class Label {
      */
     constructor(options?: LabelProps)
 
-    ${gameObjectApi}
-
-    /** Text content of the label. */
-    get text(): string
-    set text(text: string | string[])
-
-    /** Font size. */
-    size: number
-
-    /** Font family. */
-    font: string
-
-    /** Fill color. */
-    color: string
+${labelMembers}
 }`,
 
 // Circle
 `type CircleProps = GameObjectProps & {
-    color?: string
-    // outlineColor?: string
-    radius?: number
+${circlePropsFields}
 }
 
 class Circle {
@@ -935,13 +858,7 @@ class Circle {
      */
     constructor(options?: CircleProps)
 
-    ${gameObjectApi}
-
-    /** The fill color. */
-    color: string
-
-    /** The distance from the center of the circle to the edge. */
-    radius: number
+${circleMembers}
 }`,
 
 // Vector2

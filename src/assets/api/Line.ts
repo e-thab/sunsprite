@@ -8,10 +8,13 @@ import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps 
 import Phaser from "phaser";
 
 type LineProps = RotatableProps & ViewableProps & {
-    /* ... */
+    /** Position of end point A. */
     pointA?: Returnable<PointArg>
+    /** Position of end point B. */
     pointB?: Returnable<PointArg>
+    /** The color of the line. */
     color?: string
+    /** The thickness of the line. (Default = 2) */
     thickness?: number // weight?
 }
 
@@ -40,7 +43,7 @@ export default class Line extends
         this._line = line
 
         // this.initRotatable(props) -- how will this work?
-        this.initViewable(props)
+        this._initViewable(props)
         // this.alpha = 10
 
         this._pointA = { x: 0, y: 0 }
@@ -60,6 +63,7 @@ export default class Line extends
         // this.queueShow()
     }
     
+    /** Position of end point A. */
     get pointA(): Point {
         return this._pointA
     }
@@ -81,6 +85,7 @@ export default class Line extends
         this._updatePoints()
     }
     
+    /** Position of end point B. */
     get pointB(): Point {
         return this._pointB
     }
@@ -104,6 +109,7 @@ export default class Line extends
         return Phaser.Display.Color.HexStringToColor(this._color).color
     }
 
+    /** The color of the line. */
     get color(): string {
         return this._color
     }
@@ -112,6 +118,7 @@ export default class Line extends
         this._line.setStrokeStyle(this.thickness, this._colorNum, this.alpha)
     }
 
+    /** The thickness of the line. */
     get thickness(): number {
         return this._thickness
     }
@@ -121,6 +128,7 @@ export default class Line extends
         this._line.setLineWidth(thickness)
     }
 
+    /** The distance between point A and point B. */
     get length(): number {
         return Math.sqrt(
             (this.pointA.x - this.pointB.x) ** 2
@@ -128,6 +136,7 @@ export default class Line extends
         )
     }
 
+    /** Set both endpoints of the line at once. */
     setPoints(pointA: PointArg, pointB: PointArg) {
         this._pointA = pointFrom(pointA)
         this._pointB = pointFrom(pointB)

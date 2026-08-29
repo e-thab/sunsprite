@@ -4,11 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "tsx scripts/generate-api.ts",
     "dev": "vite",
+    "prebuild": "tsx scripts/generate-api.ts",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
-    "type-check": "vue-tsc --build"
+    "pretype-check": "tsx scripts/generate-api.ts",
+    "type-check": "vue-tsc --build",
+    "generate-api": "tsx scripts/generate-api.ts",
+    "snapshot-api": "tsx scripts/snapshot-api.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",
@@ -45,6 +50,7 @@
     "@vue/tsconfig": "^0.8.1",
     "npm-run-all2": "^8.0.4",
     "supabase": "^2.110.0",
+    "tsx": "^4.23.12",
     "vite": "^7.3.1",
     "vite-plugin-vue-devtools": "^8.0.6",
     "vue-tsc": "^3.2.5"

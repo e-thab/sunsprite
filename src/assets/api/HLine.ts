@@ -3,8 +3,11 @@ import { Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "./Line"
 
 type HLineProps = ViewableProps & {
+    /** The vertical position of the line. */
     y?: number
+    /** The color of the line. */
     color?: string
+    /** The thickness of the line. */
     thickness?: number
 }
 
@@ -30,7 +33,7 @@ export default class HLine extends
         })
         
         this._refObj = this._line._refObj
-        this.initViewable(props)
+        this._initViewable(props)
 
         if (props?.color) this.color = props.color
         if (props?.thickness) this.thickness = props.thickness
@@ -47,6 +50,7 @@ export default class HLine extends
         })
     }
 
+    /** The vertical position of the line. */
     get y(): number {
         return this._y
     }
@@ -58,6 +62,7 @@ export default class HLine extends
         )
     }
 
+    /** The color of the line. */
     get color(): string {
         return this._line.color
     }
@@ -65,6 +70,7 @@ export default class HLine extends
         this._line.color = color
     }
 
+    /** The thickness of the line. */
     get thickness(): number {
         return this._line.thickness
     }

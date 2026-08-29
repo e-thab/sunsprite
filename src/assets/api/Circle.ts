@@ -11,8 +11,10 @@ function getPhaserColor(colorString: string) {
  * Circle class
  */
 type CircleProps = GameObjectProps & {
+    /** The fill color. */
     color?: string
     // outlineColor?: string
+    /** The distance from the center of the circle to the edge. */
     radius?: number
 }
 
@@ -48,14 +50,15 @@ export default class Circle extends GameObject {
         // scene.input.setDraggable(circle, true)
 
         // Set mixin props
-        this.initMixins(props)
+        this._initMixins(props)
 
         // Rectangles may flicker on creation without this delay
-        this.queueShow()
+        this._queueShow()
         
         allPositionables.push(this)
     }
 
+    /** The fill color. */
     get color() {
         return this._color
     }
@@ -66,6 +69,7 @@ export default class Circle extends GameObject {
         this._updateFill()
     }
 
+    /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
     get alpha() {
         return this._graphics.alpha
     }
@@ -74,6 +78,7 @@ export default class Circle extends GameObject {
         this._graphics.setAlpha(alpha)
     }
 
+    /** The distance from the center of the circle to the edge. */
     get radius() {
         return this._radius
     }

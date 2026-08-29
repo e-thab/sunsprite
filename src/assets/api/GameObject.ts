@@ -26,12 +26,12 @@ export default abstract class GameObject extends
     }
     
     // WIP
-    initMixins(props?: GameObjectProps) {
-        this.initPositionable(props)
-        this.initSizable(props)
-        this.initRotatable(props)
-        this.initInteractable(props)
-        this.initViewable(props)
+    _initMixins(props?: GameObjectProps) {
+        this._initPositionable(props)
+        this._initSizable(props)
+        this._initRotatable(props)
+        this._initInteractable(props)
+        this._initViewable(props)
 
         // if (props?.onDrag) {
         //     this.onDrag = props.onDrag
@@ -50,96 +50,96 @@ export default abstract class GameObject extends
     }
 
     // TODO: move these position getters to a mixin, Boundable or something like that
-    get left(): number {
-        return this.x - this.width / 2
-    }
+    // get left(): number {
+    //     return this.x - this.width / 2
+    // }
     //set left(left: number)
 
-    get right(): number {
-        return this.x + this.width / 2
-    }
+    // get right(): number {
+    //     return this.x + this.width / 2
+    // }
     //set right(right: number)
 
-    get top(): number {
-        return this.y + this.height / 2
-    }
+    // get top(): number {
+    //     return this.y + this.height / 2
+    // }
     //set top(top: number)
     
-    get bottom(): number {
-        return this.y - this.height / 2
-    }
+    // get bottom(): number {
+    //     return this.y - this.height / 2
+    // }
     //set bottom(bottom: number)
 
-    get topLeft(): Point {
-        return {
-            x: this.left,
-            y: this.top
-        }
-    }
+    // get topLeft(): Point {
+    //     return {
+    //         x: this.left,
+    //         y: this.top
+    //     }
+    // }
     // set topLeft(topLeft: Point)
 
-    get topCenter(): Point {
-        return {
-            x: this.x,
-            y: this.top
-        }
-    }
+    // get topCenter(): Point {
+    //     return {
+    //         x: this.x,
+    //         y: this.top
+    //     }
+    // }
     // set topCenter(topCenter: Point)
 
-    get topRight(): Point {
-        return {
-            x: this.right,
-            y: this.top
-        }
-    }
+    // get topRight(): Point {
+    //     return {
+    //         x: this.right,
+    //         y: this.top
+    //     }
+    // }
     // set topRight(topRight: Point)
 
-    get leftCenter(): Point {
-        return {
-            x: this.left,
-            y: this.y
-        }
-    }
+    // get leftCenter(): Point {
+    //     return {
+    //         x: this.left,
+    //         y: this.y
+    //     }
+    // }
     // set leftCenter(leftCenter: Point)
 
-    get rightCenter(): Point {
-        return {
-            x: this.right,
-            y: this.y
-        }
-    }
+    // get rightCenter(): Point {
+    //     return {
+    //         x: this.right,
+    //         y: this.y
+    //     }
+    // }
     // set rightCenter(rightCenter: Point)
 
-    get bottomLeft(): Point {
-        return {
-            x: this.left,
-            y: this.bottom
-        }
-    }
+    // get bottomLeft(): Point {
+    //     return {
+    //         x: this.left,
+    //         y: this.bottom
+    //     }
+    // }
     // set bottomLeft(bottomLeft: Point)
 
-    get bottomCenter(): Point {
-        return {
-            x: this.x,
-            y: this.bottom
-        }
-    }
+    // get bottomCenter(): Point {
+    //     return {
+    //         x: this.x,
+    //         y: this.bottom
+    //     }
+    // }
     // set bottomCenter(bottomCenter: Point)
     
-    get bottomRight(): Point {
-        return {
-            x: this.right,
-            y: this.bottom
-        }
-    }
+    // get bottomRight(): Point {
+    //     return {
+    //         x: this.right,
+    //         y: this.bottom
+    //     }
+    // }
     // set bottomRight(bottomRight: Point)
     
-    touching(other: Touchable): boolean {
-        return !(
-            this.right < other.left ||
-            this.left > other.right ||
-            this.top < other.bottom ||
-            this.bottom > other.top
-        )
-    }
+    // touching(other: Touchable): boolean {
+    //     return !(
+    //         this.right < other.left ||
+    //         this.left > other.right ||
+    //         this.top < other.bottom ||
+    //         this.bottom > other.top
+    //     )
+    // }
 }

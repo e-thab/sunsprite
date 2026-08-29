@@ -2,42 +2,13 @@ import type { ReferenceObject } from "../types"
 import type { Class } from "./shared"
 
 export type SizableProps = {
+    /** Horizontal size in pixels. */
     width?: number
+    /** Vertical size in pixels. */
     height?: number
+    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
     scale?: number // - still needs testing
 }
-
-const propDescription: Record<keyof SizableProps, string> = {
-    width: `Horizontal size in pixels.`,
-    height: `Vertical size in pixels.`,
-    scale: `Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it.`,
-}
-
-export const sizablePropsTypeDef = `
-declare type SizableProps = {
-    /** ${propDescription.width} */
-    width?: number
-
-    /** ${propDescription.height} */
-    height?: number
-
-    /** ${propDescription.scale} */
-    scale?: number
-}`
-export const sizableApi = [
-    // Props
-    `/** ${propDescription.width} */
-    width: number`,
-
-    `/** ${propDescription.height} */
-    height: number`,
-
-    `/** ${propDescription.scale} */
-    scale: number`,
-
-    // Methods
-    // ...
-].join('\n')
 
 export function Sizable<Base extends Class>(base: Base) {
     return class Sizable extends base {
@@ -52,7 +23,7 @@ export function Sizable<Base extends Class>(base: Base) {
             super()
         }
 
-        initSizable(props?: SizableProps) {
+        _initSizable(props?: SizableProps) {
             // Can't null-ish coalesce bc sprites set their own default width/height
             if ((props?.width !== undefined && props?.scale !== undefined) || (props?.height !== undefined && props?.scale !== undefined)) {
                 // Handle conflict between width/scale
@@ -66,6 +37,7 @@ export function Sizable<Base extends Class>(base: Base) {
             // this.scale = props?.scale ?? 1 // Can't add this until potential conflict is handled
         }
 
+        /** Horizontal size in pixels. */
         get width(): number {
             if (this._refObj) return this._refObj.displayWidth
             return this._width
@@ -76,6 +48,7 @@ export function Sizable<Base extends Class>(base: Base) {
         }
 
         // A way to reset sprite size to default? Just use scale = 1?
+        /** Vertical size in pixels. */
         get height(): number {
             if (this._refObj) return this._refObj.displayHeight
             return this._height
@@ -85,6 +58,7 @@ export function Sizable<Base extends Class>(base: Base) {
             if (this._refObj) this._refObj.displayHeight = height
         }
 
+        /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
         get scale(): number {
             if (this._refObj) return this._refObj.scale // Assuming uniform scale for now
             return this._scale

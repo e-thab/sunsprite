@@ -5,65 +5,15 @@ import type { ReferenceObject } from "../types"
 import type { Class } from "./shared"
 
 export type PositionableProps = {
+    /** Horizontal position in the world. */
     x?: number
+    /** Vertical position in the world. */
     y?: number
+    /** Position in the world (alias of position). */
     pos?: PointArg
+    /** Position in the world. */
     position?: PointArg
 }
-
-const propDescription: Record<keyof PositionableProps, string> = {
-    x: `Horizontal position in the world.`,
-    y: `Vertical position in the world.`,
-    pos: `Position in the world.`,
-    position: `Position in the world (alias of position).`,
-}
-
-export const positionablePropsTypeDef = `
-declare type PositionableProps = {
-    /** ${propDescription.x} */
-    x?: number
-
-    /** ${propDescription.y} */
-    y?: number
-
-    /** ${propDescription.pos} */
-    pos?: PointArg
-
-    /** ${propDescription.position} */
-    position?: PointArg
-}`
-export const positionableApi = [
-    // Props
-    `/** ${propDescription.x} */
-    x: number`,
-
-    `/** ${propDescription.y} */
-    y: number`,
-
-    `/** ${propDescription.pos} */
-    pos: Point`,
-
-    `/** ${propDescription.position} */
-    position: Point`,
-
-    // Methods
-    `/**
-     * Set world position.
-     * @param x New horizontal world position.
-     * @param y New vertical world position.
-     */
-    goTo(x: number, y: number): void`,
-
-    `/**
-     * Set world position.
-     * @param position New world position.
-     */
-    goTo(position: Point): void`,
-
-    `/** Set position to a random point within the current visible screen area. */
-    goToRandom(): void`,
-
-].join('\n')
 
 export function Positionable<Base extends Class>(base: Base) {
     return class Positionable extends base {
@@ -75,7 +25,7 @@ export function Positionable<Base extends Class>(base: Base) {
             super()
         }
 
-        initPositionable(props?: PositionableProps) {
+        _initPositionable(props?: PositionableProps) {
             // Warn when setting:
             // pos & position
             // pos & (x | y)
@@ -86,6 +36,7 @@ export function Positionable<Base extends Class>(base: Base) {
             if (props?.pos) this.pos = props.pos
         }
 
+        /** Horizontal position in the world. */
         get x(): number {
             return this._x
         }
@@ -94,6 +45,7 @@ export function Positionable<Base extends Class>(base: Base) {
             this._updateX()
         }
 
+        /** Vertical position in the world. */
         get y(): number {
             return this._y
         }
@@ -102,6 +54,7 @@ export function Positionable<Base extends Class>(base: Base) {
             this._updateY()
         }
 
+        /** Position in the world. */
         get position(): Point {
             return {
                 x: this.x,
@@ -116,6 +69,7 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         // Alias for position: pos
+        /** Position in the world (alias of position). */
         get pos(): Point {
             return this.position
         }
@@ -123,6 +77,7 @@ export function Positionable<Base extends Class>(base: Base) {
             this.position = pos
         }
 
+        /** This object's horizontal position relative to the camera. */
         get screenX(): number {
             // CHECK PHASER IMPLEMENTATION
             return this.x - camera.x
@@ -131,6 +86,7 @@ export function Positionable<Base extends Class>(base: Base) {
             this.x = camera.x - newX
         }
 
+        /** This object's vertical position relative to the camera. */
         get screenY(): number {
             return this.y - camera.y
         }
@@ -142,7 +98,16 @@ export function Positionable<Base extends Class>(base: Base) {
         //  - A Point instance (any object containing x/y props)
         //  - A point defined with 2 args
         // Also test these
+        /**
+         * Set world position.
+         * @param position New world position.
+         */
         goTo(position: Point): void
+        /**
+         * Set world position.
+         * @param x New horizontal world position.
+         * @param y New vertical world position.
+         */
         goTo(x: number, y: number): void
         goTo(xOrPoint: number | Point, y?: number) {
             if (typeof xOrPoint === 'number' && y !== undefined) {
@@ -154,13 +119,15 @@ export function Positionable<Base extends Class>(base: Base) {
             }
         }
 
-        goToMouse() {
+        _goToMouse() {
+            // temp private
             // CHECK PHASER IMPLEMENTATION
             // Super slow in a forever loop, look into this
             // if (this._refObj) this._refObj.x = mouseX + app.screen.width / 2
             // if (this._refObj) this._refObj.y = -mouseY + app.screen.height / 2
         }
 
+        /** Set position to a random point within the current visible screen area. */
         goToRandom() {
             this.goTo(Random.position())
         }

@@ -9,12 +9,11 @@ export * from './Viewable'
 export * from './Interactable'
 export * from './Timeable'
 
-import { positionableApi, type PositionableProps } from './Positionable'
-import { sizableApi, type SizableProps } from './Sizable'
-import { rotatableApi, type RotatableProps } from './Rotatable'
-import { viewableApi, type ViewableProps } from './Viewable'
-import { interactableApi, type InteractableProps } from './Interactable'
-import { timeableApi } from './Timeable'
+import { type PositionableProps } from './Positionable'
+import { type SizableProps } from './Sizable'
+import { type RotatableProps } from './Rotatable'
+import { type ViewableProps } from './Viewable'
+import { type InteractableProps } from './Interactable'
 
 export type AnyProps = InteractableProps | PositionableProps | RotatableProps | SizableProps | ViewableProps
 export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps /* ...etc. */
@@ -39,22 +38,3 @@ export type GameObjectProps = PositionableProps & SizableProps & RotatableProps 
 //     onMouseExit: () => {},
 //     // ...etc.
 // }
-
-export const gameObjectApi = [
-    positionableApi,
-    sizableApi,
-    rotatableApi,
-    viewableApi,
-    interactableApi,
-    timeableApi
-].join('\n')
-
-export const gameObjectPropsTypeDef = 'type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps'
-// [
-//     positionablePropsTypeDef,
-//     sizablePropsTypeDef,
-//     rotatablePropsTypeDef,
-//     viewablePropsTypeDef,
-//     interactablePropsTypeDef,
-//     `type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps`
-// ]

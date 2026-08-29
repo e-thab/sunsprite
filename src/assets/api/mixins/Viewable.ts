@@ -2,46 +2,13 @@ import type { ReferenceObject } from "../types"
 import type { Class } from "./shared"
 
 export type ViewableProps = {
+    /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
     alpha?: number
+    /** The render order. Objects with higher layer values will show in front of objects with lower values. */
     layer?: number
+    /** Whether this object is currently visible. */
     visible?: boolean
 }
-
-const propDescription: Record<keyof ViewableProps, string> = {
-    alpha: `Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque).`,
-    layer: `The render order. Objects with higher layer values will show in front of objects with lower values.`,
-    visible: `Whether this object is currently visible.`,
-}
-
-export const viewablePropsTypeDef = `
-type ViewableProps = {
-    /** ${propDescription.alpha} */
-    alpha?: number
-
-    /** ${propDescription.layer} */
-    layer?: number
-
-    /** ${propDescription.visible} */
-    visible?: boolean
-}`
-export const viewableApi = [
-    // Props
-    `/** ${propDescription.alpha} */
-    alpha: number`,
-
-    `/** ${propDescription.layer} */
-    layer: number`,
-
-    `/** ${propDescription.visible} */
-    visible: boolean`,
-
-    // Methods
-    `/** Show this object. */
-    show(): void`,
-
-    `/** Hide this object. */
-    hide(): void`,
-].join('\n')
 
 export function Viewable<Base extends Class>(base: Base) {
     return class Viewable extends base {
@@ -59,13 +26,13 @@ export function Viewable<Base extends Class>(base: Base) {
             super()
         }
 
-        initViewable(props?: ViewableProps) {
+        _initViewable(props?: ViewableProps) {
             if (props?.alpha != null) this.alpha = props.alpha
             if (props?.layer != null) this.layer = props.layer
             if (props?.visible != null) this.visible = props.visible
         }
 
-        queueShow() {
+        _queueShow() {
             // Visible objects may flicker on create without this delay
             if (!this._refObj) return
 
@@ -75,6 +42,7 @@ export function Viewable<Base extends Class>(base: Base) {
             }
         }
 
+        /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
         get alpha(): number {
             return this._alpha
         }
@@ -84,6 +52,7 @@ export function Viewable<Base extends Class>(base: Base) {
         }
 
         // Update for phaser
+        /** The render order. Objects with higher layer values will show in front of objects with lower values. */
         get layer(): number {
             return this._layer
         }
@@ -92,6 +61,7 @@ export function Viewable<Base extends Class>(base: Base) {
             if (this._refObj) this._refObj.setDepth(layer)
         }
 
+        /** Whether this object is currently visible. */
         get visible(): boolean {
             return this._visible
         }
@@ -107,19 +77,23 @@ export function Viewable<Base extends Class>(base: Base) {
             }
         }
 
+        /** Show this object. */
         show() {
             if (this._refObj) this._refObj.visible = true
         }
 
+        /** Hide this object. */
         hide() {
             if (this._refObj) this._refObj.visible = false
         }
 
-        sendToFrontLayer() {
+        _sendToFrontLayer() {
+            // temp private
             // TODO: Send to front layer
         }
 
-        sendToBackLayer() {
+        _sendToBackLayer() {
+            // temp private
             // TODO: Send to back layer
         }
 
@@ -127,10 +101,12 @@ export function Viewable<Base extends Class>(base: Base) {
         // }
         // layerDown() {
         // }
-        sendToLayerAbove(other: Viewable) {
+        _sendToLayerAbove(other: Viewable) {
+            // temp private
             // TODO: Send to layer above other
         }
-        sendToLayerBelow(other: Viewable) {
+        _sendToLayerBelow(other: Viewable) {
+            // temp private
             // TODO: Send to layer below other
         }
     }

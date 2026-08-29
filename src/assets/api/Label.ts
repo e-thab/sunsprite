@@ -4,11 +4,14 @@ import GameObject from "./GameObject"
 import Phaser from "phaser"
 
 type LabelProps = GameObjectProps & {
+    /** Text content of the label. */
     text?: string | string[]
+    /** Font size. */
     size?: number
+    /** Font family. */
     font?: string
+    /** Fill color. */
     color?: string
-    /* ... */
 }
 
 export default class Label extends GameObject {
@@ -39,7 +42,7 @@ export default class Label extends GameObject {
         this.color = this._color
 
         // Set mixin props
-        this.initMixins(props)
+        this._initMixins(props)
 
         // Label may flicker on creation without this delay..?
         //this.queueShow()
@@ -47,6 +50,7 @@ export default class Label extends GameObject {
         allPositionables.push(this)
     }
 
+    /** Text content of the label. */
     get text(): string {
         return this._label.text
     }
@@ -55,6 +59,7 @@ export default class Label extends GameObject {
     }
 
     // Have size support CSS strings like Phaser.Text.setFontSize, but test first
+    /** Font size. */
     get size(): number {
         return this._size
     }
@@ -64,6 +69,7 @@ export default class Label extends GameObject {
     }
 
     // TODO
+    /** Font family. */
     get font(): string {
         return this._font
     }
@@ -72,6 +78,7 @@ export default class Label extends GameObject {
         this._font = font
     }
 
+    /** Fill color. */
     get color(): string {
         return this._color
     }
