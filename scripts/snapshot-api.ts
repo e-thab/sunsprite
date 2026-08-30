@@ -5,8 +5,9 @@ import { generateApiDeclarations } from './api-codegen/index'
 import { renderGeneratedModule } from './api-codegen/render'
 import { createProgram } from './api-codegen/extract'
 import { findTypeAlias } from './api-codegen/ast'
-import { CONCRETE_CLASSES, apiPath, runtimeCopySet } from './api-codegen/sources'
+import { CONCRETE_CLASSES, apiPath, docsCopySet, runtimeCopySet } from './api-codegen/sources'
 import { copyAndRewriteRuntime, verifyStandalone } from './api-codegen/runtimeCopy'
+import { copyAndRewriteVueFiles, verifyVueStandalone } from './api-codegen/vueCopy'
 import { DEV_VERSION } from '../src/assets/api/versions/constants'
 
 const MIXIN_TYPE_NAMES: Record<string, string> = {
@@ -123,6 +124,18 @@ function main() {
     const copiedFiles = copyAndRewriteRuntime(runtimeCopySet(), srcOutDir)
     verifyStandalone(copiedFiles)
     console.log(`Wrote ${copiedFiles.length} runtime source files under src/assets/api/versions/${version}/src/`)
+
+    // Doc pages under content/api/ — the only part of the docs frozen per
+    // version (see docs/plans/api-versioning.md). Some (colors.vue, the
+    // random/*.vue pages) import real API modules for live examples, so they
+    // get resolved against the *union* of the runtime copy set and the docs
+    // copy set, not docsCopySet() alone — that's what makes e.g. a page's
+    // `@/assets/api/Colors` import land on this version's own already-copied
+    // Colors.ts instead of the live original.
+    const docsFiles = docsCopySet()
+    const copiedDocsFiles = copyAndRewriteVueFiles(docsFiles, [...runtimeCopySet(), ...docsFiles], srcOutDir)
+    verifyVueStandalone(copiedDocsFiles)
+    console.log(`Wrote ${copiedDocsFiles.length} doc pages under src/assets/api/versions/${version}/src/assets/docs/content/api/`)
 }
 
 main()

@@ -104,7 +104,7 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
   padding: .55em .8em;
   background-color: var(--theme-bg-muted);
   border: 1px solid var(--theme-border);
-  border-radius: .5em;
+  border-radius: var(--panel-border-radius);
   font-family: 'Fira Code';
   transition: transform .15s ease, opacity .15s ease;
   /* Belt-and-braces clip: --panel-max-width (below) already keeps label/value
@@ -151,7 +151,7 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
   padding: .3em .55em;
   border: 1px dashed var(--theme-border);
   background-color: var(--theme-bg-muted);
-  border-radius: .35em;
+  border-radius: var(--panel-border-radius);
   /* Live panel width from InfoPanel.vue/WatchPanel.vue — without this cap
      the box just shrink-wraps to whatever its label/value naturally want. */
   max-width: var(--panel-max-width, none);

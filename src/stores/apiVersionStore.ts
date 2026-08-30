@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { DEV_VERSION_AVAILABLE, latestApiVersion } from '@/assets/api/versions'
+import { DEV_VERSION_AVAILABLE, defaultApiVersion } from '@/assets/api/versions'
 import { DEV_VERSION } from '@/assets/api/versions/constants'
 
 // Which API version (see src/assets/api/versions/) the editor and the
@@ -39,7 +39,7 @@ import { DEV_VERSION } from '@/assets/api/versions/constants'
 //
 // Evaluated once at module load rather than per call: latestApiVersion() reads
 // import.meta.glob's key set, which is fixed at build time.
-const DEFAULT_VERSION = DEV_VERSION_AVAILABLE ? DEV_VERSION : latestApiVersion()
+const DEFAULT_VERSION = defaultApiVersion()
 
 export const useApiVersionStore = defineStore('apiVersion', () => {
     const selectedVersion = ref<string>(DEFAULT_VERSION)

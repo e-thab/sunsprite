@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { BreadcrumbItem } from '@nuxt/ui'
-import { ancestorsOf } from '@/assets/docs/docsIndex'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
+import { docsDataKey } from '@/assets/docs/docsData'
 
 const nav = inject(docsNavigationKey)!
+const docsData = inject(docsDataKey)!
 
 const ancestorItems = computed<(BreadcrumbItem & { path: string })[]>(() =>
-	ancestorsOf(nav.currentPath.value).map((entry) => ({
+	docsData.value.ancestorsOf(nav.currentPath.value).map((entry) => ({
 		label: entry.node.title,
 		icon: entry.node.icon,
 		to: nav.resolveHref(entry.path),

@@ -14,7 +14,7 @@ export * from './docsTypes'
 // `<script>` block, alongside the default export that makes it a component;
 // see DocPageMeta for the exact shape.
 
-type DocPageModule = {
+export type DocPageModule = {
 	default: Component
 	meta?: DocPageMeta
 }
@@ -31,6 +31,17 @@ const pageSources = import.meta.glob<string>('./content/**/*.vue', {
 })
 
 const CONTENT_PREFIX = './content/'
+
+/**
+ * Re-keys a glob result from `./content/api/colors.vue` down to the plain
+ * `api/colors.vue` buildDocsTree expects — the prefix strip is the one part
+ * that's different for every caller (docsVersions.ts's per-version globs live
+ * at a completely different relative depth), so it happens here, once per
+ * glob, rather than being threaded through buildDocsTree itself.
+ */
+function stripPrefix<T>(glob: Record<string, T>, prefix: string): Record<string, T> {
+	return Object.fromEntries(Object.entries(glob).map(([key, value]) => [key.slice(prefix.length), value]))
+}
 
 type DocPageFile = {
 	/** Partial because it's whatever the page actually exported — see readPage. */
@@ -183,7 +194,7 @@ function titleFromSlug(slug: string): string {
 // Deliberately unvalidated: a page missing its `meta` still becomes a node
 // (with a warning, see nodeTitle) rather than vanishing from the tree, which
 // is a far easier thing to debug than a page that silently isn't there.
-function readPage(key: string): DocPageFile {
+function readPage(key: string, pageModules: Record<string, DocPageModule>, pageSources: Record<string, string>): DocPageFile {
 	const module = pageModules[key]!
 
 	return {
@@ -193,13 +204,13 @@ function readPage(key: string): DocPageFile {
 	}
 }
 
-function buildDirTree(): DocDir {
+function buildDirTree(pageModules: Record<string, DocPageModule>, pageSources: Record<string, string>): DocDir {
 	const root = emptyDir()
 
 	for (const key of Object.keys(pageModules)) {
-		const page = readPage(key)
+		const page = readPage(key, pageModules, pageSources)
 
-		const segments = key.slice(CONTENT_PREFIX.length, -'.vue'.length).split('/')
+		const segments = key.slice(0, -'.vue'.length).split('/')
 		const slug = segments.pop()!
 
 		let dir = root
@@ -288,4 +299,16 @@ function buildNodes(dir: DocDir, parentPath: string): DocNode[] {
 	return sortByFolderOrder(nodes, dir.index?.meta.order, parentPath)
 }
 
-export const docsTree: DocNode[] = buildNodes(buildDirTree(), '')
+/**
+ * Builds a docs tree from a glob's module/source maps — factored out of what
+ * used to be one fixed module-level computation so docsVersions.ts can call
+ * this again over a *historical* version's frozen `content/api/` copy. Keys
+ * in both maps must already be prefix-stripped (`api/colors.vue`, not
+ * `./content/api/colors.vue` or some versions/<v>/... path) — see
+ * stripPrefix above for the live case, docsVersions.ts for the versioned one.
+ */
+export function buildDocsTree(pageModules: Record<string, DocPageModule>, pageSources: Record<string, string>): DocNode[] {
+	return buildNodes(buildDirTree(pageModules, pageSources), '')
+}
+
+export const docsTree: DocNode[] = buildDocsTree(stripPrefix(pageModules, CONTENT_PREFIX), stripPrefix(pageSources, CONTENT_PREFIX))

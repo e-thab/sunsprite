@@ -3,10 +3,10 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { REPO_ROOT } from './sources'
 
-const SRC_ROOT = path.join(REPO_ROOT, 'src')
+export const SRC_ROOT = path.join(REPO_ROOT, 'src')
 
 /** Matches tsconfig.app.json's real `@/*` alias, so resolution matches what Vite actually does. */
-const RESOLUTION_OPTIONS: ts.CompilerOptions = {
+export const RESOLUTION_OPTIONS: ts.CompilerOptions = {
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     baseUrl: REPO_ROOT,
     paths: { '@/*': ['src/*'] },
@@ -17,22 +17,23 @@ const RESOLUTION_OPTIONS: ts.CompilerOptions = {
 // platform; path.join/resolve return backslash paths on Windows. Normalizing
 // both sides before set-membership checks avoids every resolved path silently
 // missing the copy set on Windows even when it's genuinely a member.
-function normalizeSlashes(p: string): string {
+export function normalizeSlashes(p: string): string {
     return p.replace(/\\/g, '/')
 }
 
-function resolveSpecifier(specifier: string, containingFile: string): string | undefined {
+/** Exported for vueCopy.ts, which needs the same resolution against the same alias config. */
+export function resolveSpecifier(specifier: string, containingFile: string): string | undefined {
     const result = ts.resolveModuleName(specifier, containingFile, RESOLUTION_OPTIONS, ts.sys)
     const resolved = result.resolvedModule?.resolvedFileName
     return resolved ? normalizeSlashes(resolved) : undefined
 }
 
 /** Where a real source file's copy lives under a version's own src/ mirror. */
-function mirroredPath(outDir: string, realFile: string): string {
+export function mirroredPath(outDir: string, realFile: string): string {
     return path.join(outDir, path.relative(SRC_ROOT, realFile))
 }
 
-function toSpecifier(fromFile: string, toFile: string): string {
+export function toSpecifier(fromFile: string, toFile: string): string {
     let rel = path.relative(path.dirname(fromFile), toFile).replace(/\\/g, '/').replace(/\.tsx?$/, '')
     if (!rel.startsWith('.')) rel = './' + rel
     return rel

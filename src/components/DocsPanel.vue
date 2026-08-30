@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, provide, reactive, ref, useTemplateRef, watch } from 'vue'
 import type { SplitterItem } from '@nuxt/ui'
-import { docsTree } from '@/assets/docs/docsContent'
-import { nodesByPath, ancestorsOf } from '@/assets/docs/docsIndex'
 import { searchDocs } from '@/assets/docs/docsSearch'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
+import { docsDataKey } from '@/assets/docs/docsData'
+import { useDocsData } from '@/assets/docs/docsVersions'
+import { useApiVersionStore } from '@/stores/apiVersionStore'
 import DocsTree from './docs/DocsTree.vue'
 import DocsSearchResultsList from './docs/DocsSearchResultsList.vue'
 import DocsBreadcrumb from './docs/DocsBreadcrumb.vue'
@@ -15,6 +16,14 @@ import { usePixelMinSize } from '@/composables/usePixelMinSize'
 import { useStablePanelSizing } from '@/composables/useStablePanelSizing'
 
 defineEmits<{ close: [] }>()
+
+// Follows the project's own pinned/live version — the same one CodeEditor.vue
+// and the sandbox use — so the docs panel never disagrees with the code
+// that's actually running. No selector of its own here; see DocsView.vue for
+// the standalone route's independent one.
+const apiVersionStore = useApiVersionStore()
+const docsData = useDocsData(() => apiVersionStore.selectedVersion)
+provide(docsDataKey, docsData)
 
 // See usePixelMinSize's own comment for the full reasoning — this keeps
 // docs-tree-pane/docs-content-pane's own floor pixel-consistent with every
@@ -59,7 +68,7 @@ const isSearching = computed(() => searchQuery.value.trim().length > 0)
 // functional match for the reference the search rework was built against
 // (Vue's own docs search: a flat list of results, each excerpted around the
 // match).
-const searchResults = computed(() => searchDocs(searchQuery.value))
+const searchResults = computed(() => searchDocs(searchQuery.value, docsData.value.searchEntries))
 
 // The panel's own navigation state — intentionally NOT synced to the
 // browser route (see docs/plans/docs-panel-rebuild.md, decision #1). The
@@ -72,7 +81,7 @@ const DOCS_PANEL_PATH_KEY = 'sunsprite:docsPanelPath'
 
 function loadStoredPath(): string {
 	const stored = localStorage.getItem(DOCS_PANEL_PATH_KEY)
-	return stored && nodesByPath.has(stored) ? stored : 'getting-started'
+	return stored && docsData.value.nodesByPath.has(stored) ? stored : 'getting-started'
 }
 
 const currentPath = ref(loadStoredPath())
@@ -90,7 +99,7 @@ function navigate(path: string, opts?: { reveal?: boolean }) {
 	currentPath.value = path
 	localStorage.setItem(DOCS_PANEL_PATH_KEY, path)
 	if (opts?.reveal) {
-		for (const entry of ancestorsOf(path)) expandOverrides.set(entry.path, true)
+		for (const entry of docsData.value.ancestorsOf(path)) expandOverrides.set(entry.path, true)
 	}
 }
 
@@ -122,15 +131,21 @@ function toggleExpanded(path: string) {
 // seeds each of its ancestors to expanded, but only ones with no explicit
 // choice yet, so this never overrides something the user already decided
 // (in either direction) for an unrelated or previously-visited branch.
-watch(currentPath, (path) => {
-	for (const entry of ancestorsOf(path)) {
+// Also re-runs when docsData changes (a version switch), not just on
+// currentPath — a historical version can structure content/api/ differently,
+// so the ancestor chain for the *same* path string may differ across
+// versions. The !has() guard still means this only ever adds newly-
+// encountered categories; a user's own expand/collapse choices survive a
+// version switch untouched.
+watch([currentPath, docsData], ([path]) => {
+	for (const entry of docsData.value.ancestorsOf(path)) {
 		if (!expandOverrides.has(entry.path)) expandOverrides.set(entry.path, true)
 	}
 }, { immediate: true })
 
 provide(docsNavigationKey, { currentPath, navigate, resolveHref, isExpanded, toggleExpanded })
 
-const currentNode = computed(() => nodesByPath.get(currentPath.value))
+const currentNode = computed(() => docsData.value.nodesByPath.get(currentPath.value))
 </script>
 
 <template>
@@ -165,7 +180,7 @@ const currentNode = computed(() => nodesByPath.get(currentPath.value))
 				</div>
 
 				<div class="docs-tree-scroll">
-					<DocsTree v-if="!isSearching" :nodes="docsTree" />
+					<DocsTree v-if="!isSearching" :nodes="docsData.tree" />
 					<div v-else class="docs-search-results">
 						<DocsSearchResultsList :results="searchResults" @select="selectSearchResult" />
 					</div>

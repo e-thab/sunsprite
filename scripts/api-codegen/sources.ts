@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -5,6 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const REPO_ROOT = path.resolve(__dirname, '../..')
 const API_DIR = path.resolve(__dirname, '../../src/assets/api')
 const SANDBOX_DIR = path.resolve(__dirname, '../../src/sandbox')
+const DOCS_API_DIR = path.resolve(__dirname, '../../src/assets/docs/content/api')
 
 export function apiPath(...segments: string[]): string {
     return path.join(API_DIR, ...segments)
@@ -94,4 +96,29 @@ export function runtimeCopySet(): string[] {
         ...SUPPORTING_API_FILES,
         ...SANDBOX_RUNTIME_FILES,
     ]
+}
+
+function walkVueFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const entryPath = path.join(dir, entry.name)
+        if (entry.isDirectory()) return walkVueFiles(entryPath)
+        return entry.isFile() && entry.name.endsWith('.vue') ? [entryPath] : []
+    })
+}
+
+/**
+ * Every doc page under content/api/ — the API-surface-specific reference
+ * material, the only part of the docs that gets frozen per version (see
+ * docs/plans/api-versioning.md). content/concepts/, content/tutorials/, and
+ * content/ui/ stay live/evergreen, shared across every version, so they're
+ * deliberately not walked here.
+ *
+ * A dynamic directory walk, not a hand-enumerated list like MIXINS/
+ * CONCRETE_CLASSES above: doc pages are numerous and open-ended, and
+ * docsContent.ts itself already treats content/** as glob-discovered with
+ * "no manifest to keep in sync" — this shouldn't be the one place that
+ * breaks that property.
+ */
+export function docsCopySet(): string[] {
+    return walkVueFiles(DOCS_API_DIR)
 }

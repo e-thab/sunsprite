@@ -1,3 +1,4 @@
+import type { DropdownMenuItem } from '@nuxt/ui'
 import { apiLib, buildApiLib, type VersionedApiConstants } from '../apiLib'
 import { DEV_VERSION } from './constants'
 
@@ -67,6 +68,20 @@ export function latestApiVersion(): string {
 }
 
 /**
+ * What a fresh session starts on — shared by apiVersionStore.ts (the project
+ * editor/sandbox) and DocsView.vue (the standalone docs route's own,
+ * independent selector), so "what's selected before you've touched anything"
+ * means the same thing in both places. Dev builds start on DEV_VERSION, the
+ * whole reason that entry exists — an API (or docs) change in the working
+ * tree should be checkable without ceremony. Production has no such row (see
+ * DEV_VERSION_AVAILABLE) and starts on the newest cut tier instead, the same
+ * one a fresh project is pinned to at creation.
+ */
+export function defaultApiVersion(): string {
+    return DEV_VERSION_AVAILABLE ? DEV_VERSION : latestApiVersion()
+}
+
+/**
  * Declaration text for any selectable version, ready for Monaco's addExtraLib.
  * 'dev' hands back the live apiLib — the same string CodeEditor.vue installs
  * on first mount, built from src/assets/api/generated/apiDeclarations.generated.ts
@@ -79,4 +94,44 @@ export async function loadVersionedApiLib(version: string): Promise<string | und
     if (!loader) return undefined
     const constants = await loader()
     return buildApiLib(constants)
+}
+
+/**
+ * The version dropdown's item list — shared by CodeEditor.vue and
+ * DocsView.vue so the two look and behave identically rather than
+ * maintaining two hand-written copies of the same grouping/labeling logic.
+ * Two groups in a dev build, so the separator between them carries the one
+ * distinction that actually matters: DEV_VERSION tracks the live source and
+ * changes under the project whenever the API does, while every row below it
+ * is a permanent snapshot that never moves again. "(Latest)" is only a label
+ * on whichever snapshot currently sorts newest (latestApiVersion(), the tier
+ * new projects are created against) — selecting it pins to that version
+ * exactly like any other row, and it won't silently follow newer versions
+ * cut afterward.
+ */
+export function apiVersionDropdownItems(selectedVersion: string, onSelect: (version: string) => void): DropdownMenuItem[][] {
+    const checkIfSelected = (version: string): Partial<DropdownMenuItem> =>
+        version === selectedVersion ? { icon: 'tabler:check', color: 'primary' } : {}
+
+    const newestSnapshot = latestApiVersion()
+
+    const snapshotGroup = listApiVersions().map((version) => ({
+        label: version === newestSnapshot ? `${version} (Latest)` : version,
+        onSelect: () => onSelect(version),
+        ...checkIfSelected(version),
+    }))
+
+    // Production drops the dev group entirely rather than emitting it empty
+    // — an empty array still renders its own separator, leaving a stray rule
+    // above the first snapshot with nothing on the other side of it.
+    if (!DEV_VERSION_AVAILABLE) return [snapshotGroup]
+
+    return [
+        [{
+            label: `${DEV_VERSION} (Live)`,
+            onSelect: () => onSelect(DEV_VERSION),
+            ...checkIfSelected(DEV_VERSION),
+        }],
+        snapshotGroup,
+    ]
 }

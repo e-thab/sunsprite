@@ -148,7 +148,7 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 }
 
 import { apiLib, apiModel } from '@/assets/api/apiLib'
-import { DEV_VERSION_AVAILABLE, latestApiVersion, listApiVersions, loadVersionedApiLib } from '@/assets/api/versions'
+import { apiVersionDropdownItems, loadVersionedApiLib } from '@/assets/api/versions'
 import { DEV_VERSION } from '@/assets/api/versions/constants'
 import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
@@ -656,41 +656,10 @@ import { useProjectStore } from '@/stores/projectStore'
 const apiVersionStore = useApiVersionStore()
 const projectStore = useProjectStore()
 
-const apiVersionItems = computed<DropdownMenuItem[][]>(() => {
-	const checkIfSelected = (version: string): Partial<DropdownMenuItem> =>
-		version === apiVersionStore.selectedVersion ? { icon: 'tabler:check', color: 'primary' } : {}
-
-	// Two groups in a dev build, so the separator between them carries the one
-	// distinction that actually matters here: 'dev' tracks the live source and
-	// changes under the project whenever the API does, while every row below it
-	// is a permanent snapshot that never moves again. 'Latest' is only a label on
-	// whichever snapshot currently sorts newest (latestApiVersion(), the tier
-	// new projects are created against) — selecting it pins the project to
-	// that version exactly like any other row, and it won't silently follow
-	// newer versions cut afterward.
-	const newestSnapshot = latestApiVersion()
-
-	const snapshotGroup = listApiVersions().map((version) => ({
-		label: version === newestSnapshot ? `${version} (Latest)` : version,
-		onSelect: () => selectApiVersion(version),
-		...checkIfSelected(version),
-	}))
-
-	// Production drops the group entirely rather than emitting it empty — an
-	// empty array still renders its own separator, leaving a stray rule above
-	// the first snapshot with nothing on the other side of it. See
-	// DEV_VERSION_AVAILABLE for why the whole branch is compiled out there.
-	if (!DEV_VERSION_AVAILABLE) return [snapshotGroup]
-
-	return [
-		[{
-			label: `${DEV_VERSION} (Live)`,
-			onSelect: () => selectApiVersion(DEV_VERSION),
-			...checkIfSelected(DEV_VERSION),
-		}],
-		snapshotGroup,
-	]
-})
+// Item-building itself lives in versions/index.ts (apiVersionDropdownItems),
+// shared with DocsView.vue's own selector so the two look and behave
+// identically rather than maintaining two copies of the same logic.
+const apiVersionItems = computed<DropdownMenuItem[][]>(() => apiVersionDropdownItems(apiVersionStore.selectedVersion, selectApiVersion))
 
 // Swaps which API version's declarations Monaco's TS language service sees.
 // A historical version loads versions/<version>/generated.ts (bare,

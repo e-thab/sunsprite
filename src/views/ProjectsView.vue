@@ -238,7 +238,7 @@ onMounted(() => projectStore.fetchProjects())
   align-items: center;
   gap: 0.75em;
   padding: 0.5em 0.75em;
-  border-radius: 6px;
+  border-radius: var(--panel-border-radius);
   background-color: var(--ui-bg-elevated);
 }
 
@@ -246,7 +246,7 @@ onMounted(() => projectStore.fetchProjects())
   flex-shrink: 0;
   width: 128px;
   aspect-ratio: 16 / 9;
-  border-radius: 6px;
+  border-radius: var(--panel-border-radius);
   border: 1px dashed var(--theme-border);
   background-color: var(--theme-bg-muted);
   display: flex;

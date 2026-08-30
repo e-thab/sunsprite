@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { docsTree } from '@/assets/docs/docsContent'
-import { nodesByPath, ancestorsOf } from '@/assets/docs/docsIndex'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
+import { docsDataKey } from '@/assets/docs/docsData'
+import { useDocsData } from '@/assets/docs/docsVersions'
 import { provideDocsToc } from '@/assets/docs/docsToc'
+import { apiVersionDropdownItems, defaultApiVersion } from '@/assets/api/versions'
 import DocsTree from '@/components/docs/DocsTree.vue'
 import DocsBreadcrumb from '@/components/docs/DocsBreadcrumb.vue'
 import DocsCategoryLanding from '@/components/docs/DocsCategoryLanding.vue'
@@ -14,6 +16,22 @@ import ErrorView from './ErrorView.vue'
 
 const route = useRoute()
 const router = useRouter()
+
+// This route has no project of its own (reached directly at /docs, outside
+// the editor), so unlike DocsPanel.vue it can't just follow
+// apiVersionStore — it gets its own selector instead (see the dropdown in
+// the template below), local and session-only, exactly like CodeEditor.vue's
+// own dropdown before project-persistence existed.
+const selectedVersion = ref(defaultApiVersion())
+const docsData = useDocsData(selectedVersion)
+provide(docsDataKey, docsData)
+
+// Same shared item-building CodeEditor.vue's own dropdown uses — no Monaco/
+// sandbox side effects to run here, just swap which version useDocsData
+// resolves; its own watcher (see docsVersions.ts) does the rest.
+const versionItems = computed<DropdownMenuItem[][]>(() =>
+	apiVersionDropdownItems(selectedVersion.value, (version) => { selectedVersion.value = version })
+)
 
 const routePath = computed(() => {
 	const raw = route.params.pathMatch
@@ -40,7 +58,7 @@ function navigate(path: string, opts?: { reveal?: boolean }) {
 		if (optimisticPath.value === path) optimisticPath.value = null
 	})
 	if (opts?.reveal) {
-		for (const entry of ancestorsOf(path)) expandOverrides.set(entry.path, true)
+		for (const entry of docsData.value.ancestorsOf(path)) expandOverrides.set(entry.path, true)
 	}
 }
 
@@ -69,15 +87,17 @@ function toggleExpanded(path: string) {
 // seeds each of its ancestors to expanded, but only ones with no explicit
 // choice yet, so this never overrides something the user already decided
 // (in either direction) for an unrelated or previously-visited branch.
-watch(currentPath, (path) => {
-	for (const entry of ancestorsOf(path)) {
+// Also re-runs when docsData changes (a version switch) — see DocsPanel.vue's
+// identical watcher for why.
+watch([currentPath, docsData], ([path]) => {
+	for (const entry of docsData.value.ancestorsOf(path)) {
 		if (!expandOverrides.has(entry.path)) expandOverrides.set(entry.path, true)
 	}
 }, { immediate: true })
 
 provide(docsNavigationKey, { currentPath, navigate, resolveHref, isExpanded, toggleExpanded })
 
-const currentNode = computed(() => nodesByPath.get(currentPath.value))
+const currentNode = computed(() => docsData.value.nodesByPath.get(currentPath.value))
 
 // Filled in by the page itself as it mounts, so it changes a tick after
 // currentPath does — which is why the TOC's own width is re-measured on
@@ -176,11 +196,19 @@ onBeforeUnmount(() => observer?.disconnect())
 	<UPage v-else ref="pageRef" class="docs-view">
 		<template #left>
 			<div class="docs-view-tree">
-				<DocsTree :nodes="docsTree" />
+				<DocsTree :nodes="docsData.tree" />
 			</div>
 		</template>
 
-		<DocsBreadcrumb />
+		<div class="breadcrumb-container">
+			<DocsBreadcrumb />
+			<UFieldGroup class="docs-version-picker">
+				<UBadge color="primary" variant="subtle" size="xs" style="font-size: small;">&nbsp;Version {{ selectedVersion }}&nbsp;</UBadge>
+				<UDropdownMenu :items="versionItems">
+					<UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs" />
+				</UDropdownMenu>
+			</UFieldGroup>
+		</div>
 
 		<UPageBody>
 			<UContainer class="docs-view-container">
@@ -237,6 +265,19 @@ onBeforeUnmount(() => observer?.disconnect())
 	grid-column: auto;
 	order: 0;
 	min-width: 0;
+}
+
+.breadcrumb-container {
+	display: flex;
+	justify-content: space-between;
+	max-width: 96rem;
+	/* padding-block: 1.5em; */
+	padding: 0.5em 1.5em 0 1.5em;
+	/* justify-self: center; */
+}
+
+.docs-version-picker {
+	margin: 0;
 }
 
 .docs-view-tree {

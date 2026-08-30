@@ -1,7 +1,7 @@
 import { inject } from 'vue'
 import type { DocRef } from '@/assets/docs/docsTypes'
-import { nodesByPath } from '@/assets/docs/docsIndex'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
+import { docsDataKey } from '@/assets/docs/docsData'
 
 /**
  * Links from a page's body to another page. Titles and icons come from the
@@ -10,17 +10,18 @@ import { docsNavigationKey } from '@/assets/docs/docsNavigation'
  */
 export function useDocRefs() {
 	const nav = inject(docsNavigationKey)!
+	const docsData = inject(docsDataKey)!
 
 	function normalize(refs: (string | DocRef)[]): DocRef[] {
 		return refs.map((ref) => (typeof ref === 'string' ? { path: ref } : ref))
 	}
 
 	function labelOf(ref: DocRef): string {
-		return ref.label ?? nodesByPath.get(ref.path)?.title ?? ref.path
+		return ref.label ?? docsData.value.nodesByPath.get(ref.path)?.title ?? ref.path
 	}
 
 	function iconOf(ref: DocRef): string | undefined {
-		return nodesByPath.get(ref.path)?.icon
+		return docsData.value.nodesByPath.get(ref.path)?.icon
 	}
 
 	// Links resolve to a real /docs/... href so middle-click and open-in-new-tab
