@@ -19,7 +19,9 @@ import {
 	scriptFileType,
 	splitFileName,
 } from '@/assets/utils/fileTypes'
+import { formatBytes } from '@/assets/utils/formatBytes'
 import CollapsiblePane from './CollapsiblePane.vue'
+import StorageIndicator from './StorageIndicator.vue'
 
 const fileStore = useFileStore()
 const treeSelectionStore = useTreeSelectionStore()
@@ -129,6 +131,9 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			kind: 'folder',
 			id: node.id,
 			parentId,
+			// A folder has no size of its own — only whatever's actually
+			// inside it, recursively (see folderSizeBytes's own comment).
+			size: fileStore.folderSizeBytes(node.id),
 			onSelect: preventFolderSelect,
 			children: withFolderDropPlaceholder(fileStore.childNodes(node.id).map((child) => buildNode(child, node.id)), node.id),
 		}
@@ -139,6 +144,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			kind: 'image',
 			id: node.id,
 			parentId,
+			size: node.size,
 			thumbnail: node.publicUrl,
 			path: node.publicUrl,
 			typeLabel: imageFileTypeForExtension(splitFileName(node.name).extension)?.label,
@@ -150,6 +156,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			kind: 'text',
 			id: node.id,
 			parentId,
+			size: node.size,
 			icon: DEFAULT_TEXT_FILE_TYPE.icon,
 			typeLabel: DEFAULT_TEXT_FILE_TYPE.label,
 			// Opens the same way a script does — same Monaco pane, just a
@@ -163,6 +170,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 		kind: 'script',
 		id: node.id,
 		parentId,
+		size: node.size,
 		icon: fileType.icon,
 		typeLabel: fileType.label,
 		onSelect: selectHandler,
@@ -248,7 +256,11 @@ async function addScript(folderId: string | null) {
 		return
 	}
 
-	await fileStore.createScript(name, '', folderId)
+	try {
+		await fileStore.createScript(name, '', folderId)
+	} catch (err) {
+		window.alert(err instanceof Error ? err.message : 'Failed to create script')
+	}
 }
 
 async function addFolder(parentId: string | null) {
@@ -325,7 +337,11 @@ async function addTextFile(folderId: string | null) {
 		return
 	}
 
-	await fileStore.createTextFile(name, '', folderId)
+	try {
+		await fileStore.createTextFile(name, '', folderId)
+	} catch (err) {
+		window.alert(err instanceof Error ? err.message : 'Failed to create text file')
+	}
 }
 
 // Dropdown shown behind the header's own "+" for the project root — folderId
@@ -960,28 +976,37 @@ async function onDropOnRoot() {
 					</template>
 
 					<template #item-trailing="{ item }">
-						<div v-if="renamingItemId !== item.id" class="item-actions" @contextmenu="forwardRowContextMenu($event, item)">
-							<UDropdownMenu
-								:items="itemMenuItems(item)"
-								:open="actionsMenuOpenKey === rowKey(item)"
-								:content="{ onCloseAutoFocus: preventCloseAutoFocus }"
-								@update:open="(value: boolean) => actionsMenuOpenKey = value ? (rowKey(item) ?? null) : null"
-							>
-								<!-- <UTooltip text="Actions" ignore-non-keyboard-focus> -->
-									<!-- Ghost's default hover/active fill is bg-elevated — invisible here since
-									     .file-tree's own background is that same token (see below). Bumped one
-									     step up to bg-accented so the highlight actually shows against it. -->
-									<UButton
-										icon="tabler:dots-vertical"
-										variant="ghost"
-										color="neutral"
-										size="xs"
-										:ui="{ base: 'hover:bg-[var(--theme-bg-accented)] active:bg-[var(--theme-bg-accented)]' }"
-										@click.stop
-									/>
-								<!-- </UTooltip> -->
-							</UDropdownMenu>
-						</div>
+						<template v-if="renamingItemId !== item.id">
+							<!-- A folder's own size is an aggregate over its
+							     contents (see buildNode/folderSizeBytes), not
+							     something intrinsic to the folder row itself —
+							     shown the same way regardless, since the
+							     distinction doesn't matter for what this column
+							     is answering ("where is my space going"). -->
+							<span class="item-size" :title="`${(item.size ?? 0).toLocaleString()} bytes`">{{ formatBytes(item.size ?? 0) }}</span>
+							<div class="item-actions" @contextmenu="forwardRowContextMenu($event, item)">
+								<UDropdownMenu
+									:items="itemMenuItems(item)"
+									:open="actionsMenuOpenKey === rowKey(item)"
+									:content="{ onCloseAutoFocus: preventCloseAutoFocus }"
+									@update:open="(value: boolean) => actionsMenuOpenKey = value ? (rowKey(item) ?? null) : null"
+								>
+									<!-- <UTooltip text="Actions" ignore-non-keyboard-focus> -->
+										<!-- Ghost's default hover/active fill is bg-elevated — invisible here since
+										     .file-tree's own background is that same token (see below). Bumped one
+										     step up to bg-accented so the highlight actually shows against it. -->
+										<UButton
+											icon="tabler:dots-vertical"
+											variant="ghost"
+											color="neutral"
+											size="xs"
+											:ui="{ base: 'hover:bg-[var(--theme-bg-accented)] active:bg-[var(--theme-bg-accented)]' }"
+											@click.stop
+										/>
+									<!-- </UTooltip> -->
+								</UDropdownMenu>
+							</div>
+						</template>
 					</template>
 
 					<template #drop-placeholder>
@@ -990,6 +1015,12 @@ async function onDropOnRoot() {
 				</UTree>
 			</div>
 		</UContextMenu>
+
+		<!-- No project (guest sandbox) means no real quota to speak of at all
+		     — everything's a localStorage blob, nothing ever gets uploaded to
+		     Supabase/R2, so a "X / 10MB used" readout would just be showing a
+		     number that doesn't apply here. -->
+		<StorageIndicator v-if="fileStore.projectId" />
 	</div>
 	</CollapsiblePane>
 </template>
@@ -1175,6 +1206,36 @@ async function onDropOnRoot() {
 	flex-shrink: 0;
 }
 
+/* Deliberately the opposite priority from .item-actions beside it: this
+   should give up space *before* the file name does, truncating and
+   eventually vanishing at 0 width, while the name (data-slot="linkLabel",
+   min-width: 0 below) stays fully visible until this has nothing left to
+   give. flex-shrink: 999 against the label's default (1) is what creates
+   that ordering — not a literal 999:1 split, but skewed enough that this
+   absorbs essentially all of the available shrinkage first; the label only
+   starts losing width once this is already at its own min-width: 0 floor
+   and flexbox has nowhere else to take space from. flex-basis (rather than
+   width) is what "vanishing" needs: a shrinking flex-basis heading toward 0
+   naturally clips this element's own box to nothing, not just its text —
+   width would only affect the text's rendering box, not how much of the
+   overall shrinkage this item actually absorbs. text-overflow: ellipsis
+   (not the default clip) gives the truncate-before-vanish step its own
+   visual — a "12…" moment — before it disappears entirely, rather than
+   jumping straight from full text to gone. Not right-aligned any more:
+   that only made sense back when this had a fixed, protected width — a
+   right-aligned ellipsis truncates from the wrong (left) edge, which isn't
+   reliably supported the way trailing-edge truncation is. */
+.item-size {
+	flex-shrink: 999;
+	flex-basis: 3.5em;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 0.75em;
+	color: var(--theme-text-toned);
+	white-space: nowrap;
+}
+
 /* Nuxt UI only gives this element `truncate` (overflow-hidden + text-
    overflow: ellipsis + white-space: nowrap) — none of that clips anything
    until the box can actually shrink narrower than its content, and a flex
@@ -1183,6 +1244,29 @@ async function onDropOnRoot() {
    give up space to .item-actions above as the row narrows, so the ellipsis
    applies at any width instead of only when there's slack to spare. */
 :deep([data-slot="linkLabel"]) {
+	min-width: 0;
+}
+
+/* The missing piece that made .item-size's own flex-shrink: 999 above a
+   no-op: .item-size and .item-actions aren't siblings of linkLabel in one
+   shared flex row — per Tree.vue (node_modules/@nuxt/ui), the #item-trailing
+   slot they're rendered into is itself wrapped in a Nuxt UI-owned
+   `<span data-slot="linkTrailing">`, which is what's actually adjacent to
+   linkLabel in the outer .link row. That wrapper ships with no min-width or
+   flex-shrink override of its own (just `ms-auto inline-flex gap-1.5
+   items-center`), so at the *outer* level it sat at browser defaults —
+   min-width: auto, flex-shrink: 1 — refusing to shrink below the natural
+   width of its own contents no matter how tight the row got. With nothing
+   ever asking linkTrailing to shrink, the inner item-size/item-actions
+   priority split never had a chance to run, and 100% of the outer row's
+   shrink pressure fell on linkLabel by default instead — the exact opposite
+   of the intended order. min-width: 0 unblocks shrinking at all; flex-shrink:
+   999 (matching .item-size's own value, same "absorb essentially all the
+   shrinkage first" approximation) makes linkTrailing — and therefore
+   item-size within it — give up space before linkLabel does, not
+   simultaneously with it. */
+:deep([data-slot="linkTrailing"]) {
+	flex-shrink: 999;
 	min-width: 0;
 }
 </style>

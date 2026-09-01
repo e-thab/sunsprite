@@ -1,32 +1,39 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from '@nuxt/ui/composables'
-import type { ProgressGroupItem } from '@nuxt/ui'
-import { useProjectStore, MAX_PROJECT_NAME_LENGTH } from '@/stores/projectStore'
+import { useProjectStore, MAX_PROJECT_NAME_LENGTH, PROJECT_STORAGE_QUOTA_BYTES, ACCOUNT_STORAGE_QUOTA_BYTES, type StorageUsage } from '@/stores/projectStore'
 import { useNamePromptStore } from '@/stores/namePromptStore'
 import { formatDate } from '@/assets/utils/timeAgo'
+import { formatBytes } from '@/assets/utils/formatBytes'
 
 const projectStore = useProjectStore()
 const namePromptStore = useNamePromptStore()
 const router = useRouter()
 const toast = useToast()
 
-// Mock only — no per-project storage tracking exists yet. Just a visual
-// draft of what a usage breakdown might look like on this card; every
-// project shows the same placeholder numbers for now.
-const MOCK_STORAGE_QUOTA_BYTES = 50 * 1024 * 1024
-const MOCK_STORAGE_ITEMS: ProgressGroupItem[] = [
-  { label: 'Text', icon: 'tabler:file-text', value: 6.5 * 1024 * 1024, color: 'var(--theme-text)' },
-  { label: 'Images', icon: 'tabler:photo', value: 11.3 * 1024 * 1024, color: 'var(--theme-primary)' },
-]
-const MOCK_STORAGE_USED_BYTES = MOCK_STORAGE_ITEMS.reduce((sum, item) => sum + (item.value ?? 0), 0)
+const EMPTY_USAGE: StorageUsage = { textBytes: 0, imageBytes: 0, soundBytes: 0 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+// Just the running total here — no per-category (text/images/audio)
+// breakdown on this page anymore; that detail lives in the editor's own
+// StorageIndicator.vue instead (its expanded state), which reuses
+// UProgressGroup for it. This list view only ever needs "how full."
+function usedBytesFor(projectId: string): number {
+  const usage = projectStore.storageByProject.get(projectId) ?? EMPTY_USAGE
+  return usage.textBytes + usage.imageBytes + usage.soundBytes
 }
+
+// Summed from the same per-project figures fetchStorageUsage() already
+// fetches for the rows below — no separate request. Mirrors the account-wide
+// total the edge functions actually enforce (see ACCOUNT_STORAGE_QUOTA_BYTES's
+// own comment), not just a client-side approximation of it.
+const accountUsedBytes = computed(() => {
+  let total = 0
+  for (const usage of projectStore.storageByProject.values()) {
+    total += usage.textBytes + usage.imageBytes + usage.soundBytes
+  }
+  return total
+})
 
 const creating = ref(false)
 const errorMessage = ref('')
@@ -95,7 +102,12 @@ async function onDelete(id: string, name: string) {
   }
 }
 
-onMounted(() => projectStore.fetchProjects())
+onMounted(async () => {
+  // Sequenced, not parallel: fetchStorageUsage() needs this user's own
+  // project ids, which only fetchProjects() knows.
+  await projectStore.fetchProjects()
+  await projectStore.fetchStorageUsage()
+})
 </script>
 
 <template>
@@ -107,6 +119,24 @@ onMounted(() => projectStore.fetchProjects())
           <UButton trailing-icon="tabler:plus" :loading="creating" @click="onCreate">New Project</UButton>
         </div>
       </template>
+
+      <!-- Account-wide, not per-project — every project's usage summed
+           together against ACCOUNT_STORAGE_QUOTA_BYTES, a separate, higher
+           cap actually enforced server-side alongside each project's own
+           10MB one (see that constant's own comment). -->
+      <UProgress
+        :model-value="accountUsedBytes"
+        :max="ACCOUNT_STORAGE_QUOTA_BYTES"
+        :color="accountUsedBytes > ACCOUNT_STORAGE_QUOTA_BYTES ? 'error' : 'primary'"
+        size="sm"
+        class="account-storage spaced"
+      >
+        <template #status>
+          <span :class="{ 'storage-status-over': accountUsedBytes > ACCOUNT_STORAGE_QUOTA_BYTES }">
+            {{ formatBytes(accountUsedBytes) }} / {{ formatBytes(ACCOUNT_STORAGE_QUOTA_BYTES) }} used across all projects
+          </span>
+        </template>
+      </UProgress>
 
       <UAlert v-if="errorMessage" color="error" variant="subtle" :description="errorMessage" class="spaced" />
 
@@ -126,55 +156,55 @@ onMounted(() => projectStore.fetchProjects())
             <UIcon name="tabler:photo" />
           </div>
 
-          <div class="project-row-main">
-            <div class="project-row-top">
-              <div class="project-row-info">
-                <UButton variant="soft" @click="() => { router.push(`/edit/${project.slug}`) }" style="font-weight: bold;">
-                  {{ project.name }}
-                </UButton>
-                <span class="project-updated">{{ project.slug }} &middot; v{{ project.apiVersion }} &middot; Last edited {{ formatDate(project.updatedAt) }}</span>
-                <div class="project-visibility-row">
-                  <UTooltip :text="project.isPublic ? 'Public (anyone with the link can play)' : 'Private (only you can access this)'" ignore-non-keyboard-focus>
-                    <USwitch
-                      :model-value="project.isPublic"
-                      :label="project.isPublic ? 'Public' : 'Private'"
-                      color="success"
-                      aria-label="Toggle privacy"
-                      unchecked-icon="tabler:lock"
-                      checked-icon="tabler:world"
-                      class="project-visibility-switch"
-                      @update:model-value="(value: boolean) => onTogglePublic(project, value)"
-                    />
-                  </UTooltip>
-                  <UTooltip text="Copy play link" ignore-non-keyboard-focus>
-                    <UButton icon="tabler:link" label="Copy Play Link" variant="soft" color="neutral" size="sm" @click="onCopyPlayLink(project.slug)" />
-                  </UTooltip>
-                </div>
-              </div>
+          <div class="project-row-info">
+            <UButton variant="soft" @click="() => { router.push(`/edit/${project.slug}`) }" style="font-weight: bold;">
+              {{ project.name }}
+            </UButton>
 
-              <!-- Mock only — see MOCK_STORAGE_ITEMS above. -->
-              <!-- <UProgressGroup
-                :items="MOCK_STORAGE_ITEMS"
-                :max="MOCK_STORAGE_QUOTA_BYTES"
-                orientation="vertical"
-                size="sm"
-                class="project-storage"
-              > -->
-                <!-- <template #status>
-                  {{ formatBytes(MOCK_STORAGE_USED_BYTES) }} / {{ formatBytes(MOCK_STORAGE_QUOTA_BYTES) }}
-                </template>
-                <template #item-trailing="{ item }">
-                  {{ formatBytes(item.value ?? 0) }}
-                </template> -->
-              <!-- </UProgressGroup> -->
-              <div>Storage</div>
-
-              <div class="project-row-actions">
-                <UButton icon="streamline-plump:controller-1-solid" label="Play" variant="soft" color="neutral" size="sm" :to="`/play/${project.slug}`" target="_blank" />
-                <UButton icon="tabler:pencil" label="Rename" variant="soft" color="neutral" size="sm" @click="onRename(project.id, project.name)" />
-                <UButton icon="tabler:trash" label="Delete" variant="ghost" color="error" size="sm" @click="onDelete(project.id, project.name)" />
-              </div>
+            <div class="project-details-row">
+              <span class="project-updated">Last edited {{ formatDate(project.updatedAt) }}</span>
+              <!-- <span class="project-updated">&middot;</span> -->
+              <span class="project-updated">v{{ project.apiVersion }}</span>
+              <!-- <span class="project-updated">&middot;</span> -->
+              <span class="project-updated">{{ project.slug }}</span>
             </div>
+
+            <div class="project-visibility-row">
+              <UTooltip :text="project.isPublic ? 'Public (anyone with the link can play)' : 'Private (only you can access this)'" ignore-non-keyboard-focus>
+                <USwitch
+                  :model-value="project.isPublic"
+                  :label="project.isPublic ? 'Public' : 'Private'"
+                  color="success"
+                  aria-label="Toggle privacy"
+                  unchecked-icon="tabler:lock"
+                  checked-icon="tabler:world"
+                  @update:model-value="(value: boolean) => onTogglePublic(project, value)"
+                />
+              </UTooltip>
+              <UTooltip text="Copy play link" ignore-non-keyboard-focus>
+                <UButton icon="tabler:link" label="Copy Play Link" variant="soft" color="neutral" size="sm" @click="onCopyPlayLink(project.slug)" />
+              </UTooltip>
+            </div>
+          </div>
+
+          <!-- <UProgress
+            :model-value="usedBytesFor(project.id)"
+            :max="PROJECT_STORAGE_QUOTA_BYTES"
+            :color="usedBytesFor(project.id) > PROJECT_STORAGE_QUOTA_BYTES ? 'error' : 'primary'"
+            size="sm"
+            class="project-storage"
+          >
+            <template #status>
+              <span :class="{ 'storage-status-over': usedBytesFor(project.id) > PROJECT_STORAGE_QUOTA_BYTES }">
+                {{ formatBytes(usedBytesFor(project.id)) }} / {{ formatBytes(PROJECT_STORAGE_QUOTA_BYTES) }}
+              </span>
+            </template>
+          </UProgress> -->
+
+          <div class="project-row-actions">
+            <UButton icon="streamline-plump:controller-1-solid" label="Play" variant="soft" color="neutral" size="sm" :to="`/play/${project.slug}`" target="_blank" />
+            <UButton icon="tabler:pencil" label="Rename" variant="soft" color="neutral" size="sm" @click="onRename(project.id, project.name)" />
+            <UButton icon="tabler:trash" label="Delete" variant="ghost" color="error" size="sm" @click="onDelete(project.id, project.name)" />
           </div>
         </li>
       </ul>
@@ -205,7 +235,8 @@ onMounted(() => projectStore.fetchProjects())
   /* Widened from 480px to make room for the thumbnail alongside everything
      else a row now carries — name/slug/date, visibility + copy link,
      play/rename/delete, and the storage bar. */
-  max-width: 680px;
+  max-width: 600px;
+  min-width: 600px;
 }
 
 .projects-header {
@@ -217,6 +248,7 @@ onMounted(() => projectStore.fetchProjects())
 
 .projects-header h1 {
   font-size: 1.3em;
+  font-weight: 500;
 }
 
 .spaced {
@@ -256,39 +288,42 @@ onMounted(() => projectStore.fetchProjects())
   font-size: 1.75em;
 }
 
-.project-row-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4em;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.project-row-top {
-  display: flex;
-  /* stretch (the default, but named here for clarity) so project-row-info
-     can size itself to the row's full height — driven by whichever of it or
-     project-row-actions is naturally taller — and push its own bottom row
-     down to match, rather than both columns just top-aligning independently. */
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 0.75em;
-}
-
+/* Fixed width, not shrink-to-content — same reason project-row-info has
+   min-width: 0 above: without this, a longer "X / Y" status readout would
+   change this column's own footprint and push project-row-actions beside it
+   out of alignment with every other row. */
 .project-storage {
-  padding-top: 0.15em;
-  /* border-top: 1px solid var(--theme-border); */
+  align-self: flex-end;
+  flex-shrink: 0;
+  width: 7em;
 }
 
-/* Segments get an inline height:X% from the component itself in vertical
-   orientation — that only resolves against a track (data-slot="base") that
-   actually has a real height, which block elements don't get for free the
-   way width:100% happens by default. Narrower width too, so it actually
-   reads as a vertical bar instead of collapsing to nothing. */
-.project-storage :deep([data-slot="base"]) {
-  height: 100%;
-  min-height: 4em;
-  width: 1.5em;
+/* Default (horizontal) root is already the shape wanted here — status on
+   top, bar underneath (theme: "flex flex-col") — no grid override needed
+   this time, unlike ProgressGroup's vertical orientation. Only status needs
+   correcting: its own theme class ties its *width* to the fill percentage
+   (w-(--percent)) — built for a percentage label that trails the fill edge,
+   which reads fine at high percentages but leaves a "10.2 MB / 10.0 MB"
+   string almost no room at a low one. Forced to the row's full width instead
+   so the label is always fully legible regardless of how full the bar is. */
+.project-storage :deep([data-slot="status"]) {
+  width: 100% !important;
+  justify-content: flex-start;
+  font-weight: bold;
+  color: var(--theme-text);
+}
+
+.storage-status-over {
+  color: var(--theme-error);
+}
+
+/* Same status-width fix as .project-storage above — see its own comment for
+   why (the theme ties status's width to the fill percent by default). */
+.account-storage :deep([data-slot="status"]) {
+  width: 100% !important;
+  justify-content: flex-start;
+  font-weight: bold;
+  color: var(--theme-text);
 }
 
 .project-row-info {
@@ -302,25 +337,45 @@ onMounted(() => projectStore.fetchProjects())
      wraps or the actions column gets. */
   justify-content: space-between;
   gap: 0.35em;
-  /* Lets this flex item actually shrink below its name's unwrapped width
-     instead of pushing the row wider — flex items default to min-width:
-     auto, so without this a long name would never be forced to wrap. */
+  /* Stretched to the row's full height (project-row's own align-items is
+     center, for the thumbnail's sake — this opts out) so space-between above
+     has room to work with, and flex-grow:1 is what absorbs whatever width
+     project-storage/project-row-actions don't need, now that there's no
+     project-row-main wrapper claiming that role. */
+  align-self: stretch;
+  flex: 1 1 auto;
+  /* Lets this column actually shrink below its content's natural width
+     instead of forcing the whole row wider — flex items default to
+     min-width: auto, so without this, a long project name or a wide
+     project-details-row (nowrap, below) would push project-row-actions
+     right off the edge of the card instead of staying put. Confirmed via
+     Playwright: removing this let a merely medium-length name/slug combo
+     push .project-row-actions 13px past .projects-card's own right edge —
+     "never wrap" and "every row stays aligned" conflict once content is
+     wide enough, and alignment is the one that has to win here. */
   min-width: 0;
 }
 
+.project-details-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  align-self: stretch;
+  gap: 0.35em;
+}
+
+/* Same align-self: stretch reasoning as project-details-row above — this is
+   what makes space-between actually separate the switch from the copy-link
+   button across the column's full width, replacing the old fixed-width
+   hack on the switch itself (used elsewhere in this repo's history; removed
+   here since space-between makes it unnecessary). */
 .project-visibility-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  align-self: stretch;
   gap: 0.5em;
   margin-top: 0.15em;
-}
-
-/* Fixed width sized for "Private" (the longer of the two label states) so
-   toggling doesn't shift the Copy Link button beside it — without this the
-   switch+label only takes as much space as whichever word is currently
-   showing. */
-.project-visibility-switch {
-  width: 7em;
 }
 
 /* Targets the name UButton's root element — it renders {{ project.name }}

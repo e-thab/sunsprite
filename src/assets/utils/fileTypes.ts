@@ -81,6 +81,22 @@ export function isFileNameTooLong(base: string): boolean {
 	return base.length > MAX_FILE_NAME_LENGTH
 }
 
+// Mirrors the text_files table's own check (char_length(content) <= 1000000)
+// — scripts has no equivalent database constraint at all, so for scripts
+// this is the *only* backstop, not just a friendlier duplicate of one. A
+// plain character count, not exact byte parity with Postgres's char_length
+// (which would need real Unicode code-point counting to match precisely) —
+// this exists to catch a many-hundred-MB paste before it ever leaves the
+// browser, not to be byte-precise about edge cases right at the boundary.
+// Prompted by a real incident: a 200MB text file save with no guard in
+// front of it correlated with the project's Supabase instance going
+// unhealthy shortly after.
+export const MAX_FILE_CONTENT_LENGTH = 1_000_000
+
+export function isFileContentTooLong(content: string): boolean {
+	return content.length > MAX_FILE_CONTENT_LENGTH
+}
+
 // The name an upload is stored under: type is recognized from the file's
 // real content type (not trusted from whatever extension, if any, the source
 // file's own name happened to have), and that recognized type's canonical

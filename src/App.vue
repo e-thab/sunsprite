@@ -76,7 +76,7 @@ onBeforeUnmount(() => classObserver?.disconnect())
 </script>
 
 <template>
-  <UApp>
+  <UApp :tooltip="{ delayDuration: 200 }">
     <div class="wrapper">
       <NavBar class="navbar-header"/>
       <RouterView class="content"/>

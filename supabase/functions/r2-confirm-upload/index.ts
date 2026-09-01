@@ -2,7 +2,7 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { deleteObject, headObject, publicUrlFor } from "../_shared/r2.ts";
-import { ALLOWED_CONTENT_TYPES, MAX_FILE_SIZE, MAX_PROJECT_SIZE } from "../_shared/uploadLimits.ts";
+import { ALLOWED_CONTENT_TYPES, MAX_ACCOUNT_SIZE, MAX_FILE_SIZE, MAX_PROJECT_SIZE } from "../_shared/uploadLimits.ts";
 
 // images rows are only ever created here, via this service-role client — the
 // authenticated role has no insert grant on public.images (see the
@@ -27,7 +27,7 @@ export default {
     // actual authorization gate for this request.
     const { data: project } = await ctx.supabase
       .from("projects")
-      .select("id")
+      .select("id, owner_id")
       .eq("id", projectId)
       .maybeSingle();
     if (!project) {
@@ -44,20 +44,67 @@ export default {
       return Response.json({ error: "Uploaded file failed validation" }, { status: 400 });
     }
 
-    const { data: existingImages, error: sumError } = await ctx.supabase
-      .from("images")
-      .select("size")
-      .eq("project_id", projectId);
-    if (sumError) {
+    // Every project this same owner has — see r2-sign-upload's identical
+    // lookup for why this is derived from project.owner_id rather than a
+    // separate "current user" fetch.
+    const { data: ownedProjects, error: ownedProjectsError } = await ctx.supabase
+      .from("projects")
+      .select("id")
+      .eq("owner_id", project.owner_id);
+    if (ownedProjectsError) {
       await deleteObject(objectKey);
-      return Response.json({ error: sumError.message }, { status: 500 });
+      return Response.json({ error: ownedProjectsError.message }, { status: 500 });
+    }
+    const ownedProjectIds = (ownedProjects ?? []).map((p) => p.id);
+
+    // Combined total across every owned project — see r2-sign-upload's
+    // identical check for why this covers scripts/text_files content too,
+    // not just images, and why per-project/account-wide are both derived
+    // from one pass over the same rows. Re-checked here (not just trusted
+    // from the pre-check in r2-sign-upload) because other files could have
+    // been added in between the two calls.
+    const [scriptsRes, textFilesRes, imagesRes] = await Promise.all([
+      ctx.supabase.from("scripts").select("project_id, content").in("project_id", ownedProjectIds),
+      ctx.supabase.from("text_files").select("project_id, content").in("project_id", ownedProjectIds),
+      ctx.supabase.from("images").select("project_id, size").in("project_id", ownedProjectIds),
+    ]);
+    if (scriptsRes.error) {
+      await deleteObject(objectKey);
+      return Response.json({ error: scriptsRes.error.message }, { status: 500 });
+    }
+    if (textFilesRes.error) {
+      await deleteObject(objectKey);
+      return Response.json({ error: textFilesRes.error.message }, { status: 500 });
+    }
+    if (imagesRes.error) {
+      await deleteObject(objectKey);
+      return Response.json({ error: imagesRes.error.message }, { status: 500 });
     }
 
-    const currentTotal = (existingImages ?? []).reduce((sum, row) => sum + row.size, 0);
-    if (currentTotal + head.size > MAX_PROJECT_SIZE) {
+    const encoder = new TextEncoder();
+    let projectTotal = 0;
+    let accountTotal = 0;
+    for (const row of [...(scriptsRes.data ?? []), ...(textFilesRes.data ?? [])]) {
+      const bytes = encoder.encode(row.content).length;
+      accountTotal += bytes;
+      if (row.project_id === projectId) projectTotal += bytes;
+    }
+    for (const row of imagesRes.data ?? []) {
+      accountTotal += row.size;
+      if (row.project_id === projectId) projectTotal += row.size;
+    }
+
+    if (projectTotal + head.size > MAX_PROJECT_SIZE) {
       await deleteObject(objectKey);
       return Response.json(
-        { error: "This project has reached its 100MB image storage limit" },
+        { error: `This project has reached its ${MAX_PROJECT_SIZE / (1024 * 1024)}MB storage limit` },
+        { status: 400 },
+      );
+    }
+    if (accountTotal + head.size > MAX_ACCOUNT_SIZE) {
+      await deleteObject(objectKey);
+      return Response.json(
+        { error: `Your account has reached its ${MAX_ACCOUNT_SIZE / (1024 * 1024)}MB storage limit across all projects` },
         { status: 400 },
       );
     }
