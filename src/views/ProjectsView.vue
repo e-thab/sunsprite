@@ -150,10 +150,26 @@ onMounted(async () => {
 
       <ul class="project-list">
         <li v-for="project in projectStore.projects" :key="project.id" class="project-row">
-          <!-- Placeholder — no real thumbnails exist yet, just staking out
-               the space and shape (matches the 16:9 game canvas). -->
-          <div class="project-thumbnail" aria-hidden="true">
-            <UIcon name="tabler:photo" />
+          <div class="project-thumbnail-column">
+            <!-- Placeholder — no real thumbnails exist yet, just staking out
+                 the space and shape (matches the 16:9 game canvas). -->
+            <div class="project-thumbnail" aria-hidden="true">
+              <UIcon name="tabler:photo" />
+            </div>
+
+            <UProgress
+              :model-value="usedBytesFor(project.id)"
+              :max="PROJECT_STORAGE_QUOTA_BYTES"
+              :color="usedBytesFor(project.id) > PROJECT_STORAGE_QUOTA_BYTES ? 'error' : 'primary'"
+              size="sm"
+              class="project-storage"
+            >
+              <template #status>
+                <span :class="{ 'storage-status-over': usedBytesFor(project.id) > PROJECT_STORAGE_QUOTA_BYTES }">
+                  {{ formatBytes(usedBytesFor(project.id)) }} / {{ formatBytes(PROJECT_STORAGE_QUOTA_BYTES) }}
+                </span>
+              </template>
+            </UProgress>
           </div>
 
           <div class="project-row-info">
@@ -186,20 +202,6 @@ onMounted(async () => {
               </UTooltip>
             </div>
           </div>
-
-          <!-- <UProgress
-            :model-value="usedBytesFor(project.id)"
-            :max="PROJECT_STORAGE_QUOTA_BYTES"
-            :color="usedBytesFor(project.id) > PROJECT_STORAGE_QUOTA_BYTES ? 'error' : 'primary'"
-            size="sm"
-            class="project-storage"
-          >
-            <template #status>
-              <span :class="{ 'storage-status-over': usedBytesFor(project.id) > PROJECT_STORAGE_QUOTA_BYTES }">
-                {{ formatBytes(usedBytesFor(project.id)) }} / {{ formatBytes(PROJECT_STORAGE_QUOTA_BYTES) }}
-              </span>
-            </template>
-          </UProgress> -->
 
           <div class="project-row-actions">
             <UButton icon="streamline-plump:controller-1-solid" label="Play" variant="soft" color="neutral" size="sm" :to="`/play/${project.slug}`" target="_blank" />
@@ -274,8 +276,20 @@ onMounted(async () => {
   background-color: var(--ui-bg-elevated);
 }
 
-.project-thumbnail {
+/* Groups the thumbnail with its own storage bar as one visual unit, rather
+   than the bar floating as a same-height sibling between project-row-info
+   and project-row-actions (tried first — nothing there was really "about"
+   the bar, so it read as an orphaned column in the row). Fixed to the
+   thumbnail's own width so the bar lines up flush with it below. */
+.project-thumbnail-column {
   flex-shrink: 0;
+  width: 128px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+}
+
+.project-thumbnail {
   width: 128px;
   aspect-ratio: 16 / 9;
   border-radius: var(--panel-border-radius);
@@ -288,28 +302,29 @@ onMounted(async () => {
   font-size: 1.75em;
 }
 
-/* Fixed width, not shrink-to-content — same reason project-row-info has
-   min-width: 0 above: without this, a longer "X / Y" status readout would
-   change this column's own footprint and push project-row-actions beside it
-   out of alignment with every other row. */
+/* Fills project-thumbnail-column's full 128px rather than the old fixed 7em
+   — that width was sized for a horizontal row slot next to
+   project-row-actions; here it just needs to match the thumbnail above it. */
 .project-storage {
-  align-self: flex-end;
-  flex-shrink: 0;
-  width: 7em;
+  width: 100%;
 }
 
 /* Default (horizontal) root is already the shape wanted here — status on
    top, bar underneath (theme: "flex flex-col") — no grid override needed
-   this time, unlike ProgressGroup's vertical orientation. Only status needs
-   correcting: its own theme class ties its *width* to the fill percentage
-   (w-(--percent)) — built for a percentage label that trails the fill edge,
-   which reads fine at high percentages but leaves a "10.2 MB / 10.0 MB"
-   string almost no room at a low one. Forced to the row's full width instead
-   so the label is always fully legible regardless of how full the bar is. */
+   this time, unlike ProgressGroup's vertical orientation. Width needs
+   correcting: its own theme class ties status's *width* to the fill
+   percentage (w-(--percent)) — built for a percentage label that trails the
+   fill edge, which reads fine at high percentages but leaves a "10.2 MB /
+   10.0 MB" string almost no room at a low one. Forced to the row's full
+   width instead so the label is always fully legible regardless of how full
+   the bar is. Font size is also knocked down from the theme default — this
+   bar lives in a 128px column now (matching the thumbnail above it), unlike
+   .account-storage below which spans the full card and never needs it. */
 .project-storage :deep([data-slot="status"]) {
   width: 100% !important;
   justify-content: flex-start;
   font-weight: bold;
+  font-size: 0.7em;
   color: var(--theme-text);
 }
 
