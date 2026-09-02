@@ -1066,7 +1066,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	// natively.
 }
 
-const resizeDelay = 5 // milliseconds
+const resizeDelay = 0 // milliseconds
 export function resizeStage() {
 	new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => _resizeStage())
 }

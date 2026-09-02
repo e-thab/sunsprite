@@ -1,6 +1,7 @@
-import { camera, forever } from "./core"
+import { allPositionables, camera, forever } from "./core"
 import { Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "./Line"
+import { pointFrom } from "./Point"
 
 type HLineProps = ViewableProps & {
     /** The vertical position of the line. */
@@ -38,6 +39,8 @@ export default class HLine extends
         if (props?.color) this.color = props.color
         if (props?.thickness) this.thickness = props.thickness
 
+        allPositionables.push(this)
+
         // Moving to cam.x to seem infinite, scaling thickness w/ zoom
         this._lastZoom = camera.zoom
         forever(() => {
@@ -56,10 +59,7 @@ export default class HLine extends
     }
     set y(y: number) {
         this._y = y
-        this._line.setPoints(
-            { x: camera.left, y },
-            { x: camera.right, y }
-        )
+        this._updatePosition()
     }
 
     /** The color of the line. */
@@ -77,5 +77,12 @@ export default class HLine extends
     set thickness(thickness: number) {
         this._thickness = thickness
         this._line.thickness = thickness
+    }
+
+    _updatePosition() {
+        this._line.setPoints(
+            { x: camera.left, y: this._y },
+            { x: camera.right, y: this._y }
+        )
     }
 }

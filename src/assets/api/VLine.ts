@@ -1,4 +1,4 @@
-import { camera, forever } from "./core"
+import { allPositionables, camera, forever } from "./core"
 import { Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "./Line"
 
@@ -38,6 +38,8 @@ export default class VLine extends
         if (props?.color) this.color = props.color
         if (props?.thickness) this.thickness = props.thickness
 
+        allPositionables.push(this)
+        
         // Moving to cam.y to seem infinite, scaling thickness w/ zoom
         this._lastZoom = camera.zoom
         forever(() => {
@@ -56,10 +58,7 @@ export default class VLine extends
     }
     set x(x: number) {
         this._x = x
-        this._line.setPoints(
-            { x, y: camera.top },
-            { x, y: camera.bottom }
-        )
+        this._updatePosition()
     }
 
     /** The color of the line. */
@@ -77,5 +76,12 @@ export default class VLine extends
     set thickness(thickness: number) {
         this._thickness = thickness
         this._line.thickness = thickness
+    }
+
+    _updatePosition() {
+        this._line.setPoints(
+            { x: this._x, y: camera.top },
+            { x: this._x, y: camera.bottom }
+        )
     }
 }

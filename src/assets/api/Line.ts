@@ -145,10 +145,10 @@ export default class Line extends
 
     _updatePoints() {
         this._line.setTo(
-            this.pointA.x + camera.right,
-            -this.pointA.y + camera.top,
-            this.pointB.x + camera.right,
-            -this.pointB.y + camera.top
+            this.pointA.x + camera.width / 2 * camera.zoom,
+            -this.pointA.y + camera.height / 2 * camera.zoom,
+            this.pointB.x + camera.width / 2 * camera.zoom,
+            -this.pointB.y + camera.height / 2 * camera.zoom
         )
     }
 }
