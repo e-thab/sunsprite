@@ -132,6 +132,10 @@ export function Positionable<Base extends Class>(base: Base) {
             this.goTo(Random.position())
         }
 
+        _onResize() {
+            this._updatePosition()
+        }
+
         _updatePosition() {
             this._updateX()
             this._updateY()

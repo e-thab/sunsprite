@@ -116,10 +116,13 @@ export function currentFps(): number {
  * API Internal vars
  */
 /** All objects that can be positioned on the screen/in the world */
-export let allPositionables: { _updatePosition(): void }[] = []
+export let resizeReactors: { _onResize(): void }[] = []
 
-/** A map associating Phaser objects to custom Sunsprite objects */
-export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
+/**
+ * A map associating Phaser objects to custom Sunsprite objects. Will be used to allow for
+ * interfacing more directly with Phaser if desired
+ */
+// export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 
 /** All timer objects that need updating each frame */
 export let allTimers: Timer[] = []
@@ -179,8 +182,8 @@ export function getNextObjectId(): string {
 }
 
 export function updatePositions() {
-	for (const positionable of allPositionables) {
-		positionable._updatePosition()
+	for (const reactor of resizeReactors) {
+		reactor._onResize()
 	}
 }
 
@@ -993,7 +996,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_whens = []
 	_repeatUntils = []
 	_repeatWhiles = []
-	allPositionables = []
+	resizeReactors = []
 	allTimers = []
 
 	_keyPressActions.clear()

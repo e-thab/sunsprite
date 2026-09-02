@@ -1,4 +1,4 @@
-import { allPositionables, camera, forever } from "./core"
+import { resizeReactors, camera, forever } from "./core"
 import { Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "./Line"
 
@@ -38,17 +38,16 @@ export default class VLine extends
         if (props?.color) this.color = props.color
         if (props?.thickness) this.thickness = props.thickness
 
-        allPositionables.push(this)
+        resizeReactors.push(this)
         
         // Moving to cam.y to seem infinite, scaling thickness w/ zoom
         this._lastZoom = camera.zoom
         forever(() => {
-            this._line._line.y = camera._cam.scrollY
-            this._line._line.displayHeight = camera.height
             if (camera.zoom !== this._lastZoom) {
                 this._line.thickness = this._thickness * 1/camera.zoom
                 this._lastZoom = camera.zoom
             }
+            this._updatePosition()
         })
     }
 
@@ -80,8 +79,12 @@ export default class VLine extends
 
     _updatePosition() {
         this._line.setPoints(
-            { x: this._x, y: camera.top },
-            { x: this._x, y: camera.bottom }
+            { x: this._x, y: camera.top + 10 * camera.zoom },
+            { x: this._x, y: camera.bottom - 10 * camera.zoom }
         )
+    }
+
+    _onResize() {
+        this._updatePosition()
     }
 }

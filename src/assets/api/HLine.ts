@@ -1,4 +1,4 @@
-import { allPositionables, camera, forever } from "./core"
+import { resizeReactors, camera, forever } from "./core"
 import { Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "./Line"
 import { pointFrom } from "./Point"
@@ -39,17 +39,16 @@ export default class HLine extends
         if (props?.color) this.color = props.color
         if (props?.thickness) this.thickness = props.thickness
 
-        allPositionables.push(this)
+        resizeReactors.push(this)
 
         // Moving to cam.x to seem infinite, scaling thickness w/ zoom
         this._lastZoom = camera.zoom
         forever(() => {
-            this._line._line.x = camera._cam.scrollX
-            this._line._line.displayWidth = camera.width
             if (camera.zoom !== this._lastZoom) {
                 this._line.thickness = this._thickness * 1/camera.zoom
                 this._lastZoom = camera.zoom
             }
+            this._updatePosition()
         })
     }
 
@@ -81,8 +80,12 @@ export default class HLine extends
 
     _updatePosition() {
         this._line.setPoints(
-            { x: camera.left, y: this._y },
-            { x: camera.right, y: this._y }
+            { x: camera.left - 10 * camera.zoom, y: this._y },
+            { x: camera.right + 10 * camera.zoom, y: this._y }
         )
+    }
+
+    _onResize() {
+        this._updatePosition()
     }
 }

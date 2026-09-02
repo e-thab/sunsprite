@@ -1,5 +1,5 @@
 import type { GameObjectProps } from "./mixins"
-import { scene, allPositionables } from "./core"
+import { scene, resizeReactors } from "./core"
 import GameObject from "./GameObject"
 import Phaser from "phaser"
 
@@ -47,7 +47,7 @@ export default class Label extends GameObject {
         // Label may flicker on creation without this delay..?
         //this.queueShow()
 
-        allPositionables.push(this)
+        resizeReactors.push(this)
     }
 
     /** Text content of the label. */

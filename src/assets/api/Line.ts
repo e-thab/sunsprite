@@ -2,7 +2,7 @@
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
 import type { Returnable } from "./types";
-import { _clearPropUpdater, _registerPropUpdater, camera, getNextObjectId, scene } from "./core";
+import { _clearPropUpdater, _registerPropUpdater, resizeReactors, camera, getNextObjectId, scene } from "./core";
 import { pointFrom, type Point, type PointArg } from "./Point";
 import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins";
 import Phaser from "phaser";
@@ -56,6 +56,7 @@ export default class Line extends
         this.thickness = props?.thickness ?? 2
 
         this._updatePoints()
+        resizeReactors.push(this)
 
         // Should probably push to a list of lines in core like positionables do,
         // end points don't update when screen size changes / camera moves etc.
@@ -150,5 +151,9 @@ export default class Line extends
             this.pointB.x + camera.width / 2 * camera.zoom,
             -this.pointB.y + camera.height / 2 * camera.zoom
         )
+    }
+
+    _onResize() {
+        this._updatePoints()
     }
 }
