@@ -144,6 +144,19 @@ async function onCreateProject() {
 const recentProjects = computed(() => projectStore.projects.slice(0, 6))
 
 const projectMenuItems = computed(() => [
+    [
+        {
+            label: 'My Projects',
+            icon: 'tabler:folder-filled',
+            onSelect: () => router.push('/projects'),
+        },
+        {
+            label: 'New Project',
+            icon: 'tabler:plus',
+            onSelect: onCreateProject,
+        },
+    ],
+
     recentProjects.value.length > 0
         ? recentProjects.value.map((p) => ({
             label: p.name,
@@ -152,18 +165,6 @@ const projectMenuItems = computed(() => [
             onSelect: () => router.push(`/edit/${p.slug}`),
         }))
         : [{ label: 'No projects yet', disabled: true }],
-    [
-        {
-            label: 'New Project',
-            icon: 'tabler:plus',
-            onSelect: onCreateProject,
-        },
-        {
-            label: 'My Projects',
-            icon: 'tabler:folder-filled',
-            onSelect: () => router.push('/projects'),
-        },
-    ],
 ])
 
 const themeMenuItems = computed(() => [

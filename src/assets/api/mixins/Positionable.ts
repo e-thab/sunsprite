@@ -79,7 +79,6 @@ export function Positionable<Base extends Class>(base: Base) {
 
         /** This object's horizontal position relative to the camera. */
         get screenX(): number {
-            // CHECK PHASER IMPLEMENTATION
             return this.x - camera.x
         }
         set screenX(newX: number) {
@@ -92,6 +91,28 @@ export function Positionable<Base extends Class>(base: Base) {
         }
         set screenY(newY: number) {
             this.y = camera.y - newY
+        }
+
+        /** This object's position relative to the camera. */
+        get screenPosition(): Point {
+            return {
+                x: this.screenX,
+                y: this.screenY
+            }
+        }
+        set screenPosition(pos: Point) {
+            this.position = {
+                x: camera.x - pos.x,
+                y: camera.y - pos.y
+            }
+        }
+        
+        /** This object's position relative to the camera (alias of screenPosition) */
+        get screenPos(): Point {
+            return this.screenPosition
+        }
+        set screenPos(pos: Point) {
+            this.screenPosition = pos
         }
 
         // goTo overloads, can go to:
