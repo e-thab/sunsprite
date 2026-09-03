@@ -178,11 +178,11 @@ onMounted(async () => {
             </UButton>
 
             <div class="project-details-row">
-              <span class="project-updated">Last edited {{ formatDate(project.updatedAt) }}</span>
+              <span class="detail grid-left">Last edited {{ formatDate(project.updatedAt) }}</span>
               <!-- <span class="project-updated">&middot;</span> -->
-              <span class="project-updated">v{{ project.apiVersion }}</span>
+              <span class="detail grid-mid">v{{ project.apiVersion }}</span>
               <!-- <span class="project-updated">&middot;</span> -->
-              <span class="project-updated">{{ project.slug }}</span>
+              <span class="detail grid-right">{{ project.slug }}</span>
             </div>
 
             <div class="project-visibility-row">
@@ -228,8 +228,8 @@ onMounted(async () => {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  background-color: var(--theme-bg-elevated);
-  padding-top: 4em;
+  background-color: var(--theme-bg-accented);
+  /* padding-top: 2em; */
 }
 
 .projects-card {
@@ -372,7 +372,8 @@ onMounted(async () => {
 }
 
 .project-details-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr;
   justify-content: space-between;
   align-items: center;
   align-self: stretch;
@@ -405,9 +406,21 @@ onMounted(async () => {
   text-align: left;
 }
 
-.project-updated {
+.detail {
   font-size: 0.75em;
   color: var(--theme-text-toned);
+}
+
+.grid-left {
+  justify-self: start;
+}
+
+.grid-mid {
+  justify-self: center;
+}
+
+.grid-right {
+  justify-self: right;
 }
 
 .project-row-actions {
