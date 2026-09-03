@@ -582,8 +582,16 @@ function runActiveUserCode() {
 
 // The game header's Restart button always runs this — "main.js" is the
 // project's canonical entry point regardless of whichever script happens to
-// be open in the editor at the time.
+// be open in the editor at the time. Snapshotting here (not inside the
+// shared runNamedScript, which FileTree's per-script "Run" action also
+// calls) is what ties the restart chip's baseline specifically to an actual
+// game (re)start.
 function runMainScript() {
+	const liveContent: Record<string, string> = {}
+	for (const [name, entry] of modelEntries) {
+		if (!entry.isText) liveContent[name] = entry.model.getValue()
+	}
+	fileStore.snapshotScripts(liveContent)
 	runNamedScript('main.js')
 }
 
@@ -599,6 +607,10 @@ function updateSaveMsg(checkCode?: string) {
 
 	if (currentCode === savedCode) fileStore.markClean(activeFile)
 	else fileStore.markDirty(activeFile)
+
+	if (!fileStore.isTextFile(activeFile)) {
+		fileStore.setChangedSinceRun(activeFile, currentCode !== fileStore.scriptSnapshot[activeFile])
+	}
 
 	if (fileStore.activeFileIsSaved) {
 		const savedNow = fileStore.savedThisSession(activeFile)

@@ -122,6 +122,50 @@ export const useFileStore = defineStore('files', () => {
         dirtyFiles.value = next
     }
 
+    // Every script's *live* content at the moment the game was last
+    // (re)started (see CodeEditor.vue's runMainScript) — including whatever
+    // unsaved edits were sitting in an open model, since that's the actual
+    // code that ran. Lets the restart button's warning chip track "does the
+    // project's script state differ from what's actually running" instead of
+    // just "is anything dirty right now": a save alone doesn't clear the
+    // difference (the new content still hasn't been run), and restarting
+    // with an unsaved edit in place does clear it (that edit is now what's
+    // running).
+    const scriptSnapshot = ref<Record<string, string>>({})
+
+    // Per-script: does its current content (live if it has an open, possibly
+    // unsaved model — see CodeEditor's setChangedSinceRun call sites, saved
+    // otherwise) differ from scriptSnapshot. Restart's chip is just "is this
+    // non-empty" — kept as an explicit set, rather than a computed diff
+    // against every script's live content, because fileStore only ever
+    // learns a script's live content when CodeEditor tells it to (on edit or
+    // save); it has no standing access to Monaco's models.
+    const filesChangedSinceRun = ref<Set<string>>(new Set())
+
+    function setChangedSinceRun(fileName: string, changed: boolean) {
+        const has = filesChangedSinceRun.value.has(fileName)
+        if (changed === has) return
+        const next = new Set(filesChangedSinceRun.value)
+        if (changed) next.add(fileName)
+        else next.delete(fileName)
+        filesChangedSinceRun.value = next
+    }
+
+    // `liveContent` carries the current value of every open (possibly
+    // unsaved) Monaco model, keyed by script name — CodeEditor.vue is the
+    // only thing that can see those, so it's the one that has to hand them
+    // over. A script with no entry (never opened) falls back to its saved
+    // content, which is necessarily what's about to run for it too.
+    function snapshotScripts(liveContent: Record<string, string> = {}) {
+        const snapshot: Record<string, string> = {}
+        for (const script of scripts.value) snapshot[script.name] = liveContent[script.name] ?? script.content
+        scriptSnapshot.value = snapshot
+        filesChangedSinceRun.value = new Set()
+    }
+
+    // What the restart button's chip actually watches.
+    const codeChangedSinceLastRun = computed(() => filesChangedSinceRun.value.size > 0)
+
     // Name of the script whose runtime error is currently shown in the
     // output panel, if its location was recoverable (see output.ts's
     // onErrorLocation) — lets FileTree highlight which file to look at
@@ -273,6 +317,10 @@ export const useFileStore = defineStore('files', () => {
         if (script) {
             script.content = content
             script.saveTime = saveTime
+            // A save doesn't necessarily bring a script back in line with
+            // what's currently running — it only does if the saved content
+            // happens to match the snapshot taken at the last (re)start.
+            setChangedSinceRun(fileName, content !== scriptSnapshot.value[fileName])
             if (projectId.value) {
                 supabase.from('scripts').update({ content }).eq('id', script.id).then(({ error }) => {
                     if (error) {
@@ -505,6 +553,7 @@ export const useFileStore = defineStore('files', () => {
         textFiles.value = []
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
+        scriptSnapshot.value = {}
 
         const [{ data: folderRows, error: folderError }, { data: scriptRows, error: scriptError }, { data: imageRows, error: imageError }, { data: textFileRows, error: textFileError }] = await Promise.all([
             supabase.from('folders').select('id, name, parent_id, position').eq('project_id', id).order('position'),
@@ -564,6 +613,7 @@ export const useFileStore = defineStore('files', () => {
         images.value = []
         textFiles.value = []
         dirtyFiles.value = new Set()
+        scriptSnapshot.value = {}
     }
 
     function setProjectName(name: string) {
@@ -587,6 +637,7 @@ export const useFileStore = defineStore('files', () => {
                 textFiles.value = data.textFiles ?? []
                 filesSavedThisSession.value = []
                 dirtyFiles.value = new Set()
+                scriptSnapshot.value = {}
                 return
             } catch {
                 // Corrupted data — fall through and reseed from scratch below.
@@ -615,6 +666,7 @@ export const useFileStore = defineStore('files', () => {
         textFiles.value = []
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
+        scriptSnapshot.value = {}
         persistGuestProject()
     }
 
@@ -661,6 +713,14 @@ export const useFileStore = defineStore('files', () => {
             markClean(oldName)
             markDirty(newName)
         }
+        if (oldName in scriptSnapshot.value) {
+            const snapshot = { ...scriptSnapshot.value }
+            snapshot[newName] = snapshot[oldName] ?? ''
+            delete snapshot[oldName]
+            scriptSnapshot.value = snapshot
+        }
+        setChangedSinceRun(newName, filesChangedSinceRun.value.has(oldName))
+        setChangedSinceRun(oldName, false)
         if (!projectId.value) persistGuestProject()
     }
 
@@ -675,6 +735,7 @@ export const useFileStore = defineStore('files', () => {
 
         scripts.value = scripts.value.filter((s) => s.id !== script.id)
         markClean(name)
+        setChangedSinceRun(name, false)
         if (!projectId.value) persistGuestProject()
     }
 
@@ -843,6 +904,10 @@ export const useFileStore = defineStore('files', () => {
         activeFileName,
         activeFileIsSaved,
         hasUnsavedChanges,
+        scriptSnapshot,
+        snapshotScripts,
+        setChangedSinceRun,
+        codeChangedSinceLastRun,
         projectId,
         projectName,
         scripts,
