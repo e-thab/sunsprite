@@ -13,7 +13,8 @@
     "pretype-check": "tsx scripts/generate-api.ts",
     "type-check": "vue-tsc --build",
     "generate-api": "tsx scripts/generate-api.ts",
-    "snapshot-api": "tsx scripts/snapshot-api.ts"
+    "snapshot-api": "tsx scripts/snapshot-api.ts",
+    "storage-usage": "tsx scripts/storage-usage.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",

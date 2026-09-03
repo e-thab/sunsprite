@@ -2,7 +2,7 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { deleteObject, headObject, publicUrlFor } from "../_shared/r2.ts";
-import { ALLOWED_CONTENT_TYPES, MAX_ACCOUNT_SIZE, MAX_FILE_SIZE, MAX_PROJECT_SIZE } from "../_shared/uploadLimits.ts";
+import { ALLOWED_CONTENT_TYPES, GLOBAL_R2_SIZE, MAX_ACCOUNT_SIZE, MAX_FILE_SIZE, MAX_PROJECT_SIZE } from "../_shared/uploadLimits.ts";
 
 // images rows are only ever created here, via this service-role client — the
 // authenticated role has no insert grant on public.images (see the
@@ -105,6 +105,27 @@ export default {
       await deleteObject(objectKey);
       return Response.json(
         { error: `Your account has reached its ${MAX_ACCOUNT_SIZE / (1024 * 1024)}MB storage limit across all projects` },
+        { status: 400 },
+      );
+    }
+
+    // Platform-wide backstop, re-checked here for the same reason the
+    // project/account totals above are re-checked rather than trusted from
+    // r2-sign-upload's pre-check: other uploads could have landed in between
+    // the two calls. See GLOBAL_R2_SIZE for why this reads a cached snapshot.
+    const { data: totals, error: totalsError } = await ctx.supabase
+      .from("storage_totals")
+      .select("r2_bytes")
+      .eq("id", true)
+      .single();
+    if (totalsError) {
+      await deleteObject(objectKey);
+      return Response.json({ error: totalsError.message }, { status: 500 });
+    }
+    if (totals.r2_bytes + head.size > GLOBAL_R2_SIZE) {
+      await deleteObject(objectKey);
+      return Response.json(
+        { error: "Sunsprite has hit its overall storage limit right now — please try again later" },
         { status: 400 },
       );
     }

@@ -1,7 +1,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 import { publicUrlFor, signPutUrl } from "../_shared/r2.ts";
-import { ALLOWED_CONTENT_TYPES, MAX_ACCOUNT_SIZE, MAX_FILE_SIZE, MAX_PROJECT_SIZE } from "../_shared/uploadLimits.ts";
+import { ALLOWED_CONTENT_TYPES, GLOBAL_R2_SIZE, MAX_ACCOUNT_SIZE, MAX_FILE_SIZE, MAX_PROJECT_SIZE } from "../_shared/uploadLimits.ts";
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100);
@@ -90,6 +90,24 @@ export default {
     if (accountTotal + size > MAX_ACCOUNT_SIZE) {
       return Response.json(
         { error: `Your account has reached its ${MAX_ACCOUNT_SIZE / (1024 * 1024)}MB storage limit across all projects` },
+        { status: 400 },
+      );
+    }
+
+    // Platform-wide backstop, on top of this account's own caps above — see
+    // GLOBAL_R2_SIZE for why this reads a cached snapshot rather than
+    // aggregating every account's images.
+    const { data: totals, error: totalsError } = await ctx.supabase
+      .from("storage_totals")
+      .select("r2_bytes")
+      .eq("id", true)
+      .single();
+    if (totalsError) {
+      return Response.json({ error: totalsError.message }, { status: 500 });
+    }
+    if (totals.r2_bytes + size > GLOBAL_R2_SIZE) {
+      return Response.json(
+        { error: "Sunsprite has hit its overall storage limit right now — please try again later" },
         { status: 400 },
       );
     }

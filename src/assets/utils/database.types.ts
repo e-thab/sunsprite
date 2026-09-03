@@ -243,6 +243,27 @@ export type Database = {
           },
         ]
       }
+      storage_totals: {
+        Row: {
+          computed_at: string
+          db_bytes: number
+          id: boolean
+          r2_bytes: number
+        }
+        Insert: {
+          computed_at?: string
+          db_bytes?: number
+          id?: boolean
+          r2_bytes?: number
+        }
+        Update: {
+          computed_at?: string
+          db_bytes?: number
+          id?: boolean
+          r2_bytes?: number
+        }
+        Relationships: []
+      }
       text_files: {
         Row: {
           content: string
