@@ -757,12 +757,14 @@ async function selectApiVersion(version: string) {
 					<UButton icon="tabler:arrow-back-up" label="Reset" variant="ghost" color="neutral" size="xs" @click="resetCode" />
 				</UTooltip> -->
 
-				<UFieldGroup>
-					<UBadge color="primary" variant="subtle" size="xs" style="font-size: small;">{{ apiVersionStore.selectedVersion }}</UBadge>
-					<UDropdownMenu :items="apiVersionItems">
-					<UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs"/>
-					</UDropdownMenu>
-				</UFieldGroup>
+				<UTooltip text="Version">
+					<UFieldGroup>
+						<UBadge class="version-badge" color="primary" variant="subtle" size="xs">{{ apiVersionStore.selectedVersion }}</UBadge>
+						<UDropdownMenu :items="apiVersionItems">
+							<UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs"/>
+						</UDropdownMenu>
+					</UFieldGroup>
+				</UTooltip>
 			</div>
 		</div>
 		<div id="code-container" class="editor">
@@ -875,13 +877,19 @@ async function selectApiVersion(version: string) {
 	}
 }
 
-
 .reset-group {
 	display: inline-flex;
 	justify-self: end;
 	align-self: center;
 	min-width: 0;
 	/* transform: translate(-1px, -1px) */
+}
+
+.version-badge {
+	font-size: small;
+	border-top-left-radius: var(--panel-border-radius);
+	border-bottom-left-radius: var(--panel-border-radius);
+	padding-left: 0.4em;
 }
 </style>
 

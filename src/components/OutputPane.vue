@@ -130,7 +130,7 @@ onMounted(() => {
             />
 
             <UTooltip text="Collapse">
-                <UButton icon="tabler:chevron-down" variant="soft" color="neutral" size="xs" @click="$emit('collapseOutput')" />
+                <UButton class="output-collapse-btn" icon="tabler:chevron-down" variant="subtle" color="primary" size="xs" @click="$emit('collapseOutput')" />
             </UTooltip>
         </div>
 
@@ -176,16 +176,21 @@ onMounted(() => {
     flex-shrink: 0;
     white-space: nowrap;
     overflow: hidden;
-    /* justify-content: space-between; */
-    /* align-items: center; */
-    /* color: var(--theme-text); */
-    /* height: 24px; */
-    /* user-select: none; */
-    /* background-color: var(--theme-bg); */
+    background-color: var(--theme-bg-muted);
+}
+
+.output-header [data-slot='list'] {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-top-right-radius: 0;
 }
 
 .output-tabs {
     flex: 1 1 auto;
+}
+
+.output-collapse-btn {
+    margin: 4px 4px 4px 0;
 }
 
 /* Soft glow rather than a color swap, so it doesn't have to fight Nuxt UI's
@@ -270,6 +275,7 @@ onMounted(() => {
 .output-item--start {
     color: var(--theme-text-muted);
     font-style: italic;
+    border-top: 1px solid var(--theme-border);
 }
 
 .info-panel {
@@ -277,6 +283,7 @@ onMounted(() => {
     height: 100%;
     display: flex;
     overflow: hidden;
+    border-top: 1px solid var(--theme-border);
 }
 
 .watch-panel {
@@ -284,6 +291,7 @@ onMounted(() => {
     height: 100%;
     display: flex;
     overflow: hidden;
+    border-top: 1px solid var(--theme-border);
 }
 
 </style>

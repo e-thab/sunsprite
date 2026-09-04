@@ -1265,8 +1265,8 @@ async function onDropOnRoot() {
    shrinkage first" approximation) makes linkTrailing — and therefore
    item-size within it — give up space before linkLabel does, not
    simultaneously with it. */
-:deep([data-slot="linkTrailing"]) {
+/* :deep([data-slot="linkTrailing"]) {
 	flex-shrink: 999;
 	min-width: 0;
-}
+} */
 </style>
