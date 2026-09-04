@@ -1,3 +1,5 @@
+import Output from "@/sandbox/output"
+
 /** Vector2-interpretable array of the form [x, y]. */
 type XYArray = [number, number]
 /** Any object with numeric { x, y } */
@@ -97,6 +99,9 @@ export class Vector2 {
         }
     
         if (isXYArray(xOrXy)) {
+            if (xOrXy.length > 2) {
+                Output.warn('Extra Vector2 array arguments will be discarded')
+            }
             return new Vector2(xOrXy[0], xOrXy[1])
         }
         

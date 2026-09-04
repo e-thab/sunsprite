@@ -47,5 +47,12 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
         )
     }
 
+    // One complete `declare function name(...): T` statement per entry (or
+    // per overload set) — unlike the members above, these need no wrapper to
+    // splice directly into apiLib's declare-global block.
+    for (const [name, declaration] of Object.entries(generated.freeFunctions)) {
+        lines.push(`export const ${name}Declaration = \`${esc(declaration)}\``, '')
+    }
+
     return lines.join('\n')
 }

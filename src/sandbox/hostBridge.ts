@@ -1,9 +1,9 @@
 import { ref } from 'vue'
-import Output from '@/assets/api/output'
+import Output from '@api/output'
 import { useFileStore } from '@/stores/fileStore'
 import { useWatchPanelStore } from '@/stores/watchPanelStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
-import { DEV_VERSION } from '@/assets/api/versions/constants'
+import { DEV_VERSION } from '@api/versions/constants'
 import type { ThemePalette } from '@/assets/theme/themes'
 import { HOST_ORIGIN_PARAM, API_VERSION_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
 

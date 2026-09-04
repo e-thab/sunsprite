@@ -35,13 +35,22 @@ import {
     linePropsFields, lineMembers,
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
+    cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
+    randomMembers,
+    foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
+    afterDeclaration, everyDeclaration, whenDeclaration,
+    keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
+    onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
+    setBackgroundColorDeclaration, pauseDeclaration, playDeclaration, printDeclaration,
+    watchDeclaration, unwatchDeclaration,
+    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
 } from "./generated/apiDeclarations.generated"
 import Colors from './Colors'
 
 /**
  * The subset of apiLib's content that varies by API version — everything
  * produced by scripts/api-codegen (see src/assets/api/generated/apiDeclarations.generated.ts
- * and each versions/<version>/generated.ts). Core/Utilities/Camera/Types-preamble
+ * and each versions/<version>/generated.ts). Utilities/Types-preamble
  * below stay fixed across versions; only these get swapped when hot-loading
  * a historical version into Monaco (see src/assets/api/versions/index.ts).
  */
@@ -66,6 +75,40 @@ export interface VersionedApiConstants {
     hLineMembers: string
     vLinePropsFields: string
     vLineMembers: string
+    cameraMembers: string
+    vector2Members: string
+    timerMembers: string
+    clockMembers: string
+    screenMembers: string
+    mouseMembers: string
+    randomMembers: string
+    foreverDeclaration: string
+    repeatDeclaration: string
+    repeatUntilDeclaration: string
+    repeatWhileDeclaration: string
+    afterDeclaration: string
+    everyDeclaration: string
+    whenDeclaration: string
+    keyPressedDeclaration: string
+    keyJustPressedDeclaration: string
+    keyJustReleasedDeclaration: string
+    onKeyPressDeclaration: string
+    onKeyReleaseDeclaration: string
+    onKeyHoldDeclaration: string
+    onMouseDeclaration: string
+    setBackgroundColorDeclaration: string
+    pauseDeclaration: string
+    playDeclaration: string
+    printDeclaration: string
+    watchDeclaration: string
+    unwatchDeclaration: string
+    deg2radDeclaration: string
+    rad2degDeclaration: string
+    sinDeclaration: string
+    cosDeclaration: string
+    tanDeclaration: string
+    atan2Declaration: string
+    clampDeclaration: string
 }
 
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
@@ -166,6 +209,9 @@ type ArrayPoint = [number, number]
 /** PointArg def */
 type PointArg = Point | ArrayPoint
 
+/** A Vector2-interpretable value: either an { x, y } object or a [x, y] array. */
+type Vector2Like = { x: number, y: number } | [number, number]
+
 type Action = (...args: any[]) => void
 type Predicate = (...args: any[]) => boolean
 
@@ -198,164 +244,40 @@ type KeyAction = {
  * User mouse reference.
  */
 declare const Mouse: {
-    /**
-     * Vertical position of the user's cursor.
-     */
-    x: number
-
-    /**
-     * Horizontal position of the user's cursor.
-     */
-    y: number
-
-    /**
-     * Position of the user's cursor as a Point.
-     */
-    position: Point
-
-    /**
-     * Position of the user's cursor as a Point. (alias for position)
-     */
-    pos: Point
-
-    /**
-     * Returns whether the left mouse button is currently held down.
-     */
-    leftButtonDown: boolean
-
-    /**
-     * Returns whether the right mouse button is currently held down.
-     */
-	rightButtonDown: boolean
-
-    /**
-     * Returns whether the middle mouse button is currently held down.
-     */
-	middleButtonDown: boolean
-
-    /**
-     * Returns whether any mouse button is currently held down.
-     */
-	anyButtonDown: boolean
+${v.mouseMembers}
 }
 
 /**
  * Game screen reference.
  */
 declare const Screen: {
-    /**
-     * Current width of the game screen.
-     */
-    width: number
-
-    /**
-     * Current height of the game screen.
-     */
-    height: number
-
-    /**
-     * Y coordinate of the top edge of the screen.
-     */
-    top: number
-
-    /**
-     * Y coordinate of the bottom edge of the screen.
-     */
-    bottom: number
-
-    /**
-     * X coordinate of the left edge of the screen.
-     */
-    left: number
-
-    /**
-     * X coordinate of the right edge of the screen.
-     */
-    right: number
-
-    /**
-     * Point at the center of the screen.
-     */
-    center: Point
+${v.screenMembers}
 }
 
 class Timer {
-	/** Time since start in milliseconds, does not increment during pause */
-	timeMs: number
-	/** Time since start in seconds, does not increment during pause */
-	time: number
+    constructor()
 
-	/** Time since start in milliseconds including pause time */
-	ageMs: number
-	/** Time since start in seconds including pause time */
-	age: number
-
-	// /** Number of frames since start */
-	// frame: number
-
-	/** Time this run started in milliseconds since the Unix epoch */
-	startTimeMs: number
-	/** Time this run started in seconds since the Unix epoch */
-	startTime: number
-
-	/** Current time in milliseconds */
-	nowMs: number = 0
-	/** Current time in seconds */
-	now: number
-
-	/** Is the timer currently paused? */
-	paused: boolean
-
-	/** Pause the timer */
-	pause(): void
-
-	/** Resume the timer */
-	play(): void
-
-	/** Reset the timer */
-	reset(): void
+${v.timerMembers}
 }
 
 /**
  * Game clock, derived largely from Timer but with some key differences.
  */
 declare const Clock: {
-    /** Actual (but smoothed) time since last frame in milliseconds */
-	deltaMs: number
-	/** Time since last frame normalized to 60fps (will usually be around 1) */
-	delta: number
+${v.clockMembers}
+}
 
-    /** Time since start in milliseconds, does not increment during pause */
-	timeMs: number 
-	/** Time since start in seconds, does not increment during pause */
-	time: number
+/**
+ * User camera reference.
+ */
+declare const Camera: {
+${v.cameraMembers}
+}
 
-    /** Time since start in milliseconds including pause time */
-	ageMs: number
-	/** Time since start in seconds including pause time */
-	age: number
+class Vector2 {
+    constructor(x: number, y: number)
 
-	/** Number of frames since start */
-	frame: number
-
-	/** Time this run started in milliseconds since the Unix epoch */
-	startTimeMs: number
-	/** Time this run started in seconds since the Unix epoch */
-	startTime: number
-
-	/** Current time in milliseconds */
-	nowMs: number = 0
-	/** Current time in seconds */
-	now: number
-
-	/** Is the game currently paused? */
-	paused: boolean
-
-	/** Pause the game */
-	pause(): void
-
-	/** Resume the game */
-	play(): void
+${v.vector2Members}
 }
 
 /**
@@ -364,151 +286,48 @@ declare const Clock: {
 declare const keysPressed: string[]
 
 /**
- * Set the background color.
- * @param color Color to fill the background with.
+ * Keys that were just pressed this frame, mapped to the frame they were pressed on.
  */
-declare function setBackgroundColor(color: string): void
+declare const keysJustPressed: Map<string, number | undefined>
 
 /**
- * Primary game loop; runs every frame.
- * @param func The function to run each frame.
+ * Keys that were just released this frame, mapped to the frame they were released on.
  */
-declare function forever(func:
-    /** @param delta Time since the previous frame. */
-    (delta: number) => void
-): void
+declare const keysJustReleased: Map<string, number | undefined>
 
-/**
- * Runs a specified number of times alongside the game loop (1 iteration per frame).
- * @param times The number of times to repeat.
- * @param func The function to be repeated.
- */
-declare function repeat(times: number, func:
-    /** @param i The current iteration (times repeated so far). */
-    (i: number) => void
-): {
-    /**
-     * Register a function to run when the repeat ends.
-     * @param afterFunc The function.
-     */
-    then(afterFunc:
-        /** @param i The current iteration (times repeated so far). */
-        (i: number) => void
-    ): void
-}
+${v.setBackgroundColorDeclaration}
 
-/**
- * Runs until the specified condition is true. Runs alongside the game loop (1 iteration per frame).
- * @param condition The predicate condition to check.
- * @param func The function to be repeated.
- */
-declare function repeatUntil(condition: () => boolean, func:
-    /** @param i The current iteration (times repeated so far). */
-    (i: number) => void
-): {
-    /**
-     * Register a function to run when the repeat ends.
-     * @param afterFunc The function.
-     */
-    then(afterFunc: 
-        /** @param i The current iteration (times repeated so far). */
-        (i: number) => void
-    ): void
-}
+${v.foreverDeclaration}
 
-/**
- * Runs repeatedly while the specified condition is true. Runs alongside the game loop (1 iteration per frame).
- * @param condition The predicate condition to check.
- * @param func The function to be repeated.
- */
-declare function repeatWhile(condition: () => boolean, func:
-    /** @param i The current iteration (times repeated so far). */ 
-    (i: number) => void
-): {
-    /**
-     * Register another function to run once every time the condition switches from true to false.
-     * @param afterFunc The function.
-     */
-    then(afterFunc:
-        /** @param i The current iteration (times repeated so far). */
-        (i: number) => void
-    ): void
-}
+${v.repeatDeclaration}
 
-/**
- * Runs once after a specified number of seconds have passed.
- * @param seconds The number of seconds to wait before running.
- * @param func The function to run.
- */
-declare function after(seconds: number, func: () => void): void
+${v.repeatUntilDeclaration}
 
-/**
- * Runs once immediately, then repeatedly at a specified time interval.
- * @param seconds The number of seconds to wait before running each time.
- * @param func The function to run.
- */
-declare function every(seconds: number, func: () => void): void
+${v.repeatWhileDeclaration}
 
-/**
- * Runs once each time the condition becomes true.
- * @param condition The condition to check.
- * @param func The function to run.
- */
-declare function when(condition: () => boolean, func: () => void): void
+${v.afterDeclaration}
 
-/**
- * Returns true if the specified key is currently pressed. Will repeatedly be true while the key is held.
- * @param key The key to check.
- */
-declare function keyPressed(key: string): boolean
+${v.everyDeclaration}
 
-/*
- * Returns true if the specified key is pressed, AND this is the first frame that it's being held. Will only be true once when a key starts being held.
- * @param key The key to check.
- */
-declare function keyJustPressed(key: string): boolean
+${v.whenDeclaration}
 
-/**
- * Returns true if the specified key is no longer pressed, AND this is the first frame after release. Will only be true once when a key stops being held.
- * @param key The key to check.
- */
-declare function keyJustReleased(key: string): boolean
+${v.keyPressedDeclaration}
 
-/**
- * Register input actions to run once each time a key is pressed.
- * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
- */
-declare function onKeyPress(actions: KeyAction): void
+${v.keyJustPressedDeclaration}
 
-/**
- * Register input actions to run once each time a key is released.
- * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
- */
-declare function onKeyRelease(actions: KeyAction): void
+${v.keyJustReleasedDeclaration}
 
-/**
- * Register input actions to run repeatedly while a key is held.
- * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
- */
-declare function onKeyHold(actions: KeyAction): void
+${v.onKeyPressDeclaration}
 
-/**
- * Register input actions to run once each time a mouse event is detected.
- * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
- */
-declare function onMouse(actions: MouseInputAction): void
+${v.onKeyReleaseDeclaration}
 
-/**
- * Pause engine processing. Must be manually un-paused using the UI button for now.
- */
-declare function pause(): void
+${v.onKeyHoldDeclaration}
 
-/**
- * Resume engine processing. There is currently no practical way to use this function since it can't be processed while paused. (WIP)
- */
-declare function play(): void
+${v.onMouseDeclaration}
 
+${v.pauseDeclaration}
 
+${v.playDeclaration}
 
 /**
  * The browser's dev tools console. Not part of the Sunsprite API, use print/warn/err instead to show
@@ -537,90 +356,7 @@ declare const console: {
  * A collection of functions useful for generating random values.
  */
 declare const Random: {
-    number: {
-        /**
-         * Returns a random float of any possible value, from -1.79 * 10^308 to 1.79 * 10^308.
-         */
-        (): number,
-
-        /**
-         * Returns a random float in a given range, min inclusive / max exclusive. If min > max, they're automatically swapped for you.
-         * @param min The low end of the range.
-         * @param max The high end of the range.
-         */
-        (min: number, max: number): number
-    },
-
-    /**
-     * Returns a random integer in a given range, min and max inclusive. If min > max, they're automatically swapped for you.
-     * @param min The low end of the range.
-     * @param max The high end of the range.
-     */
-    integer(min: number, max: number): number,
-
-    /**
-     * Returns a random boolean, 50/50 chance for true/false.
-     */
-    coinFlip(): boolean,
-
-    /**
-     * Returns the result of rolling a die with a given number of sides.
-     * @param sides The number of sides on the die.
-     */
-    roll(sides: number): number,
-
-    /**
-     * Returns a random letter of the alphabet. Lowercase by default.
-     * @param uppercase True if you want the letter to be uppercase.
-     */
-    letter(uppercase: boolean = false): string,
-
-    /**
-     * Returns a random character from a given string.
-     * @param str The string to choose a character from.
-     */
-    char(str: string): string,
-
-    /**
-     * Returns a random hex RGB color string.
-     */
-    color(): string
-
-    /**
-     * Returns a random item from a given array.
-     * @param array The array to choose an element from.
-     */
-    choice(array: any[]): any,
-
-    /**
-     * Returns a random rotation in radians as a float/decimal value. Range: [0, 2*pi)
-     */
-    radians(): number,
-
-    /**
-     * Returns a random rotation in degrees as an integer. Range: [0, 359]
-     */
-    degrees(): number,
-
-    /**
-     * Returns a random position within the screen.
-     */
-    position(): Point,
-    
-    /**
-     * Returns a random position within the screen. (alias for position)
-     */
-    pos(): Point,
-
-    /**
-     * Returns a random x position within the screen.
-     */
-    x(): number,
-
-    /**
-     * Returns a random y position within the screen.
-     */
-    y(): number,
+${v.randomMembers}
 }
 
 declare const Output: {
@@ -648,81 +384,25 @@ declare const Output: {
     clear(): void
 }
 
-/**
- * Display a normal message in the output panel. Shorthand for Output.print().
- * @param msg The message to display.
- */
-declare function print(...msg: Printable[]): void
+${v.printDeclaration}
 
-/**
- * Adds an item to the watch panel.
- * @param label The card's title.
- * @param values An object whose properties are value labels, and whose values are functions returning the value to watch.
- */
-declare function watch(label: string, values: Record<string, () => any>): void
+${v.watchDeclaration}
 
-// Overload
-/**
- * Adds an item to the watch panel.
- * @param label The card's title.
- * @param value A function returning the value to watch.
- */
-declare function watch(label: string, value: () => any): void
+${v.unwatchDeclaration}
 
-/**
- * Removes an item from the watch panel.
- * @param label The card's title.
- */
-declare function unwatch(label: string): void
+${v.deg2radDeclaration}
 
-/**
- * Returns an angle converted from degrees to radians.
- * @param deg The angle in degrees.
- */
-declare function deg2rad(deg: number): number
+${v.rad2degDeclaration}
 
-/**
- * Returns an angle converted from radians to degrees.
- * @param rad The angle in radians.
- */
-declare function rad2deg(rad: number): number
+${v.sinDeclaration}
 
-/**
- * Returns the sine of a number.
- * @param angle The angle.
- * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
- */
-declare function sin(angle: number, unit?: string): number
+${v.cosDeclaration}
 
-/**
- * Returns the cosine of a number.
- * @param angle An angle.
- * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
- */
-declare function cos(angle: number, unit?: string): number
+${v.tanDeclaration}
 
-/**
- * Returns the tangent of a number.
- * @param angle An angle.
- * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
- */
-declare function tan(angle: number, unit?: string): number
+${v.atan2Declaration}
 
-/**
- * Returns the angle between the X axis and the line going through both the origin and the given point.
- * @param y The y position of the given point.
- * @param x The x position of the given point.
- * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
- */
-declare function atan2(y: number, x: number, unit?: string): number
-
-/**
- * Returns a number constrained to a given range. If num <= min, returns min. If num >= max, returns max. If min > max, they're automatically swapped for you.
- * @param num A number.
- * @param min The low end of the constraint range.
- * @param max The high end of the constraint range.
- */
-declare function clamp(num: number, min: number, max: number): number
+${v.clampDeclaration}
 
 /**
  * Returns the square root of a number.
@@ -764,21 +444,6 @@ declare function round(num: number): number
  * The ratio of the circumference of a circle to its diameter.
  */
 const PI = ${Math.PI}`,
-
-// Camera
-// TODO: jsdoc
-`
-declare const Camera: {
-    ${v.positionableApi}
-
-    zoom: number
-
-    shake(duration?: number, intensity?: number, callback?: Function): void
-
-    reset(): void
-
-
-}`,
 
 // Sprite
 // TODO: include default values
@@ -891,14 +556,6 @@ class Circle {
 
 ${v.circleMembers}
 }`,
-
-// Vector2
-`/**
- *
- */
-class Vector2 {
-    // TODO: Vector2
-}`,
     ].join('\n') + '\n}\nexport {}'
 }
 
@@ -912,4 +569,13 @@ export const apiLib = buildApiLib({
     linePropsFields, lineMembers,
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
+    cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
+    randomMembers,
+    foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
+    afterDeclaration, everyDeclaration, whenDeclaration,
+    keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
+    onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
+    setBackgroundColorDeclaration, pauseDeclaration, playDeclaration, printDeclaration,
+    watchDeclaration, unwatchDeclaration,
+    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
 })

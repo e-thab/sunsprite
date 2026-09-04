@@ -26,16 +26,86 @@ export const MIXINS = [
 ] as const
 
 export const CONCRETE_CLASSES = [
-    { file: apiPath('Sprite.ts'), typeName: 'SpriteProps', className: 'Sprite' },
-    { file: apiPath('Rectangle.ts'), typeName: 'RectangleProps', className: 'Rectangle' },
-    { file: apiPath('Circle.ts'), typeName: 'CircleProps', className: 'Circle' },
-    { file: apiPath('Label.ts'), typeName: 'LabelProps', className: 'Label' },
-    { file: apiPath('Line.ts'), typeName: 'LineProps', className: 'Line' },
-    { file: apiPath('HLine.ts'), typeName: 'HLineProps', className: 'HLine' },
-    { file: apiPath('VLine.ts'), typeName: 'VLineProps', className: 'VLine' },
+    { file: apiPath('Sprite.ts'), typeName: 'SpriteProps', className: 'Sprite', constructorParams: undefined },
+    { file: apiPath('Rectangle.ts'), typeName: 'RectangleProps', className: 'Rectangle', constructorParams: undefined },
+    { file: apiPath('Circle.ts'), typeName: 'CircleProps', className: 'Circle', constructorParams: undefined },
+    { file: apiPath('Label.ts'), typeName: 'LabelProps', className: 'Label', constructorParams: undefined },
+    { file: apiPath('Line.ts'), typeName: 'LineProps', className: 'Line', constructorParams: undefined },
+    { file: apiPath('HLine.ts'), typeName: 'HLineProps', className: 'HLine', constructorParams: undefined },
+    { file: apiPath('VLine.ts'), typeName: 'VLineProps', className: 'VLine', constructorParams: undefined },
+    // Singleton/value classes below have no `*Props` options-object type, so
+    // typeName is left undefined (extractConcreteClass skips the props-type
+    // lookup entirely in that case). Two different real shapes hide behind
+    // that, distinguished by constructorParams: Camera/Screen/Clock/Mouse
+    // are singleton *instances* the real api object exposes directly
+    // (`Camera: camera`, etc.) — never constructed by user code, so
+    // constructorParams stays undefined and both api.d.ts and apiLib.ts
+    // render them as `declare const X: {...}`, no constructor at all.
+    // Timer/Vector2 are real classes user code does construct (`new
+    // Timer()`, `new Vector2(x, y)`), so constructorParams carries their
+    // real (hand-written — constructors aren't extracted) parameter list,
+    // and both render as `declare class X { constructor(...); ... }`.
+    // Mouse lives in types.ts, not its own file — findDefaultExportClass
+    // matches any exported class regardless of file name, and it's the
+    // only exported class in that file.
+    { file: apiPath('Camera.ts'), typeName: undefined, className: 'Camera', constructorParams: undefined },
+    { file: apiPath('Vector2.ts'), typeName: undefined, className: 'Vector2', constructorParams: 'x: number, y: number' },
+    { file: apiPath('Timer.ts'), typeName: undefined, className: 'Timer', constructorParams: '' },
+    { file: apiPath('Clock.ts'), typeName: undefined, className: 'Clock', constructorParams: undefined },
+    { file: apiPath('Screen.ts'), typeName: undefined, className: 'Screen', constructorParams: undefined },
+    { file: apiPath('types.ts'), typeName: undefined, className: 'Mouse', constructorParams: undefined },
 ] as const
 
 export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
+
+/**
+ * Plain `const <exportName> = {...}` object literals (not classes) that are
+ * part of the real api-object surface — currently just Random. Extracted via
+ * extractObjectLiteral into the same propsFields/members shape a concrete
+ * class produces, so it shares render.ts's existing output path.
+ */
+export const OBJECT_LITERALS = [
+    { file: apiPath('Random.ts'), exportName: 'Random', className: 'Random' },
+] as const
+
+/**
+ * Free (non-class, non-object-literal) functions that are part of the real
+ * api-object surface, extracted directly by name from the file that declares
+ * them — one `declare function name(...): T` statement per entry (or one per
+ * overload, for watch's two signatures). Doesn't matter whether the source
+ * declaration itself is `export`ed: some of these (e.g. onMouse) are only
+ * closure-visible to core.ts's own `api` object, never imported elsewhere,
+ * but are just as real a part of the runtime surface.
+ */
+export const FREE_FUNCTIONS = [
+    { file: apiPath('core.ts'), name: 'forever' },
+    { file: apiPath('core.ts'), name: 'repeat' },
+    { file: apiPath('core.ts'), name: 'repeatUntil' },
+    { file: apiPath('core.ts'), name: 'repeatWhile' },
+    { file: apiPath('core.ts'), name: 'after' },
+    { file: apiPath('core.ts'), name: 'every' },
+    { file: apiPath('core.ts'), name: 'when' },
+    { file: apiPath('core.ts'), name: 'keyPressed' },
+    { file: apiPath('core.ts'), name: 'keyJustPressed' },
+    { file: apiPath('core.ts'), name: 'keyJustReleased' },
+    { file: apiPath('core.ts'), name: 'onKeyPress' },
+    { file: apiPath('core.ts'), name: 'onKeyRelease' },
+    { file: apiPath('core.ts'), name: 'onKeyHold' },
+    { file: apiPath('core.ts'), name: 'onMouse' },
+    { file: apiPath('core.ts'), name: 'setBackgroundColor' },
+    { file: apiPath('core.ts'), name: 'play' },
+    { file: apiPath('core.ts'), name: 'pause' },
+    { file: sandboxPath('watch.ts'), name: 'watch' },
+    { file: sandboxPath('watch.ts'), name: 'unwatch' },
+    { file: sandboxPath('output.ts'), name: 'print' },
+    { file: apiPath('utility.ts'), name: 'deg2rad' },
+    { file: apiPath('utility.ts'), name: 'rad2deg' },
+    { file: apiPath('utility.ts'), name: 'sin' },
+    { file: apiPath('utility.ts'), name: 'cos' },
+    { file: apiPath('utility.ts'), name: 'tan' },
+    { file: apiPath('utility.ts'), name: 'atan2' },
+    { file: apiPath('utility.ts'), name: 'clamp' },
+] as const
 
 /**
  * Known, deliberate accommodations that real source's exact types don't carry —
@@ -47,8 +117,8 @@ export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
  * runtime setter's TS-checked parameter type doesn't need the widening.
  */
 export const SET_TYPE_OVERRIDES: Record<string, string> = {
-    'Line.pointA': 'Returnable<PointArg | number[]>',
-    'Line.pointB': 'Returnable<PointArg | number[]>',
+    'Line.pointA': 'Returnable<Vector2Like | number[]>',
+    'Line.pointB': 'Returnable<Vector2Like | number[]>',
 }
 
 /**
@@ -65,14 +135,8 @@ export const SET_TYPE_OVERRIDES: Record<string, string> = {
  * one core.ts actually imports).
  */
 export const SUPPORTING_API_FILES = [
-    apiPath('Vector2.ts'),
     apiPath('utility.ts'),
     apiPath('Colors.ts'),
-    apiPath('Timer.ts'),
-    apiPath('Clock.ts'),
-    apiPath('Camera.ts'),
-    apiPath('Random.ts'),
-    apiPath('Screen.ts'),
     apiPath('core.ts'),
     apiPath('types.ts'),
     apiPath('mixins', 'index.ts'),
@@ -95,6 +159,12 @@ export function runtimeCopySet(): string[] {
         GAME_OBJECT_FILE,
         ...SUPPORTING_API_FILES,
         ...SANDBOX_RUNTIME_FILES,
+        // FREE_FUNCTIONS isn't included here — every file it points at
+        // (core.ts, utility.ts, sandbox/watch.ts) is already covered above.
+        // OBJECT_LITERALS' files aren't otherwise covered (Random.ts used to
+        // reach the copy set via SUPPORTING_API_FILES; now it's only reached
+        // through extraction, so it has to be added back explicitly here).
+        ...OBJECT_LITERALS.map((o) => o.file),
     ]
 }
 

@@ -177,6 +177,7 @@ onMounted(() => {
     white-space: nowrap;
     overflow: hidden;
     background-color: var(--theme-bg-muted);
+    border-bottom: 1px solid var(--theme-border);
 }
 
 .output-header [data-slot='list'] {
@@ -275,7 +276,6 @@ onMounted(() => {
 .output-item--start {
     color: var(--theme-text-muted);
     font-style: italic;
-    border-top: 1px solid var(--theme-border);
 }
 
 .info-panel {

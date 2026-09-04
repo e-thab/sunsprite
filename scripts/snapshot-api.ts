@@ -83,18 +83,39 @@ function main() {
     for (const concrete of CONCRETE_CLASSES) {
         const bundle = generated.concreteClasses[concrete.className]
         if (!bundle) continue
-        const basePrefix = findPropsBasePrefix(program, concrete.file, concrete.typeName)
 
-        lines.push(
-            `export type ${concrete.typeName} = ${basePrefix}{\n${bundle.propsFields.join('\n\n')}\n}`,
-            '',
-            `export declare class ${concrete.className} {`,
-            `    constructor(options?: ${concrete.typeName})`,
-            '',
-            bundle.members.join('\n\n'),
-            '}',
-            ''
-        )
+        if (concrete.typeName) {
+            // Options-constructed classes (Sprite, Rectangle, ...): real `*Props` type plus `constructor(options?: XProps)`.
+            const basePrefix = findPropsBasePrefix(program, concrete.file, concrete.typeName)
+            lines.push(
+                `export type ${concrete.typeName} = ${basePrefix}{\n${bundle.propsFields.join('\n\n')}\n}`,
+                '',
+                `export declare class ${concrete.className} {`,
+                `    constructor(options?: ${concrete.typeName})`,
+                '',
+                bundle.members.join('\n\n'),
+                '}',
+                ''
+            )
+        } else if (concrete.constructorParams !== undefined) {
+            // Real classes user code constructs directly (Vector2, Timer) — no `*Props` type, a hand-known positional constructor.
+            lines.push(
+                `export declare class ${concrete.className} {`,
+                `    constructor(${concrete.constructorParams})`,
+                '',
+                bundle.members.join('\n\n'),
+                '}',
+                ''
+            )
+        } else {
+            // Singleton instances the real api object exposes directly (Camera, Screen, Clock, Mouse) — never constructed by user code.
+            lines.push(
+                `export declare const ${concrete.className}: {`,
+                bundle.members.join('\n\n'),
+                '}',
+                ''
+            )
+        }
     }
 
     mkdirSync(outDir, { recursive: true })

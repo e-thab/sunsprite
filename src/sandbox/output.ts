@@ -37,19 +37,31 @@ function send(kind: OutputKind, text: string, location?: OutputLocation) {
     postToHost({ type: 'output', kind, text, frame: clock.frame, location })
 }
 
-export function print(...args: Printable[]) {
-    console.log('%cprint:', `color: ${Colors.Gray}; font-weight: 100; font-style: italic;`, ...args)
-    send('print', joinArgs(args))
+/**
+ * Display a normal message in the output panel.
+ * @param msgs The messages to display.
+ */
+export function print(...msgs: Printable[]) {
+    console.log('%cprint:', `color: ${Colors.Gray}; font-weight: 100; font-style: italic;`, ...msgs)
+    send('print', joinArgs(msgs))
 }
 
-function warn(...args: Printable[]) {
-    console.log(' %cwarn:', `color: ${Colors.Goldenrod}; font-weight: 100; font-style: italic;`, ...args)
-    send('warn', joinArgs(args))
+/**
+ * Display a warning message in the output panel.
+ * @param msgs The warning messages to display.
+ */
+function warn(...msgs: Printable[]) {
+    console.log(' %cwarn:', `color: ${Colors.Goldenrod}; font-weight: 100; font-style: italic;`, ...msgs)
+    send('warn', joinArgs(msgs))
 }
 
-function error(...args: Printable[]) {
-    console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, ...args)
-    send('error', joinArgs(args))
+/**
+ * Display an error message in the output panel.
+ * @param msgs The error messages to display.
+ */
+function error(...msgs: Printable[]) {
+    console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, ...msgs)
+    send('error', joinArgs(msgs))
 }
 
 /**
@@ -72,6 +84,9 @@ function printStartMsg(scriptName: string) {
     send('start', `Running ${scriptName} @ ${hr}:${min}:${sec}.${milli}`)
 }
 
+/**
+ * Clear all messages from the output panel.
+ */
 function clear() {
     postToHost({ type: 'output-clear' })
 }

@@ -84,3 +84,34 @@ export function findDefaultExportClass(sourceFile: ts.SourceFile): ts.ClassDecla
     }
     return undefined
 }
+
+/**
+ * All top-level `function name(...)` declarations matching `name`, in source
+ * order — a real signature (no body) is an overload; a real implementation
+ * has one. Doesn't care whether `name` is `export`ed: some of core.ts's own
+ * free functions (e.g. `onMouse`) are only closure-visible to its `api`
+ * object, not exported, but are just as real a part of the runtime surface.
+ */
+export function findFunctionDeclarations(sourceFile: ts.SourceFile, name: string): ts.FunctionDeclaration[] {
+    return sourceFile.statements.filter(
+        (s): s is ts.FunctionDeclaration => ts.isFunctionDeclaration(s) && s.name?.text === name
+    )
+}
+
+/** Finds a top-level `const name = {...}` (or `let`/`var`) object literal by name. */
+export function findObjectLiteralConst(sourceFile: ts.SourceFile, name: string): ts.ObjectLiteralExpression | undefined {
+    for (const statement of sourceFile.statements) {
+        if (!ts.isVariableStatement(statement)) continue
+        for (const decl of statement.declarationList.declarations) {
+            if (
+                ts.isIdentifier(decl.name) &&
+                decl.name.text === name &&
+                decl.initializer &&
+                ts.isObjectLiteralExpression(decl.initializer)
+            ) {
+                return decl.initializer
+            }
+        }
+    }
+    return undefined
+}

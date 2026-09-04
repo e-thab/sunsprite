@@ -1,11 +1,15 @@
 import ts from 'typescript'
-import { extractDoc, formatDocBlock, isExcluded, findTypeAlias, findMixinClassExpression, findDefaultExportClass } from './ast'
-import { MIXINS, CONCRETE_CLASSES, GAME_OBJECT_FILE, SET_TYPE_OVERRIDES } from './sources'
+import { extractDoc, formatDocBlock, isExcluded, findTypeAlias, findMixinClassExpression, findDefaultExportClass, findFunctionDeclarations, findObjectLiteralConst } from './ast'
+import { MIXINS, CONCRETE_CLASSES, GAME_OBJECT_FILE, SET_TYPE_OVERRIDES, OBJECT_LITERALS, FREE_FUNCTIONS } from './sources'
 
 const INDENT = '    '
 
 export function createProgram(): { program: ts.Program; checker: ts.TypeChecker } {
-    const rootFiles = CONCRETE_CLASSES.map((c) => c.file)
+    const rootFiles = [
+        ...CONCRETE_CLASSES.map((c) => c.file),
+        ...OBJECT_LITERALS.map((o) => o.file),
+        ...FREE_FUNCTIONS.map((f) => f.file),
+    ]
     const program = ts.createProgram(rootFiles, {
         target: ts.ScriptTarget.ES2020,
         module: ts.ModuleKind.ESNext,
@@ -58,11 +62,42 @@ export function extractPropsFields(typeAlias: ts.TypeAliasDeclaration): string[]
  * isn't an option, so this asks the checker for the accessor's/method's real
  * inferred return type whenever there's no explicit annotation to read verbatim.
  */
-function returnTypeText(node: ts.GetAccessorDeclaration | ts.MethodDeclaration, checker: ts.TypeChecker, sourceFile: ts.SourceFile): string {
+function returnTypeText(node: ts.GetAccessorDeclaration | ts.MethodDeclaration | ts.FunctionDeclaration, checker: ts.TypeChecker, sourceFile: ts.SourceFile): string {
     if (node.type) return node.type.getText(sourceFile)
     const signature = checker.getSignatureFromDeclaration(node)
     if (!signature) return 'any'
     return checker.typeToString(checker.getReturnTypeOfSignature(signature))
+}
+
+/** The single `return {...}` statement's object literal, if `fn` has no explicit return-type annotation and its body is exactly that — used by {@link functionReturnTypeText} to keep a returned object's own JSDoc'd methods (e.g. `repeat(...).then(...)`) instead of losing them to a flat checker-derived type string. */
+function objectLiteralReturnStatement(fn: ts.FunctionDeclaration): ts.ObjectLiteralExpression | undefined {
+    if (fn.type || !fn.body) return undefined
+    for (const statement of fn.body.statements) {
+        if (ts.isReturnStatement(statement) && statement.expression && ts.isObjectLiteralExpression(statement.expression)) {
+            return statement.expression
+        }
+    }
+    return undefined
+}
+
+/**
+ * Like {@link returnTypeText}, but for a free function whose real (inferred)
+ * return value is an object literal with its own documented methods — the
+ * `repeat`/`repeatUntil`/`repeatWhile` family, whose `.then(...)` would
+ * otherwise render as a bare, undocumented `{ then(...): void }` via
+ * `checker.typeToString`, which only knows structural types and drops
+ * comments entirely.
+ */
+function functionReturnTypeText(checker: ts.TypeChecker, fn: ts.FunctionDeclaration, sourceFile: ts.SourceFile): string {
+    if (fn.type) return fn.type.getText(sourceFile)
+
+    const literal = objectLiteralReturnStatement(fn)
+    if (literal) {
+        const members = [...extractObjectLiteralMembers(checker, literal).values()]
+        return `{\n${members.join('\n\n')}\n}`
+    }
+
+    return returnTypeText(fn, checker, sourceFile)
 }
 
 /** Same idea as {@link returnTypeText}, for a declaration whose own type (not a return type) may be inferred. */
@@ -71,9 +106,17 @@ function declaredTypeText(typeNode: ts.TypeNode | undefined, valueNode: ts.Node,
     return checker.typeToString(checker.getTypeAtLocation(valueNode))
 }
 
-type AccessorGroup = { kind: 'accessor'; getter: ts.GetAccessorDeclaration; setter?: ts.SetAccessorDeclaration }
-type MethodGroup = { kind: 'method'; signatures: ts.MethodDeclaration[] }
-type PropertyGroup = { kind: 'property'; decl: ts.PropertyDeclaration }
+type AccessorGroup = { kind: 'accessor'; getter: ts.GetAccessorDeclaration; setter?: ts.SetAccessorDeclaration; isStatic: boolean }
+// FunctionDeclaration alongside MethodDeclaration lets renderMethod double as the renderer for a plain
+// object literal's property-assigned-to-a-function-identifier members (see extractObjectLiteralMembers) —
+// both node kinds expose the same `.parameters`/`.type`/`.body` shape renderMethod actually touches.
+type MethodGroup = { kind: 'method'; signatures: (ts.MethodDeclaration | ts.FunctionDeclaration)[]; isStatic: boolean }
+type PropertyGroup = { kind: 'property'; decl: ts.PropertyDeclaration; isStatic: boolean }
+
+/** True for `static` class members — irrelevant to every existing GameObject-family class (none has any), but real for e.g. Vector2's `static from(...)`/`static ZERO`/`static ONE`. */
+function isStaticMember(member: ts.ClassElement): boolean {
+    return (ts.getCombinedModifierFlags(member as ts.Declaration) & ts.ModifierFlags.Static) !== 0
+}
 
 function groupMembers(members: ts.NodeArray<ts.ClassElement>): Map<string, AccessorGroup | MethodGroup | PropertyGroup> {
     const groups = new Map<string, AccessorGroup | MethodGroup | PropertyGroup>()
@@ -85,7 +128,7 @@ function groupMembers(members: ts.NodeArray<ts.ClassElement>): Map<string, Acces
         if (ts.isGetAccessor(member)) {
             const existing = groups.get(name)
             if (existing?.kind === 'accessor') existing.getter = member
-            else groups.set(name, { kind: 'accessor', getter: member })
+            else groups.set(name, { kind: 'accessor', getter: member, isStatic: isStaticMember(member) })
         } else if (ts.isSetAccessor(member)) {
             const existing = groups.get(name)
             if (existing?.kind === 'accessor') existing.setter = member
@@ -95,9 +138,9 @@ function groupMembers(members: ts.NodeArray<ts.ClassElement>): Map<string, Acces
         } else if (ts.isMethodDeclaration(member)) {
             const existing = groups.get(name)
             if (existing?.kind === 'method') existing.signatures.push(member)
-            else groups.set(name, { kind: 'method', signatures: [member] })
+            else groups.set(name, { kind: 'method', signatures: [member], isStatic: isStaticMember(member) })
         } else if (ts.isPropertyDeclaration(member)) {
-            groups.set(name, { kind: 'property', decl: member })
+            groups.set(name, { kind: 'property', decl: member, isStatic: isStaticMember(member) })
         }
     }
     return groups
@@ -107,9 +150,10 @@ function renderAccessor(name: string, group: AccessorGroup, overrideKey: string,
     const sourceFile = group.getter.getSourceFile()
     const doc = extractDoc(group.getter)
     const getType = returnTypeText(group.getter, checker, sourceFile)
+    const staticPrefix = group.isStatic ? 'static ' : ''
 
     if (!group.setter) {
-        return `${formatDocBlock(doc, INDENT)}${INDENT}readonly ${name}: ${getType}`
+        return `${formatDocBlock(doc, INDENT)}${INDENT}${staticPrefix}readonly ${name}: ${getType}`
     }
 
     const param = group.setter.parameters[0]
@@ -117,11 +161,23 @@ function renderAccessor(name: string, group: AccessorGroup, overrideKey: string,
     const setType = SET_TYPE_OVERRIDES[overrideKey] ?? rawSetType
 
     if (setType === getType) {
-        return `${formatDocBlock(doc, INDENT)}${INDENT}${name}: ${getType}`
+        return `${formatDocBlock(doc, INDENT)}${INDENT}${staticPrefix}${name}: ${getType}`
     }
 
     const paramName = param?.name.getText(sourceFile) ?? name
-    return `${formatDocBlock(doc, INDENT)}${INDENT}get ${name}(): ${getType}\n${INDENT}set ${name}(${paramName}: ${setType})`
+    return `${formatDocBlock(doc, INDENT)}${INDENT}${staticPrefix}get ${name}(): ${getType}\n${INDENT}${staticPrefix}set ${name}(${paramName}: ${setType})`
+}
+
+/** Renders one signature's parameter list, e.g. `a: number, b?: string, ...rest: any[]`. */
+function renderParams(parameters: readonly ts.ParameterDeclaration[], checker: ts.TypeChecker, sourceFile: ts.SourceFile): string {
+    return parameters
+        .map((p) => {
+            const rest = p.dotDotDotToken ? '...' : ''
+            const optional = p.questionToken || p.initializer ? '?' : ''
+            const type = declaredTypeText(p.type, p, checker, sourceFile)
+            return `${rest}${p.name.getText(sourceFile)}${optional}: ${type}`
+        })
+        .join(', ')
 }
 
 function renderMethod(name: string, group: MethodGroup, checker: ts.TypeChecker): string {
@@ -130,19 +186,14 @@ function renderMethod(name: string, group: MethodGroup, checker: ts.TypeChecker)
     // only those. Otherwise there's a single real method — render its own signature.
     const overloads = group.signatures.filter((s) => s.body === undefined)
     const toRender = overloads.length > 0 ? overloads : [group.signatures[0]!]
+    const staticPrefix = group.isStatic ? 'static ' : ''
 
     return toRender
         .map((sig) => {
             const doc = extractDoc(sig)
-            const params = sig.parameters
-                .map((p) => {
-                    const optional = p.questionToken || p.initializer ? '?' : ''
-                    const type = declaredTypeText(p.type, p, checker, sourceFile)
-                    return `${p.name.getText(sourceFile)}${optional}: ${type}`
-                })
-                .join(', ')
+            const params = renderParams(sig.parameters, checker, sourceFile)
             const returnType = returnTypeText(sig, checker, sourceFile)
-            return `${formatDocBlock(doc, INDENT)}${INDENT}${name}(${params}): ${returnType}`
+            return `${formatDocBlock(doc, INDENT)}${INDENT}${staticPrefix}${name}(${params}): ${returnType}`
         })
         .join('\n\n')
 }
@@ -151,7 +202,9 @@ function renderProperty(name: string, group: PropertyGroup, checker: ts.TypeChec
     const sourceFile = group.decl.getSourceFile()
     const doc = extractDoc(group.decl)
     const type = declaredTypeText(group.decl.type, group.decl, checker, sourceFile)
-    return `${formatDocBlock(doc, INDENT)}${INDENT}${name}: ${type}`
+    const staticPrefix = group.isStatic ? 'static ' : ''
+    const optional = group.decl.questionToken ? '?' : ''
+    return `${formatDocBlock(doc, INDENT)}${INDENT}${staticPrefix}${name}${optional}: ${type}`
 }
 
 /** Renders a class body's own (non-`_`-prefixed) members as an ordered map of name -> line(s). */
@@ -164,6 +217,50 @@ function extractOwnMembers(classNode: ts.ClassDeclaration | ts.ClassExpression, 
         if (group.kind === 'accessor') result.set(name, renderAccessor(name, group, overrideKey, checker))
         else if (group.kind === 'method') result.set(name, renderMethod(name, group, checker))
         else result.set(name, renderProperty(name, group, checker))
+    }
+    return result
+}
+
+/**
+ * Renders a plain object literal's own (non-`_`-prefixed) properties, the
+ * same way extractOwnMembers does for a class body — used for Random (a
+ * `const Random = {...}` value, not a class) and for a free function's
+ * inferred `return {...}` type (see functionReturnTypeText). Three property
+ * shapes: a method-shorthand property (`coinFlip() { ... }`) renders like a
+ * class method; a property assigned to a bare function identifier (Random's
+ * `number: randomNumber`) resolves to that function's own declaration(s) —
+ * picking up its real signature and JSDoc, including overloads, rather than
+ * whatever comment (if any) sits on the property itself; anything else
+ * renders as a plain value property via the checker's inferred type.
+ */
+function extractObjectLiteralMembers(checker: ts.TypeChecker, node: ts.ObjectLiteralExpression): Map<string, string> {
+    const result = new Map<string, string>()
+    const sourceFile = node.getSourceFile()
+
+    for (const prop of node.properties) {
+        const name = prop.name?.getText(sourceFile)
+        if (!name || isExcluded(name)) continue
+
+        if (ts.isMethodDeclaration(prop)) {
+            result.set(name, renderMethod(name, { kind: 'method', signatures: [prop], isStatic: false }, checker))
+            continue
+        }
+
+        if (!ts.isPropertyAssignment(prop)) continue // shorthand/spread properties aren't used in these object literals today
+
+        if (ts.isIdentifier(prop.initializer)) {
+            let symbol = checker.getSymbolAtLocation(prop.initializer)
+            if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol)
+            const signatures = symbol?.declarations?.filter(ts.isFunctionDeclaration) ?? []
+            if (signatures.length > 0) {
+                result.set(name, renderMethod(name, { kind: 'method', signatures, isStatic: false }, checker))
+                continue
+            }
+        }
+
+        const doc = extractDoc(prop)
+        const type = declaredTypeText(undefined, prop.initializer, checker, sourceFile)
+        result.set(name, `${formatDocBlock(doc, INDENT)}${INDENT}${name}: ${type}`)
     }
     return result
 }
@@ -280,7 +377,7 @@ export function extractConcreteClass(
 ): ConcreteClassBundle {
     const sourceFile = getSourceFile(program, concrete.file)
 
-    const typeAlias = findTypeAlias(sourceFile, concrete.typeName)
+    const typeAlias = concrete.typeName ? findTypeAlias(sourceFile, concrete.typeName) : undefined
     const propsFields = typeAlias ? extractPropsFields(typeAlias) : []
 
     const classDecl = findDefaultExportClass(sourceFile)
@@ -288,4 +385,52 @@ export function extractConcreteClass(
 
     const composed = resolveComposedMembers(program, checker, sourceFile, classDecl, concrete.className, mixinCache)
     return { propsFields, members: [...composed.values()] }
+}
+
+/**
+ * Extracts a plain `const <exportName> = {...}` object literal's own members
+ * (Random, not a class — see extractObjectLiteralMembers). Returns the same
+ * shape extractConcreteClass does (`propsFields` always empty — an object
+ * literal has no options-object constructor to speak of) so it slots into
+ * render.ts's existing concreteClasses output with no changes there.
+ */
+export function extractObjectLiteral(
+    program: ts.Program,
+    checker: ts.TypeChecker,
+    entry: (typeof OBJECT_LITERALS)[number]
+): ConcreteClassBundle {
+    const sourceFile = getSourceFile(program, entry.file)
+    const literal = findObjectLiteralConst(sourceFile, entry.exportName)
+    if (!literal) throw new Error(`Could not find "const ${entry.exportName} = {...}" in ${entry.file}`)
+
+    const members = extractObjectLiteralMembers(checker, literal)
+    return { propsFields: [], members: [...members.values()] }
+}
+
+/**
+ * Extracts one free function (or its overload set, like watch's two
+ * signatures) as a complete, standalone `declare function name(...): T`
+ * statement — unlike a class/object member, this needs no wrapper to splice
+ * directly into apiLib's `declare global` block.
+ */
+export function extractFreeFunction(
+    checker: ts.TypeChecker,
+    program: ts.Program,
+    entry: (typeof FREE_FUNCTIONS)[number]
+): string {
+    const sourceFile = getSourceFile(program, entry.file)
+    const signatures = findFunctionDeclarations(sourceFile, entry.name)
+    if (signatures.length === 0) throw new Error(`Could not find function "${entry.name}" in ${entry.file}`)
+
+    const overloads = signatures.filter((s) => s.body === undefined)
+    const toRender = overloads.length > 0 ? overloads : [signatures[0]!]
+
+    return toRender
+        .map((sig) => {
+            const doc = extractDoc(sig)
+            const params = renderParams(sig.parameters, checker, sourceFile)
+            const returnType = functionReturnTypeText(checker, sig, sourceFile)
+            return `${formatDocBlock(doc, '')}declare function ${entry.name}(${params}): ${returnType}`
+        })
+        .join('\n\n')
 }

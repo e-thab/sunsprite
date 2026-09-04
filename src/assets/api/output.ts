@@ -143,9 +143,13 @@ function joinArgs(args: Printable[]): string {
     return msg
 }
 
-function error(...args: Printable[]) {
-    console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, ...args)
-    errorMsg(joinArgs(args))
+/**
+ * Display an error message in the output panel.
+ * @param msgs The error messages to display.
+ */
+function error(...msgs: Printable[]) {
+    console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, ...msgs)
+    errorMsg(joinArgs(msgs))
 }
 
 function errorMsg(msg: string, location?: OutputLocation) {

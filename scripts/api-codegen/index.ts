@@ -1,5 +1,5 @@
-import { createProgram, extractMixin, extractConcreteClass } from './extract'
-import { MIXINS, CONCRETE_CLASSES } from './sources'
+import { createProgram, extractMixin, extractConcreteClass, extractObjectLiteral, extractFreeFunction } from './extract'
+import { MIXINS, CONCRETE_CLASSES, OBJECT_LITERALS, FREE_FUNCTIONS } from './sources'
 
 export interface MixinBundle {
     propsFields: string[]
@@ -15,6 +15,7 @@ export interface ConcreteClassBundle {
 export interface GeneratedDeclarations {
     mixins: Record<string, MixinBundle>
     concreteClasses: Record<string, ConcreteClassBundle>
+    freeFunctions: Record<string, string>
 }
 
 /**
@@ -39,6 +40,17 @@ export function generateApiDeclarations(): GeneratedDeclarations {
     for (const concrete of CONCRETE_CLASSES) {
         concreteClasses[concrete.className] = extractConcreteClass(program, checker, concrete, mixinCache)
     }
+    // Random (a plain object literal, not a class) slots into the same
+    // output bucket as the classes above — same {propsFields, members}
+    // shape, so render.ts needs no separate handling for it.
+    for (const literal of OBJECT_LITERALS) {
+        concreteClasses[literal.className] = extractObjectLiteral(program, checker, literal)
+    }
 
-    return { mixins, concreteClasses }
+    const freeFunctions: Record<string, string> = {}
+    for (const fn of FREE_FUNCTIONS) {
+        freeFunctions[fn.name] = extractFreeFunction(checker, program, fn)
+    }
+
+    return { mixins, concreteClasses, freeFunctions }
 }
