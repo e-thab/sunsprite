@@ -1,12 +1,12 @@
 import { readdirSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { REPO_ROOT } from '../aliases'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-export const REPO_ROOT = path.resolve(__dirname, '../..')
-const API_DIR = path.resolve(__dirname, '../../src/assets/api')
-const SANDBOX_DIR = path.resolve(__dirname, '../../src/sandbox')
-const DOCS_API_DIR = path.resolve(__dirname, '../../src/assets/docs/content/api')
+export { REPO_ROOT }
+
+const API_DIR = path.join(REPO_ROOT, 'src', 'assets', 'api')
+const SANDBOX_DIR = path.join(REPO_ROOT, 'src', 'sandbox')
+const DOCS_API_DIR = path.join(REPO_ROOT, 'src', 'assets', 'docs', 'content', 'api')
 
 export function apiPath(...segments: string[]): string {
     return path.join(API_DIR, ...segments)

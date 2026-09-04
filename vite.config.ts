@@ -4,6 +4,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import ui from '@nuxt/ui/vite'
+import { viteAliases } from './scripts/aliases'
 
 // const prefix = `monaco-editor/esm/vs`
 
@@ -35,9 +36,10 @@ export default defineConfig(({ command }) => {
       })
     ],
     resolve: {
-      alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url))
-      },
+      // Derived from tsconfig.app.json's `paths` block, the single place
+      // aliases are declared — see scripts/aliases.ts. Restating them here is
+      // how `@api/*` ended up type-checking without resolving at build time.
+      alias: viteAliases(),
     },
     base: '/',
     build: {

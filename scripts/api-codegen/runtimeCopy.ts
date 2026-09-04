@@ -1,15 +1,15 @@
 import ts from 'typescript'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { REPO_ROOT } from './sources'
+import { ALIAS_IMPORT_RE, isAliasSpecifier, REPO_ROOT, TS_PATHS } from '../aliases'
 
 export const SRC_ROOT = path.join(REPO_ROOT, 'src')
 
-/** Matches tsconfig.app.json's real `@/*` alias, so resolution matches what Vite actually does. */
+/** tsconfig.app.json's own `paths`, so resolution here matches what vue-tsc and Vite actually do. */
 export const RESOLUTION_OPTIONS: ts.CompilerOptions = {
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     baseUrl: REPO_ROOT,
-    paths: { '@/*': ['src/*'] },
+    paths: TS_PATHS,
     target: ts.ScriptTarget.ES2020,
 }
 
@@ -70,7 +70,7 @@ function rewriteFile(realFile: string, copySet: Set<string>, outDir: string): Re
         const specifier = moduleSpecifier.text
         // Bare specifiers (npm packages) resolve the same regardless of the
         // importing file's location — nothing to rewrite.
-        if (!specifier.startsWith('.') && !specifier.startsWith('@/')) continue
+        if (!specifier.startsWith('.') && !isAliasSpecifier(specifier)) continue
 
         const resolved = resolveSpecifier(specifier, realFile)
         if (!resolved) throw new Error(`Could not resolve "${specifier}" from ${realFile}`)
@@ -111,8 +111,8 @@ export function copyAndRewriteRuntime(realFiles: string[], outDir: string): stri
  * set, like moduleRunner.ts, are never touched and are *expected* to keep
  * using the real project's `@/` alias; that's correct, not a bug):
  *
- * 1. Completeness: no copy-set file still contains an unrewritten `@/`-style
- *    specifier — proves the rewriter didn't miss one (the exact failure mode
+ * 1. Completeness: no copy-set file still contains an unrewritten alias
+ *    specifier (`@/…`, `@api/…`) — proves the rewriter didn't miss one (the exact failure mode
  *    hit during development: a Windows path-separator mismatch silently made
  *    every copy-set-internal reference look external).
  * 2. Correctness: the copy-set files, together with whatever they legitimately
@@ -124,8 +124,9 @@ export function copyAndRewriteRuntime(realFiles: string[], outDir: string): stri
 export function verifyStandalone(copiedFiles: string[]): void {
     for (const file of copiedFiles) {
         const text = readFileSync(file, 'utf8')
-        if (/from\s+["']@\//.test(text)) {
-            throw new Error(`Runtime snapshot incomplete: ${file} still has an unrewritten "@/" import.`)
+        const unrewritten = text.match(ALIAS_IMPORT_RE)
+        if (unrewritten) {
+            throw new Error(`Runtime snapshot incomplete: ${file} still has an unrewritten alias import (${unrewritten[0].trim()}…).`)
         }
     }
 

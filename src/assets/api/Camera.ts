@@ -1,5 +1,6 @@
 import { camera, getOurPoint, mouse, repeatUntil, screen } from "./core"
-import { Vector2, type Point } from "./Point"
+import type { Point } from "./Point"
+import Vector2 from "./Vector2"
 
 export default class Camera {
     _cam: Phaser.Cameras.Scene2D.Camera

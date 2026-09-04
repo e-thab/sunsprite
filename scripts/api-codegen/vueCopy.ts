@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { parse, type SFCScriptBlock } from 'vue/compiler-sfc'
 import { mirroredPath, normalizeSlashes, resolveSpecifier, RESOLUTION_OPTIONS, toSpecifier } from './runtimeCopy'
-import { REPO_ROOT } from './sources'
+import { ALIAS_IMPORT_RE, isAliasSpecifier, REPO_ROOT } from '../aliases'
 
 /**
  * Same idea as runtimeCopy.ts's rewriteFile, adapted for .vue SFCs: a doc
@@ -28,7 +28,7 @@ function rewriteScriptBlock(block: SFCScriptBlock, realFile: string, copySet: Se
         if (!moduleSpecifier || !ts.isStringLiteral(moduleSpecifier)) continue
 
         const specifier = moduleSpecifier.text
-        if (!specifier.startsWith('.') && !specifier.startsWith('@/')) continue
+        if (!specifier.startsWith('.') && !isAliasSpecifier(specifier)) continue
 
         const resolved = resolveSpecifier(specifier, realFile)
         if (!resolved) throw new Error(`Could not resolve "${specifier}" from ${realFile}`)
@@ -98,7 +98,7 @@ export function copyAndRewriteVueFiles(realFiles: string[], copySetFiles: string
  * was already rewritten, so this re-parses the *output*, not the original)
  * into a real sibling .ts file — simpler and less fragile than a synthetic
  * in-memory CompilerHost, and cheap to clean up afterward — then checked the
- * same way runtimeCopy.ts's runtime files are: (1) no unrewritten "@/"
+ * same way runtimeCopy.ts's runtime files are: (1) no unrewritten alias
  * specifier survived, (2) the extracted blocks type-check against this
  * project's real resolution config. Deliberately not a full vue-tsc SFC check
  * — the point here is catching rewriter bugs (a missed specifier, a Windows
@@ -116,8 +116,9 @@ export function verifyVueStandalone(copiedFiles: string[]): void {
             const blocks = [descriptor.script, descriptor.scriptSetup].filter((b): b is SFCScriptBlock => b !== null)
 
             for (const [index, block] of blocks.entries()) {
-                if (/from\s+["']@\//.test(block.content)) {
-                    throw new Error(`Docs snapshot incomplete: ${file} still has an unrewritten "@/" import.`)
+                const unrewritten = block.content.match(ALIAS_IMPORT_RE)
+                if (unrewritten) {
+                    throw new Error(`Docs snapshot incomplete: ${file} still has an unrewritten alias import (${unrewritten[0].trim()}…).`)
                 }
                 const tempFile = `${file}.block${index}.check.ts`
                 writeFileSync(tempFile, block.content, 'utf8')

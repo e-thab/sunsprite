@@ -1,18 +1,27 @@
-import { pointFrom, type Point, type PointArg } from "../Point"
-import { camera } from "../core"
-import Random from "../Random"
-import type { ReferenceObject } from "../types"
 import type { Class } from "./shared"
+import { pointFrom, type Point, type PointArg } from "@api/Point"
+import { camera } from "@api/core"
+import type { ReferenceObject } from "@api/types"
+import Random from "@api/Random"
+import Vector2 from "@api/Vector2"
 
 export type PositionableProps = {
     /** Horizontal position in the world. */
     x?: number
     /** Vertical position in the world. */
     y?: number
-    /** Position in the world (alias of position). */
-    pos?: PointArg
     /** Position in the world. */
     position?: PointArg
+    /** Position in the world (alias of position). */
+    pos?: PointArg
+    /** Horizontal position on the screen. */
+    screenX?: number
+    /** Vertical position on the screen. */
+    screenY?: number
+    /** Position on the screen. */
+    screenPosition?: PointArg
+    /** Position on the screen (alias of position). */
+    screenPos?: PointArg
 }
 
 export function Positionable<Base extends Class>(base: Base) {
@@ -55,11 +64,8 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         /** Position in the world. */
-        get position(): Point {
-            return {
-                x: this.x,
-                y: this.y
-            }
+        get position(): Vector2 {
+            return new Vector2(this.x, this.y)
         }
         set position(pos: PointArg) {
             pos = pointFrom(pos)

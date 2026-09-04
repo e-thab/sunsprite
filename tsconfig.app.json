@@ -14,12 +14,15 @@
     // Extra safety for array and object lookups, but may have false positives.
     "noUncheckedIndexedAccess": true,
 
-    // Path mapping for cleaner imports.
+    // Path mapping for cleaner imports. This block is the single source of
+    // truth for aliases: Vite's `resolve.alias` and the api-codegen's module
+    // resolution are both derived from it (see scripts/aliases.ts), so adding
+    // one here is all that's needed. Entries that don't name a real source
+    // directory must be excluded there via TYPE_ONLY_PATTERNS.
     "paths": {
       "@/*": ["./src/*"],
-
       "@api/*": ["./src/assets/api/*"],
-      
+
       // Nuxt
       "#build/ui/*": [
         "./node_modules/.nuxt-ui/ui/*"

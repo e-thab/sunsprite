@@ -1,4 +1,4 @@
-/** Any object with both x and y properties. */
+/** Any object with a numeric x and y. */
 export type Point = {
 	/** Horizontal position in the world. */
 	x: number,
@@ -12,15 +12,15 @@ export type ArrayPoint = [number, number]
 /** Type to be provided when providing points as arguments/setter values, either a Point directly or an [x, y] array. */
 export type PointArg = Point | ArrayPoint
 
-function isPoint(obj: any): obj is Point {
+export function isPoint(obj: any): obj is Point {
 	return obj && typeof obj.x === 'number' && typeof obj.y === 'number'
 }
-function isArrayPoint(obj: any): obj is ArrayPoint {
+export function isArrayPoint(obj: any): obj is ArrayPoint {
 	return obj && /*obj.length === 2 &&*/ typeof obj[0] === 'number' && typeof obj[1] === 'number'
 }
-function isPointArg(obj: any): obj is PointArg {
-	return obj && isPoint(obj) && isArrayPoint(obj)
-}
+// function isPointArg(obj: any): obj is PointArg {
+// 	return obj && isPoint(obj) && isArrayPoint(obj)
+// }
 
 /** Create a point from a pair of number args. */
 export function pointFrom(x: number, y: number): Point
@@ -53,38 +53,4 @@ export function pointFrom(xOrPoint: number | number[] | PointArg, y?: number): P
 
 	// Bad params. Error here
 	return { x: NaN, y: NaN }
-}
-
-// WIP...
-export class Vector2 {
-	x: number = 0
-	y: number = 0
-
-	constructor(xOrPoint: number | PointArg, y?: number) {
-		if (isPointArg(xOrPoint)) {
-			this.x = pointFrom(xOrPoint).x
-			this.y = pointFrom(xOrPoint).y
-		}
-		
-		if (y != null && typeof xOrPoint === 'number' && typeof y === 'number') {
-			this.x = xOrPoint,
-			this.y = y
-		}
-	}
-
-	get length(): number {
-		return Math.sqrt(this.x ** 2 + this.y ** 2)
-	}
-
-	// normalize() {
-
-	// }
-
-	static get ZERO(): Vector2 {
-		return new Vector2(0, 0)
-	}
-
-	static get ONE(): Vector2 {
-		return new Vector2(1, 1)
-	}
 }
