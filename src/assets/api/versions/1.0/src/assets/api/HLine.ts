@@ -1,5 +1,5 @@
-import { camera, forever } from "./core"
 import { Timeable, Viewable, type ViewableProps } from "./mixins/index"
+import { resizeReactors, camera, forever } from "./core"
 import Line from "./Line"
 
 type HLineProps = ViewableProps & {
@@ -38,15 +38,16 @@ export default class HLine extends
         if (props?.color) this.color = props.color
         if (props?.thickness) this.thickness = props.thickness
 
+        resizeReactors.push(this)
+
         // Moving to cam.x to seem infinite, scaling thickness w/ zoom
         this._lastZoom = camera.zoom
         forever(() => {
-            this._line._line.x = camera._cam.scrollX
-            this._line._line.displayWidth = camera.width
             if (camera.zoom !== this._lastZoom) {
                 this._line.thickness = this._thickness * 1/camera.zoom
                 this._lastZoom = camera.zoom
             }
+            this._updatePosition()
         })
     }
 
@@ -56,10 +57,7 @@ export default class HLine extends
     }
     set y(y: number) {
         this._y = y
-        this._line.setPoints(
-            { x: camera.left, y },
-            { x: camera.right, y }
-        )
+        this._updatePosition()
     }
 
     /** The color of the line. */
@@ -77,5 +75,16 @@ export default class HLine extends
     set thickness(thickness: number) {
         this._thickness = thickness
         this._line.thickness = thickness
+    }
+
+    _updatePosition() {
+        this._line.setPoints(
+            { x: camera.left - 10 * camera.zoom, y: this._y },
+            { x: camera.right + 10 * camera.zoom, y: this._y }
+        )
+    }
+
+    _onResize() {
+        this._updatePosition()
     }
 }

@@ -1,9 +1,8 @@
-import type { Class } from "./shared"
-import { pointFrom, type Point, type PointArg } from "@api/Point"
-import { camera } from "@api/core"
+import type { Class } from "@mixins/shared"
 import type { ReferenceObject } from "@api/types"
+import { Vector2, type Vector2Like } from "@api/Vector2"
+import { camera } from "@api/core"
 import Random from "@api/Random"
-import Vector2 from "@api/Vector2"
 
 export type PositionableProps = {
     /** Horizontal position in the world. */
@@ -11,17 +10,17 @@ export type PositionableProps = {
     /** Vertical position in the world. */
     y?: number
     /** Position in the world. */
-    position?: PointArg
+    position?: Vector2Like
     /** Position in the world (alias of position). */
-    pos?: PointArg
+    pos?: Vector2Like
     /** Horizontal position on the screen. */
     screenX?: number
     /** Vertical position on the screen. */
     screenY?: number
     /** Position on the screen. */
-    screenPosition?: PointArg
+    screenPosition?: Vector2Like
     /** Position on the screen (alias of position). */
-    screenPos?: PointArg
+    screenPos?: Vector2Like
 }
 
 export function Positionable<Base extends Class>(base: Base) {
@@ -67,8 +66,8 @@ export function Positionable<Base extends Class>(base: Base) {
         get position(): Vector2 {
             return new Vector2(this.x, this.y)
         }
-        set position(pos: PointArg) {
-            pos = pointFrom(pos)
+        set position(pos: Vector2Like) {
+            pos = Vector2.from(pos)
             this._x = pos.x
             this._y = pos.y
             this._updatePosition()
@@ -76,10 +75,10 @@ export function Positionable<Base extends Class>(base: Base) {
 
         // Alias for position: pos
         /** Position in the world (alias of position). */
-        get pos(): Point {
+        get pos(): Vector2 {
             return this.position
         }
-        set pos(pos: PointArg) {
+        set pos(pos: Vector2Like) {
             this.position = pos
         }
 
@@ -100,49 +99,49 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         /** This object's position relative to the camera. */
-        get screenPosition(): Point {
-            return {
-                x: this.screenX,
-                y: this.screenY
-            }
+        get screenPosition(): Vector2 {
+            return new Vector2(this.screenX, this.screenY)
         }
-        set screenPosition(pos: Point) {
-            this.position = {
-                x: camera.x - pos.x,
-                y: camera.y - pos.y
-            }
+        set screenPosition(pos: Vector2Like) {
+            pos = Vector2.from(pos)
+            this.position = new Vector2(camera.x - pos.x, camera.y - pos.y)
         }
         
         /** This object's position relative to the camera (alias of screenPosition) */
-        get screenPos(): Point {
+        get screenPos(): Vector2 {
             return this.screenPosition
         }
-        set screenPos(pos: Point) {
+        set screenPos(pos: Vector2Like) {
+            pos = Vector2.from(pos)
             this.screenPosition = pos
         }
 
         // goTo overloads, can go to:
-        //  - A Point instance (any object containing x/y props)
-        //  - A point defined with 2 args
-        // Also test these
+        //  - Any object containing numeric x/y props
+        //  - A [number, number] array as [x, y]
+        //  - A Vector2
+        //  - Two args (x, y)
         /**
          * Set world position.
          * @param position New world position.
          */
-        goTo(position: Point): void
+        goTo(position: Vector2Like): void
         /**
          * Set world position.
          * @param x New horizontal world position.
          * @param y New vertical world position.
          */
         goTo(x: number, y: number): void
-        goTo(xOrPoint: number | Point, y?: number) {
-            if (typeof xOrPoint === 'number' && y !== undefined) {
+        goTo(xOrPoint: number | Vector2Like, y?: number) {
+            if (typeof xOrPoint === 'number' && y !== undefined && typeof y === 'number') {
                 this.x = xOrPoint
                 this.y = y
-            } else if (typeof xOrPoint === 'object') {
-                this.x = (xOrPoint as Point).x ?? this.x
-                this.y = (xOrPoint as Point).y ?? this.y
+            } else if (typeof xOrPoint === 'object' && y === undefined) {
+                const { x, y } = Vector2.from(xOrPoint)
+                this.x = x
+                this.y = y
+            } else {
+                throw new Error('Bad goTo args')
             }
         }
 

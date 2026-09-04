@@ -2,28 +2,27 @@ import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
 import type { Repeatable, Delayable, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
-import type { ThemePalette } from '../theme/themes'
-import { Mouse } from './types'
-import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from './utility'
-import { type Point, type PointArg } from './Point'
-import { runEntryModule, locateError } from './moduleRunner'
+import type { ThemePalette } from '@/assets/theme/themes'
+import { Vector2, type Vector2Like } from '@api/Vector2'
+import { Mouse } from '@api/types'
+import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from '@api/utility'
+import { runEntryModule, locateError } from '@api/moduleRunner'
 import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 
 import Output from '@/sandbox/output'
-import Random from './Random'
-import Colors from './Colors'
-import Timer from './Timer'
-import Clock from './Clock'
-import Camera from './Camera'
-import Screen from './Screen'
-import Vector2 from './Vector2'
-import Sprite from './Sprite'
-import Rectangle from './Rectangle'
-import Circle from './Circle'
-import Label from './Label'
-import Line from './Line'
-import HLine from './HLine'
-import VLine from './VLine'
+import Random from '@api/Random'
+import Colors from '@api/Colors'
+import Timer from '@api/Timer'
+import Clock from '@api/Clock'
+import Camera from '@api/Camera'
+import Screen from '@api/Screen'
+import Sprite from '@api/Sprite'
+import Rectangle from '@api/Rectangle'
+import Circle from '@api/Circle'
+import Label from '@api/Label'
+import Line from '@api/Line'
+import HLine from '@api/HLine'
+import VLine from '@api/VLine'
 
 export const VERSION = '1.0'
 
@@ -359,20 +358,22 @@ export function releaseAllKeys() {
 }
 
 /** Converts Phaser coordinate point to our coord system. */
-export function getGamePoint(point: Point): Point {
-	return {
+export function getGamePoint(pos: Vector2Like): Vector2 {
+	pos = Vector2.from(pos)
+	return new Vector2(
 		// top minds spent 2000 hours on this problem
-		x: point.x - camera.zoom * (camera.right - camera.x),
-		y: -point.y + camera.zoom * (camera.top - camera.y)
-	}
+		pos.x - camera.zoom * (camera.right - camera.x),
+		-pos.y + camera.zoom * (camera.top - camera.y)
+	)
 }
 
 /** Inverse of getGamePoint; Converts coordinate point from our coord system to Phaser's. */
-export function getOurPoint(point: Point): Point {
-	return {
-		x: point.x + camera.zoom * (camera.right - camera.x),
-		y: -point.y + camera.zoom * (camera.top - camera.y)
-	}
+export function getOurPoint(pos: Vector2Like): Vector2 {
+	pos = Vector2.from(pos)
+	return new Vector2(
+		pos.x + camera.zoom * (camera.right - camera.x),
+		-pos.y + camera.zoom * (camera.top - camera.y)
+	)
 }
 
 // function _resetTicker() {
@@ -876,7 +877,7 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, /*Point,*/
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,

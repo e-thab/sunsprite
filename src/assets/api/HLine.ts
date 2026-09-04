@@ -1,7 +1,6 @@
-import { resizeReactors, camera, forever } from "./core"
 import { Timeable, Viewable, type ViewableProps } from "./mixins"
-import Line from "./Line"
-import { pointFrom } from "./Point"
+import { resizeReactors, camera, forever } from "@api/core"
+import Line from "@api/Line"
 
 type HLineProps = ViewableProps & {
     /** The vertical position of the line. */

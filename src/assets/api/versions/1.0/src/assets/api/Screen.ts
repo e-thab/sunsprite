@@ -1,5 +1,3 @@
-import type { Point } from "./Point"
-
 export default class Screen {
     _cam: Phaser.Cameras.Scene2D.Camera
 

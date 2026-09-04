@@ -20,8 +20,8 @@ export default {}
 	</DocParams>
 
 	<DocProperties>
-		<DocProperty name="pointA" type="Point">Position of end point A.</DocProperty>
-		<DocProperty name="pointB" type="Point">Position of end point B.</DocProperty>
+		<DocProperty name="pointA" type="Vector2">Position of end point A.</DocProperty>
+		<DocProperty name="pointB" type="Vector2">Position of end point B.</DocProperty>
 		<DocProperty name="color" type="string">The color of the line.</DocProperty>
 		<DocProperty name="thickness" type="number">The thickness of the line. Default 2.</DocProperty>
 	</DocProperties>

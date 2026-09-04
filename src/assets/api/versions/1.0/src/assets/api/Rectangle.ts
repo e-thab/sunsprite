@@ -1,6 +1,6 @@
 import GameObject from "./GameObject"
 import type { GameObjectProps } from "./mixins/index"
-import { allPositionables, camera, game, getGamePoint, scene, screen } from "./core"
+import { resizeReactors, scene } from "./core"
 import Phaser from 'phaser'
 
 /**
@@ -37,7 +37,7 @@ export default class Rectangle extends GameObject {
         // Rectangles may flicker on creation without this delay
         this._queueShow()
         
-        allPositionables.push(this)
+        resizeReactors.push(this)
 	}
 
     /** The fill color. */

@@ -3,26 +3,26 @@ import Phaser from 'phaser'
 
 import type { Repeatable, Delayable, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
 import type { ThemePalette } from "../../../../../../theme/themes"
-import { Mouse } from './types'
-import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from './utility'
-import { type Point, type PointArg, Vector2 } from './Point'
+import { Vector2, type Vector2Like } from "./Vector2"
+import { Mouse } from "./types"
+import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from "./utility"
 import { runEntryModule, locateError } from "../../../../../moduleRunner"
 import { watch, unwatch, clearWatchCards } from "../../sandbox/watch"
 
 import Output from "../../sandbox/output"
-import Random from './Random'
-import Colors from './Colors'
-import Timer from './Timer'
-import Clock from './Clock'
-import Camera from './Camera'
-import Screen from './Screen'
-import Sprite from './Sprite'
-import Rectangle from './Rectangle'
-import Circle from './Circle'
-import Label from './Label'
-import Line from './Line'
-import HLine from './HLine'
-import VLine from './VLine'
+import Random from "./Random"
+import Colors from "./Colors"
+import Timer from "./Timer"
+import Clock from "./Clock"
+import Camera from "./Camera"
+import Screen from "./Screen"
+import Sprite from "./Sprite"
+import Rectangle from "./Rectangle"
+import Circle from "./Circle"
+import Label from "./Label"
+import Line from "./Line"
+import HLine from "./HLine"
+import VLine from "./VLine"
 
 export const VERSION = '1.0'
 
@@ -116,10 +116,13 @@ export function currentFps(): number {
  * API Internal vars
  */
 /** All objects that can be positioned on the screen/in the world */
-export let allPositionables: { _updatePosition(): void }[] = []
+export let resizeReactors: { _onResize(): void }[] = []
 
-/** A map associating Phaser objects to custom Sunsprite objects */
-export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
+/**
+ * A map associating Phaser objects to custom Sunsprite objects. Will be used to allow for
+ * interfacing more directly with Phaser if desired
+ */
+// export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 
 /** All timer objects that need updating each frame */
 export let allTimers: Timer[] = []
@@ -179,8 +182,8 @@ export function getNextObjectId(): string {
 }
 
 export function updatePositions() {
-	for (const positionable of allPositionables) {
-		positionable._updatePosition()
+	for (const reactor of resizeReactors) {
+		reactor._onResize()
 	}
 }
 
@@ -355,20 +358,22 @@ export function releaseAllKeys() {
 }
 
 /** Converts Phaser coordinate point to our coord system. */
-export function getGamePoint(point: Point): Point {
-	return {
+export function getGamePoint(pos: Vector2Like): Vector2 {
+	pos = Vector2.from(pos)
+	return new Vector2(
 		// top minds spent 2000 hours on this problem
-		x: point.x - camera.zoom * (camera.right - camera.x),
-		y: -point.y + camera.zoom * (camera.top - camera.y)
-	}
+		pos.x - camera.zoom * (camera.right - camera.x),
+		-pos.y + camera.zoom * (camera.top - camera.y)
+	)
 }
 
 /** Inverse of getGamePoint; Converts coordinate point from our coord system to Phaser's. */
-export function getOurPoint(point: Point): Point {
-	return {
-		x: point.x + camera.zoom * (camera.right - camera.x),
-		y: -point.y + camera.zoom * (camera.top - camera.y)
-	}
+export function getOurPoint(pos: Vector2Like): Vector2 {
+	pos = Vector2.from(pos)
+	return new Vector2(
+		pos.x + camera.zoom * (camera.right - camera.x),
+		-pos.y + camera.zoom * (camera.top - camera.y)
+	)
 }
 
 // function _resetTicker() {
@@ -872,7 +877,7 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, /*Point,*/
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
@@ -993,7 +998,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_whens = []
 	_repeatUntils = []
 	_repeatWhiles = []
-	allPositionables = []
+	resizeReactors = []
 	allTimers = []
 
 	_keyPressActions.clear()
@@ -1066,7 +1071,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	// natively.
 }
 
-const resizeDelay = 5 // milliseconds
+const resizeDelay = 0 // milliseconds
 export function resizeStage() {
 	new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => _resizeStage())
 }

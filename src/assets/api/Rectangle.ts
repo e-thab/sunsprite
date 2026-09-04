@@ -1,6 +1,6 @@
-import GameObject from "./GameObject"
+import GameObject from "@api/GameObject"
 import type { GameObjectProps } from "./mixins"
-import { resizeReactors, camera, game, getGamePoint, scene, screen } from "./core"
+import { resizeReactors, scene } from "@api/core"
 import Phaser from 'phaser'
 
 /**

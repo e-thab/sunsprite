@@ -20,6 +20,6 @@ export default {}
 		<DocProperty name="bottom" type="number">Y coordinate of the bottom edge of the screen.</DocProperty>
 		<DocProperty name="left" type="number">X coordinate of the left edge of the screen.</DocProperty>
 		<DocProperty name="right" type="number">X coordinate of the right edge of the screen.</DocProperty>
-		<DocProperty name="center" type="Point">Point at the center of the screen.</DocProperty>
+		<DocProperty name="center" type="Vector2">Point at the center of the screen.</DocProperty>
 	</DocProperties>
 </template>

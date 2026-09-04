@@ -1,5 +1,5 @@
 import { camera, screen } from "./core"
-import type { Point } from "./Point";
+import { Vector2 } from "./Vector2"
 
 function randomNumber(): number
 function randomNumber(min: number, max: number): number
@@ -91,15 +91,12 @@ const Random = {
     },
 
     // Random position inside screen
-    position(): Point {
-        return {
-            x: this.x(),
-            y: this.y()
-        }
+    position(): Vector2 {
+        return new Vector2(this.x(), this.y())
     },
 
     // Alias for random.position()
-    pos(): Point {
+    pos(): Vector2 {
         return this.position()
     },
 

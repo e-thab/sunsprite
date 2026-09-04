@@ -1,6 +1,4 @@
 // Revisiting Mixins https://www.typescriptlang.org/docs/handbook/mixins.html
-// import { allPositionables, app, /*camera,*/ mouseX, mouseY, paused, print, Timer } from "../core"
-// import { Point, type AnyPoint } from "../interfaces"
 
 export * from './Positionable'
 export * from './Sizable'

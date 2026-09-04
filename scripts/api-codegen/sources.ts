@@ -65,7 +65,7 @@ export const SET_TYPE_OVERRIDES: Record<string, string> = {
  * one core.ts actually imports).
  */
 export const SUPPORTING_API_FILES = [
-    apiPath('Point.ts'),
+    apiPath('Vector2.ts'),
     apiPath('utility.ts'),
     apiPath('Colors.ts'),
     apiPath('Timer.ts'),

@@ -1,7 +1,6 @@
-import GameObject from "./GameObject"
 import type { GameObjectProps } from "./mixins/index"
-
-import { scene, allPositionables } from "./core"
+import { scene, resizeReactors } from "./core"
+import GameObject from "./GameObject"
 import Phaser from "phaser"
 // import type { Sprite } from 'phaser'
 
@@ -42,7 +41,7 @@ export default class Sprite extends GameObject {
         // Sprites may flicker on creation without this delay
         this._queueShow()
         
-        allPositionables.push(this)
+        resizeReactors.push(this)
     }
     
     /** A URL path to the sprite's image. */

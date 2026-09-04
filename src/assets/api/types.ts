@@ -1,5 +1,5 @@
-import { camera, game } from "./core"
-import type { Point } from "./Point"
+import { camera, game } from "@api/core"
+import { Vector2 } from "@api/Vector2"
 
 /**
  * Interfaces
@@ -149,15 +149,12 @@ export class Mouse {
 		return -this._pointer.y + camera.height  / 2 * camera.zoom
 	}
 
-	get position(): Point {
-		return {
-			x: this.x,
-			y: this.y
-		}
+	get position(): Vector2 {
+		return new Vector2(this.x, this.y)
 	}
 
 	// Alias for position
-	get pos(): Point {
+	get pos(): Vector2 {
 		return this.position
 	}
 

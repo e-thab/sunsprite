@@ -1,7 +1,7 @@
-import { deg2rad, rad2deg } from "../utility"
-import type { Point } from "../Point"
-import type { ReferenceObject } from "../types"
-import type { Class } from "./shared"
+import { deg2rad, rad2deg } from "@api/utility"
+import type { ReferenceObject } from "@api/types"
+import type { Class } from "@mixins/shared"
+import type { Vector2Like } from "@api/Vector2"
 
 export type RotatableProps = {
     /** Rotation angle in degrees. */
@@ -51,7 +51,7 @@ export function Rotatable<Base extends Class>(base: Base) {
             if (this._refObj) this._refObj.rotation = rad
         }
 
-        _lookAt(other: Point) {
+        _lookAt(other: Vector2Like) {
             // temp private
             // TODO: lookAt()
         }

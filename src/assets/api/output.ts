@@ -1,6 +1,6 @@
 import { ref } from "vue"
-import Colors from "./Colors"
-import type { Printable } from "./types"
+import Colors from "@api/Colors"
+import type { Printable } from "@api/types"
 import type { OutputLocation } from "@/sandbox/protocol"
 
 // Host-side output panel renderer. This owns the real DOM nodes in
@@ -13,6 +13,7 @@ import type { OutputLocation } from "@/sandbox/protocol"
 // and now only ever loads inside the sandbox iframe. The frame number that used
 // to come from `timer.frame` is carried on each message instead.
 
+type OutputType = 'print' | 'warn' | 'error' | 'start'
 export type OutputItem = { stamp: HTMLElement, msg: HTMLElement }
 
 const Output = {
@@ -48,6 +49,7 @@ export const outputActivity = ref(0)
 
 let printIndex = 0
 let lastMsg = ''
+let lastType = ''
 let consecutiveMsgs = 1
 let totalMsgCount = 0
 
@@ -147,7 +149,7 @@ function error(...args: Printable[]) {
 }
 
 function errorMsg(msg: string, location?: OutputLocation) {
-    addOutputItem(msg, (item) => {
+    addOutputItem(msg, 'error', (item) => {
         item.stamp.textContent = '⚠'
         item.stamp.className = 'output-stamp output-item--error'
 
@@ -184,7 +186,7 @@ function warn(...args: Printable[]) {
 }
 
 function warnMsg(msg: string) {
-    addOutputItem(msg, (item) => {
+    addOutputItem(msg, 'warn', (item) => {
         item.stamp.textContent = '⚠'
         item.stamp.className = 'output-stamp output-item--warn'
 
@@ -200,7 +202,7 @@ export function print(...args: Printable[]) {
 }
 
 function printMsg(msg: string) {
-    addOutputItem(msg, (item) => {
+    addOutputItem(msg, 'print', (item) => {
         item.stamp.textContent = '●'
         item.stamp.className = 'output-stamp'
 
@@ -215,7 +217,7 @@ function printStartMsg() {
 }
 
 function startMsg(content: string) {
-    addOutputItem(content, (item) => {
+    addOutputItem(content, 'start', (item) => {
         item.stamp.textContent = '☀'
         item.stamp.className = 'output-stamp'
 
@@ -224,10 +226,10 @@ function startMsg(content: string) {
     })
 }
 
-function addOutputItem(msgContent: string, updateItem: (item: OutputItem) => void) {
+function addOutputItem(msgContent: string, type: OutputType, updateItem: (item: OutputItem) => void) {
     // Find index of next output item
     let index = printIndex
-    if (msgContent === lastMsg) {
+    if (msgContent === lastMsg && type === lastType) {
         if (printIndex < outputLines - 1) {
             // If same msg as last time and not at the last item, use previous index
             index = printIndex - 1
@@ -250,7 +252,7 @@ function addOutputItem(msgContent: string, updateItem: (item: OutputItem) => voi
     updateItem(item)
 
     // Update stamp content for consecutives
-    if (msgContent === lastMsg) {
+    if (msgContent === lastMsg && type === lastType) {
         if (++consecutiveMsgs > 99) {
             item.stamp.textContent = '99+'
         } else {
@@ -258,6 +260,7 @@ function addOutputItem(msgContent: string, updateItem: (item: OutputItem) => voi
         }
     } else {
         lastMsg = msgContent
+        lastType = type
         consecutiveMsgs = 1
     }
     item.stamp.title = getCurrentStampTitle()
@@ -314,6 +317,7 @@ function clear() {
 
 function reset() {
     lastMsg = ''
+    lastType = ''
     printIndex = 0
     consecutiveMsgs = 1
     totalMsgCount = 0

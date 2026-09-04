@@ -22,6 +22,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@api/*": ["./src/assets/api/*"],
+      "@mixins/*": ["./src/assets/api/mixins/*"],
 
       // Nuxt
       "#build/ui/*": [

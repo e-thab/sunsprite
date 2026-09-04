@@ -1,5 +1,5 @@
 import * as ts from 'typescript'
-import { resolveSpecifierToName } from './scriptResolution'
+import { resolveSpecifierToName } from '@api/scriptResolution'
 import type { OutputLocation } from '@/sandbox/protocol'
 
 // Lets project/guest scripts `import`/`export` between each other. Real ESM

@@ -1,5 +1,5 @@
-import { clock } from "../core"
-import type { Class } from "./shared"
+import { clock } from "@api/core"
+import type { Class } from "@mixins/shared"
 
 export function Timeable<Base extends Class>(base: Base) {
     return class Timeable extends base {

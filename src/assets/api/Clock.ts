@@ -1,5 +1,5 @@
 // import { allTimers } from "./core"
-import Timer from "./Timer"
+import Timer from "@api/Timer"
 
 export default class Clock {
     /** Internal timer component */

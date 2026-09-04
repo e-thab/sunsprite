@@ -1,5 +1,5 @@
-import type { ReferenceObject } from "../types"
-import type { Class } from "./shared"
+import type { ReferenceObject } from "@api/types"
+import type { Class } from "@mixins/shared"
 
 export type SizableProps = {
     /** Horizontal size in pixels. */

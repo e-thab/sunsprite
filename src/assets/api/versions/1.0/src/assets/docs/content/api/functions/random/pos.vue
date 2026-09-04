@@ -9,13 +9,13 @@ export default {}
 </script>
 
 <template>
-	<DocSnippet><pre>Random.pos(): Point</pre></DocSnippet>
+	<DocSnippet><pre>Random.pos(): Vector2</pre></DocSnippet>
 
 	<DocSection id="content-1">
 		<p>Returns a random position within the screen. Alias for Random.position().</p>
 	</DocSection>
 
-	<DocReturns type="Point">A random point within the visible screen area.</DocReturns>
+	<DocReturns type="Vector2">A random point within the visible screen area.</DocReturns>
 
 	<DocRelated :paths="['api/functions/random/position']" />
 </template>

@@ -1,6 +1,6 @@
-import GameObject from "./GameObject"
 import type { GameObjectProps } from "./mixins"
-import { resizeReactors, scene } from "./core"
+import { resizeReactors, scene } from "@api/core"
+import GameObject from "@api/GameObject"
 import Phaser from 'phaser'
 
 function getPhaserColor(colorString: string) {

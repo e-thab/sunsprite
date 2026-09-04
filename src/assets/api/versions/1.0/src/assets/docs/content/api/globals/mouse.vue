@@ -16,8 +16,8 @@ export default {}
 	<DocProperties>
 		<DocProperty name="x" type="number">Horizontal position of the user's cursor.</DocProperty>
 		<DocProperty name="y" type="number">Vertical position of the user's cursor.</DocProperty>
-		<DocProperty name="position" type="Point">Position of the user's cursor as a Point.</DocProperty>
-		<DocProperty name="pos" type="Point">Position of the user's cursor as a Point. Alias of position.</DocProperty>
+		<DocProperty name="position" type="Vectpr2">Position of the user's cursor as a Vector2.</DocProperty>
+		<DocProperty name="pos" type="Vector2">Position of the user's cursor as a Vector2. Alias of position.</DocProperty>
 		<DocProperty name="leftButtonDown" type="boolean">Whether the left mouse button is currently held down.</DocProperty>
 		<DocProperty name="rightButtonDown" type="boolean">Whether the right mouse button is currently held down.</DocProperty>
 		<DocProperty name="middleButtonDown" type="boolean">Whether the middle mouse button is currently held down.</DocProperty>

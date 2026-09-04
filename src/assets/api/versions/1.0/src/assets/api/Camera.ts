@@ -1,5 +1,5 @@
-import { camera, getOurPoint, mouse, repeatUntil, screen } from "./core"
-import { Vector2, type Point } from "./Point"
+import { getOurPoint, mouse, repeatUntil } from "./core"
+import { Vector2, type Vector2Like } from "./Vector2"
 
 export default class Camera {
     _cam: Phaser.Cameras.Scene2D.Camera
@@ -75,7 +75,9 @@ export default class Camera {
         this._cam.setZoom(zoom, zoom)
     }
 
-    zoomToward(pos: Point, factor: number) {
+    zoomToward(pos: Vector2Like, factor: number) {
+        pos = Vector2.from(pos)
+
         const oldZoom = this.zoom
         const newZoom = oldZoom * factor
         const ratio = oldZoom / newZoom
@@ -89,7 +91,6 @@ export default class Camera {
     }
 
     zoomTowardMouse(zoom: number) {
-        // TODO: come back to this once Point has been replaced with Vector2
         this.zoomToward(mouse, zoom)
     }
 
@@ -105,9 +106,10 @@ export default class Camera {
         this._cam.shake(duration ?? 1000, intensity ?? 0.01, false, callback)
     }
 
-    easeTo(pos: Vector2, duration?: number) {
+    easeTo(pos: Vector2Like, duration?: number) {
         // const x = pos.x - this.zoom * (screen.right - this.x)
         // const y = -pos.y - this.zoom * (screen.right - this.x)
+        pos = Vector2.from(pos)
         const targetPos = getOurPoint(pos)
         this._cam.pan(targetPos.x, targetPos.y, duration ?? 1000, 'Power3', true, (cam, progress, x, y) => {
             this._x = x
@@ -139,44 +141,3 @@ export default class Camera {
         this.reset()
     }
 }
-
-// export default class Camera extends Positionable(class {}) {
-//     // TODO: zoom, rotate, smoothing
-//     zoom: number
-//     _x: number = 0
-//     _y: number = 0
-
-//     constructor() {
-//         super()
-//         this.zoom = 0
-//     }
-
-//     get x() {
-//         return this._x
-//     }
-//     set x(x) {
-//         this._x = x
-//     }
-
-//     get y() {
-//         return this._y
-//     }
-//     set y(y) {
-//         this._y = y
-//     }
-
-//     // _updatePosition(): void {
-
-//     // }
-// }
-
-// class TestClass extends Camera {
-//     constructor() {
-//         super()
-//         this.#testp = true
-//     }
-// }
-
-// const foo = new Camera()
-
-// foo.#testp = false

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { generateApiDeclarations } from './api-codegen/index'
@@ -6,7 +6,7 @@ import { renderGeneratedModule } from './api-codegen/render'
 import { createProgram } from './api-codegen/extract'
 import { findTypeAlias } from './api-codegen/ast'
 import { CONCRETE_CLASSES, apiPath, docsCopySet, runtimeCopySet } from './api-codegen/sources'
-import { copyAndRewriteRuntime, verifyStandalone } from './api-codegen/runtimeCopy'
+import { copyAndRewriteRuntime, verifyStandalone, normalizeSlashes } from './api-codegen/runtimeCopy'
 import { copyAndRewriteVueFiles, verifyVueStandalone } from './api-codegen/vueCopy'
 import { DEV_VERSION } from '../src/assets/api/versions/constants'
 
@@ -122,6 +122,21 @@ function main() {
     // before anything is left looking like a complete, permanent snapshot.
     const srcOutDir = path.join(outDir, 'src')
     const copiedFiles = copyAndRewriteRuntime(runtimeCopySet(), srcOutDir)
+
+    // core.ts's exported VERSION is a human-maintained label for the live
+    // source (see its own "Sunsprite v${VERSION} session" banner) — freeze
+    // this snapshot's copy to the version being cut here rather than
+    // whatever the live source happened to say when this ran, so a snapshot
+    // is never left carrying a stale or since-bumped label.
+    const copiedCoreFile = copiedFiles.find((f) => normalizeSlashes(f).endsWith('src/assets/api/core.ts'))
+    if (!copiedCoreFile) throw new Error('snapshot-api: copied core.ts not found among runtime copy set')
+    const coreContent = readFileSync(copiedCoreFile, 'utf8')
+    const versionConstantPattern = /export const VERSION = ['"][^'"]*['"]/
+    if (!versionConstantPattern.test(coreContent)) {
+        throw new Error(`snapshot-api: could not find "export const VERSION = ..." in ${copiedCoreFile}`)
+    }
+    writeFileSync(copiedCoreFile, coreContent.replace(versionConstantPattern, `export const VERSION = '${version}'`), 'utf8')
+
     verifyStandalone(copiedFiles)
     console.log(`Wrote ${copiedFiles.length} runtime source files under src/assets/api/versions/${version}/src/`)
 

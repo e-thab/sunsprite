@@ -1,6 +1,6 @@
-import GameObject from "./GameObject"
 import type { GameObjectProps } from "./mixins/index"
-import { allPositionables, scene } from "./core"
+import { resizeReactors, scene } from "./core"
+import GameObject from "./GameObject"
 import Phaser from 'phaser'
 
 function getPhaserColor(colorString: string) {
@@ -55,7 +55,7 @@ export default class Circle extends GameObject {
         // Rectangles may flicker on creation without this delay
         this._queueShow()
         
-        allPositionables.push(this)
+        resizeReactors.push(this)
     }
 
     /** The fill color. */

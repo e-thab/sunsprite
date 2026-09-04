@@ -1,17 +1,17 @@
 // Calculate distance from a line only on the axis perpendicular to it.
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
-import type { Returnable } from "./types";
-import { _clearPropUpdater, _registerPropUpdater, camera, getNextObjectId, scene } from "./core";
-import { pointFrom, type Point, type PointArg } from "./Point";
-import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins/index";
-import Phaser from "phaser";
+import type { Returnable } from "./types"
+import { _clearPropUpdater, _registerPropUpdater, resizeReactors, camera, getNextObjectId, scene } from "./core"
+import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins/index"
+import { Vector2, type Vector2Like } from "./Vector2"
+import Phaser from "phaser"
 
 type LineProps = RotatableProps & ViewableProps & {
     /** Position of end point A. */
-    pointA?: Returnable<PointArg>
+    pointA?: Returnable<Vector2Like>
     /** Position of end point B. */
-    pointB?: Returnable<PointArg>
+    pointB?: Returnable<Vector2Like>
     /** The color of the line. */
     color?: string
     /** The thickness of the line. (Default = 2) */
@@ -27,8 +27,8 @@ export default class Line extends
 
     readonly _line: Phaser.GameObjects.Line
 
-    _pointA: Point
-    _pointB: Point
+    _pointA: Vector2
+    _pointB: Vector2
     _color: string = '#fff'
     _thickness: number = 2 // Line thickness 1 seems to visually reduce the alpha, look into this
     _id: string = getNextObjectId()
@@ -46,8 +46,8 @@ export default class Line extends
         this._initViewable(props)
         // this.alpha = 10
 
-        this._pointA = { x: 0, y: 0 }
-        this._pointB = { x: 100, y: 100 }
+        this._pointA = Vector2.ZERO
+        this._pointB = new Vector2(100, 100)
 
         if (props?.pointA) this.pointA = props.pointA
         if (props?.pointB) this.pointB = props.pointB
@@ -56,6 +56,7 @@ export default class Line extends
         this.thickness = props?.thickness ?? 2
 
         this._updatePoints()
+        resizeReactors.push(this)
 
         // Should probably push to a list of lines in core like positionables do,
         // end points don't update when screen size changes / camera moves etc.
@@ -64,10 +65,10 @@ export default class Line extends
     }
     
     /** Position of end point A. */
-    get pointA(): Point {
+    get pointA(): Vector2 {
         return this._pointA
     }
-    set pointA(pointA: Returnable<PointArg>) {
+    set pointA(pointA: Returnable<Vector2Like>) {
         // To make these returnable setters work, each object and property needs a unique
         // ID, built with an incrementing integer from core for the object and just a
         // string for the property name.
@@ -75,33 +76,33 @@ export default class Line extends
 
         if (typeof pointA === 'function') {
             _registerPropUpdater(propId, () => {
-                this._pointA = pointFrom(pointA())
+                this._pointA = Vector2.from(pointA())
                 this._updatePoints()
             })
             return
         }
         _clearPropUpdater(propId)
-        this._pointA = pointFrom(pointA)
+        this._pointA = Vector2.from(pointA)
         this._updatePoints()
     }
     
     /** Position of end point B. */
-    get pointB(): Point {
+    get pointB(): Vector2 {
         return this._pointB
     }
-    set pointB(pointB: Returnable<PointArg>) {
+    set pointB(pointB: Returnable<Vector2Like>) {
         // Template for how 
         const propId = this._id + 'pointB'
 
         if (typeof pointB === 'function') {
             _registerPropUpdater(propId, () => {
-                this._pointB = pointFrom(pointB())
+                this._pointB = Vector2.from(pointB())
                 this._updatePoints()
             })
             return
         }
         _clearPropUpdater(propId)
-        this._pointB = pointFrom(pointB)
+        this._pointB = Vector2.from(pointB)
         this._updatePoints()
     }
 
@@ -137,18 +138,22 @@ export default class Line extends
     }
 
     /** Set both endpoints of the line at once. */
-    setPoints(pointA: PointArg, pointB: PointArg) {
-        this._pointA = pointFrom(pointA)
-        this._pointB = pointFrom(pointB)
+    setPoints(pointA: Vector2Like, pointB: Vector2Like) {
+        this._pointA = Vector2.from(pointA)
+        this._pointB = Vector2.from(pointB)
         this._updatePoints()
     }
 
     _updatePoints() {
         this._line.setTo(
-            this.pointA.x + camera.right,
-            -this.pointA.y + camera.top,
-            this.pointB.x + camera.right,
-            -this.pointB.y + camera.top
+            this.pointA.x + camera.width / 2 * camera.zoom,
+            -this.pointA.y + camera.height / 2 * camera.zoom,
+            this.pointB.x + camera.width / 2 * camera.zoom,
+            -this.pointB.y + camera.height / 2 * camera.zoom
         )
+    }
+
+    _onResize() {
+        this._updatePoints()
     }
 }

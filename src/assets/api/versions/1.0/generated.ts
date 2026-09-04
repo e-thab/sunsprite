@@ -9,11 +9,23 @@ declare type PositionableProps = {
     /** Vertical position in the world. */
     y?: number
 
-    /** Position in the world (alias of position). */
-    pos?: PointArg
-
     /** Position in the world. */
-    position?: PointArg
+    position?: Vector2Like
+
+    /** Position in the world (alias of position). */
+    pos?: Vector2Like
+
+    /** Horizontal position on the screen. */
+    screenX?: number
+
+    /** Vertical position on the screen. */
+    screenY?: number
+
+    /** Position on the screen. */
+    screenPosition?: Vector2Like
+
+    /** Position on the screen (alias of position). */
+    screenPos?: Vector2Like
 }`
 export const positionableApi = `    /** Horizontal position in the world. */
     x: number
@@ -22,12 +34,12 @@ export const positionableApi = `    /** Horizontal position in the world. */
     y: number
 
     /** Position in the world. */
-    get position(): Point
-    set position(pos: PointArg)
+    get position(): Vector2
+    set position(pos: Vector2Like)
 
     /** Position in the world (alias of position). */
-    get pos(): Point
-    set pos(pos: PointArg)
+    get pos(): Vector2
+    set pos(pos: Vector2Like)
 
     /** This object's horizontal position relative to the camera. */
     screenX: number
@@ -35,11 +47,19 @@ export const positionableApi = `    /** Horizontal position in the world. */
     /** This object's vertical position relative to the camera. */
     screenY: number
 
+    /** This object's position relative to the camera. */
+    get screenPosition(): Vector2
+    set screenPosition(pos: Vector2Like)
+
+    /** This object's position relative to the camera (alias of screenPosition) */
+    get screenPos(): Vector2
+    set screenPos(pos: Vector2Like)
+
     /**
      * Set world position.
      * @param position New world position.
      */
-    goTo(position: Point): void
+    goTo(position: Vector2Like): void
 
     /**
      * Set world position.
@@ -242,285 +262,13 @@ export const timeableApi = `    /** How long this object has existed, in seconds
 
 export const spritePropsFields = `    /** A URL path to the sprite's image. */
     src?: string`
-export const spriteMembers = `    /** How long this object has existed, in seconds (not including paused time). */
-    readonly age: number
-
-    /** How long this object has existed, in milliseconds (not including paused time). */
-    readonly ageMs: number
-
-    /** Horizontal position in the world. */
-    x: number
-
-    /** Vertical position in the world. */
-    y: number
-
-    /** Position in the world. */
-    get position(): Point
-    set position(pos: PointArg)
-
-    /** Position in the world (alias of position). */
-    get pos(): Point
-    set pos(pos: PointArg)
-
-    /** This object's horizontal position relative to the camera. */
-    screenX: number
-
-    /** This object's vertical position relative to the camera. */
-    screenY: number
-
-    /**
-     * Set world position.
-     * @param position New world position.
-     */
-    goTo(position: Point): void
-
-    /**
-     * Set world position.
-     * @param x New horizontal world position.
-     * @param y New vertical world position.
-     */
-    goTo(x: number, y: number): void
-
-    /** Set position to a random point within the current visible screen area. */
-    goToRandom(): void
-
-    /** The cursor shown when the mouse is over this object. */
-    get cursor(): Cursor
-    set cursor(cursor: Cursor | string)
-
-    /**
-     * Register input actions to run once each time a mouse event is detected.
-     * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
-     */
-    onMouse(actions: MouseInputAction): void
-
-    /** Captures any pointer down event, either left or right mouse button. */
-    onClick(action?: PointerAction): void
-
-    /** Captures any pointer release event, either left or right mouse button. */
-    onRelease(action?: PointerAction): void
-
-    /** Captures only left button double clicks (two left clicks within 500ms). */
-    onDoubleClick(action?: PointerAction): void
-
-    /** Captures only left button press. */
-    onLeftClick(action?: PointerAction): void
-
-    /** Captures only left button release. */
-    onLeftRelease(action?: PointerAction): void
-
-    /** Captures only right button press. */
-    onRightClick(action?: PointerAction): void
-
-    /** Captures only right button release. */
-    onRightRelease(action?: PointerAction): void
-
-    /** Captures only middle button press. */
-    onMiddleClick(action?: PointerAction): void
-
-    /** Captures only middle button release. */
-    onMiddleRelease(action?: PointerAction): void
-
-    /** Captures the pointer entering the object. */
-    onMouseEnter(action?: PointerAction): void
-
-    /** Captures the pointer exiting the object. */
-    onMouseExit(action?: PointerAction): void
-
-    /** Captures the pointer dragging the object. */
-    onDrag(action?: PointerAction): void
-
-    /** Captures the beginning of the drag event. */
-    onDragStart(action?: PointerAction): void
-
-    /** Captures the end of the drag event. */
-    onDragEnd(action?: PointerAction): void
-
-    /** Captures scroll events while hovering over this object. */
-    onScroll(action?: ScrollAction): void
-
-    /** Captures the pointer moving while overlapping the object. */
-    onMouseMove(action?: PointerAction): void
-
-    /** Whether this object can be dragged with the mouse. */
-    draggable: boolean
-
-    /** Set this object's hover cursor back to the default pointer. */
-    resetCursor(): void
-
-    /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
-    alpha: number
-
-    /** The render order. Objects with higher layer values will show in front of objects with lower values. */
-    layer: number
-
-    /** Whether this object is currently visible. */
-    visible: boolean
-
-    /** Show this object. */
-    show(): void
-
-    /** Hide this object. */
-    hide(): void
-
-    /** Rotation angle in degrees. */
-    rotation: number
-
-    /** Rotation angle in radians. */
-    radians: number
-
-    /** Horizontal size in pixels. */
-    width: number
-
-    /** Vertical size in pixels. */
-    height: number
-
-    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
-    scale: number
-
-    /** A URL path to the sprite's image. */
+export const spriteMembers = `    /** A URL path to the sprite's image. */
     get src(): string
     set src(keyOrPath: string | undefined | null)`
 
 export const rectanglePropsFields = `    /** The fill color. */
     color?: string`
-export const rectangleMembers = `    /** How long this object has existed, in seconds (not including paused time). */
-    readonly age: number
-
-    /** How long this object has existed, in milliseconds (not including paused time). */
-    readonly ageMs: number
-
-    /** Horizontal position in the world. */
-    x: number
-
-    /** Vertical position in the world. */
-    y: number
-
-    /** Position in the world. */
-    get position(): Point
-    set position(pos: PointArg)
-
-    /** Position in the world (alias of position). */
-    get pos(): Point
-    set pos(pos: PointArg)
-
-    /** This object's horizontal position relative to the camera. */
-    screenX: number
-
-    /** This object's vertical position relative to the camera. */
-    screenY: number
-
-    /**
-     * Set world position.
-     * @param position New world position.
-     */
-    goTo(position: Point): void
-
-    /**
-     * Set world position.
-     * @param x New horizontal world position.
-     * @param y New vertical world position.
-     */
-    goTo(x: number, y: number): void
-
-    /** Set position to a random point within the current visible screen area. */
-    goToRandom(): void
-
-    /** The cursor shown when the mouse is over this object. */
-    get cursor(): Cursor
-    set cursor(cursor: Cursor | string)
-
-    /**
-     * Register input actions to run once each time a mouse event is detected.
-     * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
-     */
-    onMouse(actions: MouseInputAction): void
-
-    /** Captures any pointer down event, either left or right mouse button. */
-    onClick(action?: PointerAction): void
-
-    /** Captures any pointer release event, either left or right mouse button. */
-    onRelease(action?: PointerAction): void
-
-    /** Captures only left button double clicks (two left clicks within 500ms). */
-    onDoubleClick(action?: PointerAction): void
-
-    /** Captures only left button press. */
-    onLeftClick(action?: PointerAction): void
-
-    /** Captures only left button release. */
-    onLeftRelease(action?: PointerAction): void
-
-    /** Captures only right button press. */
-    onRightClick(action?: PointerAction): void
-
-    /** Captures only right button release. */
-    onRightRelease(action?: PointerAction): void
-
-    /** Captures only middle button press. */
-    onMiddleClick(action?: PointerAction): void
-
-    /** Captures only middle button release. */
-    onMiddleRelease(action?: PointerAction): void
-
-    /** Captures the pointer entering the object. */
-    onMouseEnter(action?: PointerAction): void
-
-    /** Captures the pointer exiting the object. */
-    onMouseExit(action?: PointerAction): void
-
-    /** Captures the pointer dragging the object. */
-    onDrag(action?: PointerAction): void
-
-    /** Captures the beginning of the drag event. */
-    onDragStart(action?: PointerAction): void
-
-    /** Captures the end of the drag event. */
-    onDragEnd(action?: PointerAction): void
-
-    /** Captures scroll events while hovering over this object. */
-    onScroll(action?: ScrollAction): void
-
-    /** Captures the pointer moving while overlapping the object. */
-    onMouseMove(action?: PointerAction): void
-
-    /** Whether this object can be dragged with the mouse. */
-    draggable: boolean
-
-    /** Set this object's hover cursor back to the default pointer. */
-    resetCursor(): void
-
-    /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
-    alpha: number
-
-    /** The render order. Objects with higher layer values will show in front of objects with lower values. */
-    layer: number
-
-    /** Whether this object is currently visible. */
-    visible: boolean
-
-    /** Show this object. */
-    show(): void
-
-    /** Hide this object. */
-    hide(): void
-
-    /** Rotation angle in degrees. */
-    rotation: number
-
-    /** Rotation angle in radians. */
-    radians: number
-
-    /** Horizontal size in pixels. */
-    width: number
-
-    /** Vertical size in pixels. */
-    height: number
-
-    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
-    scale: number
-
-    /** The fill color. */
+export const rectangleMembers = `    /** The fill color. */
     color: string`
 
 export const circlePropsFields = `    /** The fill color. */
@@ -528,144 +276,11 @@ export const circlePropsFields = `    /** The fill color. */
 
     /** The distance from the center of the circle to the edge. */
     radius?: number`
-export const circleMembers = `    /** How long this object has existed, in seconds (not including paused time). */
-    readonly age: number
-
-    /** How long this object has existed, in milliseconds (not including paused time). */
-    readonly ageMs: number
-
-    /** Horizontal position in the world. */
-    x: number
-
-    /** Vertical position in the world. */
-    y: number
-
-    /** Position in the world. */
-    get position(): Point
-    set position(pos: PointArg)
-
-    /** Position in the world (alias of position). */
-    get pos(): Point
-    set pos(pos: PointArg)
-
-    /** This object's horizontal position relative to the camera. */
-    screenX: number
-
-    /** This object's vertical position relative to the camera. */
-    screenY: number
-
-    /**
-     * Set world position.
-     * @param position New world position.
-     */
-    goTo(position: Point): void
-
-    /**
-     * Set world position.
-     * @param x New horizontal world position.
-     * @param y New vertical world position.
-     */
-    goTo(x: number, y: number): void
-
-    /** Set position to a random point within the current visible screen area. */
-    goToRandom(): void
-
-    /** The cursor shown when the mouse is over this object. */
-    get cursor(): Cursor
-    set cursor(cursor: Cursor | string)
-
-    /**
-     * Register input actions to run once each time a mouse event is detected.
-     * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
-     */
-    onMouse(actions: MouseInputAction): void
-
-    /** Captures any pointer down event, either left or right mouse button. */
-    onClick(action?: PointerAction): void
-
-    /** Captures any pointer release event, either left or right mouse button. */
-    onRelease(action?: PointerAction): void
-
-    /** Captures only left button double clicks (two left clicks within 500ms). */
-    onDoubleClick(action?: PointerAction): void
-
-    /** Captures only left button press. */
-    onLeftClick(action?: PointerAction): void
-
-    /** Captures only left button release. */
-    onLeftRelease(action?: PointerAction): void
-
-    /** Captures only right button press. */
-    onRightClick(action?: PointerAction): void
-
-    /** Captures only right button release. */
-    onRightRelease(action?: PointerAction): void
-
-    /** Captures only middle button press. */
-    onMiddleClick(action?: PointerAction): void
-
-    /** Captures only middle button release. */
-    onMiddleRelease(action?: PointerAction): void
-
-    /** Captures the pointer entering the object. */
-    onMouseEnter(action?: PointerAction): void
-
-    /** Captures the pointer exiting the object. */
-    onMouseExit(action?: PointerAction): void
-
-    /** Captures the pointer dragging the object. */
-    onDrag(action?: PointerAction): void
-
-    /** Captures the beginning of the drag event. */
-    onDragStart(action?: PointerAction): void
-
-    /** Captures the end of the drag event. */
-    onDragEnd(action?: PointerAction): void
-
-    /** Captures scroll events while hovering over this object. */
-    onScroll(action?: ScrollAction): void
-
-    /** Captures the pointer moving while overlapping the object. */
-    onMouseMove(action?: PointerAction): void
-
-    /** Whether this object can be dragged with the mouse. */
-    draggable: boolean
-
-    /** Set this object's hover cursor back to the default pointer. */
-    resetCursor(): void
+export const circleMembers = `    /** The fill color. */
+    color: string
 
     /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
     alpha: number
-
-    /** The render order. Objects with higher layer values will show in front of objects with lower values. */
-    layer: number
-
-    /** Whether this object is currently visible. */
-    visible: boolean
-
-    /** Show this object. */
-    show(): void
-
-    /** Hide this object. */
-    hide(): void
-
-    /** Rotation angle in degrees. */
-    rotation: number
-
-    /** Rotation angle in radians. */
-    radians: number
-
-    /** Horizontal size in pixels. */
-    width: number
-
-    /** Vertical size in pixels. */
-    height: number
-
-    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
-    scale: number
-
-    /** The fill color. */
-    color: string
 
     /** The distance from the center of the circle to the edge. */
     radius: number`
@@ -681,143 +296,7 @@ export const labelPropsFields = `    /** Text content of the label. */
 
     /** Fill color. */
     color?: string`
-export const labelMembers = `    /** How long this object has existed, in seconds (not including paused time). */
-    readonly age: number
-
-    /** How long this object has existed, in milliseconds (not including paused time). */
-    readonly ageMs: number
-
-    /** Horizontal position in the world. */
-    x: number
-
-    /** Vertical position in the world. */
-    y: number
-
-    /** Position in the world. */
-    get position(): Point
-    set position(pos: PointArg)
-
-    /** Position in the world (alias of position). */
-    get pos(): Point
-    set pos(pos: PointArg)
-
-    /** This object's horizontal position relative to the camera. */
-    screenX: number
-
-    /** This object's vertical position relative to the camera. */
-    screenY: number
-
-    /**
-     * Set world position.
-     * @param position New world position.
-     */
-    goTo(position: Point): void
-
-    /**
-     * Set world position.
-     * @param x New horizontal world position.
-     * @param y New vertical world position.
-     */
-    goTo(x: number, y: number): void
-
-    /** Set position to a random point within the current visible screen area. */
-    goToRandom(): void
-
-    /** The cursor shown when the mouse is over this object. */
-    get cursor(): Cursor
-    set cursor(cursor: Cursor | string)
-
-    /**
-     * Register input actions to run once each time a mouse event is detected.
-     * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
-     */
-    onMouse(actions: MouseInputAction): void
-
-    /** Captures any pointer down event, either left or right mouse button. */
-    onClick(action?: PointerAction): void
-
-    /** Captures any pointer release event, either left or right mouse button. */
-    onRelease(action?: PointerAction): void
-
-    /** Captures only left button double clicks (two left clicks within 500ms). */
-    onDoubleClick(action?: PointerAction): void
-
-    /** Captures only left button press. */
-    onLeftClick(action?: PointerAction): void
-
-    /** Captures only left button release. */
-    onLeftRelease(action?: PointerAction): void
-
-    /** Captures only right button press. */
-    onRightClick(action?: PointerAction): void
-
-    /** Captures only right button release. */
-    onRightRelease(action?: PointerAction): void
-
-    /** Captures only middle button press. */
-    onMiddleClick(action?: PointerAction): void
-
-    /** Captures only middle button release. */
-    onMiddleRelease(action?: PointerAction): void
-
-    /** Captures the pointer entering the object. */
-    onMouseEnter(action?: PointerAction): void
-
-    /** Captures the pointer exiting the object. */
-    onMouseExit(action?: PointerAction): void
-
-    /** Captures the pointer dragging the object. */
-    onDrag(action?: PointerAction): void
-
-    /** Captures the beginning of the drag event. */
-    onDragStart(action?: PointerAction): void
-
-    /** Captures the end of the drag event. */
-    onDragEnd(action?: PointerAction): void
-
-    /** Captures scroll events while hovering over this object. */
-    onScroll(action?: ScrollAction): void
-
-    /** Captures the pointer moving while overlapping the object. */
-    onMouseMove(action?: PointerAction): void
-
-    /** Whether this object can be dragged with the mouse. */
-    draggable: boolean
-
-    /** Set this object's hover cursor back to the default pointer. */
-    resetCursor(): void
-
-    /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
-    alpha: number
-
-    /** The render order. Objects with higher layer values will show in front of objects with lower values. */
-    layer: number
-
-    /** Whether this object is currently visible. */
-    visible: boolean
-
-    /** Show this object. */
-    show(): void
-
-    /** Hide this object. */
-    hide(): void
-
-    /** Rotation angle in degrees. */
-    rotation: number
-
-    /** Rotation angle in radians. */
-    radians: number
-
-    /** Horizontal size in pixels. */
-    width: number
-
-    /** Vertical size in pixels. */
-    height: number
-
-    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
-    scale: number
-
-    /** Text content of the label. */
+export const labelMembers = `    /** Text content of the label. */
     get text(): string
     set text(text: string | string[])
 
@@ -831,10 +310,10 @@ export const labelMembers = `    /** How long this object has existed, in second
     color: string`
 
 export const linePropsFields = `    /** Position of end point A. */
-    pointA?: Returnable<PointArg>
+    pointA?: Returnable<Vector2Like>
 
     /** Position of end point B. */
-    pointB?: Returnable<PointArg>
+    pointB?: Returnable<Vector2Like>
 
     /** The color of the line. */
     color?: string
@@ -869,11 +348,11 @@ export const lineMembers = `    /** How long this object has existed, in seconds
     radians: number
 
     /** Position of end point A. */
-    get pointA(): Point
+    get pointA(): Vector2
     set pointA(pointA: Returnable<PointArg | number[]>)
 
     /** Position of end point B. */
-    get pointB(): Point
+    get pointB(): Vector2
     set pointB(pointB: Returnable<PointArg | number[]>)
 
     /** The color of the line. */
@@ -886,7 +365,7 @@ export const lineMembers = `    /** How long this object has existed, in seconds
     readonly length: number
 
     /** Set both endpoints of the line at once. */
-    setPoints(pointA: PointArg, pointB: PointArg): void`
+    setPoints(pointA: Vector2Like, pointB: Vector2Like): void`
 
 export const hLinePropsFields = `    /** The vertical position of the line. */
     y?: number

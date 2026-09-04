@@ -1,5 +1,4 @@
 import { clock, paused, getGamePoint, scene, PointerEvents } from "../core"
-import type { Point } from "../Point"
 import type { MouseInputAction, Optional, PointerAction, ReferenceObject, ScrollAction } from "../types"
 import type { Class } from "./shared"
 
@@ -74,7 +73,7 @@ export type InteractableProps = {
  *  ...
  * 
  */
-export function Interactable<Base extends Class<Point>>(base: Base) {
+export function Interactable<Base extends Class<{x: number, y: number}>>(base: Base) {
     return class Interactable extends base {
         // TODO (Interactable):
         // - more input events?
