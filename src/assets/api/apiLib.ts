@@ -359,6 +359,15 @@ declare const Random: {
 ${v.randomMembers}
 }
 
+/**
+ * Throw to report a problem without the fatal-looking treatment of a thrown
+ * Error — an uncaught Warning shows in the output panel styled as a warning
+ * instead of an error, with its line highlighted in the warning color.
+ */
+class Warning extends Error {
+    constructor(message?: string)
+}
+
 declare const Output: {
     /**
      * Display a normal message in the output panel.

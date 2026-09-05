@@ -101,10 +101,11 @@ export type SandboxMessage =
 export type OutputKind = 'print' | 'warn' | 'error' | 'start'
 
 /**
- * Where in the user's own scripts a runtime error was thrown, if it could be
- * recovered from the error's stack trace (see moduleRunner.ts's locateError).
- * `line` is already corrected for the one-line prelude every compiled script
- * carries, so it's directly a line the user's editor can point at.
+ * Where in the user's own scripts a runtime error or Warning was thrown, if
+ * it could be recovered from the stack trace (see moduleRunner.ts's
+ * locateError). `line` is already corrected for the one-line prelude every
+ * compiled script carries, so it's directly a line the user's editor can
+ * point at.
  */
 export interface OutputLocation {
     script: string

@@ -259,14 +259,21 @@ onMounted(() => {
     color: var(--theme-error);
 }
 
-.output-error-location {
-    color: var(--theme-error);
+.output-location-link {
     text-decoration: underline;
     cursor: pointer;
 }
 
-.output-error-location:hover {
+.output-location-link:hover {
     opacity: 0.75;
+}
+
+.output-location-link--error {
+    color: var(--theme-error);
+}
+
+.output-location-link--warn {
+    color: var(--theme-warning);
 }
 
 .output-item--warn {

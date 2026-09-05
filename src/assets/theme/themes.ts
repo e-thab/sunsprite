@@ -163,7 +163,28 @@ export function buildMonacoThemeData(palette: ThemePalette): monaco.editor.IStan
             "editorBracketHighlight.foreground1": palette.tokens.bracketColor1, // Innermost
             "editorBracketHighlight.foreground2": palette.tokens.bracketColor2,
             "editorBracketHighlight.foreground3": palette.tokens.bracketColor3,
-            "editorBracketHighlight.unexpectedBracket.foreground": palette.tokens.bracketColorUnexpected // Mismatched
+            "editorBracketHighlight.unexpectedBracket.foreground": palette.tokens.bracketColorUnexpected, // Mismatched
+
+            // Drives the color of Monaco's own native squiggly underline for
+            // any marker (setModelMarkers) at that severity — used by the TS
+            // worker's own diagnostics, and by CodeEditor.vue's runtime
+            // error/warning underline (see applyErrorDecoration). Without
+            // these, Monaco falls back to its built-in vs/vs-dark red and
+            // yellow instead of this palette's own error/warning colors.
+            //
+            // Deliberately *not* setting editorError.border/editorWarning.border:
+            // Monaco renders a squiggly through two independent, simultaneously-
+            // applied rules — a `background` zigzag-wave SVG keyed off
+            // `.foreground` (codeEditorWidget.js's registerThemingParticipant),
+            // and a separate static `border-bottom: 4px double var(...border)`
+            // in editor.css. Its own built-in themes leave `.border` null for
+            // exactly this reason, so only the clean wave renders. Setting
+            // `.border` too — as this file briefly did — gives that dormant
+            // border-bottom rule a real color, so it renders *in addition to*
+            // the wave: a double-line underline with the wave sitting on top
+            // of it, not a single clean squiggle.
+            'editorError.foreground': palette.error,
+            'editorWarning.foreground': palette.warning,
         },
     }
 }

@@ -490,22 +490,22 @@ function loadScript(fileName: string) {
   treeSelectionStore.current = record ? { id: record.id, label: fileName } : { label: fileName }
 }
 
-// A runtime error's "at script:line" link in the output panel (see
+// A runtime error/warning's "at script:line" link in the output panel (see
 // output.ts) jumps here: switch to the script it happened in, same as
 // clicking it in the file tree, then have the editor highlight/scroll to it.
-Output.onJumpToError((script, line) => {
+Output.onJumpToError((script, line, kind, message) => {
   loadScript(script)
-  editor.value.revealErrorLine(script, line)
+  editor.value.revealErrorLine(script, line, kind, message)
 })
 
-// Every runtime error with a known location highlights its line as soon as
-// it happens, not just ones the user clicks through to — but without
+// Every runtime error/warning with a known location highlights its line as
+// soon as it happens, not just ones the user clicks through to — but without
 // switching files out from under them, unlike the click handler above. Also
-// marks the script itself in FileTree, so a script that isn't even open
-// still shows something's wrong with it.
-Output.onErrorLocation((script, line) => {
-  editor.value?.revealErrorLine(script, line)
-  fileStore.setErroredScript(script)
+// marks the script itself in FileTree for an error, so a script that isn't
+// even open still shows something's wrong with it.
+Output.onErrorLocation((script, line, kind, message) => {
+  editor.value?.revealErrorLine(script, line, kind, message)
+  if (kind === 'error') fileStore.setErroredScript(script)
 })
 
 // const readyComponents = {

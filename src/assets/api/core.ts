@@ -10,6 +10,7 @@ import { runEntryModule, locateError } from '@api/moduleRunner'
 import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 
 import Output from '@/sandbox/output'
+import Warning from '@api/Warning'
 import Random from '@api/Random'
 import Colors from '@api/Colors'
 import Timer from '@api/Timer'
@@ -61,8 +62,15 @@ function toDisplayError(e: unknown): Error {
 /** Single place that turns "something a user script threw" into output panel content. */
 function reportUserError(e: unknown) {
 	const err = toDisplayError(e)
-	Output.runtimeError(err.toString(), locateError(err))
-	console.error('User code error:', err)
+	const location = locateError(err)
+
+	if (err instanceof Warning) {
+		Output.runtimeWarning(err.toString(), location)
+		console.warn('User code warning:', err)
+	} else {
+		Output.runtimeError(err.toString(), location)
+		console.error('User code error:', err)
+	}
 }
 
 /**
@@ -867,17 +875,12 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer,
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine,
+			Vector2, Timer, Warning,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
+			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			// Built here, not as a module-level const, deliberately: core.ts and
-			// output.ts are mutually circular (output.ts imports `clock` from
-			// here), and this only runs once the game actually starts — long
-			// after every module has finished loading — so referencing Output's
-			// methods here can never race its own module's initialization the
-			// way a top-level reference could.
-			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,

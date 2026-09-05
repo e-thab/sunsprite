@@ -234,16 +234,42 @@ watch(activeMonacoTheme, (name) => monaco.editor.setTheme(name))
 type ModelEntry = { model: monaco.editor.ITextModel, recordId?: string, isText?: boolean }
 const modelEntries = new Map<string, ModelEntry>()
 
+// Owner id for the marker (see applyErrorDecoration) behind a runtime
+// warning's underline — Monaco's marker service namespaces markers by owner,
+// so this can be freely set/cleared without touching the TS worker's own
+// diagnostics (owner 'typescript') sitting on the same model.
+const RUNTIME_MARKER_OWNER = 'sunsprite-runtime'
+
 // Highlight for the line a runtime error was thrown on (see revealErrorLine).
 // Decorations live on the model, not the editor instance, so this survives
 // the inner <CodeEditor>'s remount on file switch (:key="activeFileName"
-// below) — only one is ever live at a time, matching "the current error".
+// below) — only one is ever live at a time, matching "the current error": an
+// error is a showstopper, so a new one replaces whatever was there before.
+// Warnings are the opposite — passive, non-blocking, and meant to accumulate
+// — so they get their own list-based tracking below instead of sharing this.
 let currentErrorDecoration: { model: monaco.editor.ITextModel, ids: string[], line: number } | null = null
 
 // Watches the decorated model for edits that land on the decorated line
 // itself, so fixing the offending line clears the highlight (editor and
 // FileTree both) without waiting for the next run — see applyErrorDecoration.
 let errorDecorationWatcher: monaco.IDisposable | null = null
+
+// Every warning currently underlined, across every open script at once —
+// unlike currentErrorDecoration above, this is a list: multiple warnings
+// (even several on the same script) all stay visible simultaneously, since
+// none of them block anything the way an error does. Each entry's real
+// position lives on its own margin decoration (marginId); `line` is only a
+// fallback for recreating that decoration after a setValue()-driven flush
+// (see reapplyWarningHighlights) and gets kept in sync with the decoration's
+// live range otherwise (see ensureWarningWatcher).
+interface WarningMark { model: monaco.editor.ITextModel, marginId: string, message: string, line: number }
+const activeWarnings: WarningMark[] = []
+
+// One content-change watcher per model that currently has any warnings on
+// it — shared across all of that model's warnings, rather than one watcher
+// per warning — so editing a line drops just that line's warning without
+// waiting for the next run, same idea as errorDecorationWatcher above.
+const warningWatchers = new Map<monaco.editor.ITextModel, monaco.IDisposable>()
 
 // Set when revealErrorLine targets a script that isn't the one currently
 // attached to the (possibly not-yet-remounted) editor; handleMount consumes
@@ -295,6 +321,18 @@ function switchToScript(name: string) {
 	if (model && !fileStore.isTextFile(name)) ensureImportedModels(model.getValue())
 }
 
+// Column range covering just a line's actual text — trimmed of leading and
+// trailing whitespace — for the marker below to underline. Monaco's own
+// squiggly rendering is scoped to exactly whatever range a marker names, so
+// this is the only thing standing between "underline the whole line's empty
+// padding too" and "underline only what's actually there".
+function trimmedLineRange(model: monaco.editor.ITextModel, line: number): { startColumn: number, endColumn: number } {
+	const content = model.getLineContent(line)
+	const startColumn = content.length - content.trimStart().length + 1
+	const endColumn = Math.max(startColumn, content.trimEnd().length + 1)
+	return { startColumn, endColumn }
+}
+
 function applyErrorDecoration(model: monaco.editor.ITextModel, line: number) {
 	errorDecorationWatcher?.dispose()
 	errorDecorationWatcher = null
@@ -302,13 +340,10 @@ function applyErrorDecoration(model: monaco.editor.ITextModel, line: number) {
 		currentErrorDecoration.model.deltaDecorations(currentErrorDecoration.ids, [])
 	}
 	const clampedLine = Math.min(Math.max(1, line), model.getLineCount())
+
 	const ids = model.deltaDecorations([], [{
 		range: new monaco.Range(clampedLine, 1, clampedLine, 1),
-		options: {
-			isWholeLine: true,
-			className: 'error-line-highlight',
-			marginClassName: 'error-line-margin',
-		},
+		options: { isWholeLine: true, className: 'error-line-highlight', marginClassName: 'error-line-margin' },
 	}])
 	currentErrorDecoration = { model, ids, line: clampedLine }
 
@@ -362,19 +397,142 @@ function clearErrorDecoration() {
 	fileStore.clearErroredScript()
 }
 
+// Recomputes every one of `model`'s active warnings' actual hover marker
+// from scratch and hands them all to setModelMarkers in one call — that API
+// always replaces the *entire* array for an owner, so every warning on a
+// model has to be resubmitted together any time even one of them changes.
+// Reads each mark's *live* decoration range rather than its stored `line`,
+// so a warning still underlines the right line after edits elsewhere in the
+// file shift it up or down.
+function rebuildWarningMarkers(model: monaco.editor.ITextModel) {
+	const markers: monaco.editor.IMarkerData[] = []
+	for (const mark of activeWarnings) {
+		if (mark.model !== model) continue
+		const liveRange = model.getDecorationRange(mark.marginId)
+		if (!liveRange) continue
+		const { startColumn, endColumn } = trimmedLineRange(model, liveRange.startLineNumber)
+		markers.push({
+			severity: monaco.MarkerSeverity.Warning,
+			startLineNumber: liveRange.startLineNumber,
+			startColumn,
+			endLineNumber: liveRange.startLineNumber,
+			endColumn,
+			message: mark.message,
+		})
+	}
+	monaco.editor.setModelMarkers(model, RUNTIME_MARKER_OWNER, markers)
+}
+
+// Drops every warning currently sitting on `line` — a re-thrown warning at
+// the same spot replaces the old one instead of stacking a duplicate, and
+// this is also what the edit watcher below calls once a line's actually
+// been touched. Doesn't rebuild markers itself; callers do that once after
+// whatever batch of removals they needed.
+function removeWarningsOnLine(model: monaco.editor.ITextModel, line: number) {
+	for (let i = activeWarnings.length - 1; i >= 0; i--) {
+		const mark = activeWarnings[i]!
+		if (mark.model !== model) continue
+		const liveRange = model.getDecorationRange(mark.marginId)
+		if (liveRange && liveRange.startLineNumber === line) {
+			model.deltaDecorations([mark.marginId], [])
+			activeWarnings.splice(i, 1)
+		}
+	}
+}
+
+// One-time-per-model watcher that keeps every one of that model's warnings'
+// stored `line` in sync with reality, and drops whichever ones an edit
+// actually lands on — mirroring errorDecorationWatcher, but shared across
+// however many warnings that model currently has instead of one-at-a-time.
+function ensureWarningWatcher(model: monaco.editor.ITextModel) {
+	if (warningWatchers.has(model)) return
+	warningWatchers.set(model, model.onDidChangeContent((event) => {
+		if (event.isFlush) return
+
+		let touchedAny = false
+		for (const mark of [...activeWarnings]) {
+			if (mark.model !== model) continue
+			const liveRange = model.getDecorationRange(mark.marginId)
+			if (!liveRange) continue
+			mark.line = liveRange.startLineNumber
+
+			const touched = event.changes.some((change) =>
+				change.range.startLineNumber <= liveRange.startLineNumber && change.range.endLineNumber >= liveRange.startLineNumber
+			)
+			if (touched) {
+				removeWarningsOnLine(model, liveRange.startLineNumber)
+				touchedAny = true
+			}
+		}
+		if (touchedAny) rebuildWarningMarkers(model)
+	}))
+}
+
+/** Adds one more warning underline, alongside any others already showing — see activeWarnings. */
+function addWarningHighlight(model: monaco.editor.ITextModel, line: number, message: string) {
+	const clampedLine = Math.min(Math.max(1, line), model.getLineCount())
+	removeWarningsOnLine(model, clampedLine)
+
+	const ids = model.deltaDecorations([], [{
+		range: new monaco.Range(clampedLine, 1, clampedLine, 1),
+		options: { isWholeLine: true, marginClassName: 'warning-line-margin' },
+	}])
+	const marginId = ids[0]
+	if (marginId) activeWarnings.push({ model, marginId, message, line: clampedLine })
+
+	rebuildWarningMarkers(model)
+	ensureWarningWatcher(model)
+}
+
+// Recreates every warning decoration refreshDiagnostics's forced setValue()
+// just dropped (see reapplyErrorDecoration's comment — same underlying
+// issue, applied to a list instead of one decoration), from each mark's
+// last-known `line` rather than a (now-gone) live decoration range.
+function reapplyWarningHighlights(model: monaco.editor.ITextModel) {
+	const marks = activeWarnings.filter((mark) => mark.model === model)
+	if (!marks.length) return
+
+	for (const mark of marks) {
+		const ids = model.deltaDecorations([], [{
+			range: new monaco.Range(mark.line, 1, mark.line, 1),
+			options: { isWholeLine: true, marginClassName: 'warning-line-margin' },
+		}])
+		if (ids[0]) mark.marginId = ids[0]
+	}
+	rebuildWarningMarkers(model)
+}
+
+/** Clears every active warning, on every script — a fresh run starts with a clean slate (see runNamedScript). */
+function clearWarningHighlights() {
+	for (const model of new Set(activeWarnings.map((mark) => mark.model))) {
+		const ids = activeWarnings.filter((mark) => mark.model === model).map((mark) => mark.marginId)
+		model.deltaDecorations(ids, [])
+		monaco.editor.setModelMarkers(model, RUNTIME_MARKER_OWNER, [])
+	}
+	for (const disposable of warningWatchers.values()) disposable.dispose()
+	warningWatchers.clear()
+	activeWarnings.length = 0
+}
+
 /**
- * Highlights the line a runtime error was thrown on, in whichever script it
- * happened in — called from EditorView when the user clicks a runtime
- * error's "at script:line" link in the output panel (see output.ts's
- * onJumpToError). The target script may not be the one currently open, so
- * this only scrolls it into view immediately when it already is; otherwise
- * handleMount finishes the job once switchToScript's remount attaches it.
+ * Highlights the line a runtime error/warning was thrown on, in whichever
+ * script it happened in — called from EditorView when the user clicks a
+ * runtime error/warning's "at script:line" link in the output panel (see
+ * output.ts's onJumpToError). The target script may not be the one currently
+ * open, so this only scrolls it into view immediately when it already is;
+ * otherwise handleMount finishes the job once switchToScript's remount
+ * attaches it. `message` is only used for a warning's hover text — an error
+ * doesn't carry one natively, matching its existing background-wash treatment.
  */
-function revealErrorLine(script: string, line: number) {
+function revealErrorLine(script: string, line: number, kind: 'error' | 'warn' = 'error', message?: string) {
 	const model = ensureModel(script)
 	if (!model) return
 
-	applyErrorDecoration(model, line)
+	if (kind === 'warn') {
+		addWarningHighlight(model, line, message || 'A warning was thrown near this line.')
+	} else {
+		applyErrorDecoration(model, line)
+	}
 
 	if (editorInstance.value && editorInstance.value.getModel() === model) {
 		editorInstance.value.revealLineInCenter(line)
@@ -457,6 +615,7 @@ async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, m
 		if (!model.isDisposed()) {
 			model.setValue(model.getValue())
 			reapplyErrorDecoration(model)
+			reapplyWarningHighlights(model)
 		}
 	} catch (err) {
 		console.error(`Failed to sync ${model.uri} with the TS worker after retries`, err)
@@ -520,6 +679,8 @@ watch(() => fileStore.projectId, () => {
 onBeforeUnmount(() => {
 	fileStore.registerSaveAllHandler(null)
 	errorDecorationWatcher?.dispose()
+	for (const disposable of warningWatchers.values()) disposable.dispose()
+	warningWatchers.clear()
 	for (const entry of modelEntries.values()) entry.model.dispose()
 	modelEntries.clear()
 })
@@ -572,6 +733,7 @@ async function saveAll() {
 // keeps using that model, same as running the active file always has.
 function runNamedScript(name: string) {
 	clearErrorDecoration()
+	clearWarningHighlights()
 	const code = ensureModel(name)?.getValue() ?? ''
 	runUserCode(code, name, themeStore.current)
 }
@@ -890,6 +1052,7 @@ async function selectApiVersion(version: string) {
 	border-top-left-radius: var(--panel-border-radius);
 	border-bottom-left-radius: var(--panel-border-radius);
 	padding-left: 0.4em;
+	padding-right: 0.4em;
 }
 </style>
 
@@ -903,5 +1066,9 @@ async function selectApiVersion(version: string) {
 
 .error-line-margin {
 	border-left: 3px solid var(--theme-error);
+}
+
+.warning-line-margin {
+	border-left: 3px solid var(--theme-warning);
 }
 </style>

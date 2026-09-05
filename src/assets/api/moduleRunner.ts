@@ -16,6 +16,20 @@ import type { OutputLocation } from '@/sandbox/protocol'
 // the actual isolation lives. Script *content* comes from the host, since only
 // it has the file store, so resolution is an async round trip.
 
+// V8 defaults Error.stackTraceLimit to 10 — enough to capture *where* an
+// error was thrown, but not necessarily far enough to reach the frame that
+// matters here. locateError (below) needs to walk down the stack to
+// whichever frame belongs to the user's own compiled script; a throw from an
+// internal API file (a property setter, Vector2.from, etc.) reached through
+// Phaser's own internal dispatch can easily sit more than 10 frames below
+// that, silently truncating it off `.stack` before locateError ever sees
+// it — not a wrong location, just none at all. A throw written directly in
+// the user's own script never hit this, since it's only 1-2 frames deep,
+// which is why the difference wasn't obvious until an internal file threw.
+// Set once, here, since this module is the first thing the sandbox imports
+// (see sandbox/main.ts).
+Error.stackTraceLimit = 50
+
 const API_GLOBAL = '__sunspriteApi'
 const IMPORT_HELPER = '__sunspriteImport'
 const BLOCK_HELPER = '__sunspriteBlocked'
@@ -313,6 +327,18 @@ export function locateError(error: unknown): OutputLocation | undefined {
         return { script: file, line: Math.max(1, Number(lineStr) - 1) }
     }
     return undefined
+}
+
+/**
+ * Same recovery as locateError, for internal API code (Vector2.from, a
+ * property setter, etc.) that wants to point at whichever user script line
+ * called into it *without* throwing — e.g. a warning that still returns a
+ * usable value and shouldn't unwind the call like an actual throw would.
+ * Captures a fresh Error purely for its stack trace; the message is never
+ * shown, only its call site matters.
+ */
+export function currentLocation(): OutputLocation | undefined {
+    return locateError(new Error())
 }
 
 /**

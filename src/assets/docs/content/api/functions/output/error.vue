@@ -19,5 +19,5 @@ export default {}
 		<DocParam name="msg" type="Printable[]">The error message to display.</DocParam>
 	</DocParams>
 
-	<DocRelated :paths="['api/functions/output/warn']" />
+	<DocRelated :paths="['api/functions/output/warn', 'api/functions/output/warning']" />
 </template>

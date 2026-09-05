@@ -10,7 +10,7 @@ import type { OutputKind, OutputLocation } from './protocol'
 // is stringified and posted to the host, which does the rendering.
 
 const Output = {
-    print, warn, error, clear, printStartMsg, runtimeError
+    print, warn, error, clear, printStartMsg, runtimeError, runtimeWarning
 }
 export default Output
 
@@ -73,6 +73,16 @@ function error(...msgs: Printable[]) {
 function runtimeError(message: string, location?: OutputLocation) {
     console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, message)
     send('error', message, location)
+}
+
+/**
+ * Counterpart to runtimeError for a user script that threw a Warning rather
+ * than a plain Error — same best-effort source location, but rendered in the
+ * output panel styled as a warning instead of an error.
+ */
+function runtimeWarning(message: string, location?: OutputLocation) {
+    console.log(' %cwarn:', `color: ${Colors.Goldenrod}; font-weight: 100; font-style: italic;`, message)
+    send('warn', message, location)
 }
 
 function printStartMsg(scriptName: string) {

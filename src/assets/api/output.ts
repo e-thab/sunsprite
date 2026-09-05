@@ -22,23 +22,27 @@ const Output = {
 }
 export default Output
 
-// Set by whoever wants to handle a click on a runtime error's "at script:line"
-// link (EditorView.vue, which owns both the file tree and the code editor
-// ref) — this module only renders the output panel, it has no way to switch
-// files or reach into Monaco itself.
-let jumpHandler: ((script: string, line: number) => void) | null = null
+// Set by whoever wants to handle a click on a runtime error/warning's "at
+// script:line" link (EditorView.vue, which owns both the file tree and the
+// code editor ref) — this module only renders the output panel, it has no
+// way to switch files or reach into Monaco itself. `kind` lets the handler
+// pick the matching highlight color, and `message` is the original text
+// (without the "at script:line" suffix) so a warning's native squiggly can
+// show it on hover instead of a generic placeholder (see CodeEditor.vue's
+// revealErrorLine).
+let jumpHandler: ((script: string, line: number, kind: 'error' | 'warn', message: string) => void) | null = null
 
-function onJumpToError(handler: (script: string, line: number) => void) {
+function onJumpToError(handler: (script: string, line: number, kind: 'error' | 'warn', message: string) => void) {
     jumpHandler = handler
 }
 
-// Fired for *every* runtime error that carries a location, not just clicked
-// ones, so the offending line is already highlighted the moment it happens —
-// without forcing the user's editor tab to switch away from whatever they're
-// looking at (that's what the click link, above, is for).
-let locationHandler: ((script: string, line: number) => void) | null = null
+// Fired for *every* runtime error/warning that carries a location, not just
+// clicked ones, so the offending line is already highlighted the moment it
+// happens — without forcing the user's editor tab to switch away from
+// whatever they're looking at (that's what the click link, above, is for).
+let locationHandler: ((script: string, line: number, kind: 'error' | 'warn', message: string) => void) | null = null
 
-function onErrorLocation(handler: (script: string, line: number) => void) {
+function onErrorLocation(handler: (script: string, line: number, kind: 'error' | 'warn', message: string) => void) {
     locationHandler = handler
 }
 
@@ -67,9 +71,9 @@ function init(outputItems: OutputItem[]) {
     // needing to re-bind anything per message.
     for (const item of Output.items) {
         item.msg.addEventListener('click', (event) => {
-            const target = (event.target as HTMLElement).closest('.output-error-location') as HTMLElement | null
-            const { jumpScript, jumpLine } = target?.dataset ?? {}
-            if (jumpHandler && jumpScript && jumpLine) jumpHandler(jumpScript, Number(jumpLine))
+            const target = (event.target as HTMLElement).closest('.output-location-link') as HTMLElement | null
+            const { jumpScript, jumpLine, jumpKind, jumpMessage } = target?.dataset ?? {}
+            if (jumpHandler && jumpScript && jumpLine) jumpHandler(jumpScript, Number(jumpLine), jumpKind === 'warn' ? 'warn' : 'error', jumpMessage ?? '')
         })
     }
 
@@ -87,7 +91,7 @@ function render(kind: 'print' | 'warn' | 'error' | 'start', text: string, frame:
 
     switch (kind) {
         case 'print': return printMsg(text)
-        case 'warn': return warnMsg(text)
+        case 'warn': return warnMsg(text, location)
         case 'error': return errorMsg(text, location)
         case 'start': return startMsg(text)
     }
@@ -158,29 +162,33 @@ function errorMsg(msg: string, location?: OutputLocation) {
         item.stamp.className = 'output-stamp output-item--error'
 
         item.msg.className = 'output-msg output-item--error'
-        renderMessageWithLocation(item.msg, msg, location)
+        renderMessageWithLocation(item.msg, msg, 'error', location)
     })
     outputActivity.value++
 
-    if (location) locationHandler?.(location.script, location.line)
+    if (location) locationHandler?.(location.script, location.line, 'error', msg)
 }
 
 /**
- * Renders the error text plus, when a source location was recovered from the
- * stack trace, a clickable "at script:line" tag appended to the same line —
- * the click target that onJumpToError's delegated listener (see init) looks
- * for.
+ * Renders the message text plus, when a source location was recovered from
+ * the stack trace, a clickable "at script:line" tag appended to the same
+ * line — the click target that onJumpToError's delegated listener (see init)
+ * looks for. `kind` picks the link's color (error vs warning) and is carried
+ * in the link's dataset so that same listener knows which highlight color to
+ * apply when it's clicked.
  */
-function renderMessageWithLocation(el: HTMLElement, msg: string, location?: OutputLocation) {
+function renderMessageWithLocation(el: HTMLElement, msg: string, kind: 'error' | 'warn', location?: OutputLocation) {
     el.textContent = msg
     if (!location) return
 
     el.appendChild(document.createTextNode(' '))
     const link = document.createElement('span')
-    link.className = 'output-error-location'
+    link.className = `output-location-link output-location-link--${kind}`
     link.textContent = `at ${location.script}:${location.line}`
     link.dataset.jumpScript = location.script
     link.dataset.jumpLine = String(location.line)
+    link.dataset.jumpKind = kind
+    link.dataset.jumpMessage = msg
     el.appendChild(link)
 }
 
@@ -189,15 +197,17 @@ function warn(...args: Printable[]) {
     warnMsg(joinArgs(args))
 }
 
-function warnMsg(msg: string) {
+function warnMsg(msg: string, location?: OutputLocation) {
     addOutputItem(msg, 'warn', (item) => {
         item.stamp.textContent = '⚠'
         item.stamp.className = 'output-stamp output-item--warn'
 
-        item.msg.textContent = msg
         item.msg.className = 'output-msg output-item--warn'
+        renderMessageWithLocation(item.msg, msg, 'warn', location)
     })
     outputActivity.value++
+
+    if (location) locationHandler?.(location.script, location.line, 'warn', msg)
 }
 
 export function print(...args: Printable[]) {
