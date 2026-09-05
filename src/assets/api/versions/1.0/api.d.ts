@@ -130,6 +130,150 @@ export type SpriteProps = GameObjectProps & {
 export declare class Sprite {
     constructor(options?: SpriteProps)
 
+    /** How long this object has existed, in seconds (not including paused time). */
+    readonly age: number
+
+    /** How long this object has existed, in milliseconds (not including paused time). */
+    readonly ageMs: number
+
+    /** Horizontal position in the world. */
+    x: number
+
+    /** Vertical position in the world. */
+    y: number
+
+    /** Position in the world. */
+    get position(): Vector2
+    set position(pos: Vector2Like)
+
+    /** Position in the world (alias of position). */
+    get pos(): Vector2
+    set pos(pos: Vector2Like)
+
+    /** This object's horizontal position relative to the camera. */
+    screenX: number
+
+    /** This object's vertical position relative to the camera. */
+    screenY: number
+
+    /** This object's position relative to the camera. */
+    get screenPosition(): Vector2
+    set screenPosition(pos: Vector2Like)
+
+    /** This object's position relative to the camera (alias of screenPosition) */
+    get screenPos(): Vector2
+    set screenPos(pos: Vector2Like)
+
+    /**
+     * Set world position.
+     * @param position New world position.
+     */
+    goTo(position: Vector2Like): void
+
+    /**
+     * Set world position.
+     * @param x New horizontal world position.
+     * @param y New vertical world position.
+     */
+    goTo(x: number, y: number): void
+
+    /** Set position to a random point within the current visible screen area. */
+    goToRandom(): void
+
+    /** The cursor shown when the mouse is over this object. */
+    get cursor(): Cursor
+    set cursor(cursor: Cursor | string)
+
+    /**
+     * Register input actions to run once each time a mouse event is detected.
+     * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
+     */
+    onMouse(actions: MouseInputAction): void
+
+    /** Captures any pointer down event, either left or right mouse button. */
+    onClick(action?: PointerAction): void
+
+    /** Captures any pointer release event, either left or right mouse button. */
+    onRelease(action?: PointerAction): void
+
+    /** Captures only left button double clicks (two left clicks within 500ms). */
+    onDoubleClick(action?: PointerAction): void
+
+    /** Captures only left button press. */
+    onLeftClick(action?: PointerAction): void
+
+    /** Captures only left button release. */
+    onLeftRelease(action?: PointerAction): void
+
+    /** Captures only right button press. */
+    onRightClick(action?: PointerAction): void
+
+    /** Captures only right button release. */
+    onRightRelease(action?: PointerAction): void
+
+    /** Captures only middle button press. */
+    onMiddleClick(action?: PointerAction): void
+
+    /** Captures only middle button release. */
+    onMiddleRelease(action?: PointerAction): void
+
+    /** Captures the pointer entering the object. */
+    onMouseEnter(action?: PointerAction): void
+
+    /** Captures the pointer exiting the object. */
+    onMouseExit(action?: PointerAction): void
+
+    /** Captures the pointer dragging the object. */
+    onDrag(action?: PointerAction): void
+
+    /** Captures the beginning of the drag event. */
+    onDragStart(action?: PointerAction): void
+
+    /** Captures the end of the drag event. */
+    onDragEnd(action?: PointerAction): void
+
+    /** Captures scroll events while hovering over this object. */
+    onScroll(action?: ScrollAction): void
+
+    /** Captures the pointer moving while overlapping the object. */
+    onMouseMove(action?: PointerAction): void
+
+    /** Whether this object can be dragged with the mouse. */
+    draggable: boolean
+
+    /** Set this object's hover cursor back to the default pointer. */
+    resetCursor(): void
+
+    /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
+    alpha: number
+
+    /** The render order. Objects with higher layer values will show in front of objects with lower values. */
+    layer: number
+
+    /** Whether this object is currently visible. */
+    visible: boolean
+
+    /** Show this object. */
+    show(): void
+
+    /** Hide this object. */
+    hide(): void
+
+    /** Rotation angle in degrees. */
+    rotation: number
+
+    /** Rotation angle in radians. */
+    radians: number
+
+    /** Horizontal size in pixels. */
+    width: number
+
+    /** Vertical size in pixels. */
+    height: number
+
+    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
+    scale: number
+
     /** A URL path to the sprite's image. */
     get src(): string
     set src(keyOrPath: string | undefined | null)
@@ -142,6 +286,150 @@ export type RectangleProps = GameObjectProps & {
 
 export declare class Rectangle {
     constructor(options?: RectangleProps)
+
+    /** How long this object has existed, in seconds (not including paused time). */
+    readonly age: number
+
+    /** How long this object has existed, in milliseconds (not including paused time). */
+    readonly ageMs: number
+
+    /** Horizontal position in the world. */
+    x: number
+
+    /** Vertical position in the world. */
+    y: number
+
+    /** Position in the world. */
+    get position(): Vector2
+    set position(pos: Vector2Like)
+
+    /** Position in the world (alias of position). */
+    get pos(): Vector2
+    set pos(pos: Vector2Like)
+
+    /** This object's horizontal position relative to the camera. */
+    screenX: number
+
+    /** This object's vertical position relative to the camera. */
+    screenY: number
+
+    /** This object's position relative to the camera. */
+    get screenPosition(): Vector2
+    set screenPosition(pos: Vector2Like)
+
+    /** This object's position relative to the camera (alias of screenPosition) */
+    get screenPos(): Vector2
+    set screenPos(pos: Vector2Like)
+
+    /**
+     * Set world position.
+     * @param position New world position.
+     */
+    goTo(position: Vector2Like): void
+
+    /**
+     * Set world position.
+     * @param x New horizontal world position.
+     * @param y New vertical world position.
+     */
+    goTo(x: number, y: number): void
+
+    /** Set position to a random point within the current visible screen area. */
+    goToRandom(): void
+
+    /** The cursor shown when the mouse is over this object. */
+    get cursor(): Cursor
+    set cursor(cursor: Cursor | string)
+
+    /**
+     * Register input actions to run once each time a mouse event is detected.
+     * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
+     */
+    onMouse(actions: MouseInputAction): void
+
+    /** Captures any pointer down event, either left or right mouse button. */
+    onClick(action?: PointerAction): void
+
+    /** Captures any pointer release event, either left or right mouse button. */
+    onRelease(action?: PointerAction): void
+
+    /** Captures only left button double clicks (two left clicks within 500ms). */
+    onDoubleClick(action?: PointerAction): void
+
+    /** Captures only left button press. */
+    onLeftClick(action?: PointerAction): void
+
+    /** Captures only left button release. */
+    onLeftRelease(action?: PointerAction): void
+
+    /** Captures only right button press. */
+    onRightClick(action?: PointerAction): void
+
+    /** Captures only right button release. */
+    onRightRelease(action?: PointerAction): void
+
+    /** Captures only middle button press. */
+    onMiddleClick(action?: PointerAction): void
+
+    /** Captures only middle button release. */
+    onMiddleRelease(action?: PointerAction): void
+
+    /** Captures the pointer entering the object. */
+    onMouseEnter(action?: PointerAction): void
+
+    /** Captures the pointer exiting the object. */
+    onMouseExit(action?: PointerAction): void
+
+    /** Captures the pointer dragging the object. */
+    onDrag(action?: PointerAction): void
+
+    /** Captures the beginning of the drag event. */
+    onDragStart(action?: PointerAction): void
+
+    /** Captures the end of the drag event. */
+    onDragEnd(action?: PointerAction): void
+
+    /** Captures scroll events while hovering over this object. */
+    onScroll(action?: ScrollAction): void
+
+    /** Captures the pointer moving while overlapping the object. */
+    onMouseMove(action?: PointerAction): void
+
+    /** Whether this object can be dragged with the mouse. */
+    draggable: boolean
+
+    /** Set this object's hover cursor back to the default pointer. */
+    resetCursor(): void
+
+    /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
+    alpha: number
+
+    /** The render order. Objects with higher layer values will show in front of objects with lower values. */
+    layer: number
+
+    /** Whether this object is currently visible. */
+    visible: boolean
+
+    /** Show this object. */
+    show(): void
+
+    /** Hide this object. */
+    hide(): void
+
+    /** Rotation angle in degrees. */
+    rotation: number
+
+    /** Rotation angle in radians. */
+    radians: number
+
+    /** Horizontal size in pixels. */
+    width: number
+
+    /** Vertical size in pixels. */
+    height: number
+
+    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
+    scale: number
 
     /** The fill color. */
     color: string
@@ -158,11 +446,152 @@ export type CircleProps = GameObjectProps & {
 export declare class Circle {
     constructor(options?: CircleProps)
 
-    /** The fill color. */
-    color: string
+    /** How long this object has existed, in seconds (not including paused time). */
+    readonly age: number
+
+    /** How long this object has existed, in milliseconds (not including paused time). */
+    readonly ageMs: number
+
+    /** Horizontal position in the world. */
+    x: number
+
+    /** Vertical position in the world. */
+    y: number
+
+    /** Position in the world. */
+    get position(): Vector2
+    set position(pos: Vector2Like)
+
+    /** Position in the world (alias of position). */
+    get pos(): Vector2
+    set pos(pos: Vector2Like)
+
+    /** This object's horizontal position relative to the camera. */
+    screenX: number
+
+    /** This object's vertical position relative to the camera. */
+    screenY: number
+
+    /** This object's position relative to the camera. */
+    get screenPosition(): Vector2
+    set screenPosition(pos: Vector2Like)
+
+    /** This object's position relative to the camera (alias of screenPosition) */
+    get screenPos(): Vector2
+    set screenPos(pos: Vector2Like)
+
+    /**
+     * Set world position.
+     * @param position New world position.
+     */
+    goTo(position: Vector2Like): void
+
+    /**
+     * Set world position.
+     * @param x New horizontal world position.
+     * @param y New vertical world position.
+     */
+    goTo(x: number, y: number): void
+
+    /** Set position to a random point within the current visible screen area. */
+    goToRandom(): void
+
+    /** The cursor shown when the mouse is over this object. */
+    get cursor(): Cursor
+    set cursor(cursor: Cursor | string)
+
+    /**
+     * Register input actions to run once each time a mouse event is detected.
+     * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
+     */
+    onMouse(actions: MouseInputAction): void
+
+    /** Captures any pointer down event, either left or right mouse button. */
+    onClick(action?: PointerAction): void
+
+    /** Captures any pointer release event, either left or right mouse button. */
+    onRelease(action?: PointerAction): void
+
+    /** Captures only left button double clicks (two left clicks within 500ms). */
+    onDoubleClick(action?: PointerAction): void
+
+    /** Captures only left button press. */
+    onLeftClick(action?: PointerAction): void
+
+    /** Captures only left button release. */
+    onLeftRelease(action?: PointerAction): void
+
+    /** Captures only right button press. */
+    onRightClick(action?: PointerAction): void
+
+    /** Captures only right button release. */
+    onRightRelease(action?: PointerAction): void
+
+    /** Captures only middle button press. */
+    onMiddleClick(action?: PointerAction): void
+
+    /** Captures only middle button release. */
+    onMiddleRelease(action?: PointerAction): void
+
+    /** Captures the pointer entering the object. */
+    onMouseEnter(action?: PointerAction): void
+
+    /** Captures the pointer exiting the object. */
+    onMouseExit(action?: PointerAction): void
+
+    /** Captures the pointer dragging the object. */
+    onDrag(action?: PointerAction): void
+
+    /** Captures the beginning of the drag event. */
+    onDragStart(action?: PointerAction): void
+
+    /** Captures the end of the drag event. */
+    onDragEnd(action?: PointerAction): void
+
+    /** Captures scroll events while hovering over this object. */
+    onScroll(action?: ScrollAction): void
+
+    /** Captures the pointer moving while overlapping the object. */
+    onMouseMove(action?: PointerAction): void
+
+    /** Whether this object can be dragged with the mouse. */
+    draggable: boolean
+
+    /** Set this object's hover cursor back to the default pointer. */
+    resetCursor(): void
 
     /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
     alpha: number
+
+    /** The render order. Objects with higher layer values will show in front of objects with lower values. */
+    layer: number
+
+    /** Whether this object is currently visible. */
+    visible: boolean
+
+    /** Show this object. */
+    show(): void
+
+    /** Hide this object. */
+    hide(): void
+
+    /** Rotation angle in degrees. */
+    rotation: number
+
+    /** Rotation angle in radians. */
+    radians: number
+
+    /** Horizontal size in pixels. */
+    width: number
+
+    /** Vertical size in pixels. */
+    height: number
+
+    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
+    scale: number
+
+    /** The fill color. */
+    color: string
 
     /** The distance from the center of the circle to the edge. */
     radius: number
@@ -184,6 +613,150 @@ export type LabelProps = GameObjectProps & {
 
 export declare class Label {
     constructor(options?: LabelProps)
+
+    /** How long this object has existed, in seconds (not including paused time). */
+    readonly age: number
+
+    /** How long this object has existed, in milliseconds (not including paused time). */
+    readonly ageMs: number
+
+    /** Horizontal position in the world. */
+    x: number
+
+    /** Vertical position in the world. */
+    y: number
+
+    /** Position in the world. */
+    get position(): Vector2
+    set position(pos: Vector2Like)
+
+    /** Position in the world (alias of position). */
+    get pos(): Vector2
+    set pos(pos: Vector2Like)
+
+    /** This object's horizontal position relative to the camera. */
+    screenX: number
+
+    /** This object's vertical position relative to the camera. */
+    screenY: number
+
+    /** This object's position relative to the camera. */
+    get screenPosition(): Vector2
+    set screenPosition(pos: Vector2Like)
+
+    /** This object's position relative to the camera (alias of screenPosition) */
+    get screenPos(): Vector2
+    set screenPos(pos: Vector2Like)
+
+    /**
+     * Set world position.
+     * @param position New world position.
+     */
+    goTo(position: Vector2Like): void
+
+    /**
+     * Set world position.
+     * @param x New horizontal world position.
+     * @param y New vertical world position.
+     */
+    goTo(x: number, y: number): void
+
+    /** Set position to a random point within the current visible screen area. */
+    goToRandom(): void
+
+    /** The cursor shown when the mouse is over this object. */
+    get cursor(): Cursor
+    set cursor(cursor: Cursor | string)
+
+    /**
+     * Register input actions to run once each time a mouse event is detected.
+     * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
+     */
+    onMouse(actions: MouseInputAction): void
+
+    /** Captures any pointer down event, either left or right mouse button. */
+    onClick(action?: PointerAction): void
+
+    /** Captures any pointer release event, either left or right mouse button. */
+    onRelease(action?: PointerAction): void
+
+    /** Captures only left button double clicks (two left clicks within 500ms). */
+    onDoubleClick(action?: PointerAction): void
+
+    /** Captures only left button press. */
+    onLeftClick(action?: PointerAction): void
+
+    /** Captures only left button release. */
+    onLeftRelease(action?: PointerAction): void
+
+    /** Captures only right button press. */
+    onRightClick(action?: PointerAction): void
+
+    /** Captures only right button release. */
+    onRightRelease(action?: PointerAction): void
+
+    /** Captures only middle button press. */
+    onMiddleClick(action?: PointerAction): void
+
+    /** Captures only middle button release. */
+    onMiddleRelease(action?: PointerAction): void
+
+    /** Captures the pointer entering the object. */
+    onMouseEnter(action?: PointerAction): void
+
+    /** Captures the pointer exiting the object. */
+    onMouseExit(action?: PointerAction): void
+
+    /** Captures the pointer dragging the object. */
+    onDrag(action?: PointerAction): void
+
+    /** Captures the beginning of the drag event. */
+    onDragStart(action?: PointerAction): void
+
+    /** Captures the end of the drag event. */
+    onDragEnd(action?: PointerAction): void
+
+    /** Captures scroll events while hovering over this object. */
+    onScroll(action?: ScrollAction): void
+
+    /** Captures the pointer moving while overlapping the object. */
+    onMouseMove(action?: PointerAction): void
+
+    /** Whether this object can be dragged with the mouse. */
+    draggable: boolean
+
+    /** Set this object's hover cursor back to the default pointer. */
+    resetCursor(): void
+
+    /** Transparency, decimal value that ranges from 0.0 (transparent) to 1.0 (opaque). */
+    alpha: number
+
+    /** The render order. Objects with higher layer values will show in front of objects with lower values. */
+    layer: number
+
+    /** Whether this object is currently visible. */
+    visible: boolean
+
+    /** Show this object. */
+    show(): void
+
+    /** Hide this object. */
+    hide(): void
+
+    /** Rotation angle in degrees. */
+    rotation: number
+
+    /** Rotation angle in radians. */
+    radians: number
+
+    /** Horizontal size in pixels. */
+    width: number
+
+    /** Vertical size in pixels. */
+    height: number
+
+    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
+    scale: number
 
     /** Text content of the label. */
     get text(): string
@@ -245,11 +818,11 @@ export declare class Line {
 
     /** Position of end point A. */
     get pointA(): Vector2
-    set pointA(pointA: Returnable<PointArg | number[]>)
+    set pointA(pointA: Returnable<Vector2Like | number[]>)
 
     /** Position of end point B. */
     get pointB(): Vector2
-    set pointB(pointB: Returnable<PointArg | number[]>)
+    set pointB(pointB: Returnable<Vector2Like | number[]>)
 
     /** The color of the line. */
     color: string
@@ -352,4 +925,216 @@ export declare class VLine {
 
     /** The thickness of the line. */
     thickness: number
+}
+
+export declare const Camera: {
+    following?: { _refObj: any }
+
+    x: number
+
+    y: number
+
+    readonly top: number
+
+    readonly bottom: number
+
+    readonly left: number
+
+    readonly right: number
+
+    position: Vector2
+
+    pos: Vector2
+
+    readonly width: number
+
+    readonly height: number
+
+    zoom: number
+
+    zoomToward(pos: Vector2Like, factor: number): void
+
+    zoomTowardMouse(zoom: number): void
+
+    /**
+     * Shakes the Camera by the given intensity over the duration specified.
+     * @param duration The duration of the effect in seconds. Default 1.
+     * @param intensity The intensity of the shake. Default 1.
+     */
+    shake(duration?: number, intensity?: number, callback?: Function): void
+
+    easeTo(pos: Vector2Like, duration?: number): void
+
+    follow(gameObject: { _refObj: any }): void
+
+    stopFollow(): void
+
+    reset(): void
+}
+
+export declare class Vector2 {
+    constructor(x: number, y: number)
+
+    x: number
+
+    y: number
+
+    /** The magnitude of this vector. */
+    readonly length: number
+
+    set(x: number, y: number): void
+
+    fill(n: number): void
+
+    /** Set this vector's length to 1. */
+    normalize(): void
+
+    rotate(): void
+
+    setRotation(): void
+
+    lookAt(): void
+
+    /** Get a normalized copy of this vector. */
+    readonly normal: Vector2
+
+    /** A Vector2 with x & y of 0. */
+    static readonly ZERO: Vector2
+
+    static readonly ONE: Vector2
+
+    /** Create a Vector2 from a pair of x/y values. */
+    static from(x: number, y: number): Vector2
+
+    /** Create a Vector2 from a Vector2Like; either an { x, y } obj or a
+[number, number] array. */
+    static from(xy: Vector2Like): Vector2
+
+    /** Create a Vector2 from a number array, this is needed (not captured by
+above) to allow JS array literals from user code which will be inferred
+as number[] rather than [number, number]. */
+    static from(xy: number[]): Vector2
+
+    toString(): string
+}
+
+export declare class Timer {
+    constructor()
+
+    /** Time since start in milliseconds, does not increment during pause */
+    timeMs: number
+
+    /** Time since start in seconds, does not increment during pause */
+    readonly time: number
+
+    /** Time since start in milliseconds including pause time */
+    readonly ageMs: number
+
+    /** Time since start in seconds including pause time */
+    readonly age: number
+
+    /** Time this run started in milliseconds since the Unix epoch */
+    startTimeMs: number
+
+    /** Time this run started in seconds since the Unix epoch */
+    readonly startTime: number
+
+    /** Current time in milliseconds since the Unix epoch */
+    nowMs: number
+
+    /** Current time in seconds since the Unix epoch */
+    readonly now: number
+
+    /** Is the timer currently paused? */
+    paused: boolean
+
+    /** Pause the timer */
+    pause(): void
+
+    /** Resume the timer */
+    play(): void
+
+    /** Reset */
+    reset(): void
+}
+
+export declare const Clock: {
+    /** Actual (but smoothed) time since last frame in milliseconds */
+    deltaMs: number
+
+    /** Time since last frame normalized to 60fps (will usually be around 1) */
+    readonly delta: number
+
+    /** Number of frames since creation */
+    frame: number
+
+    /** Time since start in milliseconds, does not increment during pause */
+    readonly timeMs: number
+
+    /** Time since start in seconds, does not increment during pause */
+    readonly time: number
+
+    /** Time since start in milliseconds including pause time */
+    readonly ageMs: number
+
+    /** Time since start in seconds including pause time */
+    readonly age: number
+
+    /** Time this run started in milliseconds since the Unix epoch */
+    readonly startTimeMs: number
+
+    /** Time this run started in seconds since the Unix epoch */
+    readonly startTime: number
+
+    /** Current time in milliseconds since the Unix epoch */
+    readonly nowMs: number
+
+    /** Current time in seconds since the Unix epoch */
+    readonly now: number
+
+    paused: boolean
+
+    /** Pause the timer */
+    pause(): void
+
+    /** Resume the timer */
+    play(): void
+}
+
+export declare const Screen: {
+    readonly width: number
+
+    readonly height: number
+
+    readonly top: number
+
+    readonly bottom: number
+
+    readonly left: number
+
+    readonly right: number
+}
+
+export declare const Mouse: {
+    readonly x: number
+
+    readonly y: number
+
+    readonly screenX: number
+
+    readonly screenY: number
+
+    readonly position: Vector2
+
+    readonly pos: Vector2
+
+    readonly leftButtonDown: boolean
+
+    readonly rightButtonDown: boolean
+
+    readonly middleButtonDown: boolean
+
+    readonly anyButtonDown: boolean
+
+    readonly isOnScreen: boolean
 }

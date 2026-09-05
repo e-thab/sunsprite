@@ -2,7 +2,7 @@
 // i.e. for a vertical line, distanceTo(line) returns only the distance on x
 
 import type { Returnable } from "./types"
-import { _clearPropUpdater, _registerPropUpdater, resizeReactors, camera, getNextObjectId, scene } from "./core"
+import { _clearPropUpdater, _registerPropUpdater, resizeReactors, camera, _getNextObjectId, scene } from "./core"
 import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins/index"
 import { Vector2, type Vector2Like } from "./Vector2"
 import Phaser from "phaser"
@@ -31,7 +31,7 @@ export default class Line extends
     _pointB: Vector2
     _color: string = '#fff'
     _thickness: number = 2 // Line thickness 1 seems to visually reduce the alpha, look into this
-    _id: string = getNextObjectId()
+    _id: string = _getNextObjectId()
     // _updatingPointA: boolean = false
     // _updatingPointB: boolean = false
 

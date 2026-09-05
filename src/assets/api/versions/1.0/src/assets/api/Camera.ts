@@ -7,7 +7,7 @@ export default class Camera {
     _zoom: number = 1
     _x: number = 0
     _y: number = 0
-    panning: boolean = false
+    // panning: boolean = false
     following?: { _refObj: any }
 
     constructor(cam: Phaser.Cameras.Scene2D.Camera) {
@@ -18,7 +18,7 @@ export default class Camera {
     get x(): number {
         return this._x
     }
-    set x(x) {
+    set x(x: number) {
         this._x = x
         this._cam.scrollX = x
     }
@@ -26,7 +26,7 @@ export default class Camera {
     get y(): number {
         return this._y
     }
-    set y(y) {
+    set y(y: number) {
         this._y = y
         this._cam.scrollY = -y
     }

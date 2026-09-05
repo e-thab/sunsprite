@@ -1,6 +1,7 @@
 import ts from 'typescript'
 import { extractDoc, formatDocBlock, isExcluded, findTypeAlias, findMixinClassExpression, findDefaultExportClass, findFunctionDeclarations, findObjectLiteralConst } from './ast'
 import { MIXINS, CONCRETE_CLASSES, GAME_OBJECT_FILE, SET_TYPE_OVERRIDES, OBJECT_LITERALS, FREE_FUNCTIONS } from './sources'
+import { REPO_ROOT, TS_PATHS } from '../aliases'
 
 const INDENT = '    '
 
@@ -16,6 +17,8 @@ export function createProgram(): { program: ts.Program; checker: ts.TypeChecker 
         moduleResolution: ts.ModuleResolutionKind.Bundler,
         strict: false,
         skipLibCheck: true,
+        baseUrl: REPO_ROOT,
+        paths: TS_PATHS,
     })
     return { program, checker: program.getTypeChecker() }
 }

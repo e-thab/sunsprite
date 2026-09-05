@@ -6,19 +6,32 @@ function getColorBrightness(hex: string): number {
 	// return Math.max(r, g, b) / 255
 }
 
-/** Returns either black or white hex, whichever is more visible when placed against backgroundHex */
+/** Internal. Returns either black or white hex, whichever is more visible when placed against backgroundHex */
 export function getForegroundColor(backgroundHex: string): string {
 	return getColorBrightness(backgroundHex) > 0.45 ? '#000000' : '#ffffff' 
 }
 
+/**
+ * Returns an angle converted from degrees to radians.
+ * @param deg The angle in degrees.
+ */
 export function deg2rad(deg: number): number {
     return deg * Math.PI / 180
 }
 
+/**
+ * Returns an angle converted from radians to degrees.
+ * @param rad The angle in radians.
+ */
 export function rad2deg(rad: number): number {
     return 180 * rad / Math.PI
 }
 
+/**
+ * Returns the sine of a number.
+ * @param angle The angle.
+ * @param [unit=degrees] The measurement unit ('radians' or 'degrees'). If not provided, defaults to degrees.
+ */
 export function sin(angle: number, unit: string = 'degrees'): number {
     if (unit === 'radians') {
         return Math.sin(angle)
@@ -27,6 +40,11 @@ export function sin(angle: number, unit: string = 'degrees'): number {
     }
 }
 
+/**
+ * Returns the cosine of a number.
+ * @param angle An angle.
+ * @param [unit=degrees] The measurement unit ('radians' or 'degrees'). If not provided, defaults to degrees.
+ */
 export function cos(angle: number, unit: string = 'degrees'): number {
     if (unit === 'radians') {
         return Math.cos(angle)
@@ -35,6 +53,11 @@ export function cos(angle: number, unit: string = 'degrees'): number {
     }
 }
 
+/**
+ * Returns the tangent of a number.
+ * @param angle An angle.
+ * @param [unit=degrees] The measurement unit ('radians' or 'degrees'). If not provided, defaults to degrees.
+ */
 export function tan(angle: number, unit: string = 'degrees'): number {
     if (unit === 'radians') {
         return Math.tan(angle)
@@ -44,6 +67,12 @@ export function tan(angle: number, unit: string = 'degrees'): number {
 }
 
 // TODO: decompose or rework this into a simpler to understand function like angleTo()
+/**
+ * Returns the angle between the X axis and the line going through both the origin and the given point.
+ * @param y The y position of the given point.
+ * @param x The x position of the given point.
+ * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
+ */
 export function atan2(y: number, x: number, unit: string = 'degrees'): number {
     if (unit === 'radians') {
         return Math.atan2(y, x)
@@ -72,6 +101,12 @@ export function atan2(y: number, x: number, unit: string = 'degrees'): number {
 //     return Math.round(n)
 // }
 
+/**
+ * Returns a number constrained to a given range. If num <= min, returns min. If num >= max, returns max. If min > max, they're automatically swapped for you.
+ * @param num A number.
+ * @param min The low end of the constraint range.
+ * @param max The high end of the constraint range.
+ */
 export function clamp(value: number, min: number, max: number): number {
     const realMin = Math.min(min, max)
     const realMax = Math.max(min, max)
