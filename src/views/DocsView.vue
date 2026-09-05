@@ -203,7 +203,7 @@ onBeforeUnmount(() => observer?.disconnect())
 		<div class="breadcrumb-container">
 			<DocsBreadcrumb />
 			<UFieldGroup class="docs-version-picker">
-				<UBadge color="primary" variant="subtle" size="xs" style="font-size: small;">&nbsp;Version {{ selectedVersion }}&nbsp;</UBadge>
+				<UBadge class="version-badge" color="primary" variant="subtle" size="xs" style="font-size: small;">&nbsp;Version {{ selectedVersion }}&nbsp;</UBadge>
 				<UDropdownMenu :items="versionItems">
 					<UButton color="primary" variant="subtle" icon="tabler:chevron-down" size="xs" />
 				</UDropdownMenu>
@@ -252,7 +252,7 @@ onBeforeUnmount(() => observer?.disconnect())
 	   classes on this element regardless of specificity.) */
 	display: grid;
 	grid-template-columns:
-		fit-content(var(--docs-tree-max-width))
+		var(--docs-tree-max-width) /* Don't fit to content, force to max-width */
 		minmax(0, 1fr)
 		fit-content(var(--docs-toc-max-width));
 	gap: 2.5rem;
@@ -277,7 +277,14 @@ onBeforeUnmount(() => observer?.disconnect())
 }
 
 .docs-version-picker {
-	margin: 0;
+	margin: 0 0.5em 0 0;
+}
+
+.version-badge {
+	padding-left: 0.4em;
+	padding-right: 0.4em;
+	border-top-left-radius: var(--panel-border-radius);
+	border-bottom-left-radius: var(--panel-border-radius);
 }
 
 .docs-view-tree {

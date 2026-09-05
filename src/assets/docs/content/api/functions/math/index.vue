@@ -3,7 +3,7 @@ export const meta = {
 	title: 'Math',
 	icon: 'tabler:math',
 	summary: 'Trigonometry, angle conversion, and range helpers.',
-	order: ['deg2rad', 'rad2deg', 'sin', 'cos', 'tan', 'atan2', 'clamp'],
+	// order: ['deg2rad', 'rad2deg', 'sin', 'cos', 'tan', 'atan2', 'clamp'],
 }
 
 export default {}

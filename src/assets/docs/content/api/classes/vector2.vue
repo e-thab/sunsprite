@@ -1,7 +1,7 @@
 <script lang="ts">
 export const meta = {
 	title: 'Vector2',
-	icon: 'tabler:vector',
+	icon: 'tabler:arrows-up-right',
 	summary: 'A 2D vector — not yet implemented.',
 }
 

@@ -3,6 +3,7 @@ export const meta = {
 	title: 'Trig',
 	icon: 'tabler:vector-triangle',
 	summary: 'The study of triangles.',
+	order: ['pi', 'radians-degrees', 'sine', 'cosine', 'tangent']
 }
 
 export default {}

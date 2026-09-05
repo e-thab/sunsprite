@@ -3,7 +3,7 @@ export const meta = {
 	title: 'Output',
 	icon: 'tabler:message-2',
 	summary: 'Print messages to the output panel.',
-	order: ['print', 'warn', 'error', 'warning', 'clear'],
+	order: ['print', 'warn', 'error', 'clear', 'errors-warnings'],
 }
 
 export default {}

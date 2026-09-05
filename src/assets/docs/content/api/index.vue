@@ -3,7 +3,7 @@ export const meta = {
 	title: 'Sunsprite API',
 	icon: 'sunsprite:sun',
 	summary: 'Everything scriptable: classes, functions, and shared traits.',
-	order: ['classes', 'traits', 'functions', 'globals', 'colors'],
+	order: ['classes', 'traits', 'functions', 'globals', 'constants', 'colors'],
 }
 
 export default {}

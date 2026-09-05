@@ -1,6 +1,6 @@
 <script lang="ts">
 export const meta = {
-	title: 'tan()',
+	title: 'Tangent',
 	icon: 'tabler:line',
 	summary: 'The tangent of a number.',
 }
@@ -9,18 +9,18 @@ export default {}
 </script>
 
 <template>
-	<DocSnippet><pre>tan(angle: number, unit?: string): number</pre></DocSnippet>
+	<!-- <DocSnippet><pre>tan(angle: number, unit?: string): number</pre></DocSnippet> -->
 
 	<DocSection id="content-1">
-		<p>Returns the tangent of a number.</p>
+		<p>The tangent of a number...</p>
 	</DocSection>
 
-	<DocParams>
+	<!-- <DocParams>
 		<DocParam name="angle" type="number">The angle.</DocParam>
 		<DocParam name="unit" type="string" optional>The measurement unit ('radians'/'degrees'). Defaults to degrees.</DocParam>
-	</DocParams>
+	</DocParams> -->
 
-	<DocReturns type="number">The tangent of the angle.</DocReturns>
+	<!-- <DocReturns type="number">The tangent of the angle.</DocReturns> -->
 
 	<DocRelated :paths="['api/functions/math/sin', 'api/functions/math/cos']" />
 </template>
