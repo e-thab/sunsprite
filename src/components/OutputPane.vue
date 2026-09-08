@@ -6,10 +6,12 @@ import InfoPanel from '@/components/InfoPanel.vue';
 import WatchPanel from '@/components/WatchPanel.vue';
 import CollapsiblePane from './CollapsiblePane.vue';
 import { useWatchPanelStore } from '@/stores/watchPanelStore';
+import { useProjectSettingsStore } from '@/stores/projectSettingsStore';
 
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
 const watchPanelStore = useWatchPanelStore()
+const projectSettingsStore = useProjectSettingsStore()
 
 function isTabActive(tab: OutputTab) {
     return tab === activeTab.value
@@ -82,25 +84,30 @@ onUnmounted(() => {
     if (watchFlashTimer) clearTimeout(watchFlashTimer)
 })
 
-onMounted(() => {
+// Builds the fixed pool of row elements Output writes into — it reuses these
+// rather than creating a node per message, so the pool's size *is* the "max
+// lines kept" setting. Rebuilt (not resized) when that setting changes:
+// output.ts indexes into the pool and shifts content between neighbouring
+// rows, so growing or shrinking it in place mid-run would leave printIndex
+// pointing somewhere that no longer means what it did.
+function buildItemPool(lineCount: number) {
     const panel = document.getElementById('output-panel')
     if (!panel) return
 
+    panel.replaceChildren()
+
     const outputItems: OutputItem[] = []
-    for (let i=0; i<100; i++) {
+    for (let i = 0; i < lineCount; i++) {
         const itemElement = document.createElement('div')
         itemElement.className = 'output-item'
 
         const stampItem = document.createElement('div')
         stampItem.className = 'output-stamp'
         stampItem.style.minWidth = '22'
-        // stampItem.textContent = 'stamp ' + i
 
         // Should I use <pre>? too powerful?
         const msgItem = document.createElement('pre')
         msgItem.className = 'output-msg'
-        // msgItem.style.fontFamily = 'Fira Code'
-        // msgItem.textContent = 'msg ' + i
 
         outputItems.push({ stamp: stampItem, msg: msgItem })
         itemElement.appendChild(stampItem)
@@ -109,7 +116,25 @@ onMounted(() => {
     }
 
     Output.init(outputItems)
+}
+
+onMounted(() => {
+    buildItemPool(projectSettingsStore.settings.outputMaxLines)
+    Output.setAutoScroll(projectSettingsStore.settings.outputAutoScroll)
     emit('ready')
+})
+
+// A changed line limit costs the panel's current contents (Output.init
+// resets it) — worth it for a setting that's changed rarely and deliberately,
+// and the alternative (carrying existing rows across a resize) would mean
+// reimplementing the ring-buffer bookkeeping for the one case where its
+// bounds move.
+watch(() => projectSettingsStore.settings.outputMaxLines, (lineCount) => {
+    buildItemPool(lineCount)
+})
+
+watch(() => projectSettingsStore.settings.outputAutoScroll, (enabled) => {
+    Output.setAutoScroll(enabled)
 })
 </script>
 

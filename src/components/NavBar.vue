@@ -49,6 +49,8 @@ defineShortcuts({
 // toggle, so the Docs nav button (below) branches its click behavior on this.
 const isEditorRoute = computed(() => route.name === 'sandbox' || route.name === 'edit')
 
+const isProjectRoute = computed(() => route.name === 'edit')
+
 // The standalone full-page docs view (DocsView.vue) — as opposed to the
 // panel embedded in the editor, or anywhere else in the app.
 const isDocsRoute = computed(() => route.name === 'docs')
@@ -155,6 +157,16 @@ const projectMenuItems = computed(() => [
             icon: 'tabler:plus',
             onSelect: onCreateProject,
         },
+        // A faux-project, accessible without signing in, that saves to
+        // localStorage — not to be confused with the code sandboxing
+        // (runner.html/src/sandbox) used internally to run user code from
+        // its own origin. Omitted while already there — nothing to navigate
+        // to from this dropdown in that case.
+        ...(route.name !== 'sandbox' ? [{
+            label: 'Sandbox',
+            icon: 'tabler:sandbox',
+            onSelect: () => router.push('/sandbox'),
+        }] : []),
     ],
 
     recentProjects.value.length > 0
@@ -213,16 +225,18 @@ const accountMenuItems: DropdownMenuItem[][] = [
     <div v-if="!fsStore.fullscreen" id="nav-header" ref="navBarEl" class="bar" :class="$attrs.class">
         <div class="left-group">
             <!-- Sunsprite home button -->
-            <UButton icon="sunsprite:sun" variant="ghost" color="neutral" @click="() => { router.push('/') }">
+            <UButton icon="sunsprite:sun" variant="ghost" color="neutral" @click="() => { router.push('/') }" ignore-non-keyboard-focus>
                 Sunsprite
             </UButton>
 
             <!-- Sandbox button: a faux-project, accessible without signing in,
             that saves to localStorage. Not to be confused with the code
             sandboxing (runner.html/src/sandbox) used internally to run user
-            code from its own origin. Hidden while already in the sandbox —
-            nothing to navigate to from there. -->
-            <UTooltip v-if="route.name !== 'sandbox'" text="Sandbox">
+            code from its own origin. Only shown on the landing page, which
+            already has its own prominent entry point to it — everywhere else,
+            it's reachable from the Projects dropdown instead (see
+            projectMenuItems). -->
+            <UTooltip v-if="route.name === 'home'" text="Sandbox" ignore-non-keyboard-focus>
                 <UButton icon="tabler:sandbox" variant="ghost" color="neutral" @click="() => { router.push('/sandbox') }">Sandbox</UButton>
             </UTooltip>
 
@@ -230,7 +244,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
             navigates to the full-page docs view everywhere else. Hidden only
             on the full-page docs view itself, which has no more-docs place
             left to send you. -->
-            <UTooltip v-if="!isDocsRoute" text="Docs">
+            <UTooltip v-if="!isDocsRoute" text="Docs" ignore-non-keyboard-focus>
                 <UButton icon="tabler:book-filled" variant="ghost" :color="isEditorRoute && docsStore.isOpen ? 'primary' : 'neutral'" @click="onDocsClick">Docs</UButton>
             </UTooltip>
 
@@ -241,13 +255,15 @@ const accountMenuItems: DropdownMenuItem[][] = [
             <UTooltip v-if="isDocsRoute" text="Search docs (Ctrl/Cmd+K)" ignore-non-keyboard-focus>
                 <UButton icon="fa7-solid:magnifying-glass" variant="ghost" color="neutral" @click="docsSearchStore.toggle">Search Docs</UButton>
             </UTooltip>
+
+            <!-- <UTooltip v-if="isProjectRoute" text="Project Settings" ignore-non-keyboard-focus>
+                <UButton icon="tabler:settings" variant="ghost" color="neutral">Project Settings</UButton>
+            </UTooltip> -->
         </div>
 
         <!-- Try a fieldgroup here -->
         <div v-if="fileStore.projectId && fileStore.projectName" class="project-header">
-            <span class="project-name" :title="pageTitle">{{ pageTitle }}</span>
-
-            <UTooltip text="Save all files">
+            <UTooltip text="Save all files" ignore-non-keyboard-focus>
                 <UButton
                     icon="tabler:device-floppy-filled"
                     variant="ghost"
@@ -256,6 +272,8 @@ const accountMenuItems: DropdownMenuItem[][] = [
                     @click="fileStore.saveAll"
                 >{{ fileStore.hasUnsavedChanges ? 'Save All' : 'Saved' }}</UButton>
             </UTooltip>
+
+            <span class="project-name" :title="pageTitle">{{ pageTitle }}</span>
         </div>
         <span v-else-if="pageTitle" class="page-title">{{ pageTitle }}</span>
 
@@ -271,10 +289,10 @@ const accountMenuItems: DropdownMenuItem[][] = [
                     <UButton icon="tabler:folder-filled" variant="ghost" color="neutral">Projects</UButton>
                 </UTooltip>
             </UDropdownMenu>
-            <UButton v-else variant="ghost" color="neutral" @click="authStore.openSignIn">Sign In</UButton>
+            <UButton v-else variant="ghost" color="neutral" @click="authStore.openSignIn" ignore-non-keyboard-focus>Sign In</UButton>
 
             <UDropdownMenu v-if="authStore.isAuthenticated" :items="accountMenuItems">
-                <UButton icon="tabler:user-filled" variant="ghost" color="neutral">{{ authStore.username || authStore.user?.email }}</UButton>
+                <UButton icon="tabler:user-filled" variant="ghost" color="neutral" ignore-non-keyboard-focus>{{ authStore.username || authStore.user?.email }}</UButton>
             </UDropdownMenu>
             </div>
     </div>

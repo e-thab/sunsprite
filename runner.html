@@ -24,6 +24,11 @@
         height: 100%;
         overflow: hidden;
         background: transparent;
+        /* Nothing in here is text to select — a click-drag on the canvas is
+           gameplay input, not a selection gesture, so the browser's own blue
+           selection highlight should never be able to land on it. */
+        user-select: none;
+        -webkit-user-select: none;
       }
 
       #game-container {

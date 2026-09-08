@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, handleErr
 
 import { useFileStore } from '@/stores/fileStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
+import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
 import { runUserCode } from '@/sandbox/hostBridge'
 import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
@@ -39,10 +41,31 @@ import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
 import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 
-const editorOptions: EditorOptions = {
-  fontSize: 14,
+// Instantiated up here rather than beside the other stores below, because
+// editorOptions (immediately after) reads from this one and is itself needed
+// before the first render.
+const editorSettingsStore = useEditorSettingsStore()
+const projectSettingsStore = useProjectSettingsStore()
+
+// Whatever the settings panel currently has set, in the shape Monaco wants.
+// Kept as one place both the initial mount (via :options below) and the live
+// watcher further down read from, so a setting can't apply correctly on
+// mount but not on change, or vice versa.
+const settingsEditorOptions = computed(() => ({
+  fontSize: editorSettingsStore.settings.fontSize,
+  wordWrap: (editorSettingsStore.settings.wordWrap ? 'on' : 'off') as 'on' | 'off',
+  lineNumbers: (editorSettingsStore.settings.lineNumbers ? 'on' : 'off') as 'on' | 'off',
+}))
+
+const editorOptions = computed<EditorOptions>(() => ({
+  ...settingsEditorOptions.value,
   minimap: { enabled: false },
   automaticLayout: true,
+  // Monaco otherwise re-derives tab width from each model's own content the
+  // moment it's attached, which would quietly override the configured tab
+  // size for any file whose existing indentation disagrees with it (see
+  // applyModelSettings, which is what actually sets it).
+  detectIndentation: false,
   // Suggestion/hover/parameter-hint widgets position as `fixed` (viewport-
   // relative) instead of being clipped to the editor's own container. Lets
   // #code-pane use its normal overflow:hidden — needed because Monaco's
@@ -50,7 +73,7 @@ const editorOptions: EditorOptions = {
   // when the pane is dragged fully closed, and overflow:visible let that
   // sliver bleed out over the splitter, blocking it.
   fixedOverflowWidgets: true
-}
+}))
 
 // Define a Monaco theme for every app palette, sourced from the same
 // data that drives the app's CSS variables (src/assets/theme/themes.ts).
@@ -149,7 +172,6 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 
 import { apiLib, apiModel } from '@/assets/api/apiLib'
 import { apiVersionDropdownItems, loadVersionedApiLib } from '@/assets/api/versions'
-import { DEV_VERSION } from '@/assets/api/versions/constants'
 import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
 const libUri = 'file:///lib.ts'
@@ -293,6 +315,11 @@ function ensureModel(name: string): monaco.editor.ITextModel | undefined {
 	const model = monaco.editor.createModel(content, isText ? TEXT_MONACO_LANGUAGE : 'javascript', monaco.Uri.parse('file:///' + name))
 	const record = fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name)
 	modelEntries.set(name, { model, recordId: record?.id, isText })
+	// Tab size is a *model* option, not an editor one, so a model created
+	// after the setting was last applied needs it set here rather than
+	// inheriting it from the editor (see applyModelSettings' watcher, which
+	// only reaches models that already exist).
+	applyModelSettings(model)
 	return model
 }
 
@@ -678,6 +705,8 @@ watch(() => fileStore.projectId, () => {
 
 onBeforeUnmount(() => {
 	fileStore.registerSaveAllHandler(null)
+	if (autosaveTimer) clearInterval(autosaveTimer)
+	if (autoRunTimer) clearTimeout(autoRunTimer)
 	errorDecorationWatcher?.dispose()
 	for (const disposable of warningWatchers.values()) disposable.dispose()
 	warningWatchers.clear()
@@ -760,6 +789,95 @@ function runMainScript() {
 function onEditorChange(value: string) {
 	updateSaveMsg(value)
 	if (!fileStore.isTextFile(fileStore.activeFileName)) ensureImportedModels(value)
+	scheduleAutoRun()
+}
+
+// --- Settings (see SettingsPanel.vue) -------------------------------------
+
+/**
+ * Pushes the model-level half of the editor settings onto one model. Tab
+ * size can't ride along in the editor's own options the way font size and
+ * word wrap do — Monaco tracks it per model, so it has to be set on each one
+ * individually, both at creation (ensureModel) and whenever the setting
+ * changes (the watcher below).
+ */
+function applyModelSettings(model: monaco.editor.ITextModel) {
+	model.updateOptions({ tabSize: editorSettingsStore.settings.tabSize })
+}
+
+// Font size / word wrap / line numbers land on the live editor instance.
+// The :options binding already carries them for a *fresh* mount; this is
+// what makes a change apply to the editor that's already on screen, without
+// waiting for the file-switch remount.
+watch(settingsEditorOptions, (options) => {
+	editorInstance.value?.updateOptions(options)
+})
+
+watch(() => editorSettingsStore.settings.tabSize, () => {
+	for (const entry of modelEntries.values()) applyModelSettings(entry.model)
+})
+
+// --- Autosave -------------------------------------------------------------
+
+let autosaveTimer: ReturnType<typeof setInterval> | null = null
+
+/**
+ * Restarts (or stops) the autosave interval to match the current settings.
+ * Watched rather than set up once, so toggling autosave off actually stops
+ * the timer instead of leaving it running with a no-op body, and changing
+ * the interval takes effect immediately rather than after one more tick at
+ * the old spacing.
+ */
+function syncAutosaveTimer() {
+	if (autosaveTimer) clearInterval(autosaveTimer)
+	autosaveTimer = null
+
+	const { autosave, autosaveIntervalMinutes } = projectSettingsStore.settings
+	if (!autosave || autosaveIntervalMinutes <= 0) return
+
+	autosaveTimer = setInterval(() => {
+		// Nothing dirty means nothing to write — worth checking rather than
+		// calling saveAll() unconditionally, since in project mode each save
+		// is a network round trip per changed script.
+		if (!fileStore.hasUnsavedChanges) return
+		saveAll().catch((err) => console.error('Autosave failed', err))
+	}, autosaveIntervalMinutes * 60_000)
+}
+
+watch(
+	() => [projectSettingsStore.settings.autosave, projectSettingsStore.settings.autosaveIntervalMinutes],
+	syncAutosaveTimer,
+	{ immediate: true },
+)
+
+// --- Auto-run -------------------------------------------------------------
+
+// How long to wait after the last keystroke before re-running. Long enough
+// not to fire mid-word (a run tears down and rebuilds the whole game, so
+// firing on every character would make typing unusable), short enough to
+// still feel like a consequence of the edit that triggered it.
+const AUTO_RUN_DELAY_MS = 1500
+
+let autoRunTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleAutoRun() {
+	if (autoRunTimer) clearTimeout(autoRunTimer)
+	autoRunTimer = null
+
+	if (!projectSettingsStore.settings.autoRun) return
+	// Text files aren't code — editing one can't change what the game does,
+	// so there's nothing to re-run for.
+	if (fileStore.isTextFile(fileStore.activeFileName)) return
+
+	autoRunTimer = setTimeout(() => {
+		autoRunTimer = null
+		// Re-checked rather than trusted from when this was scheduled: the
+		// setting can be switched off during the delay, and a run that fires
+		// *after* the user turned auto-run off is exactly the surprise this
+		// feature shouldn't produce.
+		if (!projectSettingsStore.settings.autoRun) return
+		runMainScript()
+	}, AUTO_RUN_DELAY_MS)
 }
 
 function updateSaveMsg(checkCode?: string) {
@@ -820,20 +938,29 @@ onMounted(() => {
 //	- Editor bar gets very cramped at small widths, text overlaps, button shrinks instead of disappearing
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
-import { useProjectStore } from '@/stores/projectStore'
 
 // 'dev' is the live, unversioned apiLib (current source, not a snapshot);
 // anything else names a permanent folder under src/assets/api/versions/.
 // Session-local, shared with hostBridge.ts (via the store) so the sandboxed
 // game's next run uses the same version this dropdown selects — not just
-// Monaco's declarations.
+// Monaco's declarations. Persisting a pick is the store's own job now (see
+// its selectVersion), so both this dropdown and the settings panel's Version
+// row get identical behavior from one place.
 const apiVersionStore = useApiVersionStore()
-const projectStore = useProjectStore()
 
 // Item-building itself lives in versions/index.ts (apiVersionDropdownItems),
 // shared with DocsView.vue's own selector so the two look and behave
 // identically rather than maintaining two copies of the same logic.
 const apiVersionItems = computed<DropdownMenuItem[][]>(() => apiVersionDropdownItems(apiVersionStore.selectedVersion, selectApiVersion))
+
+// The dropdown only records the choice (and persists it, for a real
+// project) — actually swapping Monaco's declarations happens in the watcher
+// below, which fires no matter who changed the version. That split is what
+// lets SettingsPanel.vue's own Version row reuse this wholesale instead of
+// carrying a second copy of it.
+function selectApiVersion(version: string) {
+	apiVersionStore.selectVersion(version)
+}
 
 // Swaps which API version's declarations Monaco's TS language service sees.
 // A historical version loads versions/<version>/generated.ts (bare,
@@ -841,9 +968,12 @@ const apiVersionItems = computed<DropdownMenuItem[][]>(() => apiVersionDropdownI
 // `declare global` lib apiLib.ts already exports, just from frozen constants
 // instead of the live imports; 'dev' hands back that live lib itself, i.e.
 // exactly the string installed on mount above.
-async function selectApiVersion(version: string) {
-	if (version === apiVersionStore.selectedVersion) return
-
+//
+// Driven off the store rather than called from the dropdown handler so that
+// every path that can change the version — this component's dropdown, the
+// settings panel's Version row, a project hydrating into a pinned tier — all
+// land here exactly once.
+watch(() => apiVersionStore.selectedVersion, async (version) => {
 	const newLib = await loadVersionedApiLib(version)
 	if (newLib === undefined) {
 		console.error(`API version "${version}" not found among available snapshots`)
@@ -852,21 +982,6 @@ async function selectApiVersion(version: string) {
 
 	apiLibDisposable.dispose()
 	apiLibDisposable = monaco.typescript.javascriptDefaults.addExtraLib(newLib, libUri)
-	apiVersionStore.selectedVersion = version
-
-	// Write straight through to the project record, same immediacy as every
-	// other per-project setting (setPublic, renameProject) — no separate save
-	// step. Skipped for 'dev': it names the live, ever-moving source, not a
-	// canonical tier, so there's nothing meaningful to pin the project to —
-	// and projects.api_version's own format constraint would reject it
-	// anyway. Reopening the project therefore comes back up on whatever
-	// snapshot it's actually pinned to, not on dev.
-	// Also skipped in guest mode (no project to persist to at all).
-	if (fileStore.projectId && version !== DEV_VERSION) {
-		projectStore.setApiVersion(fileStore.projectId, version).catch((err) => {
-			console.error('Failed to save API version selection', err)
-		})
-	}
 
 	// Nudge the currently active model to re-validate against the swapped
 	// declarations — same mechanism handleMount already uses after attaching
@@ -879,7 +994,7 @@ async function selectApiVersion(version: string) {
 		const importedNames = ensureImportedModels(model.getValue())
 		refreshDiagnostics(editor, model, importedNames)
 	}
-}
+})
 </script>
 
 <template>

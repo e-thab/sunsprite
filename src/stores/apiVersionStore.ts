@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { DEV_VERSION_AVAILABLE, defaultApiVersion } from '@/assets/api/versions'
 import { DEV_VERSION } from '@/assets/api/versions/constants'
+import { useFileStore } from './fileStore'
+import { useProjectStore } from './projectStore'
 
 // Which API version (see src/assets/api/versions/) the editor and the
 // sandboxed game should use — DEV_VERSION ('dev') means the live source as it
@@ -45,6 +47,49 @@ export const useApiVersionStore = defineStore('apiVersion', () => {
     const selectedVersion = ref<string>(DEFAULT_VERSION)
 
     /**
+     * Picks a version *as a deliberate user choice* — the editor header's
+     * dropdown (CodeEditor.vue) and the settings panel's Version row
+     * (SettingsPanel.vue) both come through here, so the two can't drift.
+     *
+     * Only the persistence half lives here; swapping which declarations
+     * Monaco's language service sees is CodeEditor.vue's job, driven off a
+     * watcher on `selectedVersion` rather than from this call — that way it
+     * happens exactly once no matter who changed the version, and this store
+     * stays free of the (large) monaco-editor import for routes that never
+     * load an editor.
+     *
+     * Deliberately *not* used by hydrateFromProject: setting the ref directly
+     * there is what keeps opening a project from re-pinning it (see that
+     * function's own comment).
+     */
+    function selectVersion(version: string) {
+        if (version === selectedVersion.value) return
+        selectedVersion.value = version
+
+        // Write straight through to the project record, same immediacy as
+        // every other per-project setting (projectStore's setPublic,
+        // setApiVersion) — no separate save step. Skipped for 'dev': it names
+        // the live, ever-moving source rather than a canonical tier, so
+        // there's nothing meaningful to pin the project to — and
+        // projects.api_version's own format constraint would reject it
+        // anyway. Reopening the project therefore comes back up on whatever
+        // snapshot it's actually pinned to, not on dev. Also skipped in guest
+        // mode, which has no project row to persist to at all.
+        //
+        // Both stores are reached lazily, inside the call rather than at
+        // module scope: this store is imported by hostBridge.ts (and so by
+        // the sandbox path), and pulling the project/file stores in eagerly
+        // would drag Supabase into that graph for no reason.
+        const fileStore = useFileStore()
+        const projectStore = useProjectStore()
+        if (fileStore.projectId && version !== DEV_VERSION) {
+            projectStore.setApiVersion(fileStore.projectId, version).catch((err) => {
+                console.error('Failed to save API version selection', err)
+            })
+        }
+    }
+
+    /**
      * What a just-loaded project runs on, given the tier it's pinned to in its
      * own `api_version` column. Called by ProjectEditorView.vue and
      * PlayView.vue the moment their row resolves, before anything downstream
@@ -72,5 +117,5 @@ export const useApiVersionStore = defineStore('apiVersion', () => {
         selectedVersion.value = DEFAULT_VERSION
     }
 
-    return { selectedVersion, hydrateFromProject, reset }
+    return { selectedVersion, selectVersion, hydrateFromProject, reset }
 })

@@ -18,7 +18,7 @@ export type OutputItem = { stamp: HTMLElement, msg: HTMLElement }
 
 const Output = {
     items: [] as OutputItem[],
-    print, warn, error, clear, printStartMsg, reset, init, render, setFrame, onJumpToError, onErrorLocation
+    print, warn, error, clear, printStartMsg, reset, init, render, setFrame, onJumpToError, onErrorLocation, setAutoScroll
 }
 export default Output
 
@@ -60,7 +60,23 @@ let totalMsgCount = 0
 // Last frame count reported by the sandbox, shown in a stamp's tooltip.
 let currentFrame = 0
 
-const outputLines = 100
+// Derived from the item pool OutputPane.vue actually built rather than being
+// its own constant, so the two can't disagree: the pool size is a setting
+// now (projectSettingsStore's outputMaxLines), and the pane rebuilds and
+// re-inits with a new pool whenever it changes.
+function outputLineCount(): number {
+    return Output.items.length
+}
+
+// Whether new messages pin the panel to the newest line. Module-level rather
+// than read from the store directly: this file is imported by the sandbox
+// path too, and reaching for a Pinia store from here would drag the whole
+// app's store graph into that bundle. OutputPane.vue pushes the value in.
+let autoScroll = true
+
+function setAutoScroll(enabled: boolean) {
+    autoScroll = enabled
+}
 
 function init(outputItems: OutputItem[]) {
     Output.items = outputItems.slice()
@@ -134,6 +150,9 @@ function withLeadingZeroes(num: number, length: number) {
 }
 
 function scrollOutput() {
+    // Off means the panel stays wherever the user scrolled it, so they can
+    // read back through earlier output while a running game keeps printing.
+    if (!autoScroll) return
     const panel = document.getElementById('output-panel')
     if (panel) panel.scrollTop = panel.scrollHeight
 }
@@ -241,6 +260,8 @@ function startMsg(content: string) {
 }
 
 function addOutputItem(msgContent: string, type: OutputType, updateItem: (item: OutputItem) => void) {
+    const outputLines = outputLineCount()
+
     // Find index of next output item
     let index = printIndex
     if (msgContent === lastMsg && type === lastType) {
@@ -293,6 +314,7 @@ function addOutputItem(msgContent: string, type: OutputType, updateItem: (item: 
 
 function shiftItemsUp() {
     const minWidth = getMinWidth()
+    const outputLines = outputLineCount()
 
     for (let i = 0; i < outputLines - 1; i++) {
         const thisItem = Output.items[i]

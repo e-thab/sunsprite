@@ -1031,6 +1031,22 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 			mode: Phaser.Scale.NONE
 		},
 		parent: 'game-container',
+		// Phaser defaults this to true, which calls window.focus() from inside
+		// this iframe the moment a game boots (see its VisibilityHandler) —
+		// pulling focus out of whatever the user was doing in the host app.
+		// Every run builds a new Game, so with auto-run on (see
+		// projectSettingsStore) that fired mid-typing and sent the next
+		// keystrokes to the game instead of the editor.
+		//
+		// Nothing needs it: the host forwards key events to the sandbox
+		// whenever it has focus and the user isn't typing into a text surface
+		// (hostBridge.ts's forwardKey), so a game is fully playable by keyboard
+		// without this frame ever holding focus. Clicking the canvas still
+		// hands focus over — natively, plus the explicit focus() in
+		// sandbox/main.ts, which is also what turning this off would otherwise
+		// have cost (Phaser reads autoFocus again in its MouseManager to focus
+		// on canvas mousedown).
+		autoFocus: false,
 		// backgroundColor: '#333',
 		// Every image is cross-origin from in here: the sandbox document has an
 		// opaque origin, so even same-server /images/* is "another origin" to it.

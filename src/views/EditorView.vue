@@ -6,6 +6,7 @@ import { resizeStage } from '@/sandbox/hostBridge';
 import { useFullscreenStore } from '@/stores/fullscreen';
 import { useApiVersionStore } from '@/stores/apiVersionStore';
 import { useFileStore } from '@/stores/fileStore';
+import { useProjectSettingsStore } from '@/stores/projectSettingsStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore';
 import { usePixelMinSize } from '@/composables/usePixelMinSize';
@@ -15,6 +16,7 @@ import PhaserCanvas from '@/components/PhaserCanvas.vue';
 import CodeEditor from '@/components/CodeEditor.vue'
 import FileTree from '@/components/FileTree.vue';
 import AssetLibrary from '@/components/AssetLibrary.vue';
+import SettingsPanel from '@/components/SettingsPanel.vue';
 import OutputPane from '@/components/OutputPane.vue';
 import DocsPanel from '@/components/DocsPanel.vue';
 import ImagePreviewModal from '@/components/ImagePreviewModal.vue';
@@ -28,6 +30,7 @@ const editor = ref()
 const fsStore = useFullscreenStore()
 const apiVersionStore = useApiVersionStore()
 const fileStore = useFileStore()
+const projectSettingsStore = useProjectSettingsStore()
 const docsStore = useDocsStore()
 const treeSelectionStore = useTreeSelectionStore()
 
@@ -40,6 +43,14 @@ const treeSelectionStore = useTreeSelectionStore()
 // (fileStore.loadProject) doesn't need the same treatment — ProjectEditorView
 // already awaits it before EditorView is mounted at all.
 if (!props.projectId) fileStore.loadGuestProject()
+
+// Project-scoped settings come from the project row itself when there is one
+// (ProjectEditorView hydrates them before this view ever mounts); the guest
+// sandbox has no row, so it hydrates its own localStorage-backed copy here.
+// Same setup-time timing as loadGuestProject above, and for the same reason:
+// CodeEditor and OutputPane read these on mount, which happens before any
+// parent's onMounted.
+if (!props.projectId) projectSettingsStore.hydrate(null)
 
 // FileTree (guest sandbox) and AssetLibrary (project mode) both bind their
 // UTree directly to treeSelectionStore.current as a shared v-model, so
@@ -351,13 +362,37 @@ const rightItems = computed<SplitterItem[]>(() => [
   { id: 'output-v-pane', slot: 'output-v-pane', defaultSize: 23, minSize: rightMinSize.value, collapsible: true, collapsedSize: outputFullyClosed.value ? 0 : rightCollapsedSize.value, class: 'hide-in-fullscreen' },
 ])
 
-// Explorer nested column: file tree | asset library. Collapsible for the
-// same reason as outerItems above — snaps to explorerCollapsedSize's real
-// floor past the halfway point instead of leaving a dead zone between
+// Percent this column's settings pane expands to when its collapsed strip
+// is clicked. It can't just use a defaultSize the way every other pane does
+// (see onPaneExpandRequest below): defaultSize is what *starts* it
+// collapsed, so resizing to it would be a no-op.
+//
+// Kept modest deliberately. reka takes the space an expand needs from the
+// nearest neighbour first, so this comes out of the asset library directly
+// above it — anything much larger drives that pane straight past its own
+// minSize and into its collapsed strip, trading one collapsed pane for
+// another. The settings list scrolls, so a smaller opening costs nothing
+// but a little scrolling, while a larger one costs the pane above it.
+const SETTINGS_PANE_OPEN_SIZE = 25
+
+// Explorer nested column: file tree | asset library | settings. Collapsible
+// for the same reason as outerItems above — snaps to explorerCollapsedSize's
+// real floor past the halfway point instead of leaving a dead zone between
 // CollapsiblePane's own icon/label threshold and that floor.
+//
+// Settings starts collapsed, and stays that way until the user opens it:
+// defaultSize 0 is below the halfway point between its collapsedSize and
+// minSize, which is exactly the case reka's own resizePanel() snaps down to
+// collapsedSize while validating the initial layout — so the pane opens as
+// its collapsed strip without a first-render flash at full size, and
+// without needing an imperative .collapse() timed against
+// explorerCollapsedSize's own first measurement. The three defaultSizes
+// still total 100, so that validation pass has no normalization warning to
+// emit before it gets there.
 const explorerItems = computed<SplitterItem[]>(() => [
   { id: 'file-tree-v-pane', slot: 'file-tree-v-pane', defaultSize: 65, minSize: explorerMinSize.value, collapsible: true, collapsedSize: explorerCollapsedSize.value },
   { id: 'asset-library-v-pane', slot: 'asset-library-v-pane', defaultSize: 35, minSize: explorerMinSize.value, collapsible: true, collapsedSize: explorerCollapsedSize.value },
+  { id: 'settings-v-pane', slot: 'settings-v-pane', defaultSize: 0, minSize: explorerMinSize.value, collapsible: true, collapsedSize: explorerCollapsedSize.value },
 ])
 
 interface PaneExpandTarget {
@@ -371,6 +406,11 @@ interface PaneExpandTarget {
   // height is always the full row and never needs a target here.
   heightSplitter?: 'explorer' | 'right'
   heightItemId?: string
+  // Height to expand to, for a pane whose own defaultSize isn't a useful
+  // target. Only settings-v-pane needs this: its defaultSize is what starts
+  // it collapsed in the first place (see explorerItems), so the usual
+  // "resize back to defaultSize" would leave it exactly where it is.
+  heightExpandSize?: number
 }
 
 // Where a given pane's width and height actually come from — not always
@@ -383,6 +423,7 @@ interface PaneExpandTarget {
 const PANE_EXPAND_TARGETS: Record<string, PaneExpandTarget> = {
   'file-tree-v-pane': { widthItemId: 'explorer-pane', heightSplitter: 'explorer', heightItemId: 'file-tree-v-pane' },
   'asset-library-v-pane': { widthItemId: 'explorer-pane', heightSplitter: 'explorer', heightItemId: 'asset-library-v-pane' },
+  'settings-v-pane': { widthItemId: 'explorer-pane', heightSplitter: 'explorer', heightItemId: 'settings-v-pane', heightExpandSize: SETTINGS_PANE_OPEN_SIZE },
   'code-pane': { widthItemId: 'code-pane' },
   'canvas-v-pane': { widthItemId: 'right-pane', heightSplitter: 'right', heightItemId: 'canvas-v-pane' },
   'output-v-pane': { widthItemId: 'right-pane', heightSplitter: 'right', heightItemId: 'output-v-pane' },
@@ -405,8 +446,8 @@ function onPaneExpandRequest(event: Event) {
     const items = target.heightSplitter === 'explorer' ? explorerItems.value : rightItems.value
     const splitterRef = target.heightSplitter === 'explorer' ? explorerSplitterRef : rightSplitterRef
     const idx = items.findIndex((item) => item.id === target.heightItemId)
-    const defaultSize = items[idx]?.defaultSize
-    if (idx >= 0 && defaultSize != null) splitterRef.value?.panelsRef[idx]?.resize(defaultSize)
+    const openSize = target.heightExpandSize ?? items[idx]?.defaultSize
+    if (idx >= 0 && openSize != null) splitterRef.value?.panelsRef[idx]?.resize(openSize)
   }
 }
 
@@ -640,6 +681,11 @@ onBeforeRouteLeave(() => {
 
         <template #asset-library-v-pane>
           <AssetLibrary />
+        </template>
+
+        <!-- Collapsed on load (see explorerItems) — click its strip to open. -->
+        <template #settings-v-pane>
+          <SettingsPanel />
         </template>
       </USplitter>
     </template>

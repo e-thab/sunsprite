@@ -98,6 +98,15 @@ function watchContainerSize() {
     // used to be attached from PhaserCanvas.vue; the canvas lives in here now,
     // and that document can't reach across the origin boundary to add it.
     container.addEventListener('contextmenu', (event) => event.preventDefault())
+
+    // Clicking the game means "I want to play it", so focus follows the click
+    // — which is what hostBridge.ts's forwardKey checks (document.activeElement
+    // === frame) to stop double-delivering keys the iframe is now receiving
+    // directly. Phaser used to do this itself on canvas mousedown, but it gates
+    // that on the same autoFocus flag core.ts now turns off to stop a booting
+    // game from stealing focus from the editor (see its own comment there).
+    // Doing it here keeps the two independent: focus on click, never on boot.
+    container.addEventListener('pointerdown', () => window.focus())
 }
 
 // Telemetry for the canvas panel's FPS badge, mouse readout, and the Info
