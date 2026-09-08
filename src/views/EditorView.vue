@@ -10,6 +10,7 @@ import { useProjectSettingsStore } from '@/stores/projectSettingsStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore';
 import { usePixelMinSize } from '@/composables/usePixelMinSize';
+import { useCollapseSnap } from '@/composables/useCollapseSnap';
 import { useStablePanelSizing } from '@/composables/useStablePanelSizing';
 // import PixiCanvas from '@/components/PixiCanvas.vue'
 import PhaserCanvas from '@/components/PhaserCanvas.vue';
@@ -102,6 +103,10 @@ const { minSize: outerMinSize, collapsedSize: outerCollapsedSize } = usePixelMin
 const { minSize: explorerMinSize, collapsedSize: explorerCollapsedSize } = usePixelMinSize('file-tree-v-pane', 'height')
 const { minSize: rightMinSize, collapsedSize: rightCollapsedSize } = usePixelMinSize('canvas-v-pane', 'height')
 
+// Drag-time collapse override, shared by all three splitters below — see
+// collapseConstraints, which is where it actually reaches reka.
+const { pinFor: collapsePinFor } = useCollapseSnap()
+
 const editorRootRef = useTemplateRef('editorRoot')
 const outerSplitterRef = useTemplateRef('outerSplitter')
 const rightSplitterRef = useTemplateRef('rightSplitter')
@@ -153,13 +158,39 @@ const RIGHT_DEFAULT_SIZE = 44
 // no "closed" concept for the explorer, code, or game/output column, only
 // a smallest usable size, which CollapsiblePane's own icon/label overlay
 // already renders at exactly that floor.
+/**
+ * One pane's collapse constraints, with useCollapseSnap's drag-time override
+ * folded in. Pinned means the drag has asked for a size under the minimum, so
+ * min and max both become the collapsed size and reka has no room to do
+ * anything but put the pane there — which is the whole point: its own
+ * snapping would otherwise park the pane at `minSize` for ~34px of cursor
+ * travel first. See that composable for why this is done by constraint
+ * rather than by collapsing the panel directly.
+ */
+function collapseConstraints(paneId: string, minSize: number, collapsedSize: number) {
+  const pin = collapsePinFor(paneId)
+
+  // Nowhere to go but its collapsed size — this is the snap.
+  if (pin?.kind === 'collapse') {
+    return { collapsible: true, collapsedSize, minSize: collapsedSize, maxSize: collapsedSize }
+  }
+
+  // Held exactly where it is, so a pane stuck between its floor and its
+  // minimum can't shunt the drag onto its neighbours.
+  if (pin?.kind === 'freeze') {
+    return { collapsible: true, collapsedSize, minSize: pin.sizePct, maxSize: pin.sizePct }
+  }
+
+  return { collapsible: true, collapsedSize, minSize }
+}
+
 const outerItems = computed<SplitterItem[]>(() => [
-  { id: 'explorer-pane', slot: 'explorer-pane', order: 1, defaultSize: EXPLORER_DEFAULT_SIZE, minSize: outerMinSize.value, collapsible: true, collapsedSize: outerCollapsedSize.value, class: 'hide-in-fullscreen' },
+  { id: 'explorer-pane', slot: 'explorer-pane', order: 1, defaultSize: EXPLORER_DEFAULT_SIZE, ...collapseConstraints('explorer-pane', outerMinSize.value, outerCollapsedSize.value), class: 'hide-in-fullscreen' },
   ...(docsStore.isOpen
-    ? [{ id: 'docs-pane', slot: 'docs-pane', order: 2, defaultSize: DOCS_PANE_OPEN_SIZE, minSize: outerMinSize.value, collapsible: true, collapsedSize: outerCollapsedSize.value, class: 'hide-in-fullscreen' }]
+    ? [{ id: 'docs-pane', slot: 'docs-pane', order: 2, defaultSize: DOCS_PANE_OPEN_SIZE, ...collapseConstraints('docs-pane', outerMinSize.value, outerCollapsedSize.value), class: 'hide-in-fullscreen' }]
     : []),
-  { id: 'code-pane', slot: 'code-pane', order: 3, defaultSize: docsStore.isOpen ? 44 - DOCS_PANE_OPEN_SIZE : 44, minSize: outerMinSize.value, collapsible: true, collapsedSize: outerCollapsedSize.value, class: 'hide-in-fullscreen' },
-  { id: 'right-pane', slot: 'right-pane', order: 4, defaultSize: RIGHT_DEFAULT_SIZE, minSize: outerMinSize.value, collapsible: true, collapsedSize: outerCollapsedSize.value },
+  { id: 'code-pane', slot: 'code-pane', order: 3, defaultSize: docsStore.isOpen ? 44 - DOCS_PANE_OPEN_SIZE : 44, ...collapseConstraints('code-pane', outerMinSize.value, outerCollapsedSize.value), class: 'hide-in-fullscreen' },
+  { id: 'right-pane', slot: 'right-pane', order: 4, defaultSize: RIGHT_DEFAULT_SIZE, ...collapseConstraints('right-pane', outerMinSize.value, outerCollapsedSize.value) },
 ])
 
 // Corrects a reka-ui limitation: code-pane's defaultSize prop does change
@@ -330,8 +361,69 @@ watch(() => docsStore.isOpen, async (isOpen) => {
 // arrangement-keyed memory reka wants, scoped to the life of this view:
 // toggling docs restores widths, reloading starts from defaultSize again.
 const layoutMemory = new Map<string, string>()
+
+// reka prefixes every key it stores under (getPanelGroupKey).
+const REKA_STORAGE_PREFIX = 'reka:'
+
+// Each splitter's panel ids, read at lookup time so the outer row reflects
+// whether docs is currently mounted. reka keys a saved layout by the sorted
+// join of these (getPanelKey — ids, not constraints, since every panel here
+// is given an explicit id), and the saved layout array is in declaration
+// order, so these two facts are all that's needed to write an entry reka
+// will accept.
+const SPLITTER_PANEL_IDS: Record<string, () => string[]> = {
+  'editor-outer': () => outerItems.value.map((item) => item.id).filter((id): id is string => !!id),
+  'editor-explorer': () => explorerItems.value.map((item) => item.id).filter((id): id is string => !!id),
+  'editor-right': () => rightItems.value.map((item) => item.id).filter((id): id is string => !!id),
+}
+
+// Every splitter's layout as it stands *right now*, kept current by their
+// own @layout handlers.
+//
+// reka's own write to storage is debounced, so what it has saved can lag
+// what's on screen — normally harmless, but a constraint change makes it
+// rebuild the group from storage immediately (SplitterGroup's
+// panelDataArrayChanged watcher), and useCollapseSnap changes constraints on
+// every collapse drag. Restoring a layout from a moment ago at that point
+// threw the whole drag away: the panes snapped back to wherever they'd been
+// when reka last got around to saving. Serving what's actually on screen
+// makes that rebuild a no-op instead — it validates the current layout,
+// finds nothing to change, and leaves it alone.
+const liveLayouts = new Map<string, number[]>()
+
+function rememberLayout(autoSaveId: string, sizes: number[]) {
+  liveLayouts.set(autoSaveId, sizes)
+}
+
 const splitterStorage = {
-  getItem: (name: string) => layoutMemory.get(name) ?? null,
+  getItem: (name: string) => {
+    const stored = layoutMemory.get(name) ?? null
+    const autoSaveId = name.startsWith(REKA_STORAGE_PREFIX) ? name.slice(REKA_STORAGE_PREFIX.length) : name
+
+    const live = liveLayouts.get(autoSaveId)
+    const ids = SPLITTER_PANEL_IDS[autoSaveId]?.()
+    // A length mismatch means the live layout predates a panel being added
+    // or removed (docs toggling), so it doesn't describe this arrangement.
+    if (!live || !ids || ids.length !== live.length) return stored
+
+    let state: Record<string, { expandToSizes: Record<string, number>, layout: number[] }> = {}
+    if (stored) {
+      try {
+        state = JSON.parse(stored)
+      } catch {
+        state = {}
+      }
+    }
+
+    const panelKey = [...ids].sort((a, b) => a.localeCompare(b)).join(',')
+    state[panelKey] = {
+      // reka reads this straight into Object.entries() with no guard, so the
+      // key has to exist even before anything has actually been saved.
+      expandToSizes: state[panelKey]?.expandToSizes ?? {},
+      layout: live,
+    }
+    return JSON.stringify(state)
+  },
   setItem: (name: string, value: string) => { layoutMemory.set(name, value) },
 }
 
@@ -358,8 +450,8 @@ const outputFullyClosed = ref(false)
 // hide it entirely via the same native mechanism instead of just resting
 // at its floor like canvas-v-pane always does.
 const rightItems = computed<SplitterItem[]>(() => [
-  { id: 'canvas-v-pane', slot: 'canvas-v-pane', defaultSize: 77, minSize: rightMinSize.value, collapsible: true, collapsedSize: rightCollapsedSize.value },
-  { id: 'output-v-pane', slot: 'output-v-pane', defaultSize: 23, minSize: rightMinSize.value, collapsible: true, collapsedSize: outputFullyClosed.value ? 0 : rightCollapsedSize.value, class: 'hide-in-fullscreen' },
+  { id: 'canvas-v-pane', slot: 'canvas-v-pane', defaultSize: 77, ...collapseConstraints('canvas-v-pane', rightMinSize.value, rightCollapsedSize.value) },
+  { id: 'output-v-pane', slot: 'output-v-pane', defaultSize: 23, ...collapseConstraints('output-v-pane', rightMinSize.value, outputFullyClosed.value ? 0 : rightCollapsedSize.value), class: 'hide-in-fullscreen' },
 ])
 
 // Percent this column's settings pane expands to when its collapsed strip
@@ -390,9 +482,9 @@ const SETTINGS_PANE_OPEN_SIZE = 25
 // still total 100, so that validation pass has no normalization warning to
 // emit before it gets there.
 const explorerItems = computed<SplitterItem[]>(() => [
-  { id: 'file-tree-v-pane', slot: 'file-tree-v-pane', defaultSize: 65, minSize: explorerMinSize.value, collapsible: true, collapsedSize: explorerCollapsedSize.value },
-  { id: 'asset-library-v-pane', slot: 'asset-library-v-pane', defaultSize: 35, minSize: explorerMinSize.value, collapsible: true, collapsedSize: explorerCollapsedSize.value },
-  { id: 'settings-v-pane', slot: 'settings-v-pane', defaultSize: 0, minSize: explorerMinSize.value, collapsible: true, collapsedSize: explorerCollapsedSize.value },
+  { id: 'file-tree-v-pane', slot: 'file-tree-v-pane', defaultSize: 65, ...collapseConstraints('file-tree-v-pane', explorerMinSize.value, explorerCollapsedSize.value) },
+  { id: 'asset-library-v-pane', slot: 'asset-library-v-pane', defaultSize: 35, ...collapseConstraints('asset-library-v-pane', explorerMinSize.value, explorerCollapsedSize.value) },
+  { id: 'settings-v-pane', slot: 'settings-v-pane', defaultSize: 0, ...collapseConstraints('settings-v-pane', explorerMinSize.value, explorerCollapsedSize.value) },
 ])
 
 interface PaneExpandTarget {
@@ -502,7 +594,9 @@ async function collapseOutput() {
 // sync with a handle it isn't even attached to. This only actually posts
 // once canvas-v-pane's own rendered size has moved since the last check.
 let lastCanvasSize = { width: 0, height: 0 }
-function onLayoutMaybeResizeStage() {
+function onLayoutMaybeResizeStage(autoSaveId: string, sizes: number[]) {
+  rememberLayout(autoSaveId, sizes)
+
   const canvasEl = document.getElementById('canvas-v-pane')
   if (canvasEl) {
     const rect = canvasEl.getBoundingClientRect()
@@ -670,11 +764,26 @@ onBeforeRouteLeave(() => {
     :items="outerItems"
     auto-save-id="editor-outer"
     :storage="splitterStorage"
-    @layout="onLayoutMaybeResizeStage"
+    @layout="(sizes: number[]) => onLayoutMaybeResizeStage('editor-outer', sizes)"
   >
     <!-- Left side pane: File explorer + built-in asset library -->
     <template #explorer-pane>
-      <USplitter ref="explorerSplitter" :items="explorerItems" orientation="vertical">
+      <!-- auto-save-id here for the same reason the outer splitter has one,
+           plus one specific to useCollapseSnap: pinning a pane changes its
+           constraints, and reka answers a constraint change by rebuilding the
+           whole group's layout. Without somewhere to restore from, that
+           rebuild falls back to every panel's defaultSize — so releasing a
+           drag (which clears the pin) threw away the drag entirely and reset
+           the column. With it, the rebuild restores the layout as it stood a
+           moment earlier, which is what the user was already looking at. -->
+      <USplitter
+        ref="explorerSplitter"
+        :items="explorerItems"
+        orientation="vertical"
+        auto-save-id="editor-explorer"
+        :storage="splitterStorage"
+        @layout="(sizes: number[]) => rememberLayout('editor-explorer', sizes)"
+      >
         <template #file-tree-v-pane>
           <FileTree @select-script="loadScript" @run-script="runNamedScript" />
         </template>
@@ -706,7 +815,16 @@ onBeforeRouteLeave(() => {
 
     <!-- Right side pane: Nested game/output splitter -->
     <template #right-pane>
-      <USplitter ref="rightSplitter" :items="rightItems" orientation="vertical" @layout="onLayoutMaybeResizeStage">
+      <!-- See the explorer splitter above for why this carries its own
+           arrangement-keyed memory. -->
+      <USplitter
+        ref="rightSplitter"
+        :items="rightItems"
+        orientation="vertical"
+        auto-save-id="editor-right"
+        :storage="splitterStorage"
+        @layout="(sizes: number[]) => onLayoutMaybeResizeStage('editor-right', sizes)"
+      >
 
         <!-- Top right pane: Game view -->
         <template #canvas-v-pane>

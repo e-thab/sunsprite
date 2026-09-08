@@ -158,7 +158,7 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
 			},
 			{
 				id: 'project.autosaveInterval',
-				label: 'Autosave Frequency',
+				label: 'Autosave interval',
 				control: { kind: 'select', items: AUTOSAVE_INTERVALS.map((option) => option.label) },
 				get: () => autosaveIntervalLabel(projectSettings.autosaveIntervalMinutes),
 				set: (value) => projectSettingsStore.set('autosaveIntervalMinutes', autosaveIntervalMinutes(value)),
@@ -171,7 +171,7 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
 			},
 			{
 				id: 'project.autoRun',
-				label: 'Auto Run',
+				label: 'Auto run',
 				description: 'Re-run the game shortly after a script changes.',
 				control: { kind: 'switch' },
 				get: () => projectSettings.autoRun,
@@ -357,21 +357,21 @@ function isStacked(setting: Setting): boolean {
 					v-for="setting in group.settings"
 					:key="setting.id"
 					class="setting"
-					:class="{ 'setting-stacked': isStacked(setting), 'setting-disabled': isDisabled(setting) }"
+					:class="{ 'setting-stacked': isStacked(setting), 'setting-disabled': isDisabled(setting), 'setting-at-default': isDefault(setting.id) }"
 				>
 					<label :for="setting.id" class="setting-label">{{ setting.label }}</label>
 
-					<UButton
-						v-if="!isDefault(setting.id)"
-						class="reset-btn"
-						icon="tabler:refresh"
-						variant="ghost"
-						color="primary"
-						:disabled="isDisabled(setting)"
-						size="xs"
-						@click="resetSetting(setting.id)"
-					/>
-					<div v-else class="reset-btn"></div>
+					<UTooltip v-if="!isDefault(setting.id)" text="Reset to default">
+						<UButton
+							class="reset-btn"
+							icon="tabler:refresh"
+							variant="ghost"
+							color="primary"
+							:disabled="isDisabled(setting)"
+							size="xs"
+							@click="resetSetting(setting.id)"
+						/>
+					</UTooltip>
 
 					<div class="setting-control">
 						<div v-if="setting.control.kind === 'switch'" class="control-switch">
@@ -627,6 +627,20 @@ function isStacked(setting: Setting): boolean {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* A row sitting at its default has no reset button, and the column it would
+   have occupied is dead space the label may as well use — so the label spans
+   into it rather than truncating early against a gap with nothing in it.
+   Nothing moves when the button later appears: the tracks themselves are
+   defined once on .settings-list (see its comment) and are identical for
+   every row either way, so this only ever changes how much of *that* row's
+   label is visible, never where the reset column or the control sit. That's
+   also why the button is simply absent now rather than swapped for a
+   same-sized placeholder — the placeholder was what reserved the gap the
+   label couldn't cross. */
+.setting-at-default .setting-label {
+	grid-column: 1 / 3;
 }
 
 .setting-description {
