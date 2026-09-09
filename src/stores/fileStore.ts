@@ -2,7 +2,8 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { supabase } from "@/assets/utils/supabase";
 import { getExampleCode } from "@/assets/api/examples";
-import { DEFAULT_SCRIPT_FILE_TYPE, imageDisplayName, isFileContentTooLong, joinFileName, MAX_FILE_CONTENT_LENGTH } from "@/assets/utils/fileTypes";
+import { DEFAULT_SCRIPT_FILE_TYPE, imageDisplayName, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, type ScriptFileType } from "@/assets/utils/fileTypes";
+import { useProjectSettingsStore } from "./projectSettingsStore";
 import { MAX_PROJECT_SIZE as PROJECT_STORAGE_QUOTA_BYTES } from "../../supabase/functions/_shared/uploadLimits.ts";
 
 function publicUrlForKey(objectKey: string): string {
@@ -94,7 +95,10 @@ export type TreeNode =
     | { kind: 'text', id: string, name: string, position: number, size: number }
 
 export const useFileStore = defineStore('files', () => {
-    const activeFileName = ref('main.js')
+    // Only what's shown before anything has loaded — every real load path
+    // activates a concrete script (see mainScriptName below), which in a
+    // TypeScript project is main.ts rather than this.
+    const activeFileName = ref(joinFileName(MAIN_SCRIPT_BASE, DEFAULT_SCRIPT_FILE_TYPE.extension))
     const filesSavedThisSession = ref<string[]>([])
 
     // Files are only persisted (localStorage/Supabase) on an explicit save —
@@ -253,6 +257,27 @@ export const useFileStore = defineStore('files', () => {
     function isTextFile(fileName: string): boolean {
         return findTextFile(fileName) !== undefined
     }
+
+    /**
+     * The name a newly created script gets for `base`. The type is explicit
+     * wherever the user chose one (FileTree's New script action, when the
+     * project allows more than one), and falls back to the project's base
+     * language everywhere else — seeding, mainly. Existing files are never
+     * renamed by any of this.
+     */
+    function newScriptName(base: string, type?: ScriptFileType): string {
+        return joinFileName(base, (type ?? useProjectSettingsStore().scriptType).extension)
+    }
+
+    /**
+     * The entry script's real name. Whichever main.* the project actually has
+     * wins outright — a JavaScript project that later switched its language
+     * setting still runs its own main.js, since switching deliberately doesn't
+     * rewrite anything. The fallback only covers the moment before a
+     * from-scratch project has been seeded.
+     */
+    const mainScriptName = computed(() =>
+        scripts.value.find((script) => isMainScript(script.name))?.name ?? newScriptName(MAIN_SCRIPT_BASE))
 
     function getLocalCode(fileName: string): string | undefined {
         return findScript(fileName)?.content ?? findTextFile(fileName)?.content
@@ -568,7 +593,7 @@ export const useFileStore = defineStore('files', () => {
 
         if (folderRows.length === 0 && scriptRows.length === 0) {
             const scriptsFolderId = await createFolder('scripts')
-            await createScript(joinFileName('main', DEFAULT_SCRIPT_FILE_TYPE.extension), getExampleCode(), scriptsFolderId)
+            await createScript(newScriptName(MAIN_SCRIPT_BASE), getExampleCode(), scriptsFolderId)
         } else {
             folders.value = folderRows.map((row) => ({
                 id: row.id,
@@ -653,11 +678,10 @@ export const useFileStore = defineStore('files', () => {
         if (legacyMain) localStorage.removeItem('main.js')
 
         const scriptsFolderId = generateId()
-        const mainScriptName = joinFileName('main', DEFAULT_SCRIPT_FILE_TYPE.extension)
         folders.value = [{ id: scriptsFolderId, name: 'scripts', parentId: null, position: 0 }]
         scripts.value = [{
             id: generateId(),
-            name: mainScriptName,
+            name: newScriptName(MAIN_SCRIPT_BASE),
             content: legacyMain?.content ?? getExampleCode(),
             saveTime: legacyMain?.saveTime ?? '',
             folderId: scriptsFolderId,
@@ -902,6 +926,8 @@ export const useFileStore = defineStore('files', () => {
 
     return {
         activeFileName,
+        mainScriptName,
+        newScriptName,
         activeFileIsSaved,
         hasUnsavedChanges,
         scriptSnapshot,

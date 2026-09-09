@@ -1,4 +1,5 @@
 import * as monaco from 'monaco-editor'
+import { SCRIPT_MONACO_LANGUAGES } from '@/assets/languages/monacoLanguages'
 
 // @ts-ignore
 function provideSpriteSuggestions(range) {
@@ -38,7 +39,7 @@ function provideSpriteSuggestions(range) {
 	];
 }
 
-monaco.languages.registerCompletionItemProvider('javascript', {
+monaco.languages.registerCompletionItemProvider(SCRIPT_MONACO_LANGUAGES, {
 	provideCompletionItems: function (model, position) {
 		// find out if we are completing a property in the 'dependencies' object.
 		var textUntilPosition = model.getValueInRange({

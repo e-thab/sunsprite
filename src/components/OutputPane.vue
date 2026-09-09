@@ -315,7 +315,6 @@ watch(() => projectSettingsStore.settings.outputAutoScroll, (enabled) => {
     height: 100%;
     display: flex;
     overflow: hidden;
-    border-top: 1px solid var(--theme-border);
 }
 
 .watch-panel {
@@ -323,7 +322,6 @@ watch(() => projectSettingsStore.settings.outputAutoScroll, (enabled) => {
     height: 100%;
     display: flex;
     overflow: hidden;
-    border-top: 1px solid var(--theme-border);
 }
 
 </style>

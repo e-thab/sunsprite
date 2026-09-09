@@ -4,6 +4,7 @@ import CollapsiblePane from './CollapsiblePane.vue'
 import { useEditorSettingsStore, EDITOR_SETTINGS_DEFAULTS } from '@/stores/editorSettingsStore'
 import { useProjectSettingsStore, PROJECT_SETTINGS_DEFAULTS } from '@/stores/projectSettingsStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
+import { companionScriptType, SELECTABLE_SCRIPT_LANGUAGES, scriptTypeById } from '@/assets/utils/fileTypes'
 import { listApiVersions, latestApiVersion, DEV_VERSION_AVAILABLE } from '@/assets/api/versions'
 import { DEV_VERSION } from '@/assets/api/versions/constants'
 
@@ -66,6 +67,13 @@ interface Setting {
 	default: SettingValue
 	/** Greyed out and inert while this returns true — see project.autosaveInterval. */
 	disabled?: () => boolean
+	/**
+	 * Not rendered at all while this returns true. For a row that isn't merely
+	 * inapplicable right now but meaningless — see project.allowTypeScript,
+	 * which has nothing to say about a language with no companion. Disabling
+	 * would leave a permanently greyed row asking a question that can't apply.
+	 */
+	hidden?: () => boolean
 }
 
 interface SettingsGroup {
@@ -98,6 +106,19 @@ function autosaveIntervalLabel(minutes: number): string {
 function autosaveIntervalMinutes(label: SettingValue): number {
 	return AUTOSAVE_INTERVALS.find((option) => option.label === label)?.minutes
 		?? PROJECT_SETTINGS_DEFAULTS.autosaveIntervalMinutes
+}
+
+// Script languages are offered by label but stored by id — the same
+// display/value split as AUTOSAVE_INTERVALS above, and for the same reason:
+// the id is what's persisted (and what fileTypes.ts keys its registry on), so
+// it has to survive the label being reworded.
+function scriptLanguageLabel(id: string): string {
+	return scriptTypeById(id).label
+}
+
+function scriptLanguageId(label: SettingValue): string {
+	return SELECTABLE_SCRIPT_LANGUAGES.find((type) => type.label === label)?.id
+		?? PROJECT_SETTINGS_DEFAULTS.scriptLanguage
 }
 
 // Every version the editor can actually be switched to, in the same order
@@ -146,6 +167,33 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
 				// The tier a brand-new project is created against, so "reset"
 				// means the same thing here as it does at creation.
 				default: latestApiVersion(),
+			},
+			{
+				id: 'project.language',
+				label: 'Language',
+				// Says what it does *and* what it deliberately doesn't: this is not
+				// a conversion, so a project's existing files keep working exactly
+				// as they are (see fileTypes.ts).
+				description: 'Used for new scripts. Existing files keep their own.',
+				// Base languages only — TypeScript isn't a choice made *instead* of
+				// JavaScript, it's one allowed *alongside* it, which is the row below.
+				control: { kind: 'select', items: SELECTABLE_SCRIPT_LANGUAGES.map((type) => type.label) },
+				get: () => scriptLanguageLabel(projectSettings.scriptLanguage),
+				set: (value) => projectSettingsStore.set('scriptLanguage', scriptLanguageId(value)),
+				default: scriptLanguageLabel(PROJECT_SETTINGS_DEFAULTS.scriptLanguage),
+			},
+			{
+				id: 'project.allowTypeScript',
+				label: 'Allow TypeScript',
+				description: 'Adds a TypeScript option when creating a script.',
+				control: { kind: 'switch' },
+				get: () => projectSettings.allowTypeScript,
+				set: (value) => projectSettingsStore.set('allowTypeScript', asBoolean(value)),
+				default: PROJECT_SETTINGS_DEFAULTS.allowTypeScript,
+				// Only meaningful next to a language that actually has a companion.
+				// Hidden rather than disabled for anything else: there'd be no
+				// TypeScript to allow, so the question itself wouldn't apply.
+				hidden: () => companionScriptType(projectSettings.scriptLanguage) === undefined,
 			},
 			{
 				id: 'project.autosave',
@@ -335,6 +383,16 @@ function isDisabled(setting: Setting): boolean {
 	return setting.disabled?.() ?? false
 }
 
+/**
+ * The rows a group actually shows right now. A plain function rather than a
+ * computed: the predicates read straight through to the stores, so calling
+ * this during render is what ties the list to them — a row appears the moment
+ * the setting it depends on changes.
+ */
+function visibleSettings(group: SettingsGroup): Setting[] {
+	return group.settings.filter((setting) => !setting.hidden?.())
+}
+
 function isStacked(setting: Setting): boolean {
 	return STACKED_KINDS.has(setting.control.kind)
 }
@@ -354,7 +412,7 @@ function isStacked(setting: Setting): boolean {
 				<h3 class="settings-group-label">{{ group.label }}</h3>
 
 				<div
-					v-for="setting in group.settings"
+					v-for="setting in visibleSettings(group)"
 					:key="setting.id"
 					class="setting"
 					:class="{ 'setting-stacked': isStacked(setting), 'setting-disabled': isDisabled(setting), 'setting-at-default': isDefault(setting.id) }"

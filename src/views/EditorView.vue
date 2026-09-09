@@ -43,15 +43,20 @@ const treeSelectionStore = useTreeSelectionStore()
 // even for a returning guest with real saved work. Project mode's equivalent
 // (fileStore.loadProject) doesn't need the same treatment — ProjectEditorView
 // already awaits it before EditorView is mounted at all.
-if (!props.projectId) fileStore.loadGuestProject()
-
 // Project-scoped settings come from the project row itself when there is one
 // (ProjectEditorView hydrates them before this view ever mounts); the guest
 // sandbox has no row, so it hydrates its own localStorage-backed copy here.
-// Same setup-time timing as loadGuestProject above, and for the same reason:
+// Same setup-time timing as loadGuestProject below, and for the same reason:
 // CodeEditor and OutputPane read these on mount, which happens before any
 // parent's onMounted.
+//
+// Deliberately *before* loadGuestProject: seeding a first-ever sandbox names
+// its entry script from the language setting, so a sandbox hydrated after the
+// seed would create main.js and only then discover it was meant to be a
+// TypeScript project.
 if (!props.projectId) projectSettingsStore.hydrate(null)
+
+if (!props.projectId) fileStore.loadGuestProject()
 
 // FileTree (guest sandbox) and AssetLibrary (project mode) both bind their
 // UTree directly to treeSelectionStore.current as a shared v-model, so

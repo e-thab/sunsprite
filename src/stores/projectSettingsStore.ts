@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { supabase } from '@/assets/utils/supabase'
 import type { Json } from '@/assets/utils/database.types'
+import { companionScriptType, SELECTABLE_SCRIPT_LANGUAGES, scriptTypeById, type ScriptFileType } from '@/assets/utils/fileTypes'
 
 // The object half of Json (see database.types.ts) — what a jsonb column
 // actually round-trips. Deliberately this rather than Record<string, unknown>:
@@ -31,6 +32,23 @@ const GUEST_STORAGE_KEY = 'sunsprite-guest-project-settings'
 const WRITE_DEBOUNCE_MS = 500
 
 export interface ProjectSettings {
+/**
+     * The base language the project is written in (see fileTypes.ts's
+     * SELECTABLE_SCRIPT_LANGUAGES). Only the *offer* is scoped by this:
+     * existing files keep their own extension and are read as whatever they
+     * are, so changing it never rewrites anything.
+     */
+    scriptLanguage: string
+    /**
+     * Whether the base language's companion (TypeScript, for JavaScript) can
+     * be created alongside it. Off means "New script" makes a .js and nothing
+     * offers otherwise; on means the action asks which.
+     *
+     * Turning it back off deliberately doesn't touch .ts files that already
+     * exist — they keep running and keep their editor support, same as every
+     * other setting here. It only stops new ones being made.
+     */
+    allowTypeScript: boolean
     /** Save every dirty script automatically, on the interval below. */
     autosave: boolean
     /** Minutes between autosave passes. Only meaningful while `autosave` is on. */
@@ -44,6 +62,11 @@ export interface ProjectSettings {
 }
 
 export const PROJECT_SETTINGS_DEFAULTS: Readonly<ProjectSettings> = Object.freeze({
+    // Every project predating this setting is written in JavaScript, and an
+    // absent key has to keep meaning exactly what those projects already are —
+    // which includes having no TypeScript in them.
+    scriptLanguage: 'javascript',
+    allowTypeScript: false,
     autosave: true,
     autosaveIntervalMinutes: 5,
     autoRun: true,
@@ -59,6 +82,14 @@ function coerce(stored: unknown): ProjectSettings {
     if (typeof stored !== 'object' || stored === null) return settings
     const raw = stored as Record<string, unknown>
 
+    // Validated against what's actually selectable, not merely type-checked: a
+    // language id written by a newer client is one this build can't open, and
+    // a companion id (a stored 'typescript') was never a valid base language —
+    // both have to fall back rather than be trusted through.
+    if (typeof raw.scriptLanguage === 'string' && SELECTABLE_SCRIPT_LANGUAGES.some((t) => t.id === raw.scriptLanguage)) {
+        settings.scriptLanguage = raw.scriptLanguage
+    }
+    if (typeof raw.allowTypeScript === 'boolean') settings.allowTypeScript = raw.allowTypeScript
     if (typeof raw.autosave === 'boolean') settings.autosave = raw.autosave
     if (typeof raw.autosaveIntervalMinutes === 'number' && Number.isFinite(raw.autosaveIntervalMinutes)) {
         settings.autosaveIntervalMinutes = raw.autosaveIntervalMinutes
@@ -172,5 +203,24 @@ export const useProjectSettingsStore = defineStore('projectSettings', () => {
         }
     }
 
-    return { settings, projectId, hydrate, set, reset }
+    /**
+     * The base language resolved to a concrete type — the default a new script
+     * is created as, and the icon and Monaco language that come with it.
+     * Creation paths read this; anything handling a file that already exists
+     * reads the file's own name instead (scriptTypeForFile), since the two
+     * genuinely differ in a project holding both.
+     */
+    const scriptType = computed<ScriptFileType>(() => scriptTypeById(settings.scriptLanguage))
+
+    /**
+     * Every type a new script may be created as, best-default first. One entry
+     * unless the companion is both available and allowed — which is exactly
+     * what tells FileTree whether "New script" is a single action or a choice.
+     */
+    const availableScriptTypes = computed<ScriptFileType[]>(() => {
+        const companion = companionScriptType(settings.scriptLanguage)
+        return companion && settings.allowTypeScript ? [scriptType.value, companion] : [scriptType.value]
+    })
+
+    return { settings, projectId, scriptType, availableScriptTypes, hydrate, set, reset }
 })

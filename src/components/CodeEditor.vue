@@ -8,11 +8,11 @@ import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
 import { runUserCode } from '@/sandbox/hostBridge'
 import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
-import { resolveSpecifierToName, listImportSpecifiers } from '@/assets/api/scriptResolution'
-import { TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
+import { resolveSpecifierCandidates, listImportSpecifiers } from '@/assets/api/scriptResolution'
+import { scriptTypeForFile, TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
+import { configureLanguageServices, installExtraLib, languageSupportFor, type EditorLanguageSupport } from '@/assets/languages/monacoLanguages'
 import CollapsiblePane from './CollapsiblePane.vue'
 import '@/assets/code-completion/monaco-colors'
-import { ModuleDetectionKind } from 'typescript'
 
 // CodeMirror
 // import { Codemirror } from 'vue-codemirror'
@@ -139,7 +139,7 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 		if (fileStore.isTextFile(fileStore.activeFileName)) {
 			editor.setModel(activeModel)
 		} else {
-			const importedNames = ensureImportedModels(activeModel.getValue())
+			const importedNames = ensureImportedModels(activeModel.getValue(), fileStore.activeFileName)
 			// Hide validation squiggles for the duration of refreshDiagnostics
 			// below, rather than touching marker data directly (e.g. clearing
 			// markers to suppress them) — monaco.editor.setModelMarkers() fires
@@ -176,41 +176,21 @@ import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
 const libUri = 'file:///lib.ts'
 
-// Set validation options
-monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
-	noSemanticValidation: false,
-	noSyntaxValidation: false,
-})
+// Validation options and compiler options, for every script language at once
+// — JavaScript and TypeScript are served by two separate
+// LanguageServiceDefaults objects, so anything set on only one of them is
+// silently missing from the other. See monacoLanguages.ts.
+configureLanguageServices()
 
-// Disable DOM-based JS default completion suggestions
-const compilerOptions = monaco.typescript.javascriptDefaults.getCompilerOptions()
-monaco.typescript.javascriptDefaults.setCompilerOptions({
-	...compilerOptions,
-	// noLib: true,
-	lib: ['es2020'],
-	allowJs: true,
-	checkJs: true,
-	target: monaco.typescript.ScriptTarget.ES2020,
-	strictNullChecks: true,
-	// Without this, a script with no top-level import/export is treated as a
-	// "global script" rather than a module, so its declarations silently leak
-	// into every other open script's scope in the language service (no
-	// "cannot find name" diagnostic, phantom autocomplete) even though
-	// moduleRunner.ts genuinely isolates each script at runtime. Forcing
-	// module semantics keeps the editor's view of cross-script visibility
-	// consistent with actual execution: real imports required between
-	// project scripts. The ambient Sunsprite API (apiLib/apiModel below) is
-	// deliberately exempt via `declare global`, so it stays available
-	// without an import.
-	moduleDetection: ModuleDetectionKind.Force
-})
-
-monaco.typescript.javascriptDefaults.addExtraLib(apiModel, modelUri)
+// The API declarations are the same TypeScript for both languages (apiLib.ts
+// emits `declare global` .d.ts text either way), so nothing about them is
+// per-language — only *installing* them is, and installExtraLib fans that out.
+installExtraLib(apiModel, modelUri)
 // Tracked so selectApiVersion (below) can dispose the previous registration
 // before swapping in a different version's declarations at the same URI —
 // addExtraLib doesn't replace in place, it layers, so the old one must be
 // disposed first or the two would conflict.
-let apiLibDisposable: monaco.IDisposable = monaco.typescript.javascriptDefaults.addExtraLib(apiLib, libUri)
+let apiLibDisposable: monaco.IDisposable = installExtraLib(apiLib, libUri)
 
 // Add a command to the palette that allows inspecting tokens, for theme debugging
 monaco.editor.addEditorAction({
@@ -312,7 +292,8 @@ function ensureModel(name: string): monaco.editor.ITextModel | undefined {
 	if (content === undefined) return undefined
 
 	const isText = fileStore.isTextFile(name)
-	const model = monaco.editor.createModel(content, isText ? TEXT_MONACO_LANGUAGE : 'javascript', monaco.Uri.parse('file:///' + name))
+	const language = isText ? TEXT_MONACO_LANGUAGE : scriptTypeForFile(name).monacoLanguage
+	const model = monaco.editor.createModel(content, language, monaco.Uri.parse('file:///' + name))
 	const record = fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name)
 	modelEntries.set(name, { model, recordId: record?.id, isText })
 	// Tab size is a *model* option, not an editor one, so a model created
@@ -327,15 +308,26 @@ function ensureModel(name: string): monaco.editor.ITextModel | undefined {
 // target — recursing into newly-created ones — so a whole import chain
 // gets real models even for files the user hasn't opened yet. Returns the
 // resolved names so callers can address the exact set of models involved.
-function ensureImportedModels(source: string, visited: Set<string> = new Set()): Set<string> {
-	for (const specifier of listImportSpecifiers(source)) {
-		const name = resolveSpecifierToName(specifier)
-		if (visited.has(name)) continue
-		visited.add(name)
+function ensureImportedModels(source: string, importerName: string, visited: Set<string> = new Set()): Set<string> {
+	// The importer's name decides two things here: how its own source is
+	// parsed (a .ts file's imports are invisible to a JS parse), and which
+	// extension an extensionless './helper' is tried under first.
+	for (const specifier of listImportSpecifiers(source, importerName)) {
+		// Candidates are probed in the same order the runtime probes them
+		// (see scriptResolution.ts), and the first that's a real file in this
+		// project wins — so the editor and the running game agree on what a
+		// given specifier meant rather than resolving it two different ways.
+		for (const name of resolveSpecifierCandidates(specifier, importerName)) {
+			if (visited.has(name)) break
 
-		const alreadyExisted = modelEntries.has(name)
-		const model = ensureModel(name)
-		if (model && !alreadyExisted) ensureImportedModels(model.getValue(), visited)
+			const alreadyExisted = modelEntries.has(name)
+			const model = ensureModel(name)
+			if (!model) continue
+
+			visited.add(name)
+			if (!alreadyExisted) ensureImportedModels(model.getValue(), name, visited)
+			break
+		}
 	}
 	return visited
 }
@@ -345,7 +337,7 @@ function ensureImportedModels(source: string, visited: Set<string> = new Set()):
 // remount below — see the long comment on that binding for why.
 function switchToScript(name: string) {
 	const model = ensureModel(name)
-	if (model && !fileStore.isTextFile(name)) ensureImportedModels(model.getValue())
+	if (model && !fileStore.isTextFile(name)) ensureImportedModels(model.getValue(), name)
 }
 
 // Column range covering just a line's actual text — trimmed of leading and
@@ -597,15 +589,24 @@ function waitForMarkersToSettle(uri: monaco.Uri, quietMs = 500, timeoutMs = 5000
 	})
 }
 
-// On the very coldest load in a browser session, getJavaScriptWorker() (or
-// the accessor it returns) can outright throw "JavaScript not registered!"
-// — the JS language mode itself hasn't finished registering with Monaco
+// On the very coldest load in a browser session, the worker accessor (or the
+// accessor it returns) can outright throw "JavaScript not registered!"
+// — the language mode itself hasn't finished registering with Monaco
 // yet, not a permanent failure. A few short retries are enough to ride
 // that out once registration completes moments later.
-async function syncWithRetry(uri: monaco.Uri, relatedUris: monaco.Uri[], attempts = 5, delayMs = 300): Promise<void> {
+//
+// Which worker is asked follows the model's own language: JavaScript and
+// TypeScript have separate workers, and syncing a .ts model through the JS one
+// would resolve against declarations it can't see. Related URIs are passed
+// through whatever that model's worker is even when they're the other
+// language — that's exactly what forces a cross-language import (a .ts script
+// pulling in a .js helper) to be synced rather than reported as missing.
+async function syncWithRetry(support: EditorLanguageSupport, uri: monaco.Uri, relatedUris: monaco.Uri[], attempts = 5, delayMs = 300): Promise<void> {
+	if (!support.getWorkerAccessor) return
+
 	for (let attempt = 1; attempt <= attempts; attempt++) {
 		try {
-			const getWorker = await monaco.typescript.getJavaScriptWorker()
+			const getWorker = await support.getWorkerAccessor()
 			await getWorker(uri, ...relatedUris)
 			return
 		} catch (err) {
@@ -638,7 +639,7 @@ async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, m
 		.map((name) => modelEntries.get(name)?.model.uri)
 		.filter((uri): uri is monaco.Uri => uri !== undefined)
 	try {
-		await syncWithRetry(model.uri, relatedUris)
+		await syncWithRetry(languageSupportFor(model.uri.path), model.uri, relatedUris)
 		if (!model.isDisposed()) {
 			model.setValue(model.getValue())
 			reapplyErrorDecoration(model)
@@ -681,7 +682,7 @@ watch(
 			}
 			if (current.name !== name) {
 				const wasActive = editorInstance.value?.getModel() === entry.model
-				const language = entry.isText ? TEXT_MONACO_LANGUAGE : 'javascript'
+				const language = entry.isText ? TEXT_MONACO_LANGUAGE : scriptTypeForFile(current.name).monacoLanguage
 				const renamed = monaco.editor.createModel(entry.model.getValue(), language, monaco.Uri.parse('file:///' + current.name))
 				entry.model.dispose()
 				modelEntries.delete(name)
@@ -754,8 +755,8 @@ async function saveAll() {
 }
 
 // Runs `name` as the entry script regardless of which file is currently
-// active/visible — used for the game header's Restart (always "main.js",
-// see runMainScript) and FileTree's per-script "Run" action, neither of
+// active/visible — used for the game header's Restart (always the project's
+// own main script, see runMainScript) and FileTree's per-script "Run" action, neither of
 // which should yank the editor over to a different tab just to run it.
 // ensureModel loads a script that's never been opened from its last saved
 // content; one that's already open (with live, possibly unsaved edits)
@@ -771,9 +772,10 @@ function runActiveUserCode() {
 	runNamedScript(fileStore.activeFileName)
 }
 
-// The game header's Restart button always runs this — "main.js" is the
-// project's canonical entry point regardless of whichever script happens to
-// be open in the editor at the time. Snapshotting here (not inside the
+// The game header's Restart button always runs this — the project's main
+// script is its canonical entry point regardless of whichever script happens
+// to be open in the editor at the time. Its name comes from the store rather
+// than a literal, since in a TypeScript project it's main.ts. Snapshotting here (not inside the
 // shared runNamedScript, which FileTree's per-script "Run" action also
 // calls) is what ties the restart chip's baseline specifically to an actual
 // game (re)start.
@@ -783,12 +785,12 @@ function runMainScript() {
 		if (!entry.isText) liveContent[name] = entry.model.getValue()
 	}
 	fileStore.snapshotScripts(liveContent)
-	runNamedScript('main.js')
+	runNamedScript(fileStore.mainScriptName)
 }
 
 function onEditorChange(value: string) {
 	updateSaveMsg(value)
-	if (!fileStore.isTextFile(fileStore.activeFileName)) ensureImportedModels(value)
+	if (!fileStore.isTextFile(fileStore.activeFileName)) ensureImportedModels(value, fileStore.activeFileName)
 	scheduleAutoRun()
 }
 
@@ -924,8 +926,8 @@ onMounted(() => {
 		}
 	}
 
-	fileStore.activate('main.js')
-	ensureModel('main.js')
+	fileStore.activate(fileStore.mainScriptName)
+	ensureModel(fileStore.mainScriptName)
 	fileStore.registerSaveAllHandler(saveAll)
 	emit('ready')
 })
@@ -981,7 +983,7 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 	}
 
 	apiLibDisposable.dispose()
-	apiLibDisposable = monaco.typescript.javascriptDefaults.addExtraLib(newLib, libUri)
+	apiLibDisposable = installExtraLib(newLib, libUri)
 
 	// Nudge the currently active model to re-validate against the swapped
 	// declarations — same mechanism handleMount already uses after attaching
@@ -991,7 +993,7 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 	const editor = editorInstance.value
 	const model = editor?.getModel()
 	if (editor && model && !fileStore.isTextFile(fileStore.activeFileName)) {
-		const importedNames = ensureImportedModels(model.getValue())
+		const importedNames = ensureImportedModels(model.getValue(), fileStore.activeFileName)
 		refreshDiagnostics(editor, model, importedNames)
 	}
 })
