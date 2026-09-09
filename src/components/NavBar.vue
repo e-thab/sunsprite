@@ -303,25 +303,51 @@ const accountMenuItems: DropdownMenuItem[][] = [
 
 <style scoped>
 .bar {
+    /* Grid, not flex: with three flex children and justify-content:
+       space-between, the center item's position is at the mercy of how wide
+       its neighbors happen to be — .left-group carries more buttons than
+       .right-group, so the gap space-between hands the center element on
+       each side is uneven and it visibly sits left of true-center. Two equal
+       1fr tracks flanking the center column center it against the *bar's*
+       width instead, independent of how much content is in either side
+       group — as long as neither one gets wide enough to actually crowd it. */
     min-height: 2em;
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr minmax(0, max-content) 1fr;
+    align-items: center;
     padding: 0.2em 0.5em 0.1em 0.5em;
-    justify-content: space-between;
     user-select: none;
     background-color: var(--theme-bg-accented);
 }
 
-.center-group,
 .left-group,
 .right-group {
     display: flex;
     align-items: center;
     gap: 0.5em;
-    /* The project name (.project-header, below) is the one thing in this
-       bar that should give up space first — these hold the actual nav
-       controls (home, docs, theme, account) and should never get squeezed
-       to make room for a long name. */
+    /* The project name/page title (center column, below) is the one thing
+       in this bar that should give up space first — these hold the actual
+       nav controls (home, docs, theme, account) and should never get
+       squeezed to make room for a long name. Grid's own automatic minimum
+       size (min-content, since neither group scrolls) already enforces
+       that floor; flex-shrink: 0 just keeps these steady even before that
+       floor is reached, while their 1fr track still has room to spare. */
     flex-shrink: 0;
+}
+
+.left-group {
+    /* Pinned to the first track explicitly rather than left to grid
+       auto-placement — the center column's content is conditional (v-if/
+       v-else-if, sometimes neither), so whenever it's absent, auto-placement
+       would otherwise slide .right-group into the middle track instead of
+       leaving it empty. */
+    grid-column: 1;
+    justify-self: start;
+}
+
+.right-group {
+    grid-column: 3;
+    justify-self: end;
 }
 
 .logo-button {

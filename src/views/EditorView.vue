@@ -1043,22 +1043,27 @@ onBeforeRouteLeave(() => {
    content centering (unchanged from the dot state) keeps it growing
    symmetrically from the middle outward instead of needing repositioning.
    box-shadow only ever drew the other two dots, so it has nothing left to
-   do once this is one continuous shape; border-radius: 0 makes the two
-   ends flush rather than rounded caps poking past the handle's own width,
-   which would read as slightly wider than the 4px gutter it sits in. */
+   do once this is one continuous shape; border-radius: 1px (half the
+   line's own 2px thickness) caps the two ends in a rounded pill rather
+   than square, without poking past the handle's own width the way a
+   larger radius would against the 4px gutter it sits in.
+   Shrunk by --panel-border-radius on each end rather than run the full
+   100%, so the line stops where the adjoining panels' own corners start
+   curving away instead of visibly running past them — the flex centering
+   above takes care of keeping it centered in the shorter length. */
 .editor-root [data-slot="handle"][data-orientation="horizontal"][data-resize-handle-state="hover"]::after,
 .editor-root [data-slot="handle"][data-orientation="horizontal"][data-resize-handle-state="drag"]::after {
   width: 2px;
-  height: 100%;
-  border-radius: 0;
+  height: calc(100% - var(--panel-border-radius) * 2);
+  border-radius: 1px;
   box-shadow: none;
 }
 
 .editor-root [data-slot="handle"][data-orientation="vertical"][data-resize-handle-state="hover"]::after,
 .editor-root [data-slot="handle"][data-orientation="vertical"][data-resize-handle-state="drag"]::after {
-  width: 100%;
+  width: calc(100% - var(--panel-border-radius) * 2);
   height: 2px;
-  border-radius: 0;
+  border-radius: 1px;
   box-shadow: none;
 }
 

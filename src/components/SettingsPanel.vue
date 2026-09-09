@@ -184,7 +184,7 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
 			},
 			{
 				id: 'project.allowTypeScript',
-				label: 'Allow TypeScript',
+				label: 'TypeScript',
 				description: 'Adds a TypeScript option when creating a script.',
 				control: { kind: 'switch' },
 				get: () => projectSettings.allowTypeScript,
@@ -579,8 +579,20 @@ function isStacked(setting: Setting): boolean {
 	   is the one control whose label going "#20…" makes it useless rather
 	   than merely tight). Everything else fits comfortably inside this. */
 	--setting-control-min: 4.5rem;
+	/* A fixed cap rather than max-content: this column is shared by every
+	   row's label (subgrid — see the comment below), so a max-content track
+	   sizes itself to the single widest *unspanned* label anywhere in the
+	   panel, recomputed live as rows toggle in and out of .setting-at-default
+	   (see that class below). A row like "Pause when unfocused" losing its
+	   span the moment its reset button appears would then grow this track
+	   for every row at once, shoving the reset button and control column
+	   right along with it — the label truncating via .setting-label's own
+	   ellipsis never gets a chance to fire, since max-content never leaves
+	   anything for it to clip. Pinning the ceiling here means a label that
+	   doesn't fit actually ellipsizes instead of resizing the shared track. */
+	--setting-label-max: 7.5rem;
 	display: grid;
-	grid-template-columns: minmax(2.5rem, max-content) 1.5rem minmax(var(--setting-control-min), 1fr);
+	grid-template-columns: minmax(2.5rem, var(--setting-label-max)) 1.5rem minmax(var(--setting-control-min), 1fr);
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;
@@ -646,6 +658,7 @@ function isStacked(setting: Setting): boolean {
 	grid-column: 1 / -1;
 	align-items: center;
 	min-width: 2em;
+	
 	gap: 0.6em;
 	padding: 0.35em;
 	margin: 0 0.35em;
@@ -682,6 +695,7 @@ function isStacked(setting: Setting): boolean {
 	   .setting's label column could never actually reach a shrunk width in
 	   the first place. */
 	min-width: 2em;
+	min-height: 1.5rem;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
