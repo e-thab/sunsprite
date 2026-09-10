@@ -24,28 +24,38 @@ const cards = new Map<string, WatchCard>()
 let previousErrorKeys = new Map<string, Set<string>>()
 
 /**
- * Registers (or replaces) a card of live values shown in the editor's Watch
- * panel. Re-calling with the same label replaces its sub-items in place, so
- * a script can call this once per run without accumulating duplicates.
- *
- * A single getter (rather than a labeled record) adds a card with one
- * top-level value and no sub-items — stored under an empty-string key, which
- * the rendering side (WatchPanel.vue) treats the same way InfoPanel.vue
- * already treats a missing sub-label: shown unlabeled.
+ * Adds an item to the watch panel.
+ * @param label The card's title.
+ * @param values An object whose properties are value labels, and whose values are functions returning the value to watch.
  */
 export function watch(label: string, values: Record<string, () => any>): void
+/**
+ * Adds an item to the watch panel.
+ * @param label The card's title.
+ * @param value A function returning the value to watch.
+ */
 export function watch(label: string, value: () => any): void
+// Registers (or replaces) a card of live values shown in the editor's Watch
+// panel. Re-calling with the same label replaces its sub-items in place, so
+// a script can call this once per run without accumulating duplicates.
+//
+// A single getter (rather than a labeled record) adds a card with one
+// top-level value and no sub-items — stored under an empty-string key, which
+// the rendering side (WatchPanel.vue) treats the same way InfoPanel.vue
+// already treats a missing sub-label: shown unlabeled.
 export function watch(label: string, valueOrValues: Record<string, () => any> | (() => any)) {
     const values = typeof valueOrValues === 'function' ? { '': valueOrValues } : valueOrValues
     cards.set(label, { label, values })
 }
 
+// Removes a card from the editor's Watch panel. No-op if no card is
+// registered under that label. The host side picks this up on its own — the
+// next status snapshot simply won't include the label, and
+// watchPanelStore.syncFromSandbox() already drops any card that disappears
+// between two snapshots.
 /**
- * Removes a card from the editor's Watch panel. No-op if no card is
- * registered under that label. The host side picks this up on its own — the
- * next status snapshot simply won't include the label, and
- * watchPanelStore.syncFromSandbox() already drops any card that disappears
- * between two snapshots.
+ * Removes an item from the watch panel.
+ * @param label The card's title.
  */
 export function unwatch(label: string) {
     cards.delete(label)

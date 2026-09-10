@@ -48,7 +48,7 @@ const emit = defineEmits<{
 	padding: 0.6em 0.85em;
 	background-color: var(--theme-bg);
 	border: 1px solid var(--theme-border);
-	border-radius: 0.3rem;
+	border-radius: var(--panel-border-radius);
 	cursor: pointer;
 	text-align: left;
 }

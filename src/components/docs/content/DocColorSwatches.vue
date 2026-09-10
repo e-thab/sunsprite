@@ -58,7 +58,7 @@ async function copyName(name: string) {
 	text-align: left;
 	/* background-color: var(--theme-bg); */
 	border: 2px solid var(--theme-bg-elevated);
-	border-radius: 0.4rem;
+	border-radius: var(--panel-border-radius);
 	cursor: pointer;
 }
 
@@ -73,7 +73,7 @@ async function copyName(name: string) {
 	width: 1.75em;
 	height: 1.75em;
 	border: 1px solid var(--theme-border);
-	border-radius: 0.2rem;
+	border-radius: var(--panel-border-radius);
 }
 
 .swatch-text {

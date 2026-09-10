@@ -1,4 +1,5 @@
 import * as monaco from 'monaco-editor'
+import { SCRIPT_MONACO_LANGUAGES } from '@/assets/languages/monacoLanguages'
 import Colors from '@/assets/api/Colors'
 
 // Monaco's own built-in color provider (registered for every language) only
@@ -94,7 +95,10 @@ function toColorInfo(model: monaco.editor.ITextModel, index: number, length: num
 	}
 }
 
-monaco.languages.registerColorProvider('javascript', {
+// Registered for every script language, not just JavaScript: a color literal
+// in a .ts file is the same literal and deserves the same swatch. See
+// SCRIPT_MONACO_LANGUAGES in monacoLanguages.ts.
+monaco.languages.registerColorProvider(SCRIPT_MONACO_LANGUAGES, {
 	provideDocumentColors(model) {
 		const text = model.getValue()
 		const results: monaco.languages.IColorInformation[] = []

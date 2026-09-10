@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, watch } from 'vue'
-import { mouseRef, screenRef, clockRef, pausedRef } from '@/sandbox/hostBridge'
+import { mouseRef, screenRef, clockRef, pausedRef, camRef } from '@/sandbox/hostBridge'
 import { infoFieldLabels, infoFieldOrder, useInfoPanelStore, type InfoFieldKey } from '@/stores/infoPanelStore'
 import { PANEL_PADDING, useCardPacking } from '@/composables/useCardPacking'
 import type { DropdownMenuItem } from '@nuxt/ui'
@@ -43,8 +43,8 @@ function fieldRows(key: InfoFieldKey): InfoSubItem[][] {
                     { label: 'Y', value: String(mouseRef.value.mouseY), minChars: 6 },
                 ],
                 [
-                    { label: 'Screen X', value: '___', minChars: 6 },
-                    { label: 'Screen Y', value: '___', minChars: 6 },
+                    { label: 'Screen X', value: String(mouseRef.value.screenX), minChars: 6 },
+                    { label: 'Screen Y', value: String(mouseRef.value.screenY), minChars: 6 },
                 ]
             ]
         case 'screen':
@@ -58,6 +58,22 @@ function fieldRows(key: InfoFieldKey): InfoSubItem[][] {
                 [
                     { label: 'Width', value: String(screenRef.value.width), minChars: 5 },
                     { label: 'Height', value: String(screenRef.value.height), minChars: 5 },
+                ],
+            ]
+        case 'camera':
+            return [
+                [
+                    { label: 'Left', value: String(camRef.value.left), minChars: 5 },
+                    { label: 'Right', value: String(camRef.value.right), minChars: 5 },
+                    { label: 'Top', value: String(camRef.value.top), minChars: 5 },
+                    { label: 'Bottom', value: String(camRef.value.bottom), minChars: 5 },
+                    { label: 'Zoom', value: String(camRef.value.zoom), minChars: 5 },
+                ],
+                [
+                    { label: 'X', value: String(camRef.value.x), minChars: 5 },
+                    { label: 'Y', value: String(camRef.value.y), minChars: 5 },
+                    { label: 'Width', value: String(camRef.value.width), minChars: 5 },
+                    { label: 'Height', value: String(camRef.value.height), minChars: 5 },
                 ],
             ]
         case 'clock':

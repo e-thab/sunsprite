@@ -49,8 +49,13 @@ export type HostMessage =
 
 /** sandbox -> host */
 export type SandboxMessage =
-    /** Sandbox booted and is ready to accept 'run'. */
-    | { type: 'ready' }
+    /**
+     * Sandbox booted and is ready to accept 'run'. `apiVersion` is whichever
+     * version actually loaded — the requested one, or 'dev' if the
+     * requested version wasn't found (see versions/runtime.ts) — so a silent
+     * fallback is at least observable host-side instead of invisible.
+     */
+    | { type: 'ready', apiVersion: string }
     /**
      * The running code imported a script the sandbox can't see. Only the host
      * has the file store, so resolution is a round trip; `id` correlates the
@@ -66,12 +71,23 @@ export type SandboxMessage =
         fps: number,
         mouseX: number,
         mouseY: number,
+        mouseScreenX: number,
+        mouseScreenY: number,
         paused: boolean,
         /** The `seq` of the last 'set-paused' this snapshot reflects having applied. See that type's comment. */
         pauseSeq: number,
         frame: number,
         time: number,
         deltaMs: number,
+        cameraX: number,
+        cameraY: number,
+        cameraWidth: number,
+        cameraHeight: number,
+        cameraTop: number,
+        cameraBottom: number,
+        cameraLeft: number,
+        cameraRight: number,
+        cameraZoom: number,
         screenWidth: number,
         screenHeight: number,
         screenTop: number,
@@ -85,10 +101,11 @@ export type SandboxMessage =
 export type OutputKind = 'print' | 'warn' | 'error' | 'start'
 
 /**
- * Where in the user's own scripts a runtime error was thrown, if it could be
- * recovered from the error's stack trace (see moduleRunner.ts's locateError).
- * `line` is already corrected for the one-line prelude every compiled script
- * carries, so it's directly a line the user's editor can point at.
+ * Where in the user's own scripts a runtime error or Warning was thrown, if
+ * it could be recovered from the stack trace (see moduleRunner.ts's
+ * locateError). `line` is already corrected for the one-line prelude every
+ * compiled script carries, so it's directly a line the user's editor can
+ * point at.
  */
 export interface OutputLocation {
     script: string
@@ -112,6 +129,17 @@ export interface WatchCardSnapshot {
  * party that framed runner.html.
  */
 export const HOST_ORIGIN_PARAM = 'hostOrigin'
+
+/**
+ * Query-string key carrying which permanent API version the sandbox should
+ * load (see src/assets/api/versions/runtime.ts) — read once, synchronously,
+ * at main.ts's own module top level, before setup() runs and before the
+ * ready handshake. A HostMessage field can't do this job: it would need a
+ * full postMessage round trip, arriving too late to influence which module
+ * graph gets imported in the first place. Omitted (or 'dev') for the live
+ * engine — see src/assets/api/versions/constants.ts.
+ */
+export const API_VERSION_PARAM = 'apiVersion'
 
 /** Origin string a document with an opaque origin reports in a MessageEvent. */
 export const OPAQUE_ORIGIN = 'null'

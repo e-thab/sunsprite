@@ -8,34 +8,33 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 // presence at all, so a leaf's content-box and its flex-computed border-box
 // are the same box (see EditorView.vue's panel-framing rule for what this
 // used to cost when it was a real border instead).
-const MIN_PANE_CONTENT_PX = 32
+export const MIN_PANE_CONTENT_PX = 32
 
 // The pixel size, in either dimension, below which CollapsiblePane swaps a
 // pane's real content for its label/icon overlay (see that component's own
-// comment for why). Shared from here — rather than each declaring its own
-// copy of the same number — because it doubles as reka's own minSize below:
-// dragging a pane past this point is exactly where its content already
-// stops being usable, so that's also where a drag should stop tracking the
-// cursor smoothly and start snapping toward an endpoint, rather than
-// leaving a dead zone where a pane can sit at any arbitrary size between
-// "already showing collapsed content" and its real pixel floor.
+// comment for why), and — via useCollapseSnap — the size a shrinking pane
+// snaps out of on the way to its floor. Shared from here rather than each
+// declaring its own copy, because all three of those have to agree on
+// exactly which pixel size that is.
 export const COLLAPSE_THRESHOLD_PX = 100
 
 /**
  * Two splitter-constraint percentages, in the group's own live extent, for
  * a pane using this pixel floor: `minSize` (COLLAPSE_THRESHOLD_PX) and
  * `collapsedSize` (MIN_PANE_CONTENT_PX). Meant to be spread onto a
- * `collapsible: true` SplitterItem together — reka's own resize logic
- * (SplitterGroup's resizePanel) already snaps a collapsible panel to
- * whichever of minSize or collapsedSize is closer once a drag crosses the
- * halfway point between them, the same native mechanism output-v-pane's
- * collapsedSize: 0 already uses to hide it entirely on a deliberate drag
- * past its floor. Using COLLAPSE_THRESHOLD_PX as minSize instead of
- * MIN_PANE_CONTENT_PX (which is all this used to export, back when every
- * pane just clamped there with no snap) means that mechanism now activates
- * exactly where CollapsiblePane's own overlay already takes over, and
- * lands on MIN_PANE_CONTENT_PX — a real, still-visible floor, not fully
- * hidden — instead of 0.
+ * `collapsible: true` SplitterItem together.
+ *
+ * These two alone don't produce the collapse behavior the editor actually
+ * wants, and can't: reka's own snapping (SplitterGroup's resizePanel) sends
+ * a below-minimum pane to whichever endpoint is *nearer*, so every size in
+ * [(collapsedSize + minSize) / 2, minSize) is pushed back up to minSize —
+ * a dead band, half the distance between these two numbers wide (~34px
+ * here), where the pane sits at its minimum while the cursor keeps
+ * travelling before it finally jumps. useCollapseSnap.ts is what overrides
+ * that, pinning a pane to its collapsed size the moment a drag would take
+ * it under minSize; see its own comment. These stay as they are because
+ * they're still the right floor and the right collapsed size — reka's
+ * choice of *when* to move between them is the only part being replaced.
  *
  * Both numbers resolve against the *same* pixel floor regardless of the
  * group's own orientation or total extent. reka's minSize/collapsedSize are

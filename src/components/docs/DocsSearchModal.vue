@@ -4,6 +4,11 @@ import { useRouter } from 'vue-router'
 import type { CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
 import { useDocsSearchStore } from '@/stores/docsSearchStore'
 import { searchDocs, type SnippetPart } from '@/assets/docs/docsSearch'
+// This modal is mounted globally (reachable from anywhere, not nested under
+// DocsPanel.vue or DocsView.vue's own provide tree), so unlike those two it
+// has no version context to follow — it searches the live/current docs,
+// same as before this pass.
+import { searchEntries } from '@/assets/docs/docsIndex'
 
 const searchStore = useDocsSearchStore()
 const router = useRouter()
@@ -32,7 +37,7 @@ function snippetHtml(parts: SnippetPart[]): string {
 // project's existing hand-rolled matcher (docsSearch.ts) instead of
 // UCommandPalette's default Fuse.js filtering.
 const groups = computed<CommandPaletteGroup[]>(() => {
-	const results = searchDocs(searchTerm.value)
+	const results = searchDocs(searchTerm.value, searchEntries)
 	const order: string[] = []
 	const byCategory = new Map<string, CommandPaletteItem[]>()
 

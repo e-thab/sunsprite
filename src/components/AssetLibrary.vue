@@ -87,11 +87,11 @@ const items: TreeItem[] = [
 </script>
 
 <template>
-	<CollapsiblePane label="Assets" icon="tabler:photo-filled">
+	<CollapsiblePane label="Library" icon="tabler:photo-filled">
 	<div class="panel-wrapper">
 		<div class="panel-bar">
 			<div class="spacer"></div>
-			<div>Assets</div>
+			<div>Library</div>
 			<div class="spacer"></div>
 		</div>
 

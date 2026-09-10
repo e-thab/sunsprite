@@ -10,7 +10,7 @@ import type { OutputKind, OutputLocation } from './protocol'
 // is stringified and posted to the host, which does the rendering.
 
 const Output = {
-    print, warn, error, clear, printStartMsg, runtimeError
+    print, warn, error, clear, printStartMsg, runtimeError, runtimeWarning
 }
 export default Output
 
@@ -37,19 +37,31 @@ function send(kind: OutputKind, text: string, location?: OutputLocation) {
     postToHost({ type: 'output', kind, text, frame: clock.frame, location })
 }
 
-export function print(...args: Printable[]) {
-    console.log('%cprint:', `color: ${Colors.Gray}; font-weight: 100; font-style: italic;`, ...args)
-    send('print', joinArgs(args))
+/**
+ * Display a normal message in the output panel.
+ * @param msgs The messages to display.
+ */
+export function print(...msgs: Printable[]) {
+    console.log('%cprint:', `color: ${Colors.Gray}; font-weight: 100; font-style: italic;`, ...msgs)
+    send('print', joinArgs(msgs))
 }
 
-function warn(...args: Printable[]) {
-    console.log(' %cwarn:', `color: ${Colors.Goldenrod}; font-weight: 100; font-style: italic;`, ...args)
-    send('warn', joinArgs(args))
+/**
+ * Display a warning message in the output panel.
+ * @param msgs The warning messages to display.
+ */
+function warn(...msgs: Printable[]) {
+    console.log(' %cwarn:', `color: ${Colors.Goldenrod}; font-weight: 100; font-style: italic;`, ...msgs)
+    send('warn', joinArgs(msgs))
 }
 
-function error(...args: Printable[]) {
-    console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, ...args)
-    send('error', joinArgs(args))
+/**
+ * Display an error message in the output panel.
+ * @param msgs The error messages to display.
+ */
+function error(...msgs: Printable[]) {
+    console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, ...msgs)
+    send('error', joinArgs(msgs))
 }
 
 /**
@@ -63,6 +75,16 @@ function runtimeError(message: string, location?: OutputLocation) {
     send('error', message, location)
 }
 
+/**
+ * Counterpart to runtimeError for a user script that threw a Warning rather
+ * than a plain Error — same best-effort source location, but rendered in the
+ * output panel styled as a warning instead of an error.
+ */
+function runtimeWarning(message: string, location?: OutputLocation) {
+    console.log(' %cwarn:', `color: ${Colors.Goldenrod}; font-weight: 100; font-style: italic;`, message)
+    send('warn', message, location)
+}
+
 function printStartMsg(scriptName: string) {
     const time = new Date()
     const hr = withLeadingZeroes(time.getHours(), 2)
@@ -72,6 +94,9 @@ function printStartMsg(scriptName: string) {
     send('start', `Running ${scriptName} @ ${hr}:${min}:${sec}.${milli}`)
 }
 
+/**
+ * Clear all messages from the output panel.
+ */
 function clear() {
     postToHost({ type: 'output-clear' })
 }

@@ -2,7 +2,9 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { supabase } from "@/assets/utils/supabase";
 import { getExampleCode } from "@/assets/api/examples";
-import { DEFAULT_SCRIPT_FILE_TYPE, imageDisplayName, joinFileName } from "@/assets/utils/fileTypes";
+import { DEFAULT_SCRIPT_FILE_TYPE, imageDisplayName, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, type ScriptFileType } from "@/assets/utils/fileTypes";
+import { useProjectSettingsStore } from "./projectSettingsStore";
+import { MAX_PROJECT_SIZE as PROJECT_STORAGE_QUOTA_BYTES } from "../../supabase/functions/_shared/uploadLimits.ts";
 
 function publicUrlForKey(objectKey: string): string {
     return `${import.meta.env.VITE_R2_PUBLIC_BASE_URL}/${objectKey}`
@@ -88,12 +90,15 @@ type TextFileRecord = {
 // row is.
 export type TreeNode =
     | { kind: 'folder', id: string, name: string, position: number }
-    | { kind: 'script', id: string, name: string, position: number }
-    | { kind: 'image', id: string, name: string, position: number, publicUrl: string }
-    | { kind: 'text', id: string, name: string, position: number }
+    | { kind: 'script', id: string, name: string, position: number, size: number }
+    | { kind: 'image', id: string, name: string, position: number, publicUrl: string, size: number }
+    | { kind: 'text', id: string, name: string, position: number, size: number }
 
 export const useFileStore = defineStore('files', () => {
-    const activeFileName = ref('main.js')
+    // Only what's shown before anything has loaded — every real load path
+    // activates a concrete script (see mainScriptName below), which in a
+    // TypeScript project is main.ts rather than this.
+    const activeFileName = ref(joinFileName(MAIN_SCRIPT_BASE, DEFAULT_SCRIPT_FILE_TYPE.extension))
     const filesSavedThisSession = ref<string[]>([])
 
     // Files are only persisted (localStorage/Supabase) on an explicit save —
@@ -120,6 +125,50 @@ export const useFileStore = defineStore('files', () => {
         next.delete(fileName)
         dirtyFiles.value = next
     }
+
+    // Every script's *live* content at the moment the game was last
+    // (re)started (see CodeEditor.vue's runMainScript) — including whatever
+    // unsaved edits were sitting in an open model, since that's the actual
+    // code that ran. Lets the restart button's warning chip track "does the
+    // project's script state differ from what's actually running" instead of
+    // just "is anything dirty right now": a save alone doesn't clear the
+    // difference (the new content still hasn't been run), and restarting
+    // with an unsaved edit in place does clear it (that edit is now what's
+    // running).
+    const scriptSnapshot = ref<Record<string, string>>({})
+
+    // Per-script: does its current content (live if it has an open, possibly
+    // unsaved model — see CodeEditor's setChangedSinceRun call sites, saved
+    // otherwise) differ from scriptSnapshot. Restart's chip is just "is this
+    // non-empty" — kept as an explicit set, rather than a computed diff
+    // against every script's live content, because fileStore only ever
+    // learns a script's live content when CodeEditor tells it to (on edit or
+    // save); it has no standing access to Monaco's models.
+    const filesChangedSinceRun = ref<Set<string>>(new Set())
+
+    function setChangedSinceRun(fileName: string, changed: boolean) {
+        const has = filesChangedSinceRun.value.has(fileName)
+        if (changed === has) return
+        const next = new Set(filesChangedSinceRun.value)
+        if (changed) next.add(fileName)
+        else next.delete(fileName)
+        filesChangedSinceRun.value = next
+    }
+
+    // `liveContent` carries the current value of every open (possibly
+    // unsaved) Monaco model, keyed by script name — CodeEditor.vue is the
+    // only thing that can see those, so it's the one that has to hand them
+    // over. A script with no entry (never opened) falls back to its saved
+    // content, which is necessarily what's about to run for it too.
+    function snapshotScripts(liveContent: Record<string, string> = {}) {
+        const snapshot: Record<string, string> = {}
+        for (const script of scripts.value) snapshot[script.name] = liveContent[script.name] ?? script.content
+        scriptSnapshot.value = snapshot
+        filesChangedSinceRun.value = new Set()
+    }
+
+    // What the restart button's chip actually watches.
+    const codeChangedSinceLastRun = computed(() => filesChangedSinceRun.value.size > 0)
 
     // Name of the script whose runtime error is currently shown in the
     // output panel, if its location was recoverable (see output.ts's
@@ -209,6 +258,27 @@ export const useFileStore = defineStore('files', () => {
         return findTextFile(fileName) !== undefined
     }
 
+    /**
+     * The name a newly created script gets for `base`. The type is explicit
+     * wherever the user chose one (FileTree's New script action, when the
+     * project allows more than one), and falls back to the project's base
+     * language everywhere else — seeding, mainly. Existing files are never
+     * renamed by any of this.
+     */
+    function newScriptName(base: string, type?: ScriptFileType): string {
+        return joinFileName(base, (type ?? useProjectSettingsStore().scriptType).extension)
+    }
+
+    /**
+     * The entry script's real name. Whichever main.* the project actually has
+     * wins outright — a JavaScript project that later switched its language
+     * setting still runs its own main.js, since switching deliberately doesn't
+     * rewrite anything. The fallback only covers the moment before a
+     * from-scratch project has been seeded.
+     */
+    const mainScriptName = computed(() =>
+        scripts.value.find((script) => isMainScript(script.name))?.name ?? newScriptName(MAIN_SCRIPT_BASE))
+
     function getLocalCode(fileName: string): string | undefined {
         return findScript(fileName)?.content ?? findTextFile(fileName)?.content
     }
@@ -236,15 +306,58 @@ export const useFileStore = defineStore('files', () => {
             return
         }
 
+        // A hard stop, before anything else here runs — no local-state
+        // mutation, no network call. Scripts have no database-level size
+        // constraint at all (only text_files does), so for a script this is
+        // the only thing standing between an oversized paste and a raw
+        // multi-hundred-MB request body leaving the browser. Left dirty
+        // (never reaches markClean below) so the UI keeps showing this file
+        // as unsaved, since it genuinely wasn't.
+        if (isFileContentTooLong(content)) {
+            window.alert(`"${fileName}" is too large to save (over ${MAX_FILE_CONTENT_LENGTH.toLocaleString()} characters). Reduce its size and try again.`)
+            return
+        }
+
+        // A project-scoped hint, not the enforcement boundary — that's the
+        // DB trigger (enforce_storage_quota, see supabase/migrations), which
+        // re-checks this authoritatively on every insert/update regardless
+        // of what happens here. This only avoids a doomed round-trip for the
+        // common case, using figures already loaded into this store for the
+        // open project. The account-wide cap is deliberately not previewed
+        // here — see projectSizeBytes's own comment for why. No project
+        // means the guest sandbox, which has no real quota to speak of.
+        if (projectId.value) {
+            const oldBytes = sizeEncoder.encode(getLocalCode(fileName) ?? '').length
+            const newBytes = sizeEncoder.encode(content).length
+            const projectedTotal = projectSizeBytes() - oldBytes + newBytes
+            if (projectedTotal > PROJECT_STORAGE_QUOTA_BYTES) {
+                window.alert(`"${fileName}" wasn't saved — this project has reached its ${PROJECT_STORAGE_QUOTA_BYTES / (1024 * 1024)}MB storage limit.`)
+                return
+            }
+        }
+
         const saveTime = new Date().toLocaleTimeString()
 
         const script = findScript(fileName)
         if (script) {
             script.content = content
             script.saveTime = saveTime
+            // A save doesn't necessarily bring a script back in line with
+            // what's currently running — it only does if the saved content
+            // happens to match the snapshot taken at the last (re)start.
+            setChangedSinceRun(fileName, content !== scriptSnapshot.value[fileName])
             if (projectId.value) {
                 supabase.from('scripts').update({ content }).eq('id', script.id).then(({ error }) => {
-                    if (error) console.error(`Failed to save script "${fileName}"`, error)
+                    if (error) {
+                        console.error(`Failed to save script "${fileName}"`, error)
+                        window.alert(`Failed to save "${fileName}": ${error.message}`)
+                        // Only actually changes anything if the file is still
+                        // clean, i.e. no newer edit has already re-dirtied it
+                        // in the meantime — markDirty no-ops otherwise, so
+                        // this can't clobber a more recent edit's own dirty
+                        // state. See saveCode's own optimistic markClean below.
+                        markDirty(fileName)
+                    }
                 })
             } else {
                 persistGuestProject()
@@ -257,7 +370,12 @@ export const useFileStore = defineStore('files', () => {
             textFile.saveTime = saveTime
             if (projectId.value) {
                 supabase.from('text_files').update({ content }).eq('id', textFile.id).then(({ error }) => {
-                    if (error) console.error(`Failed to save text file "${fileName}"`, error)
+                    if (error) {
+                        console.error(`Failed to save text file "${fileName}"`, error)
+                        window.alert(`Failed to save "${fileName}": ${error.message}`)
+                        // Same reasoning as the script branch above.
+                        markDirty(fileName)
+                    }
                 })
             } else {
                 persistGuestProject()
@@ -265,10 +383,24 @@ export const useFileStore = defineStore('files', () => {
         }
 
         if (!savedThisSession(fileName)) filesSavedThisSession.value.push(fileName)
+        // Optimistic, not deferred until the request above actually resolves
+        // — this fires synchronously, before a fast-follow edit could ever
+        // race it, and each branch's own error handler reverts it via
+        // markDirty if the request turns out to have failed. Gating this on
+        // a successful response instead would be the more "obviously
+        // correct" shape, but is actually worse: a save that succeeds *after*
+        // a newer edit already re-dirtied the file would then wrongly stomp
+        // that newer edit's dirty flag back to clean.
         markClean(fileName)
     }
 
     // ---- Folders ----
+
+    // Real byte size, not JS string length (UTF-16 code units) — matches how
+    // every other size figure in this app is measured (see
+    // projectStore.ts's fetchStorageUsage and the r2-sign-upload/
+    // r2-confirm-upload edge functions' own identical use of TextEncoder).
+    const sizeEncoder = new TextEncoder()
 
     function childNodes(folderId: string | null): TreeNode[] {
         const subfolders: TreeNode[] = folders.value
@@ -276,14 +408,43 @@ export const useFileStore = defineStore('files', () => {
             .map((f) => ({ kind: 'folder' as const, id: f.id, name: f.name, position: f.position }))
         const containedScripts: TreeNode[] = scripts.value
             .filter((s) => s.folderId === folderId)
-            .map((s) => ({ kind: 'script' as const, id: s.id, name: s.name, position: s.position }))
+            .map((s) => ({ kind: 'script' as const, id: s.id, name: s.name, position: s.position, size: sizeEncoder.encode(s.content).length }))
         const containedImages: TreeNode[] = images.value
             .filter((img) => img.folderId === folderId)
-            .map((img) => ({ kind: 'image' as const, id: img.id, name: img.name, position: img.position, publicUrl: img.publicUrl }))
+            .map((img) => ({ kind: 'image' as const, id: img.id, name: img.name, position: img.position, publicUrl: img.publicUrl, size: img.size }))
         const containedTextFiles: TreeNode[] = textFiles.value
             .filter((f) => f.folderId === folderId)
-            .map((f) => ({ kind: 'text' as const, id: f.id, name: f.name, position: f.position }))
+            .map((f) => ({ kind: 'text' as const, id: f.id, name: f.name, position: f.position, size: sizeEncoder.encode(f.content).length }))
         return [...subfolders, ...containedScripts, ...containedImages, ...containedTextFiles].sort((a, b) => a.position - b.position)
+    }
+
+    // Recursive sum of everything under a folder — descends into
+    // sub-folders too, rather than just its direct children — since "size"
+    // only means something for a folder row as an aggregate over whatever's
+    // actually inside it. Used by FileTree.vue's size column.
+    function folderSizeBytes(folderId: string): number {
+        return childNodes(folderId).reduce((sum, node) => {
+            return sum + (node.kind === 'folder' ? folderSizeBytes(node.id) : node.size)
+        }, 0)
+    }
+
+    // Whole-project total — every script/text file's real byte content plus
+    // every image's own stored size, ignoring folder structure entirely
+    // (unlike folderSizeBytes above). Mirrors the DB-side
+    // enforce_storage_quota trigger's own project-level aggregation (see
+    // supabase/migrations) — that trigger is the actual enforcement
+    // boundary; this is only ever a same-session, zero-fetch preview of it.
+    // Doesn't extend to the account-wide cap: that needs every *other*
+    // project's usage too, which lives in a different store
+    // (projectStore.ts's storageByProject) and is only fetched for
+    // ProjectsView.vue's list — possibly stale or never populated during an
+    // editor session reached by direct URL, so not reached into here.
+    function projectSizeBytes(): number {
+        let total = 0
+        for (const script of scripts.value) total += sizeEncoder.encode(script.content).length
+        for (const file of textFiles.value) total += sizeEncoder.encode(file.content).length
+        for (const image of images.value) total += image.size
+        return total
     }
 
     // Appends after the current last sibling (folders and scripts share one
@@ -417,6 +578,7 @@ export const useFileStore = defineStore('files', () => {
         textFiles.value = []
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
+        scriptSnapshot.value = {}
 
         const [{ data: folderRows, error: folderError }, { data: scriptRows, error: scriptError }, { data: imageRows, error: imageError }, { data: textFileRows, error: textFileError }] = await Promise.all([
             supabase.from('folders').select('id, name, parent_id, position').eq('project_id', id).order('position'),
@@ -431,7 +593,7 @@ export const useFileStore = defineStore('files', () => {
 
         if (folderRows.length === 0 && scriptRows.length === 0) {
             const scriptsFolderId = await createFolder('scripts')
-            await createScript(joinFileName('main', DEFAULT_SCRIPT_FILE_TYPE.extension), getExampleCode(), scriptsFolderId)
+            await createScript(newScriptName(MAIN_SCRIPT_BASE), getExampleCode(), scriptsFolderId)
         } else {
             folders.value = folderRows.map((row) => ({
                 id: row.id,
@@ -476,6 +638,7 @@ export const useFileStore = defineStore('files', () => {
         images.value = []
         textFiles.value = []
         dirtyFiles.value = new Set()
+        scriptSnapshot.value = {}
     }
 
     function setProjectName(name: string) {
@@ -499,6 +662,7 @@ export const useFileStore = defineStore('files', () => {
                 textFiles.value = data.textFiles ?? []
                 filesSavedThisSession.value = []
                 dirtyFiles.value = new Set()
+                scriptSnapshot.value = {}
                 return
             } catch {
                 // Corrupted data — fall through and reseed from scratch below.
@@ -514,11 +678,10 @@ export const useFileStore = defineStore('files', () => {
         if (legacyMain) localStorage.removeItem('main.js')
 
         const scriptsFolderId = generateId()
-        const mainScriptName = joinFileName('main', DEFAULT_SCRIPT_FILE_TYPE.extension)
         folders.value = [{ id: scriptsFolderId, name: 'scripts', parentId: null, position: 0 }]
         scripts.value = [{
             id: generateId(),
-            name: mainScriptName,
+            name: newScriptName(MAIN_SCRIPT_BASE),
             content: legacyMain?.content ?? getExampleCode(),
             saveTime: legacyMain?.saveTime ?? '',
             folderId: scriptsFolderId,
@@ -527,6 +690,7 @@ export const useFileStore = defineStore('files', () => {
         textFiles.value = []
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
+        scriptSnapshot.value = {}
         persistGuestProject()
     }
 
@@ -573,6 +737,14 @@ export const useFileStore = defineStore('files', () => {
             markClean(oldName)
             markDirty(newName)
         }
+        if (oldName in scriptSnapshot.value) {
+            const snapshot = { ...scriptSnapshot.value }
+            snapshot[newName] = snapshot[oldName] ?? ''
+            delete snapshot[oldName]
+            scriptSnapshot.value = snapshot
+        }
+        setChangedSinceRun(newName, filesChangedSinceRun.value.has(oldName))
+        setChangedSinceRun(oldName, false)
         if (!projectId.value) persistGuestProject()
     }
 
@@ -587,6 +759,7 @@ export const useFileStore = defineStore('files', () => {
 
         scripts.value = scripts.value.filter((s) => s.id !== script.id)
         markClean(name)
+        setChangedSinceRun(name, false)
         if (!projectId.value) persistGuestProject()
     }
 
@@ -753,8 +926,14 @@ export const useFileStore = defineStore('files', () => {
 
     return {
         activeFileName,
+        mainScriptName,
+        newScriptName,
         activeFileIsSaved,
         hasUnsavedChanges,
+        scriptSnapshot,
+        snapshotScripts,
+        setChangedSinceRun,
+        codeChangedSinceLastRun,
         projectId,
         projectName,
         scripts,
@@ -783,6 +962,8 @@ export const useFileStore = defineStore('files', () => {
         renameScript,
         deleteScript,
         childNodes,
+        folderSizeBytes,
+        projectSizeBytes,
         nextPosition,
         folderAndDescendantIds,
         scriptsUnderFolder,

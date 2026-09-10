@@ -1,5 +1,5 @@
 import type { DocNode } from './docsTypes'
-import { searchEntries, type DocIndexEntry } from './docsIndex'
+import type { DocIndexEntry } from './docsIndex'
 
 function levenshtein(a: string, b: string): number {
 	const dp: number[][] = Array.from({ length: a.length + 1 }, (_, i) => {
@@ -220,12 +220,18 @@ export type DocSearchResult = DocIndexEntry & {
 	snippet: SnippetPart[] | null
 }
 
-/** Flat, ranked-by-tree-order results for the command palette, the /docs/search results page, and the panel's own search. */
-export function searchDocs(query: string): DocSearchResult[] {
+/**
+ * Flat, ranked-by-tree-order results for the command palette, the
+ * /docs/search results page, and the panel's own search. `entries` is
+ * whichever version's index is currently active (see docsVersions.ts) — this
+ * used to read a fixed module-level `searchEntries` singleton; now the caller
+ * decides which tree it's searching.
+ */
+export function searchDocs(query: string, entries: DocIndexEntry[]): DocSearchResult[] {
 	const queryWords = queryWordsOf(query)
 	if (queryWords.length === 0) return []
 
-	return searchEntries
+	return entries
 		.filter((entry) => nodeMatchesSelf(entry.node, queryWords))
 		.map((entry) => ({ ...entry, snippet: snippetFor(entry.node, query) }))
 }

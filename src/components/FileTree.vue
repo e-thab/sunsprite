@@ -6,30 +6,37 @@ import { useToast } from '@nuxt/ui/composables'
 import { useFileStore, type TreeNode } from '@/stores/fileStore'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
 import { useNamePromptStore } from '@/stores/namePromptStore'
+import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
 import {
 	ALLOWED_IMAGE_CONTENT_TYPES,
-	DEFAULT_SCRIPT_FILE_TYPE,
 	DEFAULT_TEXT_FILE_TYPE,
 	IMAGE_ACCEPT_ATTR,
 	imageDisplayName,
 	imageFileTypeForExtension,
 	isFileNameTooLong,
+	isMainScript,
 	joinFileName,
+	type ScriptFileType,
+	scriptTypeForFile,
 	MAX_FILE_NAME_LENGTH,
 	scriptFileType,
 	splitFileName,
 } from '@/assets/utils/fileTypes'
+import { formatBytes } from '@/assets/utils/formatBytes'
 import CollapsiblePane from './CollapsiblePane.vue'
+import StorageIndicator from './StorageIndicator.vue'
 
 const fileStore = useFileStore()
 const treeSelectionStore = useTreeSelectionStore()
 const namePromptStore = useNamePromptStore()
+const projectSettingsStore = useProjectSettingsStore()
 const toast = useToast()
 
 // The project's canonical entry point — always what the game header's
 // Restart button runs (see CodeEditor.vue's runMainScript). Can't be
 // deleted from here (see itemMenuItems) so that invariant always holds.
-const MAIN_SCRIPT_NAME = 'main.js'
+// Matched on base name (isMainScript), not a literal: a TypeScript project's
+// entry script is main.ts, and it's every bit as undeletable.
 
 // Shared by every create/rename path below (scripts, text files, images,
 // folders) — the rename input also caps typing itself via :maxlength, so
@@ -129,6 +136,9 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			kind: 'folder',
 			id: node.id,
 			parentId,
+			// A folder has no size of its own — only whatever's actually
+			// inside it, recursively (see folderSizeBytes's own comment).
+			size: fileStore.folderSizeBytes(node.id),
 			onSelect: preventFolderSelect,
 			children: withFolderDropPlaceholder(fileStore.childNodes(node.id).map((child) => buildNode(child, node.id)), node.id),
 		}
@@ -139,6 +149,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			kind: 'image',
 			id: node.id,
 			parentId,
+			size: node.size,
 			thumbnail: node.publicUrl,
 			path: node.publicUrl,
 			typeLabel: imageFileTypeForExtension(splitFileName(node.name).extension)?.label,
@@ -150,6 +161,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			kind: 'text',
 			id: node.id,
 			parentId,
+			size: node.size,
 			icon: DEFAULT_TEXT_FILE_TYPE.icon,
 			typeLabel: DEFAULT_TEXT_FILE_TYPE.label,
 			// Opens the same way a script does — same Monaco pane, just a
@@ -163,6 +175,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 		kind: 'script',
 		id: node.id,
 		parentId,
+		size: node.size,
 		icon: fileType.icon,
 		typeLabel: fileType.label,
 		onSelect: selectHandler,
@@ -226,12 +239,42 @@ function kindLabel(item: TreeItem): string {
 	return 'script'
 }
 
+// Whichever existing script would clash with `name` — matched on the *base*
+// name, across every script extension, not just an exact hit.
+//
+// Two scripts can't share a base even under different extensions. An
+// extensionless `./helper` resolves to whichever extension the importing
+// script's own language prefers (see scriptResolution.ts), so a project
+// holding both helper.js and helper.ts would silently hand two importers two
+// different files. For `main` it's worse still: isMainScript matches on the
+// base, so both would claim to be the entry point, both would be undeletable,
+// and Restart would run whichever happened to sit earlier in the list.
+//
+// `currentName` is the script being renamed, which must not clash with itself
+// — without it, switching a script's own type would always report a conflict.
+function conflictingScript(name: string, currentName?: string) {
+	const base = splitFileName(name).base
+	return fileStore.scripts.find((script) =>
+		script.name !== currentName && splitFileName(script.name).base === base)
+}
+
+// Says which file is in the way, and why it counts when the extension differs
+// — "a script with that name already exists" reads like a bug when the name
+// visibly *doesn't* match.
+function reportScriptConflict(name: string, existing: { name: string }) {
+	if (existing.name === name) {
+		window.alert('A script with that name already exists.')
+		return
+	}
+	window.alert(`"${existing.name}" already uses the name "${splitFileName(name).base}". Scripts can't share a name, even with different extensions.`)
+}
+
 // ---- Create ----
 
-async function addScript(folderId: string | null) {
+async function addScript(folderId: string | null, type: ScriptFileType) {
 	const input = await namePromptStore.prompt({
 		title: 'New script',
-		description: `"${joinFileName('', DEFAULT_SCRIPT_FILE_TYPE.extension)}" is added automatically.`,
+		description: `"${joinFileName('', type.extension)}" is added automatically.`,
 		maxLength: MAX_FILE_NAME_LENGTH,
 		confirmLabel: 'Create',
 	})
@@ -241,14 +284,19 @@ async function addScript(folderId: string | null) {
 	// input, which never lets the extension itself be edited either.
 	const base = splitFileName(input.trim()).base
 	if (!base) return
-	const name = joinFileName(base, DEFAULT_SCRIPT_FILE_TYPE.extension)
+	const name = fileStore.newScriptName(base, type)
 
-	if (fileStore.scripts.some((script) => script.name === name)) {
-		window.alert('A script with that name already exists.')
+	const conflict = conflictingScript(name)
+	if (conflict) {
+		reportScriptConflict(name, conflict)
 		return
 	}
 
-	await fileStore.createScript(name, '', folderId)
+	try {
+		await fileStore.createScript(name, '', folderId)
+	} catch (err) {
+		window.alert(err instanceof Error ? err.message : 'Failed to create script')
+	}
 }
 
 async function addFolder(parentId: string | null) {
@@ -325,7 +373,11 @@ async function addTextFile(folderId: string | null) {
 		return
 	}
 
-	await fileStore.createTextFile(name, '', folderId)
+	try {
+		await fileStore.createTextFile(name, '', folderId)
+	} catch (err) {
+		window.alert(err instanceof Error ? err.message : 'Failed to create text file')
+	}
 }
 
 // Dropdown shown behind the header's own "+" for the project root — folderId
@@ -334,9 +386,74 @@ async function addTextFile(folderId: string | null) {
 // Upload only ever appears in a real project — the guest sandbox has no
 // object storage to put an uploaded file in (see fileStore.uploadImage's own
 // guard, the actual enforcement point).
+// "New script" is a plain action while the project's family has one script type,
+// and a submenu of the types while it has more (projectSettingsStore's
+// availableScriptTypes). Deliberately not always a submenu: with a single entry
+// it would be a click that asks nothing.
+function newScriptItem(folderId: string | null): DropdownMenuItem {
+	const types = projectSettingsStore.availableScriptTypes
+
+	if (types.length < 2) {
+		return { label: 'New script', icon: 'tabler:script-plus', onSelect: () => addScript(folderId, types[0]!) }
+	}
+
+	return {
+		label: 'New script',
+		icon: 'tabler:script-plus',
+		children: types.map((type) => ({
+			label: `${type.label} (.${type.extension})`,
+			icon: type.icon,
+			onSelect: () => addScript(folderId, type),
+		})),
+	}
+}
+
+// Lets an existing script move between .js and .ts. Purely a rename — the
+// content is left exactly as written, so switching back restores the file
+// unchanged. Going to .js can leave TypeScript syntax behind that's no longer
+// valid; that surfaces immediately as an error on the offending line rather
+// than being silently rewritten, and switching back undoes it.
+//
+// Offered only while the project's family has more than one script type — the
+// same condition newScriptItem uses.
+function scriptTypeItem(item: TreeItem): DropdownMenuItem | undefined {
+	const types = projectSettingsStore.availableScriptTypes
+	if (types.length < 2) return undefined
+
+	const current = scriptTypeForFile(scriptName(item))
+
+	return {
+		label: 'Script type',
+		icon: 'tabler:file-code',
+		children: types.map((type) => ({
+			label: `${type.label} (.${type.extension})`,
+			// The current type is checked rather than left out, so the menu shows
+			// what the file *is* and not only what it could become — same
+			// convention as the API version dropdown (versions/index.ts).
+			...(type.id === current.id
+				? { icon: 'tabler:check', color: 'primary' as const }
+				: { icon: type.icon }),
+			onSelect: () => switchScriptType(item, type),
+		})),
+	}
+}
+
+async function switchScriptType(item: TreeItem, type: ScriptFileType) {
+	const current = scriptName(item)
+	const { base, extension } = splitFileName(current)
+	if (extension === type.extension) return
+
+	// Straight through the same path the rename input uses, so the collision
+	// check (a helper.ts already sitting next to this helper.js), the store
+	// write, and the editor's own model swap all behave identically to a
+	// hand-typed rename. The model's language follows from the new name —
+	// see CodeEditor.vue's rename watcher.
+	await renameScript(current, joinFileName(base, type.extension))
+}
+
 function folderMenuItems(folderId: string | null): DropdownMenuItem[] {
 	const items: DropdownMenuItem[] = [
-		{ label: 'New script', icon: 'tabler:script-plus', onSelect: () => addScript(folderId) },
+		newScriptItem(folderId),
 		{ label: 'New text file', icon: 'tabler:file-plus', onSelect: () => addTextFile(folderId) },
 		{ label: 'New folder', icon: 'tabler:folder-plus', onSelect: () => addFolder(folderId) },
 	]
@@ -359,6 +476,10 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 	if (item.kind === 'image' && item.path) {
 		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyImageUrl(item.path) })
 	}
+	if (item.kind === 'script') {
+		const typeItem = scriptTypeItem(item)
+		if (typeItem) primary.push(typeItem)
+	}
 	primary.push({ label: `Rename ${kindLabel(item)}`, icon: 'tabler:pencil-filled', onSelect: () => startRename(item) })
 
 	const groups = [primary]
@@ -366,7 +487,7 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 	// The canonical entry script can be renamed (that stays a legitimate
 	// reorganization) but never deleted from here — nothing else guarantees
 	// a project always has one, and Restart depends on it existing.
-	if (!(item.kind === 'script' && scriptName(item) === MAIN_SCRIPT_NAME)) {
+	if (!(item.kind === 'script' && isMainScript(scriptName(item)))) {
 		groups.push([{ label: `Delete ${kindLabel(item)}`, icon: 'tabler:trash-filled', color: 'error', onSelect: () => deleteItem(item) }])
 	}
 
@@ -540,8 +661,11 @@ function cancelRename() {
 async function renameScript(current: string, name: string) {
 	if (!name || name === current) return
 
-	if (fileStore.scripts.some((script) => script.name === name)) {
-		window.alert('A script with that name already exists.')
+	// Excludes the script being renamed, so switching its own type (helper.js
+	// -> helper.ts, same base) isn't mistaken for a clash with itself.
+	const conflict = conflictingScript(name, current)
+	if (conflict) {
+		reportScriptConflict(name, conflict)
 		return
 	}
 
@@ -616,8 +740,8 @@ function commitRename(item: TreeItem) {
 
 async function deleteScript(name: string) {
 	// Belt-and-braces: itemMenuItems already omits the Delete entry entirely
-	// for main.js, so this only matters if some other path ever calls here.
-	if (name === MAIN_SCRIPT_NAME) {
+	// for the main script, so this only matters if some other path ever calls here.
+	if (isMainScript(name)) {
 		window.alert("The main script can't be deleted.")
 		return
 	}
@@ -960,28 +1084,37 @@ async function onDropOnRoot() {
 					</template>
 
 					<template #item-trailing="{ item }">
-						<div v-if="renamingItemId !== item.id" class="item-actions" @contextmenu="forwardRowContextMenu($event, item)">
-							<UDropdownMenu
-								:items="itemMenuItems(item)"
-								:open="actionsMenuOpenKey === rowKey(item)"
-								:content="{ onCloseAutoFocus: preventCloseAutoFocus }"
-								@update:open="(value: boolean) => actionsMenuOpenKey = value ? (rowKey(item) ?? null) : null"
-							>
-								<!-- <UTooltip text="Actions" ignore-non-keyboard-focus> -->
-									<!-- Ghost's default hover/active fill is bg-elevated — invisible here since
-									     .file-tree's own background is that same token (see below). Bumped one
-									     step up to bg-accented so the highlight actually shows against it. -->
-									<UButton
-										icon="tabler:dots-vertical"
-										variant="ghost"
-										color="neutral"
-										size="xs"
-										:ui="{ base: 'hover:bg-[var(--theme-bg-accented)] active:bg-[var(--theme-bg-accented)]' }"
-										@click.stop
-									/>
-								<!-- </UTooltip> -->
-							</UDropdownMenu>
-						</div>
+						<template v-if="renamingItemId !== item.id">
+							<!-- A folder's own size is an aggregate over its
+							     contents (see buildNode/folderSizeBytes), not
+							     something intrinsic to the folder row itself —
+							     shown the same way regardless, since the
+							     distinction doesn't matter for what this column
+							     is answering ("where is my space going"). -->
+							<span class="item-size" :title="`${(item.size ?? 0).toLocaleString()} bytes`">{{ formatBytes(item.size ?? 0) }}</span>
+							<div class="item-actions" @contextmenu="forwardRowContextMenu($event, item)">
+								<UDropdownMenu
+									:items="itemMenuItems(item)"
+									:open="actionsMenuOpenKey === rowKey(item)"
+									:content="{ onCloseAutoFocus: preventCloseAutoFocus }"
+									@update:open="(value: boolean) => actionsMenuOpenKey = value ? (rowKey(item) ?? null) : null"
+								>
+									<!-- <UTooltip text="Actions" ignore-non-keyboard-focus> -->
+										<!-- Ghost's default hover/active fill is bg-elevated — invisible here since
+										     .file-tree's own background is that same token (see below). Bumped one
+										     step up to bg-accented so the highlight actually shows against it. -->
+										<UButton
+											icon="tabler:dots-vertical"
+											variant="ghost"
+											color="neutral"
+											size="xs"
+											:ui="{ base: 'hover:bg-[var(--theme-bg-accented)] active:bg-[var(--theme-bg-accented)]' }"
+											@click.stop
+										/>
+									<!-- </UTooltip> -->
+								</UDropdownMenu>
+							</div>
+						</template>
 					</template>
 
 					<template #drop-placeholder>
@@ -990,6 +1123,12 @@ async function onDropOnRoot() {
 				</UTree>
 			</div>
 		</UContextMenu>
+
+		<!-- No project (guest sandbox) means no real quota to speak of at all
+		     — everything's a localStorage blob, nothing ever gets uploaded to
+		     Supabase/R2, so a "X / 10MB used" readout would just be showing a
+		     number that doesn't apply here. -->
+		<StorageIndicator v-if="fileStore.projectId" />
 	</div>
 	</CollapsiblePane>
 </template>
@@ -1175,6 +1314,36 @@ async function onDropOnRoot() {
 	flex-shrink: 0;
 }
 
+/* Deliberately the opposite priority from .item-actions beside it: this
+   should give up space *before* the file name does, truncating and
+   eventually vanishing at 0 width, while the name (data-slot="linkLabel",
+   min-width: 0 below) stays fully visible until this has nothing left to
+   give. flex-shrink: 999 against the label's default (1) is what creates
+   that ordering — not a literal 999:1 split, but skewed enough that this
+   absorbs essentially all of the available shrinkage first; the label only
+   starts losing width once this is already at its own min-width: 0 floor
+   and flexbox has nowhere else to take space from. flex-basis (rather than
+   width) is what "vanishing" needs: a shrinking flex-basis heading toward 0
+   naturally clips this element's own box to nothing, not just its text —
+   width would only affect the text's rendering box, not how much of the
+   overall shrinkage this item actually absorbs. text-overflow: ellipsis
+   (not the default clip) gives the truncate-before-vanish step its own
+   visual — a "12…" moment — before it disappears entirely, rather than
+   jumping straight from full text to gone. Not right-aligned any more:
+   that only made sense back when this had a fixed, protected width — a
+   right-aligned ellipsis truncates from the wrong (left) edge, which isn't
+   reliably supported the way trailing-edge truncation is. */
+.item-size {
+	flex-shrink: 999;
+	flex-basis: 3.5em;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 0.75em;
+	color: var(--theme-text-toned);
+	white-space: nowrap;
+}
+
 /* Nuxt UI only gives this element `truncate` (overflow-hidden + text-
    overflow: ellipsis + white-space: nowrap) — none of that clips anything
    until the box can actually shrink narrower than its content, and a flex
@@ -1185,4 +1354,27 @@ async function onDropOnRoot() {
 :deep([data-slot="linkLabel"]) {
 	min-width: 0;
 }
+
+/* The missing piece that made .item-size's own flex-shrink: 999 above a
+   no-op: .item-size and .item-actions aren't siblings of linkLabel in one
+   shared flex row — per Tree.vue (node_modules/@nuxt/ui), the #item-trailing
+   slot they're rendered into is itself wrapped in a Nuxt UI-owned
+   `<span data-slot="linkTrailing">`, which is what's actually adjacent to
+   linkLabel in the outer .link row. That wrapper ships with no min-width or
+   flex-shrink override of its own (just `ms-auto inline-flex gap-1.5
+   items-center`), so at the *outer* level it sat at browser defaults —
+   min-width: auto, flex-shrink: 1 — refusing to shrink below the natural
+   width of its own contents no matter how tight the row got. With nothing
+   ever asking linkTrailing to shrink, the inner item-size/item-actions
+   priority split never had a chance to run, and 100% of the outer row's
+   shrink pressure fell on linkLabel by default instead — the exact opposite
+   of the intended order. min-width: 0 unblocks shrinking at all; flex-shrink:
+   999 (matching .item-size's own value, same "absorb essentially all the
+   shrinkage first" approximation) makes linkTrailing — and therefore
+   item-size within it — give up space before linkLabel does, not
+   simultaneously with it. */
+/* :deep([data-slot="linkTrailing"]) {
+	flex-shrink: 999;
+	min-width: 0;
+} */
 </style>

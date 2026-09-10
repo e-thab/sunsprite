@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { supabase } from '@/assets/utils/supabase'
 import { useFileStore } from '@/stores/fileStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useApiVersionStore } from '@/stores/apiVersionStore'
+import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
 import EditorView from './EditorView.vue'
 import ErrorView from './ErrorView.vue'
 
@@ -14,6 +16,8 @@ const props = defineProps<{
 const router = useRouter()
 const fileStore = useFileStore()
 const authStore = useAuthStore()
+const apiVersionStore = useApiVersionStore()
+const projectSettingsStore = useProjectSettingsStore()
 
 const status = ref<'loading' | 'ready' | 'not-found' | 'error'>('loading')
 const errorMessage = ref('')
@@ -24,7 +28,7 @@ async function load(slug: string) {
 
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, owner_id')
+    .select('id, name, owner_id, api_version, settings')
     .eq('slug', slug)
     .maybeSingle()
 
@@ -53,6 +57,16 @@ async function load(slug: string) {
 
   resolvedProjectId.value = data.id
   fileStore.setProjectName(data.name)
+  // Pins the editor and sandbox to whatever this project was last saved
+  // against, before EditorView (and everything downstream that reads this
+  // store) ever mounts — or to the live source in a dev build, which is the
+  // one case that ignores the pin; see hydrateFromProject's own comment.
+  apiVersionStore.hydrateFromProject(data.api_version)
+  // Same timing, same reason: autosave/auto-run/output limits all need to be
+  // the project's own values before CodeEditor and OutputPane mount and start
+  // acting on them, rather than briefly running on defaults. `settings` came
+  // back with the row above, so this costs no extra round trip.
+  projectSettingsStore.hydrate(data.id, data.settings)
 
   try {
     await fileStore.loadProject(data.id)
@@ -65,7 +79,12 @@ async function load(slug: string) {
 
 onMounted(() => load(props.slug))
 watch(() => props.slug, (slug) => load(slug))
-onUnmounted(() => fileStore.exitProject())
+onUnmounted(() => {
+  fileStore.exitProject()
+  // Settings loaded for this project must not leak into whatever opens
+  // next — same reasoning as apiVersionStore's own reset on unmount.
+  projectSettingsStore.reset()
+})
 </script>
 
 <template>

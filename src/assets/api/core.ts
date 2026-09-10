@@ -1,27 +1,31 @@
 import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
-import type { Repeatable, Delayable, Screen, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
-import type { ThemePalette } from '../theme/themes'
-import { Mouse } from './types'
-import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from './utility'
-import { type Point, type PointArg, Vector2 } from './Point'
-import { runEntryModule, locateError } from './moduleRunner'
-import Output from '@/sandbox/output'
+import type { Repeatable, Delayable, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
+import type { ThemePalette } from '@/assets/theme/themes'
+import { Vector2, type Vector2Like } from '@api/Vector2'
+import { Mouse } from '@api/types'
+import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from '@api/utility'
+import { runEntryModule, locateError } from '@api/moduleRunner'
 import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 
-import Colors from './Colors'
-import Random from './Random'
-import Sprite from './Sprite'
-import Rectangle from './Rectangle'
-import Circle from './Circle'
-import Label from './Label'
-import Line from './Line'
-import HLine from './HLine'
-import VLine from './VLine'
-import Timer from './Timer'
-import Clock from './Clock'
-// import Camera from './Camera';  --  needs phaser attention
+import Output from '@/sandbox/output'
+import Warning from '@api/Warning'
+import Random from '@api/Random'
+import Colors from '@api/Colors'
+import Timer from '@api/Timer'
+import Clock from '@api/Clock'
+import Camera from '@api/Camera'
+import Screen from '@api/Screen'
+import Sprite from '@api/Sprite'
+import Rectangle from '@api/Rectangle'
+import Circle from '@api/Circle'
+import Label from '@api/Label'
+import Line from '@api/Line'
+import HLine from '@api/HLine'
+import VLine from '@api/VLine'
+
+export const VERSION = '1.0'
 
 // export const outputItems: {
 // 	stamps: HTMLElement[],
@@ -58,8 +62,15 @@ function toDisplayError(e: unknown): Error {
 /** Single place that turns "something a user script threw" into output panel content. */
 function reportUserError(e: unknown) {
 	const err = toDisplayError(e)
-	Output.runtimeError(err.toString(), locateError(err))
-	console.error('User code error:', err)
+	const location = locateError(err)
+
+	if (err instanceof Warning) {
+		Output.runtimeWarning(err.toString(), location)
+		console.warn('User code warning:', err)
+	} else {
+		Output.runtimeError(err.toString(), location)
+		console.error('User code error:', err)
+	}
 }
 
 /**
@@ -95,10 +106,12 @@ function wrapUserCallback<A extends unknown[]>(fn: (...args: A) => void): (...ar
 	return (...args: A) => runUserCallback(() => fn(...args), undefined)
 }
 
+/** Pause engine processing. Must be manually un-paused using the UI button for now. */
 export function pause() {
 	clock.pause()
 	paused = true
 }
+/** Resume engine processing. There is currently no practical way to use this function since it can't be processed while paused. (WIP) */
 export function play() {
 	clock.play()
 	paused = false
@@ -112,13 +125,16 @@ export function currentFps(): number {
 /**
  * API Internal vars
  */
-/** All objects that can be positioned on the screen/in the world */
-export let allPositionables: { _updatePosition(): void }[] = []
+/** Internal. All objects that can be positioned on the screen/in the world */
+export let resizeReactors: { _onResize(): void }[] = []
 
-/** A map associating Phaser objects to custom Sunsprite objects */
-export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
+/**
+ * A map associating Phaser objects to custom Sunsprite objects. Will be used to allow for
+ * interfacing more directly with Phaser if desired
+ */
+// export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
 
-/** All timer objects that need updating each frame */
+/** Internal. All timer objects that need updating each frame */
 export let allTimers: Timer[] = []
 
 let _nextObjectId: number = 0
@@ -171,17 +187,17 @@ export const PointerEvents = {
 	POINTER_WHEEL: 'sunsprite-pointerwheel',
 }
 
-export function getNextObjectId(): string {
+export function _getNextObjectId(): string {
 	return (_nextObjectId++).toString()
 }
 
-export function updatePositions() {
-	for (const positionable of allPositionables) {
-		positionable._updatePosition()
+export function _updatePositions() {
+	for (const reactor of resizeReactors) {
+		reactor._onResize()
 	}
 }
 
-function updateTimers() {
+function _updateTimers() {
 	for (const timer of allTimers) {
 		timer._update()
 	}
@@ -340,10 +356,10 @@ function _releaseAllKeys() {
 }
 
 /**
- * Key handling entry points for events the *host* observed and forwarded,
+ * Key handling entry points for events the host observed and forwarded,
  * which is the normal case (the iframe only receives keys directly when the
  * user has clicked the canvas). Assigned by setup(); no-ops until then.
- * `code` is a raw KeyboardEvent.code — aliasing happens inside.
+ * {code} is a raw KeyboardEvent.code, aliasing happens inside.
  */
 export let handleKeyDown: (code: string) => void = () => {}
 export let handleKeyUp: (code: string) => void = () => {}
@@ -351,11 +367,23 @@ export function releaseAllKeys() {
 	_releaseAllKeys()
 }
 
-export function getGamePoint(point: Point): Point {
-	return {
-		x: point.x - screen.right,
-		y: -point.y + screen.top
-	}
+/** Internal. Converts Phaser coordinate point to our coord system. */
+export function getGamePoint(pos: Vector2Like): Vector2 {
+	pos = Vector2.from(pos)
+	return new Vector2(
+		// top minds spent 2000 hours on this problem
+		pos.x - camera.zoom * (camera.right - camera.x),
+		-pos.y + camera.zoom * (camera.top - camera.y)
+	)
+}
+
+/** Internal. Inverse of getGamePoint; Converts coordinate point from our coord system to Phaser's. */
+export function getOurPoint(pos: Vector2Like): Vector2 {
+	pos = Vector2.from(pos)
+	return new Vector2(
+		pos.x + camera.zoom * (camera.right - camera.x),
+		-pos.y + camera.zoom * (camera.top - camera.y)
+	)
 }
 
 // function _resetTicker() {
@@ -369,86 +397,28 @@ export function getGamePoint(point: Point): Point {
  * User-accessible
  */
 // Idea: setScreenSize() ?
+export const clock: Clock = new Clock()
 export let game: Game
 export let scene: Scene
-export let camera: Phaser.Cameras.Scene2D.Camera
-export const mouse = new Mouse()
-export const clock: Clock = new Clock()
+export let camera: Camera
+export let screen: Screen
+export let mouse: Mouse
 export let paused = false
 
-// TODO: Turn Timer into a class, but still provide the default singleton
-// function updateTimer(time: number, delta: number, incrementFrame: boolean = true) {
-// 	// const deltaNormal = delta * 60 / 1000
-// 	// timer.delta = deltaNormal
-// 	timer.deltaMs = delta
-	
-// 	const now = Date.now()
-// 	timer.nowMs = now
-// 	// timer.now = now / 1000
-// 	// timer.totalTimeMs = now - timer.startTimeMs
-// 	// timer.totalTime = timer.totalTimeMs / 1000
-
-// 	if (paused) {
-// 		// _totalPauseTime = now - _lastPauseTime
-// 		return
-// 	}
-
-// 	timer.timeMs = timer.totalTimeMs - _totalPauseElapsed
-// 	// timer.time = timer.timeMs / 1000
-
-// 	if (incrementFrame) timer.frame += 1
-// }
-
-// function resetTimer() {
-// 	timer.deltaMs = 0
-// 	// timer.totalTimeMs = 0
-// 	timer.timeMs = 0
-// 	timer.frame = 0
-// 	timer.nowMs = Date.now()
-// 	timer.startTimeMs = timer.nowMs
-
-// 	_totalPauseElapsed = 0
-// 	_lastPauseTime = 0
-// 	Clock.frame = 0
-// }
-
+/** An array of all keys currently pressed. */
 let keysPressed: string[] = []
+/** An array of all keys that were just pressed last frame. */
 let keysJustPressed: Map<string, number | undefined> = new Map()
+/** An array of all keys that were just released last frame. */
 let keysJustReleased: Map<string, number | undefined> = new Map()
 
-export const screen: Screen = {
-	get width(): number {
-		return camera?.width ?? 0
-	},
-	get height(): number {
-		return camera?.height ?? 0
-	},
-	get top(): number {
-		return camera ? camera.y + this.height / 2 : 0
-	},
-	get bottom(): number {
-		return camera ? camera.y - this.height / 2 : 0
-	},
-	get left(): number {
-		return camera ? camera.x - this.width / 2 : 0
-	},
-	get right(): number {
-		return camera ? camera.x + this.width / 2 : 0
-	},
-	// get center(): [number, number] {
-	// 	return [this.width / 2, this.height / 2]
-	// }
-	get center(): Point {
-		return {
-			x: this.width / 2,
-			y: this.height / 2
-		}
-	}
-}
-
+/**
+ * Set the background color.
+ * @param color Color to fill the background with.
+ */
 export function setBackgroundColor(color: string) {
 	// Web color name support?
-	camera.setBackgroundColor(color)
+	camera._cam.setBackgroundColor(color)
 }
 
 async function setBackgroundImage(src: string) {
@@ -482,31 +452,56 @@ async function setCursor(src: string) {
 	// app.renderer.events.cursorStyles.hover = defaultIcon;
 }
 
-/* Run function {fn} once every frame */
-export function forever(fn: Action) {
+/**
+ * Primary game loop; runs every frame.
+ * @param func The function to run each frame.
+ */
+export function forever(func: 
+	/** @param delta Time since the previous frame. */
+	(delta: number) => void
+) {
 	_forevers.push((delta: number) => {
 		if (paused) return
-		fn(delta)
+		func(delta)
 	})
 }
 
-/* Run function {fn} {times} number of times */
-export function repeat(times: number, fn: Action) {
+/**
+ * Runs a specified number of times alongside the game loop (1 iteration per frame).
+ * @param times The number of times to repeat.
+ * @param func The function to be repeated.
+ */
+export function repeat(times: number, func: 
+	/** @param i The current iteration (times repeated so far). */
+	(i: number) => void
+) {
 	const repeatable: Repeatable = {
 		count: times,
 		i: 0,
-		fn,
+		fn: func,
 		// then: undefined
 	}
 	_repeats.push(repeatable)
 
 	return {
-		then(thenFn: Action) {
-			repeatable.then = thenFn
+		/**
+		 * Register a function to run when the repeat ends.
+		 * @param thenFunc The function.
+		 */
+		then(thenFunc: 
+			/** @param i The current iteration (times repeated so far). */
+			(i: number) => void
+		) {
+			repeatable.then = thenFunc
 		}
 	}
 }
 
+/**
+ * Runs until the specified condition is true. Runs alongside the game loop (1 iteration per frame).
+ * @param condition The predicate condition to check.
+ * @param fn The function to be repeated.
+ */
 export function repeatUntil(condition: Predicate, fn: Action) {
 	const repeatableUntil: RepeatableUntil = {
 		condition,
@@ -516,12 +511,21 @@ export function repeatUntil(condition: Predicate, fn: Action) {
 	_repeatUntils.push(repeatableUntil)
 
 	return {
+		/**
+		 * Register a function to run when the repeat ends.
+		 * @param thenFn The function.
+		 */
 		then(thenFn: Action) {
 			repeatableUntil.then = thenFn
 		}
 	}
 }
 
+/**
+ * Runs repeatedly while the specified condition is true. Runs alongside the game loop (1 iteration per frame).
+ * @param condition The predicate condition to check.
+ * @param fn The function to be repeated.
+ */
 export function repeatWhile(condition: Predicate, fn: Action) {
 	const repeatableWhile: RepeatableWhile = {
 		condition,
@@ -532,13 +536,21 @@ export function repeatWhile(condition: Predicate, fn: Action) {
 	_repeatWhiles.push(repeatableWhile)
 
 	return {
+		/**
+		 * Register another function to run once every time the condition switches from true to false.
+		 * @param thenFn The function.
+		 */
 		then(thenFn: Action) {
 			repeatableWhile.then = thenFn
 		}
 	}
 }
 
-/* Run function {fn} after {seconds} seconds have passed */
+/**
+ * Runs once after a specified number of seconds have passed.
+ * @param seconds The number of seconds to wait before running.
+ * @param fn The function to run.
+ */
 export function after(seconds: number, fn: Action) {
 	_afters.push({
 		elapsedMs: 0,
@@ -547,7 +559,11 @@ export function after(seconds: number, fn: Action) {
 	})
 }
 
-/* Run function {fn} once immediately, then every {seconds} seconds */
+/**
+ * Runs once immediately, then repeatedly at a specified time interval.
+ * @param seconds The number of seconds to wait before running each time.
+ * @param fn The function to run.
+ */
 export function every(seconds: number, fn: Action) {
 	_everys.push({
 		elapsedMs: 0,
@@ -557,7 +573,11 @@ export function every(seconds: number, fn: Action) {
 	fn()
 }
 
-/* Run function {fn} once each time {condition} becomes true */
+/**
+ * Runs once each time the condition becomes true.
+ * @param condition The condition to check.
+ * @param fn The function to run.
+ */
 export function when(condition: Predicate, fn: Action) {
 	// TODO: A way to signal that this entry should be removed after the first time it becomes true
 	_whens.push({
@@ -567,22 +587,34 @@ export function when(condition: Predicate, fn: Action) {
 	})
 }
 
-/* True every frame while button is down */
+/**
+ * Returns true if the specified key is currently pressed. Will repeatedly be true while the key is held.
+ * @param key The key to check.
+ */
 export function keyPressed(key: string): boolean {
 	return keysPressed.includes(key.toLowerCase())
 }
 
-/* True only during the frame after key press */
+/**
+ * Returns true if the specified key is pressed, AND this is the first frame that it's being held. Will only be true once when a key starts being held.
+ * @param key The key to check.
+ */
 export function keyJustPressed(key: string): boolean {
 	return keysJustPressed.get(key.toLowerCase()) !== undefined
 }
 
-/* True only during the frame after key release */
+/**
+ * Returns true if the specified key is no longer pressed, AND this is the first frame after release. Will only be true once when a key stops being held.
+ * @param key The key to check.
+ */
 export function keyJustReleased(key: string): boolean {
 	return keysJustReleased.get(key.toLowerCase()) !== undefined
 }
 
-/* Allows cleaner input key mapping for pressed key behavior */
+/**
+ * Register input actions to run once each time a key is pressed.
+ * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
+ */
 export function onKeyPress(actions: KeyAction) {
 	for (const [inputKey, action] of Object.entries(actions)) {
 		// const actionKey = inputKey as keyof typeof actions
@@ -590,7 +622,10 @@ export function onKeyPress(actions: KeyAction) {
 	}
 }
 
-/* Allows cleaner input key mapping for released key behavior */
+/**
+ * Register input actions to run once each time a key is released.
+ * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
+ */
 export function onKeyRelease(actions: KeyAction) {
 	for (const [inputKey, action] of Object.entries(actions)) {
 		// const actionKey = inputKey as keyof typeof actions
@@ -598,7 +633,10 @@ export function onKeyRelease(actions: KeyAction) {
 	}
 }
 
-/* Allows cleaner input key mapping for held key behavior */
+/**
+ * Register input actions to run repeatedly while a key is held.
+ * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
+ */
 export function onKeyHold(actions: KeyAction) {
 	for (const [inputKey, action] of Object.entries(actions)) {
 		// const actionKey = inputKey as keyof typeof actions
@@ -606,7 +644,10 @@ export function onKeyHold(actions: KeyAction) {
 	}
 }
 
-/** TODO */
+/**
+ * Register input actions to run once each time a mouse event is detected.
+ * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
+ */
 function onMouse(actions: MouseInputAction) {
 	for (const [button, action] of Object.entries(actions)) {
 		const eventName = mouseInputEventNames[button]
@@ -690,13 +731,6 @@ function mouseOverCanvas() {
 	return game.canvas.matches(':hover')
 }
 
-const UserOutput = {
-	print: Output.print,
-	error: Output.error,
-	warn: Output.warn,
-	clear: Output.clear
-}
-
 /**
  * API utility
  */
@@ -743,8 +777,24 @@ class UserScene extends Scene {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
 
-		mouse._setPointer(this.input.activePointer)
-		camera = this.cameras.main
+		if (mouse) {
+			mouse._setPointer(this.input.activePointer)
+		} else {
+			mouse = new Mouse(this.input.activePointer)
+		}
+
+		const cam = this.cameras.main
+		if (camera) {
+			camera._setCam(cam)
+		} else {
+			camera = new Camera(cam)
+		}
+
+		if (screen) {
+			screen._setCam(cam)
+		} else {
+			screen = new Screen(cam)
+		}
 
 		// Set poll always to allow cursors to change when pointer isn't moving
 		this.input.setPollAlways()
@@ -825,11 +875,13 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, /*Point,*/
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine,
+			Vector2, Timer, Warning,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
+			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
-			keyPressed, keysPressed, keyJustPressed, keyJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			Output: UserOutput, print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
+			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
+			print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -892,12 +944,14 @@ class UserScene extends Scene {
 	update(time: number, delta: number) {
 		// onUpdate()
 		clock._update(delta)
-		updateTimers()
+		_updateTimers()
 
 		// Only update mouse pos while mouse is over canvas, otherwise clicking code editor updates
 		if (mouseOverCanvas()) {
-			mouse.x = clamp(this.input.activePointer.x - screen.width / 2, screen.left, screen.right)
-			mouse.y = clamp(screen.height / 2 - this.input.activePointer.y, screen.bottom, screen.top)
+			// mouse.x = clamp(this.input.activePointer.worldX - screen.width / 2, screen.left, screen.right)
+			// mouse.y = clamp(screen.height / 2 - this.input.activePointer.worldY, screen.bottom, screen.top)
+			// mouse.x = this.input.activePointer.worldX - screen.width / 2
+			// mouse.y = screen.height / 2 - this.input.activePointer.worldY
 		}
 
 		if (!paused) {
@@ -928,7 +982,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	if (_sessionCount > 0) console.groupEnd()
 	// Be cool to print the group header in the theme primary color, but can't use the theme store here
 	// console.group(`%cSunsprite session ${++_sessionCount}`, `color: ${theme?.primary ?? 'white'}; font-weight: bold;`)
-	console.group(`%cSunsprite session ${++_sessionCount}`, `color: ${Colors.HotPink}; font-weight: bold;`)
+	console.group(`%cSunsprite v${VERSION} session ${++_sessionCount}`, `color: ${Colors.HotPink}; font-weight: bold;`)
 
 	_forevers = []
 	_repeats = []
@@ -937,7 +991,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_whens = []
 	_repeatUntils = []
 	_repeatWhiles = []
-	allPositionables = []
+	resizeReactors = []
 	allTimers = []
 
 	_keyPressActions.clear()
@@ -977,6 +1031,22 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 			mode: Phaser.Scale.NONE
 		},
 		parent: 'game-container',
+		// Phaser defaults this to true, which calls window.focus() from inside
+		// this iframe the moment a game boots (see its VisibilityHandler) —
+		// pulling focus out of whatever the user was doing in the host app.
+		// Every run builds a new Game, so with auto-run on (see
+		// projectSettingsStore) that fired mid-typing and sent the next
+		// keystrokes to the game instead of the editor.
+		//
+		// Nothing needs it: the host forwards key events to the sandbox
+		// whenever it has focus and the user isn't typing into a text surface
+		// (hostBridge.ts's forwardKey), so a game is fully playable by keyboard
+		// without this frame ever holding focus. Clicking the canvas still
+		// hands focus over — natively, plus the explicit focus() in
+		// sandbox/main.ts, which is also what turning this off would otherwise
+		// have cost (Phaser reads autoFocus again in its MouseManager to focus
+		// on canvas mousedown).
+		autoFocus: false,
 		// backgroundColor: '#333',
 		// Every image is cross-origin from in here: the sandbox document has an
 		// opaque origin, so even same-server /images/* is "another origin" to it.
@@ -1010,7 +1080,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	// natively.
 }
 
-const resizeDelay = 5 // milliseconds
+const resizeDelay = 0 // milliseconds
 export function resizeStage() {
 	new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => _resizeStage())
 }
@@ -1022,7 +1092,7 @@ function _resizeStage() {
 
 	const size = game.scale.parentSize
 	game.scale.setGameSize(size.width, size.height)
-	updatePositions()
+	_updatePositions()
 }
 
 export function setup() {

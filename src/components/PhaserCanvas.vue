@@ -8,22 +8,13 @@ import CollapsiblePane from './CollapsiblePane.vue'
 import Output from '@/assets/api/output'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
-const codeChangedSinceLastRun = ref(false)
 const fpsColor = ref()
 const fullscreenStore = useFullscreenStore()
 const fileStore = useFileStore()
 
 function onRestartClick() {
-  codeChangedSinceLastRun.value = false
   emit('runGame')
 }
-
-// Meant to track & indicate when the code running does not match the project's code. For now that just
-// means adding a chip any time the code is changed after running and removing it when restarting. Eventually,
-// it should also remove that chip when the project's code is returned to its before-change state.
-watch(() => fileStore.hasUnsavedChanges, (value, oldValue) => {
-  codeChangedSinceLastRun.value = true
-})
 
 // The sandbox reports its frame rate on its own cadence, so this just recolors
 // the badge whenever a new reading lands instead of polling the game itself.
@@ -54,9 +45,10 @@ function togglePlayPause() {
 const fullscreenIcon = computed(() => fullscreenStore.fullscreen ? 'tabler:minimize' : 'tabler:maximize')
 const fullscreenTooltip = computed(() => fullscreenStore.fullscreen ? 'Minimize' : 'Maximize')
 
-const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
+const restartVariant = computed(() => fileStore.codeChangedSinceLastRun ? 'subtle' : 'ghost')
+const restartColor = computed(() => fileStore.codeChangedSinceLastRun ? 'warning' : 'neutral')
 
-// TODO: use tabler:refresh-alert icon when the code running doesn't match saved project
+const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 </script>
 
 <template>
@@ -69,9 +61,9 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
       <!-- </UTooltip> -->
 
       <!-- Restart / Run code -->
-      <UChip inset color="warning" :show="codeChangedSinceLastRun">
+      <UChip inset color="warning" :show="fileStore.codeChangedSinceLastRun">
         <!-- <UTooltip text="Restart"> -->
-          <UButton icon="tabler:refresh" variant="ghost" color="neutral" label="Restart" size="xs" @click="onRestartClick" />
+          <UButton icon="tabler:refresh" :variant="restartVariant" :color="restartColor" label="Restart" size="xs" @click="onRestartClick" />
         <!-- </UTooltip> -->
       </UChip>
 
@@ -83,7 +75,7 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 
       <!-- Fullscreen toggle -->
       <!-- <UTooltip :text="fullscreenTooltip"> -->
-        <UButton :icon="fullscreenIcon" variant="ghost" color="neutral" label="Fullscreen" size="xs" @click="$emit('fullscreen')" />
+        <UButton :icon="fullscreenIcon" variant="ghost" color="neutral" :label="fullscreenTooltip" size="xs" @click="$emit('fullscreen')" />
       <!-- </UTooltip> -->
 
       <!-- Settings -->

@@ -170,11 +170,11 @@ const colors = [
     '#d6f8d6',
 ]
 let lastColor = ''
-let r = Random.range(0, 4)
+let r = Random.integer(0, 4)
 // let i = 0
 
 every(0.1, () => {
-    while (colors[r] === lastColor) r = Random.range(0, 4)
+    while (colors[r] === lastColor) r = Random.integer(0, 4)
     
     const rect = new Rectangle({
         color: colors[r]
@@ -191,7 +191,7 @@ every(0.1, () => {
 })`
 
 const exampleCode: { [key: string]: string } = {
-    'main.js': mainJs,
+    'main.js': rectSpiralJs,
     'sprites.js': spritesJs,
     'rectangles.js': rectanglesJs,
     'lines.js': linesJs,

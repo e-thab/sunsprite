@@ -1,0 +1,27 @@
+-- Per-project editor/runtime preferences that aren't code: autosave and its
+-- interval, auto-run, output panel limits, and (later) the game settings.
+-- One jsonb column rather than a column per setting, deliberately: the
+-- settings panel (src/components/SettingsPanel.vue) is built so that adding
+-- a setting is a data change — one entry in its SETTINGS_GROUPS list — and a
+-- column-per-setting schema would make every one of those a migration too.
+-- The tradeoff (no per-key constraints, no per-key indexing) costs nothing
+-- here: these are read as a whole blob when a project opens, written as a
+-- whole blob when one changes, and never queried across projects.
+--
+-- Not included here: api_version, which keeps its own dedicated column (see
+-- 20260829120000_add_project_api_version.sql). It predates this, carries a
+-- real format check constraint, and is read on its own by the project load
+-- path before anything else mounts — worth staying a first-class column
+-- rather than being folded into a blob.
+--
+-- Client-side shape and defaults live in src/stores/projectSettingsStore.ts.
+-- Unknown keys are preserved on write (the store merges rather than
+-- replaces), so a key written by a newer client isn't destroyed by an older
+-- one saving some unrelated setting.
+alter table public.projects add column settings jsonb not null default '{}'::jsonb;
+
+-- Existing rows take the same empty default as new ones: absent keys mean
+-- "whatever the client's current default is" (PROJECT_SETTINGS_DEFAULTS),
+-- which is exactly how a project that has never had a setting touched should
+-- behave. No backfill of concrete values, so changing a default later
+-- actually reaches every project that never overrode it.

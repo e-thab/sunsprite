@@ -1,27 +1,28 @@
-import {
-    currentFps,
-    handleKeyDown,
-    handleKeyUp,
-    mouse,
-    paused,
-    pause,
-    play,
-    releaseAllKeys,
-    resizeStage,
-    runUserCode,
-    screen,
-    setup,
-    clock,
-} from '@/assets/api/core'
 import { setScriptResolver } from '@/assets/api/moduleRunner'
+import { loadVersionedRuntime, loadDevRuntime } from '@/assets/api/versions/runtime'
+import { DEV_VERSION } from '@/assets/api/versions/constants'
 import { onHostMessage, postToHost } from './channel'
-import { collectWatchSnapshot } from './watch'
-import type { HostMessage } from './protocol'
+import { API_VERSION_PARAM, type HostMessage } from './protocol'
 
 // Entry point for runner.html — the document inside
 // `<iframe sandbox="allow-scripts">`. Phaser, the Sunsprite API, and every line
 // of user code live in here, at an opaque origin with no way to reach the
 // editor app. This file is the only thing that talks to the host.
+//
+// core/watch are resolved dynamically, not statically imported, because which
+// copy loads depends on a version requested via this document's own URL (see
+// hostBridge.ts's sandboxUrl()) — read once, here, before anything else runs.
+// moduleRunner.ts is never versioned (it's generic script-compilation engine,
+// not part of the scripting API itself), so it stays a plain static import.
+const requestedVersion = new URLSearchParams(location.search).get(API_VERSION_PARAM) ?? DEV_VERSION
+let activeVersion = requestedVersion
+let runtime = await loadVersionedRuntime(requestedVersion)
+if (!runtime) {
+    console.error(`API version "${requestedVersion}" not found — falling back to ${DEV_VERSION}.`)
+    activeVersion = DEV_VERSION
+    runtime = await loadDevRuntime()
+}
+const { core, watch } = runtime
 
 /**
  * Import resolution round trip. Only the host has the file store, so a script
@@ -46,7 +47,7 @@ setScriptResolver((name) => {
 function handleMessage(message: HostMessage) {
     switch (message.type) {
         case 'run':
-            runUserCode(message.code, message.entryName, message.theme)
+            core.runUserCode(message.code, message.entryName, message.theme)
             break
 
         case 'script-response': {
@@ -58,26 +59,26 @@ function handleMessage(message: HostMessage) {
         }
 
         case 'set-paused':
-            if (message.paused) pause()
-            else play()
+            if (message.paused) core.pause()
+            else core.play()
             appliedPauseSeq = message.seq
             break
 
         case 'resize':
-            resizeStage()
+            core.resizeStage()
             break
 
         case 'key':
-            if (message.kind === 'down') handleKeyDown(message.code)
-            else handleKeyUp(message.code)
+            if (message.kind === 'down') core.handleKeyDown(message.code)
+            else core.handleKeyUp(message.code)
             break
 
         case 'release-keys':
-            releaseAllKeys()
+            core.releaseAllKeys()
             break
 
         case 'ping':
-            postToHost({ type: 'ready' })
+            postToHost({ type: 'ready', apiVersion: activeVersion })
             break
     }
 }
@@ -91,12 +92,21 @@ function watchContainerSize() {
     const container = document.getElementById('game-container')
     if (!container) return
 
-    new ResizeObserver(() => resizeStage()).observe(container)
+    new ResizeObserver(() => core.resizeStage()).observe(container)
 
     // Right-click is a game input, not a request for the browser menu. This
     // used to be attached from PhaserCanvas.vue; the canvas lives in here now,
     // and that document can't reach across the origin boundary to add it.
     container.addEventListener('contextmenu', (event) => event.preventDefault())
+
+    // Clicking the game means "I want to play it", so focus follows the click
+    // — which is what hostBridge.ts's forwardKey checks (document.activeElement
+    // === frame) to stop double-delivering keys the iframe is now receiving
+    // directly. Phaser used to do this itself on canvas mousedown, but it gates
+    // that on the same autoFocus flag core.ts now turns off to stop a booting
+    // game from stealing focus from the editor (see its own comment there).
+    // Doing it here keeps the two independent: focus on click, never on boot.
+    container.addEventListener('pointerdown', () => window.focus())
 }
 
 // Telemetry for the canvas panel's FPS badge, mouse readout, and the Info
@@ -106,29 +116,46 @@ function watchContainerSize() {
 // the eye while staying well clear of that cost.
 function startStatusReports() {
     setInterval(() => {
+        const { mouse, clock, screen, camera } = core
+        if (!mouse || !clock || !screen) return
         postToHost({
             type: 'status',
-            fps: currentFps(),
-            mouseX: Math.round(mouse.x),
-            mouseY: Math.round(mouse.y),
-            paused,
+            fps: core.currentFps(),
+            paused: core.paused,
             pauseSeq: appliedPauseSeq,
             frame: clock.frame,
             time: clock.time,
             deltaMs: clock.deltaMs,
+
+            mouseX: Math.round(mouse.x),
+            mouseY: Math.round(mouse.y),
+            mouseScreenX: Math.round(mouse.screenX),
+            mouseScreenY: Math.round(mouse.screenY),
+
+            cameraX: Math.round(camera.x),
+            cameraY: Math.round(camera.y),
+            cameraWidth: Math.round(camera.width),
+            cameraHeight: Math.round(camera.height),
+            cameraTop: Math.round(camera.top),
+            cameraBottom: Math.round(camera.bottom),
+            cameraLeft: Math.round(camera.left),
+            cameraRight: Math.round(camera.right),
+            cameraZoom: parseFloat(camera.zoom.toFixed(3)),
+
             screenWidth: Math.round(screen.width),
             screenHeight: Math.round(screen.height),
             screenTop: Math.round(screen.top),
             screenBottom: Math.round(screen.bottom),
             screenLeft: Math.round(screen.left),
             screenRight: Math.round(screen.right),
-            watch: collectWatchSnapshot(),
+
+            watch: watch.collectWatchSnapshot(),
         })
     }, 60)
 }
 
-setup()
+core.setup()
 watchContainerSize()
 startStatusReports()
 onHostMessage(handleMessage)
-postToHost({ type: 'ready' })
+postToHost({ type: 'ready', apiVersion: activeVersion })

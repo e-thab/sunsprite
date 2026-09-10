@@ -62,7 +62,7 @@ const links = computed<ButtonProps[]>(() => [
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--theme-bg-elevated);
+  background-color: var(--theme-bg-accented);
 }
 
 .hero-title {

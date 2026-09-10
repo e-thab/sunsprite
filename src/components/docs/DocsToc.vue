@@ -40,6 +40,13 @@ function scrollToTop() {
 	flex-direction: column;
 	gap: 0.35em;
 	padding: 1em 0.75em;
+	/* PageAside's own theme hangs it 1rem left of wherever it's placed above lg
+	   (its lg:-ms-4, paired with the lg:ps-4 the padding above already
+	   replaces). Harmless while the docs grid still had a 2.5rem gap absorbing
+	   it, but that gap is gone — each column carries its own spacing now (see
+	   DocsView.vue), and a rail reaching a whole rem into the body column is the
+	   opposite of that. */
+	margin-inline: 0;
 	position: sticky;
 	top: 0;
 	/* Same fix as .docs-view-tree (DocsView.vue): PageAside's own Nuxt UI

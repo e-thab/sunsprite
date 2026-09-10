@@ -2,6 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { searchDocs } from '@/assets/docs/docsSearch'
+// A sibling route to DocsView.vue (/docs/search vs /docs/:pathMatch), not
+// nested inside it — no version context of its own to follow, so this
+// searches the live/current docs, same as DocsSearchModal.vue.
+import { searchEntries } from '@/assets/docs/docsIndex'
 import DocsSearchResultsList from '@/components/docs/DocsSearchResultsList.vue'
 
 const route = useRoute()
@@ -21,7 +25,7 @@ watch(() => route.query.q, (value) => {
 	if (next !== query.value) query.value = next
 })
 
-const results = computed(() => searchDocs(query.value))
+const results = computed(() => searchDocs(query.value, searchEntries))
 
 function onSelect(path: string) {
 	router.push(`/docs/${path}`)

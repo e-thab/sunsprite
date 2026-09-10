@@ -1,4 +1,4 @@
-import { allTimers, clock } from "./core"
+import { allTimers, clock } from "@api/core"
 
 /** The timer class... TODO: DESCRIBE */
 // TODO: Add Timer class to API

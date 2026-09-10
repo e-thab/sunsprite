@@ -1,7 +1,6 @@
-import GameObject from "./GameObject"
 import type { GameObjectProps } from "./mixins"
-
-import { scene, allPositionables } from "./core"
+import { scene, resizeReactors } from "@api/core"
+import GameObject from "@api/GameObject"
 import Phaser from "phaser"
 // import type { Sprite } from 'phaser'
 
@@ -20,6 +19,7 @@ import Phaser from "phaser"
 */
 
 type SpriteProps = GameObjectProps & {
+    /** A URL path to the sprite's image. */
     src?: string
 }
 
@@ -36,14 +36,15 @@ export default class Sprite extends GameObject {
         
         this.src = props?.src
         // Set mixin props
-        this.initMixins(props)
+        this._initMixins(props)
         
-        // Rectangles may flicker on creation without this delay
-        this.queueShow()
+        // Sprites may flicker on creation without this delay
+        this._queueShow()
         
-        allPositionables.push(this)
+        resizeReactors.push(this)
     }
     
+    /** A URL path to the sprite's image. */
     get src() {
         return this._src
     }

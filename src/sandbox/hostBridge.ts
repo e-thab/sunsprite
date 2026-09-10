@@ -1,9 +1,11 @@
 import { ref } from 'vue'
-import Output from '@/assets/api/output'
+import Output from '@api/output'
 import { useFileStore } from '@/stores/fileStore'
 import { useWatchPanelStore } from '@/stores/watchPanelStore'
+import { useApiVersionStore } from '@/stores/apiVersionStore'
+import { DEV_VERSION } from '@api/versions/constants'
 import type { ThemePalette } from '@/assets/theme/themes'
-import { HOST_ORIGIN_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
+import { HOST_ORIGIN_PARAM, API_VERSION_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
 
 // Host side of the sandbox. User code no longer runs in the editor app at all:
 // it runs in runner.html inside an `<iframe sandbox="allow-scripts">`, which
@@ -17,7 +19,7 @@ import { HOST_ORIGIN_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage
 // api/core.ts, so from a component's point of view little has changed.
 
 const fpsRef = ref(0)
-const mouseRef = ref({ mouseX: 0, mouseY: 0 })
+const mouseRef = ref({ mouseX: 0, mouseY: 0, screenX: 0, screenY: 0 })
 const pausedRef = ref(false)
 const clockRef = ref({
     time: 0,
@@ -33,11 +35,15 @@ const clockRef = ref({
     // nowMs: 0,
 })
 const screenRef = ref({ width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0 })
+const camRef = ref({ x: 0, y: 0, width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0, zoom: 0 })
 
-export { fpsRef, mouseRef, pausedRef, clockRef, screenRef }
+export { fpsRef, mouseRef, pausedRef, clockRef, screenRef, camRef }
 
 let frame: HTMLIFrameElement | null = null
 let sandboxReady = false
+
+/** Which version the currently-attached document was actually built with — see runUserCode(). */
+let loadedVersion: string = DEV_VERSION
 
 /** seq of the last 'set-paused' command sent — see protocol.ts's comment on that type. */
 let sentPauseSeq = 0
@@ -46,13 +52,18 @@ let sentPauseSeq = 0
 let queuedRun: { code: string, entryName: string, theme?: ThemePalette } | null = null
 
 /**
- * URL for the sandbox document, carrying our origin so it can address replies.
+ * URL for the sandbox document, carrying our origin so it can address replies,
+ * plus which permanent API version it should load (omitted for 'dev' — the
+ * live engine, main.ts's own default). See src/assets/api/versions/runtime.ts.
  * The file itself is named runner.html, not sandbox.html — see the comment on
  * vite.config.ts's build.rollupOptions.input for why the two are kept apart.
  */
 export function sandboxUrl(): string {
     const base = `${import.meta.env.BASE_URL}runner.html`
-    return `${base}?${HOST_ORIGIN_PARAM}=${encodeURIComponent(window.location.origin)}`
+    const params = new URLSearchParams({ [HOST_ORIGIN_PARAM]: window.location.origin })
+    const version = useApiVersionStore().selectedVersion
+    if (version !== DEV_VERSION) params.set(API_VERSION_PARAM, version)
+    return `${base}?${params.toString()}`
 }
 
 function post(message: HostMessage) {
@@ -83,6 +94,7 @@ export function detachSandbox() {
     removeKeyForwarding()
     frame = null
     sandboxReady = false
+    loadedVersion = DEV_VERSION
 }
 
 function onSandboxMessage(event: MessageEvent) {
@@ -97,6 +109,10 @@ function onSandboxMessage(event: MessageEvent) {
     switch (message.type) {
         case 'ready':
             sandboxReady = true
+            // Confirms what actually loaded — main.ts falls back to 'dev'
+            // (rather than failing) when a requested version isn't found, so
+            // this can legitimately differ from what sandboxUrl() last asked for.
+            loadedVersion = message.apiVersion
             if (queuedRun) {
                 post({ type: 'run', ...queuedRun })
                 queuedRun = null
@@ -117,7 +133,12 @@ function onSandboxMessage(event: MessageEvent) {
 
         case 'status':
             fpsRef.value = message.fps
-            mouseRef.value = { mouseX: message.mouseX, mouseY: message.mouseY }
+            mouseRef.value = {
+                mouseX: message.mouseX,
+                mouseY: message.mouseY,
+                screenX: message.mouseScreenX,
+                screenY: message.mouseScreenY
+            }
             // A snapshot older than the last command we sent predates it being
             // applied sandbox-side; trusting it would flicker pausedRef back to
             // the pre-click value for one tick. See protocol.ts's 'set-paused'.
@@ -132,6 +153,17 @@ function onSandboxMessage(event: MessageEvent) {
                 bottom: message.screenBottom,
                 left: message.screenLeft,
                 right: message.screenRight,
+            }
+            camRef.value = {
+                x: message.cameraX,
+                y: message.cameraY,
+                width: message.cameraWidth,
+                height: message.cameraHeight,
+                top: message.cameraTop,
+                bottom: message.cameraBottom,
+                left: message.cameraLeft,
+                right: message.cameraRight,
+                zoom: message.cameraZoom
             }
             useWatchPanelStore().syncFromSandbox(message.watch)
             Output.setFrame(message.frame)
@@ -150,6 +182,20 @@ function resolveScript(name: string): string | undefined {
 }
 
 export function runUserCode(code: string, entryName: string, theme?: ThemePalette) {
+    // A version change only ever takes effect here, at the next run — not by
+    // live-patching a game that's already running. Reloading is the only sane
+    // option: Phaser scenes/GameObjects already built from the old classes
+    // can't sanely swap which class backs them mid-execution. This is also
+    // the one choke-point every run path already goes through (per-script
+    // Run, Restart, FileTree "Run script", PlayView Restart), so nothing
+    // upstream of here needs to know reloading can happen at all.
+    const selected = useApiVersionStore().selectedVersion
+    if (frame && selected !== loadedVersion) {
+        loadedVersion = selected
+        sandboxReady = false
+        frame.src = sandboxUrl()
+    }
+
     if (!sandboxReady) {
         queuedRun = { code, entryName, theme }
         return

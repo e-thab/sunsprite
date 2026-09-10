@@ -6,10 +6,12 @@ import InfoPanel from '@/components/InfoPanel.vue';
 import WatchPanel from '@/components/WatchPanel.vue';
 import CollapsiblePane from './CollapsiblePane.vue';
 import { useWatchPanelStore } from '@/stores/watchPanelStore';
+import { useProjectSettingsStore } from '@/stores/projectSettingsStore';
 
 type OutputTab = 'output' | 'info' | 'watch'
 const activeTab = ref<OutputTab>('output')
 const watchPanelStore = useWatchPanelStore()
+const projectSettingsStore = useProjectSettingsStore()
 
 function isTabActive(tab: OutputTab) {
     return tab === activeTab.value
@@ -82,25 +84,30 @@ onUnmounted(() => {
     if (watchFlashTimer) clearTimeout(watchFlashTimer)
 })
 
-onMounted(() => {
+// Builds the fixed pool of row elements Output writes into — it reuses these
+// rather than creating a node per message, so the pool's size *is* the "max
+// lines kept" setting. Rebuilt (not resized) when that setting changes:
+// output.ts indexes into the pool and shifts content between neighbouring
+// rows, so growing or shrinking it in place mid-run would leave printIndex
+// pointing somewhere that no longer means what it did.
+function buildItemPool(lineCount: number) {
     const panel = document.getElementById('output-panel')
     if (!panel) return
 
+    panel.replaceChildren()
+
     const outputItems: OutputItem[] = []
-    for (let i=0; i<100; i++) {
+    for (let i = 0; i < lineCount; i++) {
         const itemElement = document.createElement('div')
         itemElement.className = 'output-item'
 
         const stampItem = document.createElement('div')
         stampItem.className = 'output-stamp'
         stampItem.style.minWidth = '22'
-        // stampItem.textContent = 'stamp ' + i
 
         // Should I use <pre>? too powerful?
         const msgItem = document.createElement('pre')
         msgItem.className = 'output-msg'
-        // msgItem.style.fontFamily = 'Fira Code'
-        // msgItem.textContent = 'msg ' + i
 
         outputItems.push({ stamp: stampItem, msg: msgItem })
         itemElement.appendChild(stampItem)
@@ -109,7 +116,25 @@ onMounted(() => {
     }
 
     Output.init(outputItems)
+}
+
+onMounted(() => {
+    buildItemPool(projectSettingsStore.settings.outputMaxLines)
+    Output.setAutoScroll(projectSettingsStore.settings.outputAutoScroll)
     emit('ready')
+})
+
+// A changed line limit costs the panel's current contents (Output.init
+// resets it) — worth it for a setting that's changed rarely and deliberately,
+// and the alternative (carrying existing rows across a resize) would mean
+// reimplementing the ring-buffer bookkeeping for the one case where its
+// bounds move.
+watch(() => projectSettingsStore.settings.outputMaxLines, (lineCount) => {
+    buildItemPool(lineCount)
+})
+
+watch(() => projectSettingsStore.settings.outputAutoScroll, (enabled) => {
+    Output.setAutoScroll(enabled)
 })
 </script>
 
@@ -130,7 +155,7 @@ onMounted(() => {
             />
 
             <UTooltip text="Collapse">
-                <UButton icon="tabler:chevron-down" variant="soft" color="neutral" size="xs" @click="$emit('collapseOutput')" />
+                <UButton class="output-collapse-btn" icon="tabler:chevron-down" variant="subtle" color="primary" size="xs" @click="$emit('collapseOutput')" />
             </UTooltip>
         </div>
 
@@ -165,18 +190,33 @@ onMounted(() => {
     background-color: var(--theme-bg-elevated);
 }
 
+/* Not a .panel-bar (the tabs bring their own height, so there's no fixed
+   32px strip to pin here), but it owes the pane below it the same guarantee:
+   a header never grows by wrapping. nowrap keeps a tab label or the collapse
+   button on one line at any pane width, and overflow: hidden clips whatever
+   no longer fits rather than letting it push the header taller and take the
+   room out of the output itself. */
 .output-header {
     display: flex;
-    /* justify-content: space-between; */
-    /* align-items: center; */
-    /* color: var(--theme-text); */
-    /* height: 24px; */
-    /* user-select: none; */
-    /* background-color: var(--theme-bg); */
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    background-color: var(--theme-bg-muted);
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.output-header [data-slot='list'] {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-top-right-radius: 0;
 }
 
 .output-tabs {
     flex: 1 1 auto;
+}
+
+.output-collapse-btn {
+    margin: 4px 4px 4px 0;
 }
 
 /* Soft glow rather than a color swap, so it doesn't have to fight Nuxt UI's
@@ -244,14 +284,21 @@ onMounted(() => {
     color: var(--theme-error);
 }
 
-.output-error-location {
-    color: var(--theme-error);
+.output-location-link {
     text-decoration: underline;
     cursor: pointer;
 }
 
-.output-error-location:hover {
+.output-location-link:hover {
     opacity: 0.75;
+}
+
+.output-location-link--error {
+    color: var(--theme-error);
+}
+
+.output-location-link--warn {
+    color: var(--theme-warning);
 }
 
 .output-item--warn {

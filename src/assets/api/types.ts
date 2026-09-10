@@ -1,4 +1,5 @@
-import type { Point } from "./Point"
+import { camera, game } from "@api/core"
+import { Vector2 } from "@api/Vector2"
 
 /**
  * Interfaces
@@ -8,7 +9,24 @@ export type Predicate = (...args: any[]) => boolean
 export type Returnable<T> = T | (() => T)
 export type Optional<T> = T | undefined | null
 export type Printable = { toString(): string }
-export type PointerAction = ((x: number, y: number) => void) | (() => void) | null
+
+// TODO: verify jsdoc descriptions... are they pointer coords
+// or offset coords?
+export type PointerAction = (
+	/**
+     * @param x The cursor's x coordinate.
+     * @param y The cursor's y coordinate.
+     */
+	(x: number, y: number) => void
+) | (() => void) | null
+
+export type ScrollAction = (
+    /**
+     * @param x The horizontal distance scrolled.
+     * @param y The vertical distance scrolled.
+     */
+    (x: number, y: number) => void
+) | (() => void) | null
 
 export type ReferenceObject = 
 	| Phaser.GameObjects.Text
@@ -61,17 +79,6 @@ export interface Conditional {
 	fn: Action,
 }
 
-export interface Screen {
-	width: number
-	height: number
-	top: number
-	bottom: number
-	left: number
-	right: number
-	// center: [number, number] // <- at some point, make this required so it can be spread '...center'
-	center: Point
-}
-
 const keyCodes = [
 	'Backquote', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Minus', 'Equal', 'Backspace',
 	'Tab', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'BracketLeft', 'BracketRight', 'Backslash',
@@ -114,11 +121,11 @@ export type MouseInputAction = {
 // }
 
 export class Mouse {
-	_pointer?: Phaser.Input.Pointer
-	x: number = 0
-	y: number = 0
+	_pointer: Phaser.Input.Pointer
+	// _x: number = 0
+	// _y: number = 0
 
-	constructor(pointer?: Phaser.Input.Pointer) {
+	constructor(pointer: Phaser.Input.Pointer) {
 		this._pointer = pointer
 	}
 
@@ -126,31 +133,48 @@ export class Mouse {
 		this._pointer = pointer
 	}
 
-	get position(): Point {
-		return {
-			x: this.x,
-			y: this.y
-		}
+	get x(): number {
+		return this._pointer.worldX - camera.width / 2 * camera.zoom
+	}
+
+	get y(): number {
+		return -this._pointer.worldY + camera.height / 2 * camera.zoom
+	}
+
+	get screenX(): number {
+		return this._pointer.x - camera.width / 2 * camera.zoom
+	}
+
+	get screenY(): number {
+		return -this._pointer.y + camera.height  / 2 * camera.zoom
+	}
+
+	get position(): Vector2 {
+		return new Vector2(this.x, this.y)
 	}
 
 	// Alias for position
-	get pos(): Point {
+	get pos(): Vector2 {
 		return this.position
 	}
 
-	get leftButtonDown() {
+	get leftButtonDown(): boolean {
 		return this._pointer?.leftButtonDown()
 	}
 
-	get rightButtonDown() {
+	get rightButtonDown(): boolean {
 		return this._pointer?.rightButtonDown()
 	}
 
-	get middleButtonDown() {
+	get middleButtonDown(): boolean {
 		return this._pointer?.middleButtonDown()
 	}
 
-	get anyButtonDown() {
+	get anyButtonDown(): boolean {
 		return this._pointer?.isDown
+	}
+
+	get isOnScreen(): boolean {
+		return game.canvas.matches(':hover')
 	}
 }

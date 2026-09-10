@@ -1,6 +1,6 @@
 import { ref } from "vue"
-import Colors from "./Colors"
-import type { Printable } from "./types"
+import Colors from "@api/Colors"
+import type { Printable } from "@api/types"
 import type { OutputLocation } from "@/sandbox/protocol"
 
 // Host-side output panel renderer. This owns the real DOM nodes in
@@ -13,31 +13,36 @@ import type { OutputLocation } from "@/sandbox/protocol"
 // and now only ever loads inside the sandbox iframe. The frame number that used
 // to come from `timer.frame` is carried on each message instead.
 
+type OutputType = 'print' | 'warn' | 'error' | 'start'
 export type OutputItem = { stamp: HTMLElement, msg: HTMLElement }
 
 const Output = {
     items: [] as OutputItem[],
-    print, warn, error, clear, printStartMsg, reset, init, render, setFrame, onJumpToError, onErrorLocation
+    print, warn, error, clear, printStartMsg, reset, init, render, setFrame, onJumpToError, onErrorLocation, setAutoScroll
 }
 export default Output
 
-// Set by whoever wants to handle a click on a runtime error's "at script:line"
-// link (EditorView.vue, which owns both the file tree and the code editor
-// ref) — this module only renders the output panel, it has no way to switch
-// files or reach into Monaco itself.
-let jumpHandler: ((script: string, line: number) => void) | null = null
+// Set by whoever wants to handle a click on a runtime error/warning's "at
+// script:line" link (EditorView.vue, which owns both the file tree and the
+// code editor ref) — this module only renders the output panel, it has no
+// way to switch files or reach into Monaco itself. `kind` lets the handler
+// pick the matching highlight color, and `message` is the original text
+// (without the "at script:line" suffix) so a warning's native squiggly can
+// show it on hover instead of a generic placeholder (see CodeEditor.vue's
+// revealErrorLine).
+let jumpHandler: ((script: string, line: number, kind: 'error' | 'warn', message: string) => void) | null = null
 
-function onJumpToError(handler: (script: string, line: number) => void) {
+function onJumpToError(handler: (script: string, line: number, kind: 'error' | 'warn', message: string) => void) {
     jumpHandler = handler
 }
 
-// Fired for *every* runtime error that carries a location, not just clicked
-// ones, so the offending line is already highlighted the moment it happens —
-// without forcing the user's editor tab to switch away from whatever they're
-// looking at (that's what the click link, above, is for).
-let locationHandler: ((script: string, line: number) => void) | null = null
+// Fired for *every* runtime error/warning that carries a location, not just
+// clicked ones, so the offending line is already highlighted the moment it
+// happens — without forcing the user's editor tab to switch away from
+// whatever they're looking at (that's what the click link, above, is for).
+let locationHandler: ((script: string, line: number, kind: 'error' | 'warn', message: string) => void) | null = null
 
-function onErrorLocation(handler: (script: string, line: number) => void) {
+function onErrorLocation(handler: (script: string, line: number, kind: 'error' | 'warn', message: string) => void) {
     locationHandler = handler
 }
 
@@ -48,13 +53,30 @@ export const outputActivity = ref(0)
 
 let printIndex = 0
 let lastMsg = ''
+let lastType = ''
 let consecutiveMsgs = 1
 let totalMsgCount = 0
 
 // Last frame count reported by the sandbox, shown in a stamp's tooltip.
 let currentFrame = 0
 
-const outputLines = 100
+// Derived from the item pool OutputPane.vue actually built rather than being
+// its own constant, so the two can't disagree: the pool size is a setting
+// now (projectSettingsStore's outputMaxLines), and the pane rebuilds and
+// re-inits with a new pool whenever it changes.
+function outputLineCount(): number {
+    return Output.items.length
+}
+
+// Whether new messages pin the panel to the newest line. Module-level rather
+// than read from the store directly: this file is imported by the sandbox
+// path too, and reaching for a Pinia store from here would drag the whole
+// app's store graph into that bundle. OutputPane.vue pushes the value in.
+let autoScroll = true
+
+function setAutoScroll(enabled: boolean) {
+    autoScroll = enabled
+}
 
 function init(outputItems: OutputItem[]) {
     Output.items = outputItems.slice()
@@ -65,9 +87,9 @@ function init(outputItems: OutputItem[]) {
     // needing to re-bind anything per message.
     for (const item of Output.items) {
         item.msg.addEventListener('click', (event) => {
-            const target = (event.target as HTMLElement).closest('.output-error-location') as HTMLElement | null
-            const { jumpScript, jumpLine } = target?.dataset ?? {}
-            if (jumpHandler && jumpScript && jumpLine) jumpHandler(jumpScript, Number(jumpLine))
+            const target = (event.target as HTMLElement).closest('.output-location-link') as HTMLElement | null
+            const { jumpScript, jumpLine, jumpKind, jumpMessage } = target?.dataset ?? {}
+            if (jumpHandler && jumpScript && jumpLine) jumpHandler(jumpScript, Number(jumpLine), jumpKind === 'warn' ? 'warn' : 'error', jumpMessage ?? '')
         })
     }
 
@@ -85,7 +107,7 @@ function render(kind: 'print' | 'warn' | 'error' | 'start', text: string, frame:
 
     switch (kind) {
         case 'print': return printMsg(text)
-        case 'warn': return warnMsg(text)
+        case 'warn': return warnMsg(text, location)
         case 'error': return errorMsg(text, location)
         case 'start': return startMsg(text)
     }
@@ -128,6 +150,9 @@ function withLeadingZeroes(num: number, length: number) {
 }
 
 function scrollOutput() {
+    // Off means the panel stays wherever the user scrolled it, so they can
+    // read back through earlier output while a running game keeps printing.
+    if (!autoScroll) return
     const panel = document.getElementById('output-panel')
     if (panel) panel.scrollTop = panel.scrollHeight
 }
@@ -141,40 +166,48 @@ function joinArgs(args: Printable[]): string {
     return msg
 }
 
-function error(...args: Printable[]) {
-    console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, ...args)
-    errorMsg(joinArgs(args))
+/**
+ * Display an error message in the output panel.
+ * @param msgs The error messages to display.
+ */
+function error(...msgs: Printable[]) {
+    console.log('  %cerr:', `color: ${Colors.IndianRed}; font-weight: 100; font-style: italic;`, ...msgs)
+    errorMsg(joinArgs(msgs))
 }
 
 function errorMsg(msg: string, location?: OutputLocation) {
-    addOutputItem(msg, (item) => {
+    addOutputItem(msg, 'error', (item) => {
         item.stamp.textContent = '⚠'
         item.stamp.className = 'output-stamp output-item--error'
 
         item.msg.className = 'output-msg output-item--error'
-        renderMessageWithLocation(item.msg, msg, location)
+        renderMessageWithLocation(item.msg, msg, 'error', location)
     })
     outputActivity.value++
 
-    if (location) locationHandler?.(location.script, location.line)
+    if (location) locationHandler?.(location.script, location.line, 'error', msg)
 }
 
 /**
- * Renders the error text plus, when a source location was recovered from the
- * stack trace, a clickable "at script:line" tag appended to the same line —
- * the click target that onJumpToError's delegated listener (see init) looks
- * for.
+ * Renders the message text plus, when a source location was recovered from
+ * the stack trace, a clickable "at script:line" tag appended to the same
+ * line — the click target that onJumpToError's delegated listener (see init)
+ * looks for. `kind` picks the link's color (error vs warning) and is carried
+ * in the link's dataset so that same listener knows which highlight color to
+ * apply when it's clicked.
  */
-function renderMessageWithLocation(el: HTMLElement, msg: string, location?: OutputLocation) {
+function renderMessageWithLocation(el: HTMLElement, msg: string, kind: 'error' | 'warn', location?: OutputLocation) {
     el.textContent = msg
     if (!location) return
 
     el.appendChild(document.createTextNode(' '))
     const link = document.createElement('span')
-    link.className = 'output-error-location'
+    link.className = `output-location-link output-location-link--${kind}`
     link.textContent = `at ${location.script}:${location.line}`
     link.dataset.jumpScript = location.script
     link.dataset.jumpLine = String(location.line)
+    link.dataset.jumpKind = kind
+    link.dataset.jumpMessage = msg
     el.appendChild(link)
 }
 
@@ -183,15 +216,17 @@ function warn(...args: Printable[]) {
     warnMsg(joinArgs(args))
 }
 
-function warnMsg(msg: string) {
-    addOutputItem(msg, (item) => {
+function warnMsg(msg: string, location?: OutputLocation) {
+    addOutputItem(msg, 'warn', (item) => {
         item.stamp.textContent = '⚠'
         item.stamp.className = 'output-stamp output-item--warn'
 
-        item.msg.textContent = msg
         item.msg.className = 'output-msg output-item--warn'
+        renderMessageWithLocation(item.msg, msg, 'warn', location)
     })
     outputActivity.value++
+
+    if (location) locationHandler?.(location.script, location.line, 'warn', msg)
 }
 
 export function print(...args: Printable[]) {
@@ -200,7 +235,7 @@ export function print(...args: Printable[]) {
 }
 
 function printMsg(msg: string) {
-    addOutputItem(msg, (item) => {
+    addOutputItem(msg, 'print', (item) => {
         item.stamp.textContent = '●'
         item.stamp.className = 'output-stamp'
 
@@ -215,7 +250,7 @@ function printStartMsg() {
 }
 
 function startMsg(content: string) {
-    addOutputItem(content, (item) => {
+    addOutputItem(content, 'start', (item) => {
         item.stamp.textContent = '☀'
         item.stamp.className = 'output-stamp'
 
@@ -224,10 +259,12 @@ function startMsg(content: string) {
     })
 }
 
-function addOutputItem(msgContent: string, updateItem: (item: OutputItem) => void) {
+function addOutputItem(msgContent: string, type: OutputType, updateItem: (item: OutputItem) => void) {
+    const outputLines = outputLineCount()
+
     // Find index of next output item
     let index = printIndex
-    if (msgContent === lastMsg) {
+    if (msgContent === lastMsg && type === lastType) {
         if (printIndex < outputLines - 1) {
             // If same msg as last time and not at the last item, use previous index
             index = printIndex - 1
@@ -250,7 +287,7 @@ function addOutputItem(msgContent: string, updateItem: (item: OutputItem) => voi
     updateItem(item)
 
     // Update stamp content for consecutives
-    if (msgContent === lastMsg) {
+    if (msgContent === lastMsg && type === lastType) {
         if (++consecutiveMsgs > 99) {
             item.stamp.textContent = '99+'
         } else {
@@ -258,6 +295,7 @@ function addOutputItem(msgContent: string, updateItem: (item: OutputItem) => voi
         }
     } else {
         lastMsg = msgContent
+        lastType = type
         consecutiveMsgs = 1
     }
     item.stamp.title = getCurrentStampTitle()
@@ -276,6 +314,7 @@ function addOutputItem(msgContent: string, updateItem: (item: OutputItem) => voi
 
 function shiftItemsUp() {
     const minWidth = getMinWidth()
+    const outputLines = outputLineCount()
 
     for (let i = 0; i < outputLines - 1; i++) {
         const thisItem = Output.items[i]
@@ -314,6 +353,7 @@ function clear() {
 
 function reset() {
     lastMsg = ''
+    lastType = ''
     printIndex = 0
     consecutiveMsgs = 1
     totalMsgCount = 0

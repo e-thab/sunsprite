@@ -1,0 +1,183 @@
+import { camera, game } from "./core"
+import type { Point } from "./Point"
+
+/**
+ * Interfaces
+ */
+export type Action = (...args: any[]) => void
+export type Predicate = (...args: any[]) => boolean
+export type Returnable<T> = T | (() => T)
+export type Optional<T> = T | undefined | null
+export type Printable = { toString(): string }
+
+// TODO: verify jsdoc descriptions... are they pointer coords
+// or offset coords?
+export type PointerAction = (
+	/**
+     * @param x The cursor's x coordinate.
+     * @param y The cursor's y coordinate.
+     */
+	(x: number, y: number) => void
+) | (() => void) | null
+
+export type ScrollAction = (
+    /**
+     * @param x The horizontal distance scrolled.
+     * @param y The vertical distance scrolled.
+     */
+    (x: number, y: number) => void
+) | (() => void) | null
+
+export type ReferenceObject = 
+	| Phaser.GameObjects.Text
+	| Phaser.GameObjects.Line
+	| Phaser.GameObjects.Rectangle
+	| Phaser.GameObjects.Sprite
+	| Phaser.GameObjects.Graphics
+	| any // TEMP, 
+
+export interface Touchable {
+	left: number
+	right: number
+	top: number
+	bottom: number
+	// scale: number
+	// rotation?: number
+	// radians?: number
+}
+
+/* used for repeat() */
+export interface Repeatable {
+	count: number
+	i: number
+	fn: Action
+	then?: Action
+}
+
+/* Used for repeatUntil() */
+export interface RepeatableUntil extends Omit<Repeatable, 'count'> {
+	condition: Predicate
+}
+
+/* Used for repeatWhile() */
+export interface RepeatableWhile extends RepeatableUntil {
+	lastCheck: boolean
+}
+
+/* Used for after() & every() */
+export interface Delayable {
+	elapsedMs: number
+	lifetimeMs: number
+	fn: Action
+}
+
+/* Used for when() */
+export interface Conditional {
+	/** Used to record the result of condition() last time it was checked to prevent running continuously while true */
+	lastCheck: boolean
+	condition: Predicate,
+	fn: Action,
+}
+
+const keyCodes = [
+	'Backquote', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'Minus', 'Equal', 'Backspace',
+	'Tab', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'BracketLeft', 'BracketRight', 'Backslash',
+	'CapsLock', 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Semicolon', 'Quote', 'Enter',
+	'ShiftLeft', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Comma', 'Period', 'Slash', 'ShiftRight',
+	'CtrllLeft', 'AltLeft', 'Space', 'AltRight', 'ContextMenu', 'CtrlRight',
+
+	'Insert', 'Home', 'PageUp', 'Delete', 'End', 'PageDown',
+	'Up', 'Down', 'Left', 'Right', 'ScrollLock', 'Pause',
+
+	'Numpad0', 'Numpad1', 'Numpad2', 'Numpad3', 'Numpad4', 'Numpad5', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9',
+	'NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract', 'NumpadAdd', /*'NumpadEnter',*/ 'NumpadDecimal',
+
+	'Escape', 'Any', 'Shift', 'Ctrl', 'Alt'
+] as const
+
+export type InputKey = typeof keyCodes[number]
+export type KeyAction = {
+	[key in InputKey]?: Action
+}
+
+const mouseEvents = [
+	'Click', 'Release', 'DoubleClick',
+	'LeftClick', 'LeftRelease',
+	'RightClick', 'RightRelease',
+	'MiddleClick', 'MiddleRelease',
+	'Enter', 'Exit',
+	'Drag', 'DragStart', 'DragEnd',
+	'Scroll', 'Move',
+] as const
+
+export type MouseInputEvent = typeof mouseEvents[number]
+export type MouseInputAction = {
+	[key in MouseInputEvent]?: Action | null
+}
+
+// export type MouseHoldEvent = 'LEFT' | 'RIGHT' | 'MIDDLE'
+// export type MouseHoldAction = {
+// 	[key in MouseHoldEvent]?: Action
+// }
+
+export class Mouse {
+	_pointer: Phaser.Input.Pointer
+	// _x: number = 0
+	// _y: number = 0
+
+	constructor(pointer: Phaser.Input.Pointer) {
+		this._pointer = pointer
+	}
+
+	_setPointer(pointer: Phaser.Input.Pointer) {
+		this._pointer = pointer
+	}
+
+	get x(): number {
+		return this._pointer.worldX - camera.width / 2 * camera.zoom
+	}
+
+	get y(): number {
+		return -this._pointer.worldY + camera.height / 2 * camera.zoom
+	}
+
+	get screenX(): number {
+		return this._pointer.x - camera.width / 2 * camera.zoom
+	}
+
+	get screenY(): number {
+		return -this._pointer.y + camera.height  / 2 * camera.zoom
+	}
+
+	get position(): Point {
+		return {
+			x: this.x,
+			y: this.y
+		}
+	}
+
+	// Alias for position
+	get pos(): Point {
+		return this.position
+	}
+
+	get leftButtonDown(): boolean {
+		return this._pointer?.leftButtonDown()
+	}
+
+	get rightButtonDown(): boolean {
+		return this._pointer?.rightButtonDown()
+	}
+
+	get middleButtonDown(): boolean {
+		return this._pointer?.middleButtonDown()
+	}
+
+	get anyButtonDown(): boolean {
+		return this._pointer?.isDown
+	}
+
+	get isOnScreen(): boolean {
+		return game.canvas.matches(':hover')
+	}
+}

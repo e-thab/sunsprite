@@ -2,14 +2,15 @@
 import { computed, inject } from 'vue'
 import type { TreeItem } from '@nuxt/ui'
 import type { DocNode } from '@/assets/docs/docsTypes'
-import { nodesByPath } from '@/assets/docs/docsIndex'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
+import { docsDataKey } from '@/assets/docs/docsData'
 
 const props = defineProps<{
 	nodes: DocNode[]
 }>()
 
 const nav = inject(docsNavigationKey)!
+const docsData = inject(docsDataKey)!
 
 // Categories never toggle natively — onToggle's preventDefault blocks Tree's
 // own click-to-expand/reveal-selected behavior entirely, so the chevron's
@@ -102,7 +103,7 @@ function findItemByPath(nodes: TreeItem[], path: string): TreeItem | undefined {
 const selectedItem = computed(() => findItemByPath(items.value, nav.currentPath.value))
 
 // Only category paths are ever expandable — leaves never appear in `expanded`.
-const categoryPaths = computed(() => Array.from(nodesByPath.entries()).filter(([, node]) => node.kind === 'category').map(([path]) => path))
+const categoryPaths = computed(() => Array.from(docsData.value.nodesByPath.entries()).filter(([, node]) => node.kind === 'category').map(([path]) => path))
 
 // Purely one-way: :expanded here is always authoritative, driven only by
 // nav.isExpanded/toggleExpanded (via the chevron's own click handler) — not

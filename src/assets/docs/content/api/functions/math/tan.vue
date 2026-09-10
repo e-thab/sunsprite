@@ -1,7 +1,7 @@
 <script lang="ts">
 export const meta = {
 	title: 'tan()',
-	icon: 'tabler:wave-sine',
+	icon: 'tabler:line',
 	summary: 'The tangent of a number.',
 }
 

@@ -12,6 +12,17 @@ import { attachSandbox, detachSandbox, resizeStage, sandboxUrl } from '@/sandbox
 // drift out of sync with each other.
 const sandboxFrame = ref<HTMLIFrameElement | null>(null)
 
+// Computed once, here, as a plain (untracked) read — not inline in the
+// template. sandboxUrl() reads apiVersionStore, and Vue's template render
+// function tracks reactive dependencies transitively through function calls,
+// not just direct refs: bound directly as `:src="sandboxUrl()"`, selecting a
+// different version would make Vue reactively rewrite the iframe's src the
+// instant the store changed — tearing down the running game before the user
+// ever clicks Run. The *only* place src is allowed to change after mount is
+// hostBridge.ts's runUserCode(), imperatively, at the next explicit run — see
+// its own comment for why that's the right moment.
+const initialSrc = sandboxUrl()
+
 const emit = defineEmits(['ready'])
 
 onMounted(() => {
@@ -39,7 +50,7 @@ onBeforeUnmount(() => {
     class="canvas"
     title="Game canvas"
     sandbox="allow-scripts"
-    :src="sandboxUrl()"
+    :src="initialSrc"
   ></iframe>
 </template>
 
@@ -53,5 +64,11 @@ onBeforeUnmount(() => {
   height: 100%;
   border: 0;
   background-color: #353b48;
+  /* A drag-selection gesture on the host page can still highlight an iframe
+     as a whole (a browser quirk with replaced elements), even though the
+     sandboxed document inside it already blocks selection on its own
+     content (see runner.html) — this is the host-side half of the same fix. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 </style>
