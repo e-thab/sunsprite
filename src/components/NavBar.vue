@@ -315,7 +315,7 @@ const accountMenuItems: DropdownMenuItem[][] = [
     display: grid;
     grid-template-columns: 1fr minmax(0, max-content) 1fr;
     align-items: center;
-    padding: 0.2em 0.5em 0.1em 0.5em;
+    padding: 0.2em 0.5em;
     user-select: none;
     background-color: var(--theme-bg-accented);
 }

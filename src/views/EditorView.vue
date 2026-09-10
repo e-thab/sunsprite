@@ -150,8 +150,8 @@ useStablePanelSizing(rightSplitterRef, 'height')
 // [i, i+1] into the panel array — so every handle past the docs pane drove
 // the wrong pair of columns. Explicit orders make the sort authoritative
 // and keep the two views of the row aligned however the panes were mounted.
-const EXPLORER_DEFAULT_SIZE = 12
-const RIGHT_DEFAULT_SIZE = 44
+const EXPLORER_DEFAULT_SIZE = 16
+const RIGHT_DEFAULT_SIZE = 40
 
 // collapsible/collapsedSize on every column here (not just docs/output's
 // own pre-existing use of the same mechanism) means dragging any of them
