@@ -386,10 +386,10 @@ async function addTextFile(folderId: string | null) {
 // Upload only ever appears in a real project — the guest sandbox has no
 // object storage to put an uploaded file in (see fileStore.uploadImage's own
 // guard, the actual enforcement point).
-// "New script" is a plain action while the project has one script type, and a
-// submenu of the types while it has more (see the Allow TypeScript setting,
-// via projectSettingsStore's availableScriptTypes). Deliberately not always a
-// submenu: with a single entry it would be a click that asks nothing.
+// "New script" is a plain action while the project's family has one script type,
+// and a submenu of the types while it has more (projectSettingsStore's
+// availableScriptTypes). Deliberately not always a submenu: with a single entry
+// it would be a click that asks nothing.
 function newScriptItem(folderId: string | null): DropdownMenuItem {
 	const types = projectSettingsStore.availableScriptTypes
 
@@ -414,8 +414,8 @@ function newScriptItem(folderId: string | null): DropdownMenuItem {
 // valid; that surfaces immediately as an error on the offending line rather
 // than being silently rewritten, and switching back undoes it.
 //
-// Offered only while the project has more than one script type available,
-// which is the same "Allow TypeScript" condition newScriptItem uses.
+// Offered only while the project's family has more than one script type — the
+// same condition newScriptItem uses.
 function scriptTypeItem(item: TreeItem): DropdownMenuItem | undefined {
 	const types = projectSettingsStore.availableScriptTypes
 	if (types.length < 2) return undefined

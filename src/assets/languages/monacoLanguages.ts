@@ -1,6 +1,6 @@
 import * as monaco from 'monaco-editor'
 import { ModuleDetectionKind } from 'typescript'
-import { SCRIPT_FILE_TYPES, scriptTypeForFile, type ScriptLanguageId } from '@/assets/utils/fileTypes'
+import { SCRIPT_FILE_TYPES, scriptTypeForFile, type ScriptTypeId } from '@/assets/utils/fileTypes'
 
 // Everything the editor has to set up *per script language*, in one place.
 //
@@ -20,7 +20,7 @@ import { SCRIPT_FILE_TYPES, scriptTypeForFile, type ScriptLanguageId } from '@/a
 type WorkerAccessor = (...uris: monaco.Uri[]) => Promise<unknown>
 
 export interface EditorLanguageSupport {
-	id: ScriptLanguageId
+	id: ScriptTypeId
 	monacoLanguage: string
 	/** The TS language service behind this language, when there is one. */
 	defaults?: monaco.typescript.LanguageServiceDefaults

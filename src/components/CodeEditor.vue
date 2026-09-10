@@ -309,15 +309,13 @@ function ensureModel(name: string): monaco.editor.ITextModel | undefined {
 // gets real models even for files the user hasn't opened yet. Returns the
 // resolved names so callers can address the exact set of models involved.
 function ensureImportedModels(source: string, importerName: string, visited: Set<string> = new Set()): Set<string> {
-	// The importer's name decides two things here: how its own source is
-	// parsed (a .ts file's imports are invisible to a JS parse), and which
-	// extension an extensionless './helper' is tried under first.
+	// The importer's name is what decides how its own source is parsed — a .ts
+	// file's imports are invisible to a JS parse (see scriptKindFor).
 	for (const specifier of listImportSpecifiers(source, importerName)) {
-		// Candidates are probed in the same order the runtime probes them
-		// (see scriptResolution.ts), and the first that's a real file in this
-		// project wins — so the editor and the running game agree on what a
-		// given specifier meant rather than resolving it two different ways.
-		for (const name of resolveSpecifierCandidates(specifier, importerName)) {
+		// Probed against the same candidate list the runtime uses (see
+		// scriptResolution.ts), so the editor and the running game can't
+		// resolve a specifier two different ways.
+		for (const name of resolveSpecifierCandidates(specifier)) {
 			if (visited.has(name)) break
 
 			const alreadyExisted = modelEntries.has(name)
@@ -641,7 +639,15 @@ async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, m
 	try {
 		await syncWithRetry(languageSupportFor(model.uri.path), model.uri, relatedUris)
 		if (!model.isDisposed()) {
-			model.setValue(model.getValue())
+			// Writes the model's own value back purely to re-trigger validation
+			// — bracketed so auto-run doesn't mistake it for an edit (see
+			// revalidationWrites).
+			revalidationWrites++
+			try {
+				model.setValue(model.getValue())
+			} finally {
+				revalidationWrites--
+			}
 			reapplyErrorDecoration(model)
 			reapplyWarningHighlights(model)
 		}
@@ -791,7 +797,9 @@ function runMainScript() {
 function onEditorChange(value: string) {
 	updateSaveMsg(value)
 	if (!fileStore.isTextFile(fileStore.activeFileName)) ensureImportedModels(value, fileStore.activeFileName)
-	scheduleAutoRun()
+	// Both calls above are idempotent and safe to run for any change at all;
+	// only re-running the game needs the edit to have been a real one.
+	if (revalidationWrites === 0) scheduleAutoRun()
 }
 
 // --- Settings (see SettingsPanel.vue) -------------------------------------
@@ -861,6 +869,23 @@ watch(
 const AUTO_RUN_DELAY_MS = 1500
 
 let autoRunTimer: ReturnType<typeof setTimeout> | null = null
+
+// Non-zero while the editor is rewriting a model with its own content to force
+// the TS worker to re-validate (refreshDiagnostics' setValue). Monaco raises
+// its ordinary content-change event for that write, indistinguishable from
+// typing — and because switching files remounts the editor and refreshes
+// diagnostics every time, auto-run would read merely *selecting* a script as an
+// edit and tear down and rebuild the running game. Nothing changed: the value
+// written is the value already there.
+//
+// Deliberately only that write. resetCode and revertCode also write through
+// setCode, but those genuinely replace the content at the user's request, so a
+// re-run is the right response to them.
+//
+// A counter rather than a boolean: the bracket is synchronous today (Monaco
+// emits during setValue), so the two would behave identically — a counter just
+// stays correct if a self-write is ever nested inside another.
+let revalidationWrites = 0
 
 function scheduleAutoRun() {
 	if (autoRunTimer) clearTimeout(autoRunTimer)

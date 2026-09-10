@@ -4,48 +4,73 @@
 // registry's canonical one for the recognized type, not whatever — if
 // anything — the source file or typed name happened to carry).
 //
-// A script's language is recognized from its own extension, never from a
-// project-wide mode: a project can hold both .js and .ts files, and each one
-// is highlighted, type-checked, and compiled as what it is. The project's
-// settings only decide which types are *offered* when a script is created —
-// that's the whole of their reach, which is what keeps changing them from
-// being a migration. Nothing already in the project changes name or meaning.
+// A script's type is recognized from its own extension, never from a
+// project-wide mode: each file is highlighted, type-checked, and compiled as
+// whatever it is. Nothing about the project's settings can change what an
+// existing file means.
 //
-// Two kinds of entry live in the registry below. A *base language* is one a
-// project is written in and picks in its settings. A *companion* isn't
-// separately selectable — it's an opt-in alongside its base, which is exactly
-// what TypeScript is to JavaScript: same runtime, same API declarations, same
-// editor language service, just an additional extension a project can choose
-// to allow. A future base language (Python, say) would be another entry with
-// no companionTo, and would get no such toggle unless it grew one.
+// What a project *does* choose is its **family** — the runtime its scripts run
+// on. That's the thing that genuinely can't mix. JavaScript and TypeScript are
+// one family: .ts has no runtime of its own, it compiles to JavaScript and runs
+// as JavaScript, through the same module system, the same API declarations, and
+// the same editor language service. So a JavaScript project supports both
+// extensions unconditionally, and they can import each other freely — which is
+// most of the point of having both.
 //
-// So: scriptTypeForFile() for a file that exists, scriptTypeById() for a
-// stored id. Reaching for DEFAULT_SCRIPT_FILE_TYPE to mean "the project's
-// language" is the one thing that's wrong — it's only the fallback.
+// A future family (Python) would share none of that: its own runtime in the
+// sandbox, its own API bindings, no imports across the boundary. Hence the
+// rule: a project picks one family, and every script type *within* that family
+// is available to it. There's deliberately no switch for enabling TypeScript —
+// there was never a capability to enable, only a menu to filter.
+//
+// So: scriptTypeForFile() for a file that exists, familyScriptTypes() for what
+// a project may create. Reaching for DEFAULT_SCRIPT_FILE_TYPE to mean "the
+// project's type" is the one thing that's wrong — it's only the fallback.
+
+/** Stable key for one script *type* — one extension's worth of language. */
+export type ScriptTypeId = 'javascript' | 'typescript'
 
 /**
- * Stable key for a script language. This is what gets persisted, so it must
- * stay put even if the label changes — `label` is display text only.
+ * Stable key for a *family* — a runtime, and the set of script types that run
+ * on it. Persisted (see projectSettingsStore's scriptFamily), so it must stay
+ * put even if the label changes; `label` is display text only.
  */
-export type ScriptLanguageId = 'javascript' | 'typescript'
+export type ScriptFamilyId = 'javascript'
 
 export interface ScriptFileType {
-	id: ScriptLanguageId
+	id: ScriptTypeId
+	/** The runtime this type runs on. Types sharing one can import each other. */
+	family: ScriptFamilyId
 	extension: string
 	label: string
 	icon: string
 	monacoLanguage: string
-	/**
-	 * Set when this is an opt-in companion to another language rather than one
-	 * a project is written in. A companion never appears in the Language
-	 * setting; it's reached by allowing it alongside its base.
-	 */
-	companionTo?: ScriptLanguageId
 }
 
+export interface ScriptFamily {
+	id: ScriptFamilyId
+	label: string
+}
+
+/**
+ * The families a project can be written in — exactly what the Language setting
+ * offers. "JavaScript" names the whole family, TypeScript included: that's how
+ * the ecosystem itself refers to it (Deno, Bun, Vite all say JavaScript and
+ * take .ts transparently), and a .ts file really is a JavaScript file with
+ * types. Nothing here needs to read "JavaScript + TypeScript".
+ */
+export const SCRIPT_FAMILIES: ScriptFamily[] = [
+	{ id: 'javascript', label: 'JavaScript' },
+]
+
+// Original js icon that has no ts match: 'ri:javascript-fill'
+
+// Order within a family matters: the first entry is what a script gets when
+// nothing picked a type explicitly (seeding a new project's main.*), and it
+// leads the extension order an extensionless import is probed against.
 export const SCRIPT_FILE_TYPES: ScriptFileType[] = [
-	{ id: 'javascript', extension: 'js', label: 'JavaScript', icon: 'ri:javascript-fill', monacoLanguage: 'javascript' },
-	{ id: 'typescript', extension: 'ts', label: 'TypeScript', icon: 'catppuccin:typescript', monacoLanguage: 'typescript', companionTo: 'javascript' },
+	{ id: 'javascript', family: 'javascript', extension: 'js', label: 'JavaScript', icon: 'catppuccin:javascript', monacoLanguage: 'javascript' },
+	{ id: 'typescript', family: 'javascript', extension: 'ts', label: 'TypeScript', icon: 'catppuccin:typescript', monacoLanguage: 'typescript' },
 ]
 
 // The fallback for anything unrecognized, and what a project that has never
@@ -58,31 +83,20 @@ export function scriptFileType(extension: string): ScriptFileType {
 	return SCRIPT_FILE_TYPES.find((t) => t.extension === extension.toLowerCase()) ?? DEFAULT_SCRIPT_FILE_TYPE
 }
 
-/**
- * The languages a project can actually be written in — what the Language
- * setting offers. Companions are deliberately absent: TypeScript isn't a
- * choice a project makes *instead* of JavaScript, it's one it allows
- * *alongside* it (see companionScriptType).
- */
-export const SELECTABLE_SCRIPT_LANGUAGES: ScriptFileType[] = SCRIPT_FILE_TYPES.filter((type) => !type.companionTo)
-
-/**
- * The opt-in companion to a base language, if it has one — TypeScript for
- * JavaScript, nothing for anything else. What decides whether a project sees
- * an "Allow ..." toggle at all, and what that toggle is named.
- */
-export function companionScriptType(baseId: string): ScriptFileType | undefined {
-	return SCRIPT_FILE_TYPES.find((type) => type.companionTo === baseId)
+/** The family a stored id names, or the default if this build doesn't have it. */
+export function scriptFamilyById(id: string): ScriptFamily {
+	return SCRIPT_FAMILIES.find((family) => family.id === id) ?? SCRIPT_FAMILIES[0]!
 }
 
 /**
- * The type a stored language id names — for reading the project setting back
- * into a concrete extension and Monaco language. Falls back rather than
- * throwing: an id written by a newer client (a language this build doesn't
- * have) should degrade to JavaScript, not strand the project unopenable.
+ * Every script type a family can create, best-default first — what the project
+ * may offer when a script is made. Falls back rather than returning nothing: a
+ * family id written by a newer client should degrade to the default family's
+ * types, not leave the project unable to create a script at all.
  */
-export function scriptTypeById(id: string): ScriptFileType {
-	return SCRIPT_FILE_TYPES.find((t) => t.id === id) ?? DEFAULT_SCRIPT_FILE_TYPE
+export function familyScriptTypes(familyId: string): ScriptFileType[] {
+	const types = SCRIPT_FILE_TYPES.filter((type) => type.family === familyId)
+	return types.length ? types : SCRIPT_FILE_TYPES.filter((type) => type.family === SCRIPT_FAMILIES[0]!.id)
 }
 
 /**

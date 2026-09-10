@@ -86,7 +86,7 @@ export function setScriptResolver(resolver: ScriptResolver) {
 }
 
 // Splices each top-level `import` statement into a
-// `const { ... } = await __sunspriteImport('specifier', 'importer')` call.
+// `const { ... } = await __sunspriteImport('specifier')` call.
 //
 // Every replacement is padded back out to the number of lines the statement it
 // replaced spanned, so the rewrite never moves anything below it. That padding
@@ -113,11 +113,7 @@ function rewriteImports(source: string, label: string): string {
         const start = statement.getStart(sourceFile)
         const end = statement.getEnd()
 
-        // Both the specifier and the name of the script doing the importing,
-        // since an extensionless './helper' resolves against the importer's own
-        // language (see scriptResolution.ts) and the shared helper below has no
-        // other way to know who called it.
-        const args = `${JSON.stringify(specifier)}, ${JSON.stringify(label)}`
+        const args = JSON.stringify(specifier)
 
         if (!clause) {
             // Side-effect only: `import './x.js'`
@@ -447,15 +443,15 @@ export async function runEntryModule(entryCode: string, api: Record<string, unkn
     const cache = new Map<string, Promise<any>>()
     lineMaps.clear()
 
-    function importScript(specifier: string, importerName?: string): Promise<any> {
-        // An extensionless './helper' can mean more than one file now, so it
-        // arrives as an ordered list led by the importer's own language (see
-        // scriptResolution.ts) and the first one that actually exists wins.
-        const candidates = resolveSpecifierCandidates(specifier, importerName)
+    function importScript(specifier: string): Promise<any> {
+        // An extensionless './helper' names one file per script extension, and
+        // the one that actually exists wins — at most one can, since script
+        // names are unique by base name (see scriptResolution.ts).
+        const candidates = resolveSpecifierCandidates(specifier)
 
-        // Every candidate is checked, not just the best one: the same file can
-        // be reached by different specifiers — './util' from a .ts script,
-        // './util.js' from a .js one — and it still has to run only once.
+        // Every candidate is checked, not just the first: the same file can be
+        // reached by different specifiers — './util' and './util.js' — and it
+        // still has to run only once.
         for (const name of candidates) {
             const cached = cache.get(name)
             if (cached) return cached

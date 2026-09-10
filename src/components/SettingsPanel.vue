@@ -4,7 +4,7 @@ import CollapsiblePane from './CollapsiblePane.vue'
 import { useEditorSettingsStore, EDITOR_SETTINGS_DEFAULTS } from '@/stores/editorSettingsStore'
 import { useProjectSettingsStore, PROJECT_SETTINGS_DEFAULTS } from '@/stores/projectSettingsStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
-import { companionScriptType, SELECTABLE_SCRIPT_LANGUAGES, scriptTypeById } from '@/assets/utils/fileTypes'
+import { familyScriptTypes, SCRIPT_FAMILIES, scriptFamilyById } from '@/assets/utils/fileTypes'
 import { listApiVersions, latestApiVersion, DEV_VERSION_AVAILABLE } from '@/assets/api/versions'
 import { DEV_VERSION } from '@/assets/api/versions/constants'
 
@@ -56,8 +56,14 @@ type SettingControl =
 interface Setting {
 	id: string
 	label: string
-	/** Optional second line under the label — for anything the label alone doesn't carry. */
-	description?: string
+	/**
+	 * Shown as the row's hover tooltip — for anything the label alone doesn't
+	 * carry. A function for a description whose text depends on live state, the
+	 * way project.runtime's does: the extensions it names come from whichever
+	 * family is selected, so a fixed string would start lying the moment a
+	 * second family exists.
+	 */
+	description?: string | (() => string)
 	control: SettingControl
 	/** Reads the live value from whichever store owns it. */
 	get: () => SettingValue
@@ -68,12 +74,31 @@ interface Setting {
 	/** Greyed out and inert while this returns true — see project.autosaveInterval. */
 	disabled?: () => boolean
 	/**
-	 * Not rendered at all while this returns true. For a row that isn't merely
-	 * inapplicable right now but meaningless — see project.allowTypeScript,
-	 * which has nothing to say about a language with no companion. Disabling
-	 * would leave a permanently greyed row asking a question that can't apply.
+	 * Not rendered at all while this returns true — for a row that isn't merely
+	 * inapplicable right now but meaningless, where disabling would leave a
+	 * permanently greyed control asking a question that can't apply. The case
+	 * this exists for is a row belonging to one script family only (see
+	 * fileTypes.ts): a Python-specific setting has nothing to say about a
+	 * JavaScript project.
+	 *
+	 * Unused as it stands — the row it was added for (an "Allow TypeScript"
+	 * toggle) turned out to be modelling a capability that never existed, and
+	 * was removed rather than hidden.
 	 */
 	hidden?: () => boolean
+	/**
+	 * Set false for a row where `default` is only "what a new project starts
+	 * as", not a preference worth restoring — the project's API version, its
+	 * language, whether it allows TypeScript. Offering to reset those reads as
+	 * an undo, but each one is a change *to the project* rather than to how the
+	 * editor behaves: re-pinning the API version moves which API the code runs
+	 * against, and a project that already has .ts files in it isn't made
+	 * JavaScript-only again by flipping a switch back.
+	 *
+	 * `default` stays meaningful either way — it's still what `isDefault`
+	 * judges the row's at-default styling against.
+	 */
+	resettable?: boolean
 }
 
 interface SettingsGroup {
@@ -112,13 +137,27 @@ function autosaveIntervalMinutes(label: SettingValue): number {
 // display/value split as AUTOSAVE_INTERVALS above, and for the same reason:
 // the id is what's persisted (and what fileTypes.ts keys its registry on), so
 // it has to survive the label being reworded.
-function scriptLanguageLabel(id: string): string {
-	return scriptTypeById(id).label
+function scriptFamilyLabel(id: string): string {
+	return scriptFamilyById(id).label
 }
 
-function scriptLanguageId(label: SettingValue): string {
-	return SELECTABLE_SCRIPT_LANGUAGES.find((type) => type.label === label)?.id
-		?? PROJECT_SETTINGS_DEFAULTS.scriptLanguage
+function scriptFamilyId(label: SettingValue): string {
+	return SCRIPT_FAMILIES.find((family) => family.label === label)?.id
+		?? PROJECT_SETTINGS_DEFAULTS.scriptFamily
+}
+
+/**
+ * "Scripts can be .js or .ts." — built from the selected family's own types
+ * rather than written out, so it can't claim an extension the family doesn't
+ * have. This is where the fact that a JavaScript project takes TypeScript gets
+ * stated; the label stays the short family name.
+ */
+function scriptFamilyDescription(): string {
+	const extensions = familyScriptTypes(projectSettings.scriptFamily).map((type) => `.${type.extension}`)
+	const list = extensions.length > 1
+		? `${extensions.slice(0, -1).join(', ')} or ${extensions[extensions.length - 1]}`
+		: extensions[0] ?? ''
+	return `The scripting language family. Scripts can be ${list}.`
 }
 
 // Every version the editor can actually be switched to, in the same order
@@ -167,33 +206,21 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
 				// The tier a brand-new project is created against, so "reset"
 				// means the same thing here as it does at creation.
 				default: latestApiVersion(),
+				resettable: false,
 			},
 			{
-				id: 'project.language',
-				label: 'Language',
-				// Says what it does *and* what it deliberately doesn't: this is not
-				// a conversion, so a project's existing files keep working exactly
-				// as they are (see fileTypes.ts).
-				description: 'Used for new scripts. Existing files keep their own.',
-				// Base languages only — TypeScript isn't a choice made *instead* of
-				// JavaScript, it's one allowed *alongside* it, which is the row below.
-				control: { kind: 'select', items: SELECTABLE_SCRIPT_LANGUAGES.map((type) => type.label) },
-				get: () => scriptLanguageLabel(projectSettings.scriptLanguage),
-				set: (value) => projectSettingsStore.set('scriptLanguage', scriptLanguageId(value)),
-				default: scriptLanguageLabel(PROJECT_SETTINGS_DEFAULTS.scriptLanguage),
-			},
-			{
-				id: 'project.allowTypeScript',
-				label: 'TypeScript',
-				description: 'Adds a TypeScript option when creating a script.',
-				control: { kind: 'switch' },
-				get: () => projectSettings.allowTypeScript,
-				set: (value) => projectSettingsStore.set('allowTypeScript', asBoolean(value)),
-				default: PROJECT_SETTINGS_DEFAULTS.allowTypeScript,
-				// Only meaningful next to a language that actually has a companion.
-				// Hidden rather than disabled for anything else: there'd be no
-				// TypeScript to allow, so the question itself wouldn't apply.
-				hidden: () => companionScriptType(projectSettings.scriptLanguage) === undefined,
+				id: 'project.runtime',
+				label: 'Runtime',
+				// Names the *family* — the runtime, which is the thing that genuinely
+				// can't mix. "JavaScript" covers TypeScript too (see
+				// fileTypes.ts's SCRIPT_FAMILIES for why that isn't a shortcut), and
+				// the description is what says so.
+				description: scriptFamilyDescription,
+				control: { kind: 'select', items: SCRIPT_FAMILIES.map((family) => family.label) },
+				get: () => scriptFamilyLabel(projectSettings.scriptFamily),
+				set: (value) => projectSettingsStore.set('scriptFamily', scriptFamilyId(value)),
+				default: scriptFamilyLabel(PROJECT_SETTINGS_DEFAULTS.scriptFamily),
+				resettable: false,
 			},
 			{
 				id: 'project.autosave',
@@ -379,6 +406,24 @@ function resetSetting(settingId: string) {
 	if (setting) setting.set(setting.default)
 }
 
+/**
+ * Whether this row shows its reset button right now — already at its default
+ * has nothing to restore, and an unresettable row never offers one.
+ *
+ * Also what drives .setting-at-default: that class exists to let the label
+ * span the reset column when no button occupies it, so it has to follow
+ * "is there a button" rather than "is the value default" — the two came to the
+ * same thing until some rows stopped being resettable at all.
+ */
+/** A row's description text, whether it's fixed or derived from live state. */
+function descriptionOf(setting: Setting): string | undefined {
+	return typeof setting.description === 'function' ? setting.description() : setting.description
+}
+
+function showsReset(setting: Setting): boolean {
+	return setting.resettable !== false && !isDefault(setting.id)
+}
+
 function isDisabled(setting: Setting): boolean {
 	return setting.disabled?.() ?? false
 }
@@ -415,11 +460,24 @@ function isStacked(setting: Setting): boolean {
 					v-for="setting in visibleSettings(group)"
 					:key="setting.id"
 					class="setting"
-					:class="{ 'setting-stacked': isStacked(setting), 'setting-disabled': isDisabled(setting), 'setting-at-default': isDefault(setting.id) }"
+					:class="{ 'setting-stacked': isStacked(setting), 'setting-disabled': isDisabled(setting), 'setting-at-default': !showsReset(setting) }"
 				>
-					<label :for="setting.id" class="setting-label">{{ setting.label }}</label>
+					<!-- The description is carried as a tooltip rather than rendered
+					     under the row: this pane is narrow enough that a wrapping
+					     line of help text under every control roughly doubles the
+					     list's height (which is why the inline version below is
+					     commented out). UTooltip disables itself when `text` is
+					     empty, so rows without a description need no guard here,
+					     and its trigger is `as-child` — no wrapper element, so
+					     the label stays the grid item .setting's subgrid expects. -->
+					<UTooltip :text="descriptionOf(setting)">
+						<label
+							:for="setting.id"
+							class="setting-label"
+						>{{ setting.label }}</label>
+					</UTooltip>
 
-					<UTooltip v-if="!isDefault(setting.id)" text="Reset to default">
+					<UTooltip v-if="showsReset(setting)" text="Reset to default">
 						<UButton
 							class="reset-btn"
 							icon="tabler:refresh"
@@ -550,7 +608,7 @@ function isStacked(setting: Setting): boolean {
 					</div>
 					
 					<!-- <div class="setting-text">
-						<p v-if="setting.description" class="setting-description">{{ setting.description }}</p>
+						<p v-if="descriptionOf(setting)" class="setting-description">{{ descriptionOf(setting) }}</p>
 					</div> -->
 
 					<!-- <USeparator /> -->
