@@ -1,15 +1,16 @@
 // import type { Touchable } from "./types"
-import { Sizable, Positionable, Rotatable, Viewable, Interactable, Timeable, type GameObjectProps } from "./mixins"
+import { Sizable, Positionable, Rotatable, Viewable, Interactable, Timeable, Alignable, type GameObjectProps } from "./mixins"
 
 /**
  * General type for most objects actually rendered in the game. Saves the trouble of
  * typing out Sizable(Positionable(Rotatable(... every time
  */
 export default abstract class GameObject extends
-    Sizable(
-    Rotatable(
+Rotatable(
     Viewable(
     Interactable(
+    Alignable(
+    Sizable(
     Positionable(
     Timeable(class {
         constructor() {
@@ -17,7 +18,7 @@ export default abstract class GameObject extends
             // props, this constructor needs the args in order for concrete object
             // constructors to pass their props object argument to each component constructor.
         }
-    })))))) {
+    }))))))) {
 
     constructor() {
         // This constructor would also need to receive args and pass the props object to super

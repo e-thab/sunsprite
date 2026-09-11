@@ -79,7 +79,8 @@ function formatValue(value: unknown): string {
     if (typeof value === 'boolean') return String(value)
     if (typeof value === 'string') return value
     try {
-        return JSON.stringify(value) ?? String(value)
+        // return JSON.stringify(value) ?? String(value)
+        return String(value)
     } catch {
         return '<unserializable>'
     }
