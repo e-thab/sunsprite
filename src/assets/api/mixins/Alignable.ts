@@ -15,6 +15,10 @@ import { Vector2, type Vector2Like } from "@api/Vector2"
  *  OtherMixin(
  *  ...
  */
+export type AlignableProps = {
+
+}
+
 export function Alignable<Base extends Class<{
     x: number
     y: number
@@ -67,24 +71,67 @@ export function Alignable<Base extends Class<{
             this.top = y
         }
 
-        // get topCenter(): number {
+        get topCenter(): Vector2 {
+            return new Vector2(this.x, this.top)
+        }
+        set topCenter(topCenter: Vector2Like) {
+            const { x, y } = Vector2.from(topCenter)
+            this.x = x
+            this.top = y
+        }
 
-        // }
-        // set topCenter(topCenter: number) {
+        get topRight(): Vector2 {
+            return new Vector2(this.right, this.top)
+        }
+        set topRight(topRight: Vector2Like) {
+            const { x, y } = Vector2.from(topRight)
+            this.right = x
+            this.top = y
+        }
 
-        // }
+        get bottomLeft(): Vector2 {
+            return new Vector2(this.left, this.bottom)
+        }
+        set bottomLeft(bottomLeft: Vector2Like) {
+            const { x, y } = Vector2.from(bottomLeft)
+            this.left = x
+            this.bottom = y
+        }
 
-        // get topRight(): number {
+        get bottomCenter(): Vector2 {
+            return new Vector2(this.x, this.bottom)
+        }
+        set bottomCenter(bottomCenter: Vector2Like) {
+            const { x, y } = Vector2.from(bottomCenter)
+            this.x = x
+            this.bottom = y
+        }
 
-        // }
-        // set topRight(topRight: number) {
+        get bottomRight(): Vector2 {
+            return new Vector2(this.right, this.bottom)
+        }
+        set bottomRight(bottomRight: Vector2Like) {
+            const { x, y } = Vector2.from(bottomRight)
+            this.right = x
+            this.bottom = y
+        }
 
-        // }
+        get centerLeft(): Vector2 {
+            return new Vector2(this.left, this.y)
+        }
+        set centerLeft(centerLeft: Vector2Like) {
+            const { x, y } = Vector2.from(centerLeft)
+            this.left = x
+            this.y = y
+        }
 
-        // centerLeft
-        // centerRight
-        // bottomLeft
-        // bottomCenter
-        // bottomRight
+        get centerRight(): Vector2 {
+            return new Vector2(this.right, this.y)
+        }
+        set centerRight(centerRight: Vector2Like) {
+            const { x, y } = Vector2.from(centerRight)
+            this.right = x
+            this.y = y
+        }
     }
 }
