@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { parse, type SFCScriptBlock } from 'vue/compiler-sfc'
 import { mirroredPath, normalizeSlashes, resolveSpecifier, RESOLUTION_OPTIONS, toSpecifier } from './runtimeCopy'
-import { ALIAS_IMPORT_RE, isAliasSpecifier, REPO_ROOT } from '../aliases'
+import { isAliasSpecifier, REPO_ROOT, unrewrittenAliasSpecifiers } from '../aliases'
 
 /**
  * Same idea as runtimeCopy.ts's rewriteFile, adapted for .vue SFCs: a doc
@@ -116,9 +116,9 @@ export function verifyVueStandalone(copiedFiles: string[]): void {
             const blocks = [descriptor.script, descriptor.scriptSetup].filter((b): b is SFCScriptBlock => b !== null)
 
             for (const [index, block] of blocks.entries()) {
-                const unrewritten = block.content.match(ALIAS_IMPORT_RE)
-                if (unrewritten) {
-                    throw new Error(`Docs snapshot incomplete: ${file} still has an unrewritten alias import (${unrewritten[0].trim()}…).`)
+                const unrewritten = unrewrittenAliasSpecifiers(block.content, file)
+                if (unrewritten.length > 0) {
+                    throw new Error(`Docs snapshot incomplete: ${file} still has an unrewritten alias import ("${unrewritten[0]}").`)
                 }
                 const tempFile = `${file}.block${index}.check.ts`
                 writeFileSync(tempFile, block.content, 'utf8')

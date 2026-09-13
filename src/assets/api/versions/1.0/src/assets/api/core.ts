@@ -10,6 +10,7 @@ import { runEntryModule, locateError } from "../../../../../moduleRunner"
 import { watch, unwatch, clearWatchCards } from "../../sandbox/watch"
 
 import Output from "../../sandbox/output"
+import Warning from "../../../../../Warning"
 import Random from "./Random"
 import Colors from "./Colors"
 import Timer from "./Timer"
@@ -61,8 +62,15 @@ function toDisplayError(e: unknown): Error {
 /** Single place that turns "something a user script threw" into output panel content. */
 function reportUserError(e: unknown) {
 	const err = toDisplayError(e)
-	Output.runtimeError(err.toString(), locateError(err))
-	console.error('User code error:', err)
+	const location = locateError(err)
+
+	if (err instanceof Warning) {
+		Output.runtimeWarning(err.toString(), location)
+		console.warn('User code warning:', err)
+	} else {
+		Output.runtimeError(err.toString(), location)
+		console.error('User code error:', err)
+	}
 }
 
 /**
@@ -867,17 +875,12 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer,
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine,
+			Vector2, Timer, Warning,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
+			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			// Built here, not as a module-level const, deliberately: core.ts and
-			// output.ts are mutually circular (output.ts imports `clock` from
-			// here), and this only runs once the game actually starts — long
-			// after every module has finished loading — so referencing Output's
-			// methods here can never race its own module's initialization the
-			// way a top-level reference could.
-			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
@@ -1028,6 +1031,22 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 			mode: Phaser.Scale.NONE
 		},
 		parent: 'game-container',
+		// Phaser defaults this to true, which calls window.focus() from inside
+		// this iframe the moment a game boots (see its VisibilityHandler) —
+		// pulling focus out of whatever the user was doing in the host app.
+		// Every run builds a new Game, so with auto-run on (see
+		// projectSettingsStore) that fired mid-typing and sent the next
+		// keystrokes to the game instead of the editor.
+		//
+		// Nothing needs it: the host forwards key events to the sandbox
+		// whenever it has focus and the user isn't typing into a text surface
+		// (hostBridge.ts's forwardKey), so a game is fully playable by keyboard
+		// without this frame ever holding focus. Clicking the canvas still
+		// hands focus over — natively, plus the explicit focus() in
+		// sandbox/main.ts, which is also what turning this off would otherwise
+		// have cost (Phaser reads autoFocus again in its MouseManager to focus
+		// on canvas mousedown).
+		autoFocus: false,
 		// backgroundColor: '#333',
 		// Every image is cross-origin from in here: the sandbox document has an
 		// opaque origin, so even same-server /images/* is "another origin" to it.

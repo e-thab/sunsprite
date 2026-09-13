@@ -71,7 +71,6 @@ export type InteractableProps = {
  *  Positionable(
  *  OtherMixin(
  *  ...
- * 
  */
 export function Interactable<Base extends Class<{x: number, y: number}>>(base: Base) {
     return class Interactable extends base {

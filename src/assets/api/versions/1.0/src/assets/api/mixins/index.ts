@@ -6,6 +6,7 @@ export * from './Rotatable'
 export * from './Viewable'
 export * from './Interactable'
 export * from './Timeable'
+export * from './Alignable'
 
 import { type PositionableProps } from './Positionable'
 import { type SizableProps } from './Sizable'

@@ -13,9 +13,10 @@ import { type SizableProps } from './Sizable'
 import { type RotatableProps } from './Rotatable'
 import { type ViewableProps } from './Viewable'
 import { type InteractableProps } from './Interactable'
+import { type AlignableProps } from './Alignable'
 
-export type AnyProps = InteractableProps | PositionableProps | RotatableProps | SizableProps | ViewableProps
-export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps /* ...etc. */
+export type AnyProps = InteractableProps | PositionableProps | RotatableProps | SizableProps | ViewableProps | AlignableProps
+export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps & AlignableProps /* ...etc. */
 // export const defaults: Required<GameObjectProps> = {
 //     x: 0,
 //     y: 0,

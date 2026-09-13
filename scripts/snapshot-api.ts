@@ -1,4 +1,5 @@
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs'
+import { createInterface } from 'node:readline/promises'
 import path from 'node:path'
 import ts from 'typescript'
 import { generateApiDeclarations } from './api-codegen/index'
@@ -16,6 +17,25 @@ const MIXIN_TYPE_NAMES: Record<string, string> = {
     Rotatable: 'RotatableProps',
     Viewable: 'ViewableProps',
     Interactable: 'InteractableProps',
+    Alignable: 'AlignableProps',
+}
+
+/**
+ * Snapshots are meant to be permanent, so overwriting one already cut is
+ * deliberately not the default path a bare `snapshot-api -- <version>` takes
+ * — it has to be confirmed interactively, once, before anything on disk
+ * changes. Re-running against a version nobody's shipped yet (fixing a typo
+ * right after cutting it, say) is the case this is for; re-running against
+ * one that's already out is still possible, just not silent.
+ */
+async function confirmOverwrite(version: string): Promise<boolean> {
+    const rl = createInterface({ input: process.stdin, output: process.stdout })
+    try {
+        const answer = await rl.question(`versions/${version}/ already exists. Overwrite it? [y/N] `)
+        return /^y(es)?$/i.test(answer.trim())
+    } finally {
+        rl.close()
+    }
 }
 
 /** The `Base &` prefix of a concrete class's own `*Props` type (e.g. `RotatableProps & ViewableProps &` for Line). */
@@ -30,7 +50,7 @@ function findPropsBasePrefix(program: ts.Program, file: string, typeName: string
     return baseMembers.map((t) => t.getText(sourceFile)).join(' & ') + ' & '
 }
 
-function main() {
+async function main() {
     const version = process.argv[2]
     if (!version) {
         console.error('Usage: pnpm run snapshot-api -- <version>  (e.g. pnpm run snapshot-api -- 1.0.0)')
@@ -49,8 +69,17 @@ function main() {
 
     const outDir = apiPath('versions', version)
     if (existsSync(outDir)) {
-        console.error(`versions/${version}/ already exists — snapshots are permanent, pick a new version label.`)
-        process.exit(1)
+        if (!(await confirmOverwrite(version))) {
+            console.error('Aborted — existing snapshot left untouched.')
+            process.exit(1)
+        }
+        // A full wipe, not an in-place overwrite: this version's file set may
+        // have shrunk since it was first cut (a doc page no longer copied, a
+        // runtime file dropped from runtimeCopySet()), and writing the new
+        // set over the old one would leave those stale files behind, silently
+        // included in what's now supposed to be the "new" snapshot.
+        rmSync(outDir, { recursive: true, force: true })
+        console.log(`Overwriting existing versions/${version}/ snapshot...`)
     }
 
     const generated = generateApiDeclarations()
@@ -76,7 +105,7 @@ function main() {
     }
 
     lines.push(
-        'export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps',
+        'export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps & AlignableProps',
         ''
     )
 
@@ -174,4 +203,7 @@ function main() {
     console.log(`Wrote ${copiedDocsFiles.length} doc pages under src/assets/api/versions/${version}/src/assets/docs/content/api/`)
 }
 
-main()
+main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+})

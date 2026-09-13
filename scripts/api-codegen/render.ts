@@ -12,6 +12,7 @@ const MIXIN_EXPORT_NAME: Record<string, string> = {
     Viewable: 'viewable',
     Interactable: 'interactable',
     Timeable: 'timeable',
+    Alignable: 'alignable',
 }
 
 /**
@@ -32,6 +33,15 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
 
     for (const [functionName, bundle] of Object.entries(generated.mixins)) {
         const prefix = MIXIN_EXPORT_NAME[functionName]
+        // A missing entry would otherwise interpolate the literal string
+        // "undefined" into the export name below — valid JS, so nothing
+        // catches it: the mixin's real content silently ships under
+        // `undefinedPropsTypeDef`/`undefinedApi`, unimported anywhere, while
+        // every consumer that actually needs it (apiLib.ts) looks like it's
+        // just missing that mixin entirely. Failing here instead of a few
+        // lines later means a new entry in sources.ts's MIXINS with no
+        // matching one here breaks generate-api.ts loudly, at the source.
+        if (!prefix) throw new Error(`render.ts: no MIXIN_EXPORT_NAME entry for mixin "${functionName}" — add one alongside its MIXINS entry in sources.ts.`)
         if (bundle.propsTypeDef) {
             lines.push(`export const ${prefix}PropsTypeDef = \`${esc(bundle.propsTypeDef)}\``)
         }

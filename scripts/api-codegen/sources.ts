@@ -17,6 +17,7 @@ export function sandboxPath(...segments: string[]): string {
 }
 
 export const MIXINS = [
+    { file: apiPath('mixins', 'Alignable.ts'), typeName: 'AlignableProps', functionName: 'Alignable' },
     { file: apiPath('mixins', 'Positionable.ts'), typeName: 'PositionableProps', functionName: 'Positionable' },
     { file: apiPath('mixins', 'Sizable.ts'), typeName: 'SizableProps', functionName: 'Sizable' },
     { file: apiPath('mixins', 'Rotatable.ts'), typeName: 'RotatableProps', functionName: 'Rotatable' },

@@ -63,6 +63,11 @@ export class Vector2 {
         // TODO
     }
 
+    // /** The distance from this vector's end point to another vector's end point. */
+    // get distanceTo(): number {
+    //     // TODO
+    // }
+
     /** Get a normalized copy of this vector. */
     get normal(): Vector2 {
         return new Vector2(this.x / this.length, this.y / this.length)

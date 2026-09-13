@@ -120,7 +120,45 @@ export type InteractableProps = {
     onScroll?: PointerAction
 }
 
-export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps
+export type AlignableProps = {
+    /** Y coordinate at the top edge of this object. */
+    top?: number
+
+    /** Y coordinate at the bottom edge of this object. */
+    bottom?: number
+
+    /** X coordinate at the left edge of this object. */
+    left?: number
+
+    /** X coordinate at the right edge of this object. */
+    right?: number
+
+    /** Position at the top left corner of this object. */
+    topLeft?: Vector2Like
+
+    /** Position at the top edge in the horizontal center of this object. */
+    topCenter?: Vector2Like
+
+    /** Position at the top right corner of this object. */
+    topRight?: Vector2Like
+
+    /** Position at the bottom left corner of this object. */
+    bottomLeft?: Vector2Like
+
+    /** Position at the bottom edge in the horizontal center of this object. */
+    bottomCenter?: Vector2Like
+
+    /** Position at the bottom right corner of this object. */
+    bottomRight?: Vector2Like
+
+    /** Position at the vertical center of the left edge of this object. */
+    centerLeft?: Vector2Like
+
+    /** Position at the vertical center of the right edge of this object. */
+    centerRight?: Vector2Like
+}
+
+export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps & AlignableProps
 
 export type SpriteProps = GameObjectProps & {
     /** A URL path to the sprite's image. */
@@ -179,6 +217,47 @@ export declare class Sprite {
 
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
+
+    /** Horizontal size in pixels. */
+    width: number
+
+    /** Vertical size in pixels. */
+    height: number
+
+    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
+    scale: number
+
+    left: number
+
+    right: number
+
+    top: number
+
+    bottom: number
+
+    get topLeft(): Vector2
+    set topLeft(topLeft: Vector2Like)
+
+    get topCenter(): Vector2
+    set topCenter(topCenter: Vector2Like)
+
+    get topRight(): Vector2
+    set topRight(topRight: Vector2Like)
+
+    get bottomLeft(): Vector2
+    set bottomLeft(bottomLeft: Vector2Like)
+
+    get bottomCenter(): Vector2
+    set bottomCenter(bottomCenter: Vector2Like)
+
+    get bottomRight(): Vector2
+    set bottomRight(bottomRight: Vector2Like)
+
+    get centerLeft(): Vector2
+    set centerLeft(centerLeft: Vector2Like)
+
+    get centerRight(): Vector2
+    set centerRight(centerRight: Vector2Like)
 
     /** The cursor shown when the mouse is over this object. */
     get cursor(): Cursor
@@ -264,15 +343,6 @@ export declare class Sprite {
 
     /** Rotation angle in radians. */
     radians: number
-
-    /** Horizontal size in pixels. */
-    width: number
-
-    /** Vertical size in pixels. */
-    height: number
-
-    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
-    scale: number
 
     /** A URL path to the sprite's image. */
     get src(): string
@@ -337,6 +407,47 @@ export declare class Rectangle {
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
 
+    /** Horizontal size in pixels. */
+    width: number
+
+    /** Vertical size in pixels. */
+    height: number
+
+    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
+    scale: number
+
+    left: number
+
+    right: number
+
+    top: number
+
+    bottom: number
+
+    get topLeft(): Vector2
+    set topLeft(topLeft: Vector2Like)
+
+    get topCenter(): Vector2
+    set topCenter(topCenter: Vector2Like)
+
+    get topRight(): Vector2
+    set topRight(topRight: Vector2Like)
+
+    get bottomLeft(): Vector2
+    set bottomLeft(bottomLeft: Vector2Like)
+
+    get bottomCenter(): Vector2
+    set bottomCenter(bottomCenter: Vector2Like)
+
+    get bottomRight(): Vector2
+    set bottomRight(bottomRight: Vector2Like)
+
+    get centerLeft(): Vector2
+    set centerLeft(centerLeft: Vector2Like)
+
+    get centerRight(): Vector2
+    set centerRight(centerRight: Vector2Like)
+
     /** The cursor shown when the mouse is over this object. */
     get cursor(): Cursor
     set cursor(cursor: Cursor | string)
@@ -421,15 +532,6 @@ export declare class Rectangle {
 
     /** Rotation angle in radians. */
     radians: number
-
-    /** Horizontal size in pixels. */
-    width: number
-
-    /** Vertical size in pixels. */
-    height: number
-
-    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
-    scale: number
 
     /** The fill color. */
     color: string
@@ -496,6 +598,47 @@ export declare class Circle {
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
 
+    /** Horizontal size in pixels. */
+    width: number
+
+    /** Vertical size in pixels. */
+    height: number
+
+    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
+    scale: number
+
+    left: number
+
+    right: number
+
+    top: number
+
+    bottom: number
+
+    get topLeft(): Vector2
+    set topLeft(topLeft: Vector2Like)
+
+    get topCenter(): Vector2
+    set topCenter(topCenter: Vector2Like)
+
+    get topRight(): Vector2
+    set topRight(topRight: Vector2Like)
+
+    get bottomLeft(): Vector2
+    set bottomLeft(bottomLeft: Vector2Like)
+
+    get bottomCenter(): Vector2
+    set bottomCenter(bottomCenter: Vector2Like)
+
+    get bottomRight(): Vector2
+    set bottomRight(bottomRight: Vector2Like)
+
+    get centerLeft(): Vector2
+    set centerLeft(centerLeft: Vector2Like)
+
+    get centerRight(): Vector2
+    set centerRight(centerRight: Vector2Like)
+
     /** The cursor shown when the mouse is over this object. */
     get cursor(): Cursor
     set cursor(cursor: Cursor | string)
@@ -580,15 +723,6 @@ export declare class Circle {
 
     /** Rotation angle in radians. */
     radians: number
-
-    /** Horizontal size in pixels. */
-    width: number
-
-    /** Vertical size in pixels. */
-    height: number
-
-    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
-    scale: number
 
     /** The fill color. */
     color: string
@@ -664,6 +798,47 @@ export declare class Label {
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
 
+    /** Horizontal size in pixels. */
+    width: number
+
+    /** Vertical size in pixels. */
+    height: number
+
+    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
+    scale: number
+
+    left: number
+
+    right: number
+
+    top: number
+
+    bottom: number
+
+    get topLeft(): Vector2
+    set topLeft(topLeft: Vector2Like)
+
+    get topCenter(): Vector2
+    set topCenter(topCenter: Vector2Like)
+
+    get topRight(): Vector2
+    set topRight(topRight: Vector2Like)
+
+    get bottomLeft(): Vector2
+    set bottomLeft(bottomLeft: Vector2Like)
+
+    get bottomCenter(): Vector2
+    set bottomCenter(bottomCenter: Vector2Like)
+
+    get bottomRight(): Vector2
+    set bottomRight(bottomRight: Vector2Like)
+
+    get centerLeft(): Vector2
+    set centerLeft(centerLeft: Vector2Like)
+
+    get centerRight(): Vector2
+    set centerRight(centerRight: Vector2Like)
+
     /** The cursor shown when the mouse is over this object. */
     get cursor(): Cursor
     set cursor(cursor: Cursor | string)
@@ -748,15 +923,6 @@ export declare class Label {
 
     /** Rotation angle in radians. */
     radians: number
-
-    /** Horizontal size in pixels. */
-    width: number
-
-    /** Vertical size in pixels. */
-    height: number
-
-    /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
-    scale: number
 
     /** Text content of the label. */
     get text(): string

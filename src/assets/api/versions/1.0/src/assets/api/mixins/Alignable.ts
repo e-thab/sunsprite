@@ -1,6 +1,6 @@
 // import type { ReferenceObject } from "@api/types"
-import type { Class } from "@mixins/shared"
-import { Vector2, type Vector2Like } from "@api/Vector2"
+import type { Class } from "./shared"
+import { Vector2, type Vector2Like } from "../Vector2"
 
 /**
  * If an object extends Alignable, it must have { x: number, y: number, width: number, height: number }.
@@ -24,7 +24,7 @@ export type AlignableProps = {
     left?: number
     /** X coordinate at the right edge of this object. */
     right?: number
-    
+
     /** Position at the top left corner of this object. */
     topLeft?: Vector2Like
     /** Position at the top edge in the horizontal center of this object. */
@@ -56,17 +56,6 @@ export function Alignable<Base extends Class<{
             super()
         }
 
-        _initAlignable(props?: AlignableProps) {
-            if (props === undefined) return
-
-            if (props?.top !== undefined) this.top = props.top
-            if (props?.bottom !== undefined) this.bottom = props.bottom
-            if (props?.left !== undefined) this.left = props.left
-            if (props?.right !== undefined) this.right = props.right
-            // ...
-        }
-
-        /** X coordinate at the left edge of this object. */
         get left(): number {
             return this.x - this.width / 2
         }
@@ -75,7 +64,6 @@ export function Alignable<Base extends Class<{
             this.x = left + this.width / 2
         }
 
-        /** X coordinate at the right edge of this object. */
         get right(): number {
             return this.x + this.width / 2
         }
@@ -84,7 +72,6 @@ export function Alignable<Base extends Class<{
             this.x = right - this.width / 2
         }
 
-        /** Y coordinate at the top edge of this object. */
         get top(): number {
             return this.y + this.height / 2
         }
@@ -93,7 +80,6 @@ export function Alignable<Base extends Class<{
             this.y = top - this.height / 2
         }
 
-        /** Y coordinate at the bottom edge of this object. */
         get bottom(): number {
             return this.y - this.height / 2
         }
@@ -102,7 +88,6 @@ export function Alignable<Base extends Class<{
             this.y = bottom + this.height / 2
         }
 
-        /** Position at the top left corner of this object. */
         get topLeft(): Vector2 {
             return new Vector2(this.left, this.top)
         }
@@ -112,7 +97,6 @@ export function Alignable<Base extends Class<{
             this.top = y
         }
 
-        /** Position at the top edge in the horizontal center of this object. */
         get topCenter(): Vector2 {
             return new Vector2(this.x, this.top)
         }
@@ -122,7 +106,6 @@ export function Alignable<Base extends Class<{
             this.top = y
         }
 
-        /** Position at the top right corner of this object. */
         get topRight(): Vector2 {
             return new Vector2(this.right, this.top)
         }
@@ -132,7 +115,6 @@ export function Alignable<Base extends Class<{
             this.top = y
         }
 
-        /** Position at the bottom left corner of this object. */
         get bottomLeft(): Vector2 {
             return new Vector2(this.left, this.bottom)
         }
@@ -142,7 +124,6 @@ export function Alignable<Base extends Class<{
             this.bottom = y
         }
 
-        /** Position at the bottom edge in the horizontal center of this object. */
         get bottomCenter(): Vector2 {
             return new Vector2(this.x, this.bottom)
         }
@@ -152,7 +133,6 @@ export function Alignable<Base extends Class<{
             this.bottom = y
         }
 
-        /** Position at the bottom right corner of this object. */
         get bottomRight(): Vector2 {
             return new Vector2(this.right, this.bottom)
         }
@@ -162,7 +142,6 @@ export function Alignable<Base extends Class<{
             this.bottom = y
         }
 
-        /** Position at the vertical center of the left edge of this object. */
         get centerLeft(): Vector2 {
             return new Vector2(this.left, this.y)
         }
@@ -172,7 +151,6 @@ export function Alignable<Base extends Class<{
             this.y = y
         }
 
-        /** Position at the vertical center of the right edge of this object. */
         get centerRight(): Vector2 {
             return new Vector2(this.right, this.y)
         }
@@ -180,10 +158,6 @@ export function Alignable<Base extends Class<{
             const { x, y } = Vector2.from(centerRight)
             this.right = x
             this.y = y
-        }
-
-        alignTo() {
-            
         }
     }
 }

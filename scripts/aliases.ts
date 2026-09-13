@@ -69,10 +69,34 @@ export function isAliasSpecifier(specifier: string): boolean {
     return ALIASES.some(({ prefix }) => specifier.startsWith(`${prefix}/`))
 }
 
-/** Matches an alias import left in emitted text, e.g. `from "@/x"` — used by the snapshot completeness checks. */
-export const ALIAS_IMPORT_RE = new RegExp(
-    `from\\s+["'](?:${ALIASES.map(({ prefix }) => prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})/`,
-)
+/**
+ * Real, un-rewritten alias import specifiers still in `text` — used by the
+ * snapshot completeness checks (runtimeCopy.ts/vueCopy.ts) to prove the
+ * rewriter didn't miss one. Parses `text` as TS and only looks at
+ * import/export declarations' own specifiers — the same statement kinds
+ * rewriteFile() edits — rather than regexing the raw text for `from "@…`,
+ * which a previous version of this did and which false-positived on a
+ * *commented-out* import (dead text that happens to contain the same shape,
+ * never touched by the rewriter because it was never live code to begin
+ * with).
+ */
+export function unrewrittenAliasSpecifiers(text: string, fileName: string): string[] {
+    const sourceFile = ts.createSourceFile(fileName, text, ts.ScriptTarget.ES2020, true, ts.ScriptKind.TS)
+    const specifiers: string[] = []
+
+    for (const statement of sourceFile.statements) {
+        const hasSpecifier =
+            (ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) && statement.moduleSpecifier
+        if (!hasSpecifier) continue
+
+        const moduleSpecifier = (statement as ts.ImportDeclaration | ts.ExportDeclaration).moduleSpecifier
+        if (!moduleSpecifier || !ts.isStringLiteral(moduleSpecifier)) continue
+
+        if (isAliasSpecifier(moduleSpecifier.text)) specifiers.push(moduleSpecifier.text)
+    }
+
+    return specifiers
+}
 
 /** The same aliases in Vite's `resolve.alias` array shape, which preserves the ordering above. */
 export function viteAliases(): { find: string; replacement: string }[] {

@@ -27,7 +27,7 @@
 // export default api
 import {
     positionableApi,
-    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef,
+    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
     spritePropsFields, spriteMembers,
     rectanglePropsFields, rectangleMembers,
     circlePropsFields, circleMembers,
@@ -61,6 +61,7 @@ export interface VersionedApiConstants {
     rotatablePropsTypeDef: string
     viewablePropsTypeDef: string
     interactablePropsTypeDef: string
+    alignablePropsTypeDef: string
     spritePropsFields: string
     spriteMembers: string
     rectanglePropsFields: string
@@ -156,7 +157,8 @@ ${v.sizablePropsTypeDef}
 ${v.rotatablePropsTypeDef}
 ${v.viewablePropsTypeDef}
 ${v.interactablePropsTypeDef}
-type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps
+${v.alignablePropsTypeDef}
+type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps & AlignableProps
 `,
 
 // Types (hand-written — not derived from source, see mixin/class-derived block above)
@@ -570,7 +572,7 @@ ${v.circleMembers}
 
 export const apiLib = buildApiLib({
     positionableApi,
-    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef,
+    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
     spritePropsFields, spriteMembers,
     rectanglePropsFields, rectangleMembers,
     circlePropsFields, circleMembers,
