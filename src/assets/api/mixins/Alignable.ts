@@ -1,20 +1,68 @@
 // import type { ReferenceObject } from "@api/types"
 import type { Class } from "@mixins/shared"
-import { Vector2, type Vector2Like } from "@api/Vector2"
+import { isVector2Like, Vector2, type Vector2Like } from "@api/Vector2"
 
-const Alignment = {
-    TOP: 'top',
-    BOTTOM: 'bottom',
-    LEFT: 'left',
-    RIGHT: 'right',
-    CENTER_V: 'centerv',
-    CENTER_H: 'centerh'
+enum Alignment {
+    TOP = 'top',
+    BOTTOM = 'bottom',
+    LEFT = 'left',
+    RIGHT = 'right',
+    CENTER_V = 'centerv',
+    CENTER_H = 'centerh',
 }
 
-type AlignType =
-    | 'topleft'
-    | 'topcenter'
-    | 'topright'
+export enum Anchor {
+    TOP_LEFT = 'topleft',
+    TOP_CENTER = 'topcenter',
+    TOP_RIGHT = 'topright',
+    CENTER_LEFT = 'centerleft',
+    CENTER = 'center',
+    CENTER_RIGHT = 'centerright',
+    BOTTOM_LEFT = 'bottomleft',
+    BOTTOM_CENTER = 'bottomcenter',
+    BOTTOM_RIGHT = 'bottomright',
+}
+
+/** Any of the nine anchor points on an object, as a lowercase string. */
+export type AnchorPoint = `${Anchor}`
+
+/** An object with enough geometry to resolve anchor points on. */
+type AlignableLike = { x: number, y: number, width: number, height: number }
+
+/**
+ * Factors applied to an objects width/height to reach each anchor point from its center.
+ * These follow our y-up convention, so top is positive.
+ */
+const ANCHOR_OFFSETS: Record<AnchorPoint, readonly [number, number]> = {
+    [Anchor.TOP_LEFT]:      [-1/2,  1/2],
+    [Anchor.TOP_CENTER]:    [  0 ,  1/2],
+    [Anchor.TOP_RIGHT]:     [ 1/2,  1/2],
+    [Anchor.CENTER_LEFT]:   [-1/2,   0 ],
+    [Anchor.CENTER]:        [  0,    0 ],
+    [Anchor.CENTER_RIGHT]:  [ 1/2,   0 ],
+    [Anchor.BOTTOM_LEFT]:   [-1/2, -1/2],
+    [Anchor.BOTTOM_CENTER]: [  0,  -1/2],
+    [Anchor.BOTTOM_RIGHT]:  [ 1/2, -1/2],
+}
+
+function isAlignable(obj: any): obj is AlignableLike {
+    return typeof (obj).x === 'number'
+        && typeof (obj).y === 'number'
+        && typeof (obj as AlignableLike).width === "number"
+        && typeof (obj as AlignableLike).height === "number"
+}
+
+/** Resolve an anchor name to its width/height factors, tolerating any casing. */
+function anchorOffsets(anchor: AnchorPoint): readonly [number, number] {
+    const offsets = ANCHOR_OFFSETS[anchor.toLowerCase() as AnchorPoint]
+    if (offsets === undefined) throw new Error(`Bad goTo anchor: ${anchor}`)
+    return offsets
+}
+
+// type AlignType =
+//     | 'topleft'
+//     | 'topcenter'
+//     | 'topright'
 
 /**
  * If an object extends Alignable, it must have { x: number, y: number, width: number, height: number }.
@@ -77,7 +125,15 @@ export function Alignable<Base extends Class<{
             if (props?.bottom !== undefined) this.bottom = props.bottom
             if (props?.left !== undefined) this.left = props.left
             if (props?.right !== undefined) this.right = props.right
-            // ...
+
+            if (props?.topLeft) this.topLeft = props.topLeft
+            if (props?.topCenter) this.topCenter = props.topCenter
+            if (props?.topRight) this.topRight = props.topRight
+            if (props?.centerLeft) this.centerLeft = props.centerLeft
+            if (props?.centerRight) this.centerRight = props.centerRight
+            if (props?.bottomLeft) this.bottomLeft = props.bottomLeft
+            if (props?.bottomCenter) this.bottomCenter = props.bottomCenter
+            if (props?.bottomRight) this.bottomRight = props.bottomRight
         }
 
         /** X coordinate at the left edge of this object. */
@@ -197,38 +253,40 @@ export function Alignable<Base extends Class<{
         }
 
         /**
-         * Align this object to another alignable object. Does not change size, only position.
-         * ...
+         * Set world position.
+         * @param x New horizontal world position.
+         * @param y New vertical world position.
          */
-        alignTo(other: Alignable, alignType: string, alignOrientation: 'inside' | 'outside') {
-            alignType = alignType.toLowerCase()
-            if (alignType.includes(Alignment.LEFT)) {
-                this.x = other.left + this.width / 2
-            }
-            if (alignType.includes(Alignment.RIGHT)) {
-                this.x = other.right - this.width / 2
-            }
-            if (alignType.includes(Alignment.TOP)) {
-                this.y = other.top - this.height / 2
-            }
-            if (alignType.includes(Alignment.BOTTOM)) {
-                this.y = other.bottom + this.height / 2
-            }
-            if (alignType.includes(Alignment.CENTER_H)) {
-                this.x = other.x
-            }
-            if (alignType.includes(Alignment.CENTER_V)) {
-                this.y = other.y
-            }
-        }
-
-        /** 
-         * Moves the object so that the corner/edge is at the specified position without changing size
+        goTo(x: number, y: number): void
+        /**
+         * Set world position.
+         * @param other New world position.
+         * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft',
+         * this object's top left point will be placed at other's position.
          */
-        alignTopLeftTo(point: Vector2Like) {
-            point = Vector2.from(point)
-            this.x = point.x + this.width / 2
-            this.y = point.y - this.height / 2
+        goTo(other: Vector2Like, anchor?: Anchor): void
+        goTo(xOrOther: number | Vector2Like, yOrAnchor?: number | Anchor) {
+            // Going to a point; e.g. goTo(100, -200)
+            if (typeof(xOrOther) === 'number' && typeof(yOrAnchor) === 'number') {
+                this.x = xOrOther
+                this.y = yOrAnchor
+            }
+            else if (isVector2Like(xOrOther)) {
+                const [other, anchor] = [xOrOther, yOrAnchor]
+                const point = Vector2.from(other)
+                
+                // Going to a Vector2Like with no anchor; e.g. goTo(sprite)
+                if (anchor === undefined) {
+                    this.x = point.x
+                    this.y = point.y
+                }
+                // Going to a Vector2Like with a self-anchor; e.g. goTo([10, 25], 'topleft')
+                else if (typeof(anchor) === 'string') {
+                    const [ xFact, yFact ] = anchorOffsets(anchor)
+                    this.x = point.x - this.width * xFact
+                    this.y = point.y - this.height * yFact
+                }
+            }
         }
     }
 }

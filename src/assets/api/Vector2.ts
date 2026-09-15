@@ -20,6 +20,10 @@ export function isXYArray(obj: any): obj is XYArray {
     return obj && /*obj.length === 2 &&*/ typeof obj[0] === 'number' && typeof obj[1] === 'number'
 }
 
+export function isVector2Like(obj: any): obj is Vector2Like {
+    return isXYObject(obj) || isXYArray(obj)
+}
+
 export class Vector2 {
 	x: number = 0
 	y: number = 0
@@ -63,10 +67,24 @@ export class Vector2 {
         // TODO
     }
 
-    // /** The distance from this vector's end point to another vector's end point. */
-    // get distanceTo(): number {
-    //     // TODO
-    // }
+    /** The distance from this vector's end point to another vector's end point. */
+    distanceTo(x: number, y: number): number
+    distanceTo(other: Vector2Like): number
+    distanceTo(xOrOther: number | Vector2Like, y?: number) {
+        let other = Vector2.ZERO
+
+        if (isVector2Like(xOrOther)) {
+            other = Vector2.from(xOrOther)
+        }
+        else if (typeof xOrOther === 'number' && typeof y === 'number') {
+            other = Vector2.from(xOrOther, y)
+        }
+        else {
+            return new Vector2(NaN, NaN)
+        }
+
+        return Math.sqrt((other.x - this.x) ** 2 + (other.y - this.y) ** 2)
+    }
 
     /** Get a normalized copy of this vector. */
     get normal(): Vector2 {

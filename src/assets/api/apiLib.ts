@@ -214,6 +214,21 @@ type PointArg = Point | ArrayPoint
 /** A Vector2-interpretable value: either an { x, y } object or a [x, y] array. */
 type Vector2Like = { x: number, y: number } | [number, number]
 
+/** Any of the nine anchor points on an object, as a lowercase string. */
+type AnchorPoint =
+    | 'topleft'
+    | 'topcenter'
+    | 'topright'
+    | 'centerleft'
+    | 'center'
+    | 'centerright'
+    | 'bottomleft'
+    | 'bottomcenter'
+    | 'bottomright'
+
+/** An object with enough geometry to resolve anchor points on. */
+type AlignableLike = { x: number, y: number, width: number, height: number }
+
 type Action = (...args: any[]) => void
 type Predicate = (...args: any[]) => boolean
 
