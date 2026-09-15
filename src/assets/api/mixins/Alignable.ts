@@ -2,6 +2,20 @@
 import type { Class } from "@mixins/shared"
 import { Vector2, type Vector2Like } from "@api/Vector2"
 
+const Alignment = {
+    TOP: 'top',
+    BOTTOM: 'bottom',
+    LEFT: 'left',
+    RIGHT: 'right',
+    CENTER_V: 'centerv',
+    CENTER_H: 'centerh'
+}
+
+type AlignType =
+    | 'topleft'
+    | 'topcenter'
+    | 'topright'
+
 /**
  * If an object extends Alignable, it must have { x: number, y: number, width: number, height: number }.
  * When extending Positionable, Sizable, and Alignable, make sure Positionable and Sizable come
@@ -182,8 +196,39 @@ export function Alignable<Base extends Class<{
             this.y = y
         }
 
-        alignTo() {
-            
+        /**
+         * Align this object to another alignable object. Does not change size, only position.
+         * ...
+         */
+        alignTo(other: Alignable, alignType: string, alignOrientation: 'inside' | 'outside') {
+            alignType = alignType.toLowerCase()
+            if (alignType.includes(Alignment.LEFT)) {
+                this.x = other.left + this.width / 2
+            }
+            if (alignType.includes(Alignment.RIGHT)) {
+                this.x = other.right - this.width / 2
+            }
+            if (alignType.includes(Alignment.TOP)) {
+                this.y = other.top - this.height / 2
+            }
+            if (alignType.includes(Alignment.BOTTOM)) {
+                this.y = other.bottom + this.height / 2
+            }
+            if (alignType.includes(Alignment.CENTER_H)) {
+                this.x = other.x
+            }
+            if (alignType.includes(Alignment.CENTER_V)) {
+                this.y = other.y
+            }
+        }
+
+        /** 
+         * Moves the object so that the corner/edge is at the specified position without changing size
+         */
+        alignTopLeftTo(point: Vector2Like) {
+            point = Vector2.from(point)
+            this.x = point.x + this.width / 2
+            this.y = point.y - this.height / 2
         }
     }
 }

@@ -37,18 +37,18 @@ export function Rotatable<Base extends Class>(base: Base) {
         get rotation(): number {
             return this._rotation
         }
-        set rotation(angle: number) {
-            this._rotation = angle
-            if (this._refObj) this._refObj.rotation = deg2rad(angle)
+        set rotation(degrees: number) {
+            this._rotation = degrees
+            if (this._refObj) this._refObj.rotation = deg2rad(degrees)
         }
 
         /** Rotation angle in radians. */
         get radians(): number {
             return deg2rad(this._rotation)
         }
-        set radians(rad: number) {
-            this._rotation = rad2deg(rad)
-            if (this._refObj) this._refObj.rotation = rad
+        set radians(radians: number) {
+            this._rotation = rad2deg(radians)
+            if (this._refObj) this._refObj.rotation = radians
         }
 
         _lookAt(other: Vector2Like) {
