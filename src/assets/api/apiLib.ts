@@ -45,7 +45,6 @@ import {
     watchDeclaration, unwatchDeclaration,
     deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
 } from "./generated/apiDeclarations.generated"
-import Colors from './Colors'
 
 /**
  * The subset of apiLib's content that varies by API version — everything
@@ -117,16 +116,28 @@ export interface VersionedApiConstants {
 
 // TODO: Fix all this vvv, model and lib should probably just stay the same for now
 
+// Colors is deliberately declared as an index signature rather than the
+// `declare enum Colors { AliceBlue = "#f0f8ff", ... }` this used to emit.
+//
+// The enum's members were TypeScript's to complete, and Monaco's TypeScript
+// worker can only ever label them Property — its convertKind never emits
+// CompletionItemKind.Color, which is what makes the suggest widget draw a
+// color swatch. Handing the member list to our own provider (see
+// monaco-colors.ts) is the only way to get swatches, and an index signature is
+// what stops TypeScript offering the same names alongside ours: Monaco
+// de-duplicates nothing between providers, so both lists would show — every
+// color twice.
+//
+// Nothing downstream is weakened by the looser type: no API surface takes a
+// Colors value, every color property is a plain `string`. The one thing the
+// enum did give — an error on a misspelt name — is reinstated as a marker in
+// monaco-colors.ts. Put the enum back and the duplicate rows come back too.
 /** 
  * Added to the editor as a model, allows viewing definitions and better ts
  * support, but can't have direct const declarations. User-facing.
  */
 export const apiModel = `
-declare enum Colors ${
-    // Enums are stringified as if they're regular objects, so this needs conversion
-    JSON.stringify(Colors, null, 2) // Convert to pretty string with newlines & tabs
-    .replace(/"([^"]+)":/g, '$1 =') // Unquote keys and replace colons with =
-}
+declare const Colors: { readonly [name: string]: string }
 `
 
 /**

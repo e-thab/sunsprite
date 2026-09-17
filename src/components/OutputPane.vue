@@ -261,7 +261,10 @@ watch(() => projectSettingsStore.settings.outputAutoScroll, (enabled) => {
     padding: 0 .25em;
     color: var(--theme-text-toned);
     background-color: var(--theme-bg-muted);
-    width: calc(var(--output-glyph-slot) + .5em);
+    /* .5em of side padding plus the 1px border-right — box-sizing counts both
+       inside the width, and without the border the glyph gets shrunk a pixel
+       narrower than its own mask and clips the widest glyphs. */
+    width: calc(var(--output-glyph-slot) + .5em + 1px);
     user-select: none;
 }
 

@@ -145,3 +145,150 @@ monaco.languages.registerColorProvider(SCRIPT_MONACO_LANGUAGES, {
 		return presentations
 	},
 })
+
+// ---------------------------------------------------------------------------
+// Completions
+// ---------------------------------------------------------------------------
+
+// Monaco draws a swatch in a completion row's icon slot when the item's kind is
+// Color *and* a CSS color can be found on it — suggestWidgetRenderer.js's
+// ColorExtractor tries the label and detail as whole strings, then the
+// documentation loosely. Its TypeScript worker can never satisfy the first
+// half: convertKind maps enum members to Property and has no branch that emits
+// Color at all. So the only way to put swatches in the dropdown is to supply
+// the items ourselves.
+//
+// Which is why apiLib.ts declares Colors with an index signature now instead of
+// as an enum. Two providers offering the same names would show every color
+// twice: Monaco de-duplicates nothing across providers, and its one
+// short-circuit — suggest.js only moves on to the next provider *group* when
+// the previous group produced nothing — can't separate us, because a plain
+// language-id selector and ours both score 10 and so share a group. Leaving
+// TypeScript with no members to offer is the whole mechanism. (An `exclusive`
+// selector would outrank it, but zeroes every other provider for the entire
+// model, taking all TypeScript completions with it.)
+const COLORS_MEMBER_ACCESS_PATTERN = /\bColors\.(\w*)$/
+
+monaco.languages.registerCompletionItemProvider(SCRIPT_MONACO_LANGUAGES, {
+	triggerCharacters: ['.'],
+	provideCompletionItems(model, position) {
+		const linePrefix = model.getValueInRange({
+			startLineNumber: position.lineNumber,
+			startColumn: 1,
+			endLineNumber: position.lineNumber,
+			endColumn: position.column,
+		})
+
+		const match = COLORS_MEMBER_ACCESS_PATTERN.exec(linePrefix)
+		if (!match) return { suggestions: [] }
+
+		// Spans what's been typed since the dot rather than ending at the
+		// cursor alone, so accepting a row after typing a few letters replaces
+		// them instead of appending to them.
+		const typed = match[1]!
+		const range: monaco.IRange = {
+			startLineNumber: position.lineNumber,
+			endLineNumber: position.lineNumber,
+			startColumn: position.column - typed.length,
+			endColumn: position.column,
+		}
+
+		const suggestions: monaco.languages.CompletionItem[] = []
+		for (const [name, hex] of colorsByName) {
+			suggestions.push({
+				label: name,
+				kind: monaco.languages.CompletionItemKind.Color,
+				// Both halves of the swatch: Color alone renders the generic
+				// kind icon, and this is the string ColorExtractor matches
+				// (strictly, so it has to be the hex and nothing else). It
+				// doubles as the value shown beside the name in the row.
+				detail: hex,
+				insertText: name,
+				range,
+			})
+		}
+
+		return { suggestions }
+	},
+})
+
+// ---------------------------------------------------------------------------
+// Unknown-name validation
+// ---------------------------------------------------------------------------
+
+// Reinstates the one thing lost with the enum: `Colors.Jae` used to be a
+// TypeScript error ("Property 'Jae' does not exist"), and an index signature
+// accepts any name. The document scan this needs is the same one the color
+// provider above already performs, but it's driven from its own content
+// listener rather than piggybacking on provideDocumentColors — that runs only
+// for models attached to an editor, and only while color decorators are turned
+// on, neither of which should silently decide whether typos get reported.
+const UNKNOWN_COLOR_MARKER_OWNER = 'sunsprite-colors'
+const MARKER_DEBOUNCE_MS = 250
+
+function refreshUnknownColorMarkers(model: monaco.editor.ITextModel) {
+	const text = model.getValue()
+	const markers: monaco.editor.IMarkerData[] = []
+
+	for (const match of text.matchAll(COLORS_REFERENCE_PATTERN)) {
+		const name = match[1]!
+		if (colorsByName.has(name)) continue
+		if (isWholeQuotedString(text, match.index, match.index + match[0].length)) continue
+
+		// Underlines just the name, not the `Colors.` qualifier, matching where
+		// TypeScript used to put the squiggle.
+		const nameIndex = match.index + match[0].length - name.length
+		const start = model.getPositionAt(nameIndex)
+		const end = model.getPositionAt(nameIndex + name.length)
+		markers.push({
+			severity: monaco.MarkerSeverity.Error,
+			message: `'${name}' is not a color name.`,
+			startLineNumber: start.lineNumber,
+			startColumn: start.column,
+			endLineNumber: end.lineNumber,
+			endColumn: end.column,
+		})
+	}
+
+	// Replaces the whole array for this owner every time, which is the only way
+	// setModelMarkers works — hence an owner of our own, so this never clears
+	// the runtime errors CodeEditor.vue publishes under its own.
+	monaco.editor.setModelMarkers(model, UNKNOWN_COLOR_MARKER_OWNER, markers)
+}
+
+const markerWatchers = new Map<monaco.editor.ITextModel, monaco.IDisposable>()
+const markerTimers = new Map<monaco.editor.ITextModel, ReturnType<typeof setTimeout>>()
+
+function scheduleMarkerRefresh(model: monaco.editor.ITextModel) {
+	const pending = markerTimers.get(model)
+	if (pending) clearTimeout(pending)
+
+	markerTimers.set(model, setTimeout(() => {
+		markerTimers.delete(model)
+		if (!model.isDisposed()) refreshUnknownColorMarkers(model)
+	}, MARKER_DEBOUNCE_MS))
+}
+
+function watchModelForUnknownColors(model: monaco.editor.ITextModel) {
+	if (markerWatchers.has(model)) return
+	if (!SCRIPT_MONACO_LANGUAGES.includes(model.getLanguageId())) return
+
+	markerWatchers.set(model, model.onDidChangeContent(() => scheduleMarkerRefresh(model)))
+	refreshUnknownColorMarkers(model)
+}
+
+function unwatchModelForUnknownColors(model: monaco.editor.ITextModel) {
+	markerWatchers.get(model)?.dispose()
+	markerWatchers.delete(model)
+
+	const pending = markerTimers.get(model)
+	if (pending) clearTimeout(pending)
+	markerTimers.delete(model)
+}
+
+monaco.editor.onDidCreateModel(watchModelForUnknownColors)
+monaco.editor.onWillDisposeModel(unwatchModelForUnknownColors)
+// Anything that already exists by the time this module is first imported —
+// CodeEditor.vue creates the API model during its own setup, and script models
+// can outlive a remount.
+monaco.editor.getModels().forEach(watchModelForUnknownColors)
