@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import Output, { outputActivity } from '@/assets/api/output';
-import type { OutputItem } from '@/assets/api/output';
 import InfoPanel from '@/components/InfoPanel.vue';
 import WatchPanel from '@/components/WatchPanel.vue';
 import CollapsiblePane from './CollapsiblePane.vue';
@@ -84,38 +83,16 @@ onUnmounted(() => {
     if (watchFlashTimer) clearTimeout(watchFlashTimer)
 })
 
-// Builds the fixed pool of row elements Output writes into — it reuses these
-// rather than creating a node per message, so the pool's size *is* the "max
-// lines kept" setting. Rebuilt (not resized) when that setting changes:
-// output.ts indexes into the pool and shifts content between neighbouring
-// rows, so growing or shrinking it in place mid-run would leave printIndex
-// pointing somewhere that no longer means what it did.
+// Hands the panel element to Output, which builds the fixed pool of row
+// elements it writes into — it reuses these rather than creating a node per
+// message, so the pool's size *is* the "max lines kept" setting. Row structure
+// lives in output.ts alongside the code that writes to it, since the two have
+// to agree on which child node holds what.
 function buildItemPool(lineCount: number) {
     const panel = document.getElementById('output-panel')
     if (!panel) return
 
-    panel.replaceChildren()
-
-    const outputItems: OutputItem[] = []
-    for (let i = 0; i < lineCount; i++) {
-        const itemElement = document.createElement('div')
-        itemElement.className = 'output-item'
-
-        const stampItem = document.createElement('div')
-        stampItem.className = 'output-stamp'
-        stampItem.style.minWidth = '22'
-
-        // Should I use <pre>? too powerful?
-        const msgItem = document.createElement('pre')
-        msgItem.className = 'output-msg'
-
-        outputItems.push({ stamp: stampItem, msg: msgItem })
-        itemElement.appendChild(stampItem)
-        itemElement.appendChild(msgItem)
-        panel.appendChild(itemElement)
-    }
-
-    Output.init(outputItems)
+    Output.init(panel, lineCount)
 }
 
 onMounted(() => {
@@ -124,11 +101,9 @@ onMounted(() => {
     emit('ready')
 })
 
-// A changed line limit costs the panel's current contents (Output.init
-// resets it) — worth it for a setting that's changed rarely and deliberately,
-// and the alternative (carrying existing rows across a resize) would mean
-// reimplementing the ring-buffer bookkeeping for the one case where its
-// bounds move.
+// A changed line limit still costs the panel's current contents (Output.init
+// resets the ring along with the pool) — worth it for a setting that's changed
+// rarely and deliberately.
 watch(() => projectSettingsStore.settings.outputMaxLines, (lineCount) => {
     buildItemPool(lineCount)
 })
@@ -159,12 +134,10 @@ watch(() => projectSettingsStore.settings.outputAutoScroll, (enabled) => {
             </UTooltip>
         </div>
 
-        <!-- Ouput panel: shows print/warn/err output -->
+        <!-- Output panel: shows print/warn/err output. Row elements are built
+             and recycled by Output.init, so anything placed inside this div
+             would be replaced on mount. -->
         <div v-show="isTabActive('output')" class="output-panel" id="output-panel" ref="panel">
-            <div id="output-item-container">
-                <!-- Output items are inserted here -->
-
-            </div>
         </div>
 
         <!-- Info panel: shows live mouse/screen/timer info -->
@@ -245,6 +218,10 @@ watch(() => projectSettingsStore.settings.outputAutoScroll, (enabled) => {
 
 .output-item {
     display: flex;
+    /* A row's internals can't affect anything outside its own box, and vice
+       versa — so rewriting one recycled row's text doesn't drag the rest of
+       the pool's internal layout along with it. */
+    contain: layout style;
     /* font-family: 'Courier New', Courier, monospace; */
     /* justify-content: space-between; */
     /* border-bottom: 1px dashed #252a33; */
@@ -265,15 +242,59 @@ watch(() => projectSettingsStore.settings.outputAutoScroll, (enabled) => {
     font-family: 'Fira Code';
 }
 
+/* The column is a fixed width: every stamp is exactly one glyph, so there is
+   nothing to measure. --output-glyph-slot is the only number to tune — it sets
+   the glyph box, and the column on top of it (box-sizing keeps the .25em side
+   padding inside the border box). 1.34em is the width of a two-digit count
+   glyph, the widest thing drawn at full height.
+
+   flex-start pins the glyph to the first line of a message that wrapped onto
+   several, which is where the old text stamp sat. */
 .output-stamp {
+    --output-glyph-slot: 1.34em;
+
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    flex: 0 0 auto;
     border-right: 1px solid var(--theme-text-dimmed);
     padding: 0 .25em;
     color: var(--theme-text-toned);
     background-color: var(--theme-bg-muted);
-    text-align: center;
-    min-width: 22px;
+    width: calc(var(--output-glyph-slot) + .5em);
     user-select: none;
-    font-family: 'Fira Code';
+}
+
+/* A stamp glyph is an SVG painted as a CSS mask (see outputGlyphs.ts): the
+   shape comes from mask-image and the color from currentColor, so a glyph picks
+   up .output-item--error/--warn/--start exactly as the text symbol it replaced
+   did. The box is one line tall so glyphs sit on the message's first line; the
+   mask is centred inside it at text height. */
+.output-glyph {
+    display: block;
+    width: var(--output-glyph-slot);
+    height: 1.5em;
+    height: 1lh;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
+/* Sized by height, so all of these ink the same band and a repeat count lines
+   up with the symbols above it. Narrower glyphs just centre in the slot. */
+.output-glyph--tall {
+    -webkit-mask-size: auto 1em;
+    mask-size: auto 1em;
+}
+
+/* The two glyphs wider than they are tall — the infinity sign and the sunsprite
+   logo — are capped by the slot width instead, which otherwise would have to
+   widen the whole column to fit them at full height. */
+.output-glyph--wide {
+    -webkit-mask-size: var(--output-glyph-slot) auto;
+    mask-size: var(--output-glyph-slot) auto;
 }
 
 /* Severity/kind modifiers, applied alongside .output-msg/.output-stamp so
