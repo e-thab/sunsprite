@@ -2,15 +2,6 @@
 import type { Class } from "@mixins/shared"
 import { isVector2Like, Vector2, type Vector2Like } from "@api/Vector2"
 
-enum Alignment {
-    TOP = 'top',
-    BOTTOM = 'bottom',
-    LEFT = 'left',
-    RIGHT = 'right',
-    CENTER_V = 'centerv',
-    CENTER_H = 'centerh',
-}
-
 export enum Anchor {
     TOP_LEFT = 'topleft',
     TOP_CENTER = 'topcenter',
@@ -29,10 +20,7 @@ export type AnchorPoint = `${Anchor}`
 /** An object with enough geometry to resolve anchor points on. */
 type AlignableLike = { x: number, y: number, width: number, height: number }
 
-/**
- * Factors applied to an objects width/height to reach each anchor point from its center.
- * These follow our y-up convention, so top is positive.
- */
+/** Factors applied to an object's width/height to reach each anchor point from its center. */
 const ANCHOR_OFFSETS: Record<AnchorPoint, readonly [number, number]> = {
     [Anchor.TOP_LEFT]:      [-1/2,  1/2],
     [Anchor.TOP_CENTER]:    [  0 ,  1/2],
@@ -58,11 +46,6 @@ function anchorOffsets(anchor: AnchorPoint): readonly [number, number] {
     if (offsets === undefined) throw new Error(`Bad goTo anchor: ${anchor}`)
     return offsets
 }
-
-// type AlignType =
-//     | 'topleft'
-//     | 'topcenter'
-//     | 'topright'
 
 /**
  * If an object extends Alignable, it must have { x: number, y: number, width: number, height: number }.

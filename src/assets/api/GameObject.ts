@@ -6,7 +6,7 @@ import { Sizable, Positionable, Rotatable, Viewable, Interactable, Timeable, Ali
  * typing out Sizable(Positionable(Rotatable(... every time
  */
 export default abstract class GameObject extends
-Rotatable(
+    Rotatable(
     Viewable(
     Interactable(
     Alignable(
@@ -28,10 +28,10 @@ Rotatable(
     _initMixins(props?: GameObjectProps) {
         this._initPositionable(props)
         this._initSizable(props)
-        this._initRotatable(props)
+        this._initAlignable(props)
         this._initInteractable(props)
         this._initViewable(props)
-        this._initAlignable(props)
+        this._initRotatable(props)
     }
     
     // touching(other: Touchable): boolean {

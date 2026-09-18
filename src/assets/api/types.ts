@@ -34,7 +34,8 @@ export type ReferenceObject =
 	| Phaser.GameObjects.Rectangle
 	| Phaser.GameObjects.Sprite
 	| Phaser.GameObjects.Graphics
-	| any // TEMP, 
+	| Phaser.GameObjects.Rectangle
+	| Phaser.GameObjects.Arc
 
 export interface Touchable {
 	left: number

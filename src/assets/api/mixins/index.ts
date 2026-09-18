@@ -7,6 +7,8 @@ export * from './Viewable'
 export * from './Interactable'
 export * from './Timeable'
 export * from './Alignable'
+export * from './Fillable'
+export * from './Outlinable'
 
 import { type PositionableProps } from './Positionable'
 import { type SizableProps } from './Sizable'
@@ -14,9 +16,12 @@ import { type RotatableProps } from './Rotatable'
 import { type ViewableProps } from './Viewable'
 import { type InteractableProps } from './Interactable'
 import { type AlignableProps } from './Alignable'
+import { type FillableProps } from './Fillable'
+import { type OutlinableProps } from './Outlinable'
 
 export type AnyProps = InteractableProps | PositionableProps | RotatableProps | SizableProps | ViewableProps | AlignableProps
 export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps & AlignableProps /* ...etc. */
+export type ShapeProps = GameObjectProps & FillableProps & OutlinableProps
 // export const defaults: Required<GameObjectProps> = {
 //     x: 0,
 //     y: 0,
