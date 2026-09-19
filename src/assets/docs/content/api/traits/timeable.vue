@@ -2,7 +2,7 @@
 export const meta = {
 	title: 'Timeable',
 	icon: 'tabler:clock',
-	summary: 'Tracks how long an object has existed.',
+	summary: "Tracks how long an object has existed.",
 }
 
 export default {}
@@ -10,10 +10,11 @@ export default {}
 
 <template>
 	<DocSection id="content-1">
-		<p>Adds an age property, tracking how long this object has existed in seconds.</p>
+		<p>Adds age to an object, tracking how long it has existed. Paused time is not counted.</p>
 	</DocSection>
 
 	<DocProperties>
-		<DocProperty name="age" type="number">How long this object has existed in seconds.</DocProperty>
+		<DocProperty name="age" type="number" readonly>How long this object has existed, in seconds (not including paused time).</DocProperty>
+		<DocProperty name="ageMs" type="number" readonly>How long this object has existed, in milliseconds (not including paused time).</DocProperty>
 	</DocProperties>
 </template>

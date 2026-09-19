@@ -92,6 +92,17 @@
 	color: var(--theme-text-toned);
 }
 
+/* Every doc table sits in one of these. The cells themselves wrap so a table
+   fits the pane at any sensible width, but a pane can be dragged down to
+   COLLAPSE_THRESHOLD_PX (see usePixelMinSize) — narrower than a single
+   property name — and .docs-content-scroll handles only vertical overflow,
+   inside a splitter panel that's overflow: hidden. Without this the far
+   columns would be clipped and unreachable at that size; with it the table
+   scrolls on its own, the same way a `pre` already does further down. */
+.doc-table-scroll {
+	overflow-x: auto;
+}
+
 .doc-table {
 	width: 100%;
 	border-collapse: collapse;
@@ -122,6 +133,81 @@
 }
 
 .doc-optional {
+	color: var(--theme-text-toned);
+}
+
+/* A method row stacks its signature over its description (see DocMethod), so
+   a wide signature costs row height instead of squeezing every description in
+   the table into a narrow column.
+
+   Held on one line here, and broken one parameter per line by DocMethod the
+   moment that line stops fitting its cell — the point of `nowrap` is that the
+   overflow it produces is what that measurement reads. Letting it soft-wrap
+   instead would break mid-parameter (`color?:` / `string,`) and hide the
+   overflow the measurement depends on.
+
+   Styled as a snippet — the same ground, radius and body color as
+   `.doc-snippet` further down, at a padding that suits a table row rather
+   than a standalone block. `inline-block` rather than `block` so the box
+   hugs its signature: stretched across the column, a `show(): void` would
+   read as a mostly-empty panel. Qualified by `.docs-page` so the body color
+   outranks the highlighted one `.docs-page code` sets on every inline code
+   span. */
+.docs-page .doc-signature {
+	display: inline-block;
+	padding: 0.3em 0.5em;
+	background-color: var(--theme-bg);
+	border-radius: var(--panel-border-radius);
+	color: var(--theme-text);
+	white-space: nowrap;
+}
+
+/* The broken-up form: DocMethod builds the newlines and the leading tab per
+   parameter, so this only has to stop collapsing them. Matches the selector
+   above on specificity and wins on order — a bare `.doc-signature-wrapped`
+   would lose its `white-space` to that rule's `nowrap` and never break. */
+.docs-page .doc-signature-wrapped {
+	white-space: pre;
+	tab-size: 4;
+}
+
+.doc-method .doc-desc {
+	margin-top: 0.4em;
+}
+
+/* The "From" column: which trait declares an inherited member, as a link to
+   its page (see DocFrom). Present only on pages that compose traits — see
+   useDocFromColumn. A 1% width with nowrap content is the shrink-to-fit
+   idiom for an auto-layout table, keeping the column as narrow as its widest
+   trait name and leaving the rest of the width to the description. Carried by
+   the header cell as well as the body cells, so the gutter below is the same
+   one the "From" heading starts at. Qualified by `.doc-table` so that gutter
+   outranks the `padding` shorthands above — both of which zero the left side,
+   on `th` and `td` alike. */
+.doc-table .doc-from-cell {
+	width: 1%;
+	white-space: nowrap;
+	padding-left: 1em;
+}
+
+.doc-from {
+	font-family: inherit;
+	font-size: 0.9em;
+	color: var(--theme-text-toned);
+	text-decoration: none;
+	cursor: pointer;
+	transition: color 0.15s;
+}
+
+.doc-from:hover {
+	color: var(--theme-primary);
+}
+
+/* Sits under the type, in the properties table. */
+.doc-readonly {
+	display: block;
+	margin-top: 0.15em;
+	font-size: 0.8em;
 	color: var(--theme-text-toned);
 }
 

@@ -28,6 +28,7 @@
 import {
     positionableApi,
     positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
+    fillablePropsTypeDef, outlinablePropsTypeDef,
     spritePropsFields, spriteMembers,
     rectanglePropsFields, rectangleMembers,
     circlePropsFields, circleMembers,
@@ -61,6 +62,8 @@ export interface VersionedApiConstants {
     viewablePropsTypeDef: string
     interactablePropsTypeDef: string
     alignablePropsTypeDef: string
+    fillablePropsTypeDef: string
+    outlinablePropsTypeDef: string
     spritePropsFields: string
     spriteMembers: string
     rectanglePropsFields: string
@@ -169,7 +172,10 @@ ${v.rotatablePropsTypeDef}
 ${v.viewablePropsTypeDef}
 ${v.interactablePropsTypeDef}
 ${v.alignablePropsTypeDef}
+${v.fillablePropsTypeDef ?? `declare type FillableProps = {}`}
+${v.outlinablePropsTypeDef ?? `declare type OutlinableProps = {}`}
 type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps & AlignableProps
+type ShapeProps = GameObjectProps & FillableProps & OutlinableProps
 `,
 
 // Types (hand-written — not derived from source, see mixin/class-derived block above)
@@ -501,7 +507,7 @@ ${v.spriteMembers}
 
 // Rectangle
 `
-type RectangleProps = GameObjectProps & {
+type RectangleProps = ShapeProps & {
 ${v.rectanglePropsFields}
 }
 
@@ -580,7 +586,7 @@ ${v.labelMembers}
 }`,
 
 // Circle
-`type CircleProps = GameObjectProps & {
+`type CircleProps = ShapeProps & {
 ${v.circlePropsFields}
 }
 
@@ -599,6 +605,7 @@ ${v.circleMembers}
 export const apiLib = buildApiLib({
     positionableApi,
     positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
+    fillablePropsTypeDef, outlinablePropsTypeDef,
     spritePropsFields, spriteMembers,
     rectanglePropsFields, rectangleMembers,
     circlePropsFields, circleMembers,

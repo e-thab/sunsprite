@@ -13,6 +13,8 @@ const MIXIN_EXPORT_NAME: Record<string, string> = {
     Interactable: 'interactable',
     Timeable: 'timeable',
     Alignable: 'alignable',
+    Fillable: 'fillable',
+    Outlinable: 'outlinable',
 }
 
 /**

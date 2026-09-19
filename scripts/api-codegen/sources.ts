@@ -24,6 +24,14 @@ export const MIXINS = [
     { file: apiPath('mixins', 'Viewable.ts'), typeName: 'ViewableProps', functionName: 'Viewable' },
     { file: apiPath('mixins', 'Interactable.ts'), typeName: 'InteractableProps', functionName: 'Interactable' },
     { file: apiPath('mixins', 'Timeable.ts'), typeName: undefined, functionName: 'Timeable' },
+    // Shape-only, composed by Shape.ts rather than GameObject.ts — so they
+    // reach Rectangle/Circle through `extends Shape`, not a mixin chain the
+    // class itself writes out. Still listed here like any other mixin:
+    // resolveComposedMembers looks every name in a chain up in this array, so
+    // a mixin missing from it is silently skipped and its members vanish from
+    // the composing class's declarations.
+    { file: apiPath('mixins', 'Fillable.ts'), typeName: 'FillableProps', functionName: 'Fillable' },
+    { file: apiPath('mixins', 'Outlinable.ts'), typeName: 'OutlinableProps', functionName: 'Outlinable' },
 ] as const
 
 export const CONCRETE_CLASSES = [

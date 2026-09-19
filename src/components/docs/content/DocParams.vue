@@ -10,17 +10,19 @@ withDefaults(defineProps<{ id?: string; title?: string }>(), {
 
 <template>
 	<DocSection :id="id" :title="title">
-		<table class="doc-table">
-			<thead>
-				<tr>
-					<th>Name</th>
-					<th>Type</th>
-					<th>Description</th>
-				</tr>
-			</thead>
-			<tbody>
-				<slot></slot>
-			</tbody>
-		</table>
+		<div class="doc-table-scroll">
+			<table class="doc-table">
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Type</th>
+						<th>Description</th>
+					</tr>
+				</thead>
+				<tbody>
+					<slot></slot>
+				</tbody>
+			</table>
+		</div>
 	</DocSection>
 </template>

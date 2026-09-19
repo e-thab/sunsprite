@@ -12,7 +12,7 @@ withDefaults(defineProps<{
 }>(), {
 	id: 'composed-from',
 	title: 'Composed From',
-	hint: "Members declared on these shared traits aren't repeated here — click through to see them.",
+	hint: 'Everything these traits declare is listed below as well, each row marked with the trait it comes from.',
 })
 
 const { normalize, labelOf, iconOf, href, go } = useDocRefs()

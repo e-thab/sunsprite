@@ -247,8 +247,8 @@ export function Alignable<Base extends Class<{
          * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft',
          * this object's top left point will be placed at other's position.
          */
-        goTo(other: Vector2Like, anchor?: Anchor): void
-        goTo(xOrOther: number | Vector2Like, yOrAnchor?: number | Anchor) {
+        goTo(other: Vector2Like, anchor?: AnchorPoint): void
+        goTo(xOrOther: number | Vector2Like, yOrAnchor?: number | AnchorPoint) {
             // Going to a point; e.g. goTo(100, -200)
             if (typeof(xOrOther) === 'number' && typeof(yOrAnchor) === 'number') {
                 this.x = xOrOther
