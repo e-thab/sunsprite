@@ -137,6 +137,7 @@ export let resizeReactors: { _onResize(): void }[] = []
 /** Internal. All timer objects that need updating each frame */
 export let allTimers: Timer[] = []
 
+let _backgroundImage: Phaser.GameObjects.Image | undefined
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0
@@ -421,10 +422,14 @@ export function setBackgroundColor(color: string) {
 	camera._cam.setBackgroundColor(color)
 }
 
-async function setBackgroundImage(src: string) {
-	// // if (background) {
-	// // 	app.stage.removeChild(background)
-	// // }
+/**
+ * Set the background image.
+ * @param src Image source to use for the background. If src is not provided, the background image is cleared instead.
+ */
+async function setBackgroundImage(src: string | undefined | null, style?: string) {
+	// if (background) {
+	// 	app.stage.removeChild(background)
+	// }
 	// background.texture = await Assets.load(src)
 	// background.anchor.set(0.5)
 	// background.x = app.screen.width / 2
@@ -439,10 +444,50 @@ async function setBackgroundImage(src: string) {
 
 	// background.zIndex = -Infinity
 	// app.stage.addChild(background)
+	if (!src) {
+		clearBackgroundImage()
+		return
+	}
+
+	// Create the background image if it doesn't already exist
+	if (!_backgroundImage) {
+		_backgroundImage = scene.add.image(camera.width / 2, camera.height / 2, '__DEFAULT')
+		_backgroundImage.setDepth(-Infinity)
+	}
+
+	// If using a key, apply existing texture
+	if (scene.textures.exists(src)) {
+		_backgroundImage.setTexture(src)
+		return
+	}
+
+	// Otherwise, loading a new texture from path
+	scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
+		if (_backgroundImage) _backgroundImage.setTexture(src)
+	})
+	scene.load.image(src, src)
+	scene.load.start()
 }
 
-function clearBackgroundImage() {
+const BackgroundStyle = {
+	Center: 'center',
+	Fill: 'fill',
+	Fit: 'fit',
+	Stretch: 'stretch',
+	Tile: 'tile'
+}
+function setBackgroundStyle(style: string) {
+	// Set the positioning style of the background image
+}
 
+/**
+ * Clear the background image; remove a background image if one exists.
+ */
+function clearBackgroundImage() {
+	if (!_backgroundImage) return
+
+	_backgroundImage.destroy()
+	_backgroundImage = undefined
 }
 
 async function setCursor(src: string) {
@@ -869,9 +914,6 @@ class UserScene extends Scene {
 			this.input.emit(PointerEvents.POINTER_MOVE, mouse.x, mouse.y)
 		})
 
-		// At the moment, moving camera doesn't actually render the new area; sprites will get sliced
-		// in half when up against the previous screen edge
-
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
@@ -881,7 +923,7 @@ class UserScene extends Scene {
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
+			print: Output.print, watch, unwatch, play, pause, setBackgroundColor, setBackgroundImage, clearBackgroundImage,
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -892,48 +934,6 @@ class UserScene extends Scene {
 			PI: Math.PI,
 		}
 
-		// Trying some ways to get error line/col within user script from stack trace
-		// function tryCompileDynamicCode(codeBody) {
-		// 	try {
-		// 		// If syntax is perfect, this compiles smoothly
-		// 		return new Function(this.JScode);
-		// 	} catch (syntaxError) {
-		// 		if (syntaxError instanceof SyntaxError) {
-		// 		console.error("❌ Construction Syntax Error caught!");
-				
-		// 		// Some engines provide the raw offset line directly inside syntaxError.lineNumber
-		// 		// If missing, we read the error stack line or fall back to checking line-by-line
-		// 		console.error(`Message: ${syntaxError.message}`);
-		// 		console.error(`Stack trace details:\n`, syntaxError.stack);
-		// 		}
-		// 		throw syntaxError;
-		// 	}
-		// }
-
-		// // Example: Missing closing parenthesis on line 2
-		// tryCompileDynamicCode(`
-		// 	console.log("Starting..." 
-		// 	const val = 100;
-		// `);
-
-		// const fn = new Function(
-		// 	...keys,
-		// 	`
-		// 	return async function userScript() {
-		// 		// try {
-		// 			${this.JScode}
-		// 		// } catch (e) {
-		// 		// 	// console.log(e.stack)
-		// 		// 	throw new Error(e.message)
-		// 		// }
-		// 	}
-		// 	`
-		// )
-		
-		// const factory = new Function(codeString)
-		// const run = fn(...values)
-		
-		// Another problem post-phaser: user code errors prevent reloading of the game sometimes?
 		try {
 			await runEntryModule(this.JScode, api, this.entryName)
 		} catch (e) {
@@ -947,11 +947,19 @@ class UserScene extends Scene {
 		_updateTimers()
 
 		// Only update mouse pos while mouse is over canvas, otherwise clicking code editor updates
-		if (mouseOverCanvas()) {
-			// mouse.x = clamp(this.input.activePointer.worldX - screen.width / 2, screen.left, screen.right)
-			// mouse.y = clamp(screen.height / 2 - this.input.activePointer.worldY, screen.bottom, screen.top)
-			// mouse.x = this.input.activePointer.worldX - screen.width / 2
-			// mouse.y = screen.height / 2 - this.input.activePointer.worldY
+		// if (mouseOverCanvas()) {
+		// 	mouse.x = clamp(this.input.activePointer.worldX - screen.width / 2, screen.left, screen.right)
+		// 	mouse.y = clamp(screen.height / 2 - this.input.activePointer.worldY, screen.bottom, screen.top)
+		// 	mouse.x = this.input.activePointer.worldX - screen.width / 2
+		// 	mouse.y = screen.height / 2 - this.input.activePointer.worldY
+		// }
+
+		if (_backgroundImage) {
+			const cam = this.cameras.main
+			_backgroundImage.setPosition(
+				cam.scrollX + cam.width / 2,
+				cam.scrollY + cam.height / 2
+			)
 		}
 
 		if (!paused) {
@@ -993,6 +1001,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_repeatWhiles = []
 	resizeReactors = []
 	allTimers = []
+	_backgroundImage = undefined
 
 	_keyPressActions.clear()
 	_keyHoldActions.clear()
