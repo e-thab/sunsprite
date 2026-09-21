@@ -18,10 +18,21 @@ export interface DocsNavigationContext {
 	 * breadcrumb don't need it: a tree click's target is already visible by
 	 * definition, and breadcrumb navigation stays within the user's own
 	 * explicit expand choices on purpose.
+	 *
+	 * `anchor` lands on a spot *inside* the destination page rather than its
+	 * top — a DocSection's `section-<id>`, or the `data-doc-anchor` a
+	 * DocMethod row carries. It can't be applied here: the destination page
+	 * hasn't rendered at the moment navigate() is called, so it's handed to
+	 * scrollToDocAnchor, which waits for the target to exist.
 	 */
-	navigate: (path: string, opts?: { reveal?: boolean }) => void
-	/** Real /docs/... URL for a path, for right-click / open-in-new-tab / the "open full page" link. */
-	resolveHref: (path: string) => string
+	navigate: (path: string, opts?: { reveal?: boolean, anchor?: string }) => void
+	/**
+	 * Real /docs/... URL for a path, for right-click / open-in-new-tab / the
+	 * "open full page" link. `anchor` becomes the URL's fragment, so a link
+	 * opened in a new tab lands where the in-place click would have (see
+	 * DocsView's own hash watcher).
+	 */
+	resolveHref: (path: string, anchor?: string) => string
 	isExpanded: (path: string) => boolean
 	toggleExpanded: (path: string) => void
 }

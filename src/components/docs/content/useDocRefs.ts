@@ -27,9 +27,18 @@ export function useDocRefs() {
 	// Links resolve to a real /docs/... href so middle-click and open-in-new-tab
 	// work, while a plain click is intercepted for in-place navigation (which,
 	// in the docs panel, is the only kind that keeps you in the editor).
-	function go(ref: DocRef) {
-		nav.navigate(ref.path, { reveal: true })
+	//
+	// `anchor` is for links that mean a particular spot on the target page
+	// rather than the page as a whole — a DocMethod row pointing at the same
+	// method on the trait that declares it. Both halves take it, so the
+	// intercepted click and the copied URL land in the same place.
+	function go(ref: DocRef, anchor?: string) {
+		nav.navigate(ref.path, { reveal: true, anchor })
 	}
 
-	return { nav, normalize, labelOf, iconOf, href: (ref: DocRef) => nav.resolveHref(ref.path), go }
+	function href(ref: DocRef, anchor?: string) {
+		return nav.resolveHref(ref.path, anchor)
+	}
+
+	return { nav, normalize, labelOf, iconOf, href, go }
 }

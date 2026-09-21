@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, provide, reactive, ref, watch } f
 import { useRoute, useRouter } from 'vue-router'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { docsNavigationKey } from '@/assets/docs/docsNavigation'
+import { currentDocsScroll, restoreDocsScroll, scrollToDocAnchor } from '@/assets/docs/docsAnchors'
 import { docsDataKey } from '@/assets/docs/docsData'
 import { useDocsData } from '@/assets/docs/docsVersions'
 import { provideDocsToc } from '@/assets/docs/docsToc'
@@ -52,11 +53,27 @@ const routePath = computed(() => {
 const optimisticPath = ref<string | null>(null)
 const currentPath = computed(() => optimisticPath.value ?? routePath.value)
 
-function navigate(path: string, opts?: { reveal?: boolean }) {
+function navigate(path: string, opts?: { reveal?: boolean, anchor?: string }) {
 	optimisticPath.value = path
-	router.push(`/docs/${path}`).finally(() => {
+	// The anchor rides along in the URL, so an anchored jump is as shareable and
+	// as re-followable through history as any other. Scrolling isn't triggered
+	// here, though — the watcher below owns that, and catches this push along
+	// with the back button and a cold load of a pasted link. The one thing it
+	// can't see is re-following the link you're already standing on, where the
+	// URL doesn't change at all and nothing fires; hence the check here.
+	// Before the push, while the page being left is still the one on screen.
+	rememberScroll()
+	const href = resolveHref(path, opts?.anchor)
+	const alreadyThere = route.fullPath === href
+	router.push(href).finally(() => {
 		if (optimisticPath.value === path) optimisticPath.value = null
 	})
+	if (opts?.anchor && alreadyThere) scrollToDocAnchor(opts.anchor)
+	// Here rather than only in the watcher below, because currentPath is
+	// optimistic: the new page renders the moment this runs, while the route
+	// settles a few ms later. Waiting for the watcher would show that page at
+	// the old page's scroll offset first, then jump.
+	else if (!opts?.anchor) restoreDocsScroll(0)
 	if (opts?.reveal) {
 		for (const entry of docsData.value.ancestorsOf(path)) expandOverrides.set(entry.path, true)
 	}
@@ -69,9 +86,106 @@ function navigate(path: string, opts?: { reveal?: boolean }) {
 	if (docsData.value.nodesByPath.get(path)?.kind === 'entry') treeOpen.value = false
 }
 
-function resolveHref(path: string) {
-	return `/docs/${path}`
+function resolveHref(path: string, anchor?: string) {
+	return anchor ? `/docs/${path}#${anchor}` : `/docs/${path}`
 }
+
+/**
+ * Scroll offsets by URL, so the browser's back and forward can put a page back
+ * where its reader left it — the same restoration the panel gets from its own
+ * buttons (see DocsPanel's VisitedPage).
+ *
+ * None of this can be left to the browser. Native scroll restoration only ever
+ * restores the *document*, and a docs page scrolls inside `.docs-view`, which
+ * is always at document offset zero — so there's nothing for it to put back.
+ *
+ * Keyed by URL rather than by history entry, which means two entries for one
+ * page share an offset. That's the cheaper side of not reaching into
+ * vue-router's history state for a per-entry key, and it reads the same in
+ * every case short of having the same page open at two depths at once.
+ */
+const scrollByPath = new Map<string, number>()
+
+/**
+ * The page on screen, tracked here rather than read off `route` at the moment
+ * it's needed: the offset of a page being left has to be filed under that
+ * page, and by the time popstate fires the route is already on its way to the
+ * next one.
+ */
+let onScreenPath = ''
+/** Raised as a traversal begins and read once by the watcher below — the only signal that an arrival is a step through history rather than a fresh one. */
+let steppingThroughHistory = false
+
+function rememberScroll() {
+	if (onScreenPath) scrollByPath.set(onScreenPath, currentDocsScroll())
+}
+
+/**
+ * Files the outgoing page's offset and marks what follows as a step back or
+ * forward. Has to run before the route changes, while the page it's recording
+ * is still the one on screen.
+ */
+function onHistoryTraversal() {
+	rememberScroll()
+	steppingThroughHistory = true
+}
+
+/**
+ * The sliver of the Navigation API this needs. Hand-written because
+ * TypeScript's DOM library doesn't describe that API yet, and because
+ * declaring only the two methods used keeps this from claiming to know the
+ * shape of the rest of it.
+ */
+type NavigationEvents = {
+	addEventListener(type: 'navigate', listener: (event: { navigationType: string }) => void): void
+	removeEventListener(type: 'navigate', listener: (event: { navigationType: string }) => void): void
+}
+
+const navigationApi = (window as unknown as { navigation?: NavigationEvents }).navigation
+
+function onNavigate(event: { navigationType: string }) {
+	if (event.navigationType === 'traverse') onHistoryTraversal()
+}
+
+// Which event announces a traversal depends on the browser, and picking wrong
+// is silent: where the Navigation API exists, vue-router intercepts the
+// traversal *there*, and `navigate` fires before the route updates while
+// `popstate` fires after — so a popstate listener learns that the reader went
+// back only once they've already arrived, too late for the watcher below to
+// treat the arrival as a step rather than a fresh page. Exactly one of the two
+// is registered, because in Chrome both fire and the late one would overwrite
+// the offset the early one just saved with the new page's.
+onMounted(() => {
+	if (navigationApi) navigationApi.addEventListener('navigate', onNavigate)
+	else window.addEventListener('popstate', onHistoryTraversal)
+})
+
+onBeforeUnmount(() => {
+	if (navigationApi) navigationApi.removeEventListener('navigate', onNavigate)
+	else window.removeEventListener('popstate', onHistoryTraversal)
+})
+
+// Every arrival at an anchored URL, from wherever: an in-page link's push
+// above, the back/forward buttons, or a cold load of a link someone pasted.
+// `immediate` covers that last one, and the wait scrollToDocAnchor does for
+// its target covers the page not having rendered yet at either moment.
+//
+// Keyed on the whole path, not just the hash: two pages can be anchored at the
+// same name (every class page links its inherited `goTo` to the same
+// #method-goTo on Alignable), and a hash-only watcher would sit out the jump
+// between them.
+watch(() => route.fullPath, (path) => {
+	const stepped = steppingThroughHistory
+	steppingThroughHistory = false
+	onScreenPath = path
+
+	if (route.hash) scrollToDocAnchor(route.hash.slice(1))
+	// A step through history is owed the offset it left; anything else — a
+	// link, a tree click, a cold load — starts the page at the top. navigate()
+	// has already done the latter by the time this runs, so this is what
+	// catches the back and forward buttons.
+	else restoreDocsScroll(stepped ? scrollByPath.get(path) ?? 0 : 0)
+}, { immediate: true })
 
 // Expand/collapse state, keyed by path — entirely persistent and
 // user-controlled from here on: nothing ever *removes* a path once it's

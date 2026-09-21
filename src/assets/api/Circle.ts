@@ -30,7 +30,7 @@ export default class Circle extends Shape {
         this._refObj = circle
 
         // TODO: Look into what happens when radius is set to 0
-        this._radius = props?.radius ?? 32
+        this._radius = props?.radius ?? 64
         this.radius = this._radius
 
         // Set mixin props

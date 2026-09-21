@@ -62,7 +62,7 @@ export default {}
 		<DocMethod signature="distanceTo(other: Vector2Like): number" from="api/traits/positionable">The distance from this object to another position.</DocMethod>
 		<DocMethod signature="goToRandom(): void" from="api/traits/positionable">Set position to a random point within the current visible screen area.</DocMethod>
 		<DocMethod signature="goTo(x: number, y: number): void" from="api/traits/alignable">Set world position from separate x and y values.</DocMethod>
-		<DocMethod signature="goTo(other: Vector2Like, anchor?: AnchorPoint): void" from="api/traits/alignable">Set world position from a Vector2-like object. The anchor picks which of this object's own points is placed there — with 'topleft', its top left corner lands on the given position.</DocMethod>
+		<DocMethod signature="goTo(other: Vector2Like, anchor?: AnchorPoint): void" from="api/traits/alignable">Set world position from a Vector2-like object. The anchor picks which of this object's own points is placed there — with 'topleft' (or 'topLeft'; either casing is accepted), its top left corner lands on the given position.</DocMethod>
 		<DocMethod signature="clearFill(): void" from="api/traits/fillable">Remove the fill, making the shape transparent. Its outline stays visible if it had one.</DocMethod>
 		<DocMethod signature="setOutline(color?: string, width?: number, alpha?: number): void" from="api/traits/outlinable">Set every outline property at once. Called with no arguments at all, it clears the outline.</DocMethod>
 		<DocMethod signature="clearOutline(): void" from="api/traits/outlinable">Remove the outline. The fill stays visible if the shape had one.</DocMethod>
