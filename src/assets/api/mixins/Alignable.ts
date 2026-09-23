@@ -14,14 +14,34 @@ export enum Anchor {
     BOTTOM_RIGHT = 'bottomright',
 }
 
-/** Any of the nine anchor points on an object, as a lowercase string. */
-export type AnchorPoint = `${Anchor}`
+/** The nine anchor points in their canonical, all-lowercase spelling. */
+type CanonicalAnchor = `${Anchor}`
+
+/**
+ * Any of the nine anchor points on an object. Accepted either in the canonical
+ * all-lowercase spelling ('topleft') or in the camelCase spelling of the
+ * property naming the same point ('topLeft'), since anchorOffsets lowercases
+ * the name before looking it up. Only the lowercase half is a real key of
+ * ANCHOR_OFFSETS; the camelCase half exists so the type matches what the
+ * runtime has always accepted. apiLib.ts keeps a hand-written copy of this
+ * union for the editor — widen both together.
+ */
+export type AnchorPoint =
+    | CanonicalAnchor
+    | 'topLeft'
+    | 'topCenter'
+    | 'topRight'
+    | 'centerLeft'
+    | 'centerRight'
+    | 'bottomLeft'
+    | 'bottomCenter'
+    | 'bottomRight'
 
 /** An object with enough geometry to resolve anchor points on. */
 type AlignableLike = { x: number, y: number, width: number, height: number }
 
 /** Factors applied to an object's width/height to reach each anchor point from its center. */
-const ANCHOR_OFFSETS: Record<AnchorPoint, readonly [number, number]> = {
+const ANCHOR_OFFSETS: Record<CanonicalAnchor, readonly [number, number]> = {
     [Anchor.TOP_LEFT]:      [-1/2,  1/2],
     [Anchor.TOP_CENTER]:    [  0 ,  1/2],
     [Anchor.TOP_RIGHT]:     [ 1/2,  1/2],
@@ -42,7 +62,7 @@ function isAlignable(obj: any): obj is AlignableLike {
 
 /** Resolve an anchor name to its width/height factors, tolerating any casing. */
 function anchorOffsets(anchor: AnchorPoint): readonly [number, number] {
-    const offsets = ANCHOR_OFFSETS[anchor.toLowerCase() as AnchorPoint]
+    const offsets = ANCHOR_OFFSETS[anchor.toLowerCase() as CanonicalAnchor]
     if (offsets === undefined) throw new Error(`Bad goTo anchor: ${anchor}`)
     return offsets
 }
@@ -243,8 +263,9 @@ export function Alignable<Base extends Class<{
         /**
          * Set world position.
          * @param other New world position.
-         * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft',
-         * this object's top left point will be placed at other's position.
+         * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
+         * (or 'topLeft' — either casing is accepted), this object's top left point will be placed
+         * at other's position.
          */
         goTo(other: Vector2Like, anchor?: AnchorPoint): void
         goTo(xOrOther: number | Vector2Like, yOrAnchor?: number | AnchorPoint) {

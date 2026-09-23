@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { Comment, Fragment, Text, computed, isVNode, ref, useSlots, useTemplateRef, type VNode } from 'vue'
 import { useToast } from '@nuxt/ui/composables'
 import type { TokenPalette } from '@/assets/theme/themes'
+import { tokenizeCode } from '@/assets/docs/docsCode'
 import DocSection from './DocSection.vue'
 
 /**
@@ -34,15 +35,21 @@ type CodeValue = string | CodeSegment[]
  *   have to be written as `&lt;` and `&#123;&#123;`. Color a piece of it by
  *   hand with a `<span class="doc-snippet-hl-keyword">` (see `HighlightColor`
  *   above for the full list — the class name is the same word, kebab-cased)
- *   around whatever needs it.
+ *   around whatever needs it; doing so opts the whole block out of the
+ *   automatic highlighting below, since the block is then markup rather than
+ *   text and there's nothing left to tokenize.
  * - `<DocSnippet :code="source" />` — from a string, usually a template
  *   literal in the page's `<script setup>`. Nothing in the code needs
  *   escaping, which is the easier option once it contains either of those.
  * - `<DocSnippet :code="['rect.color = ', { text: 'Colors.Peru', color: 'type' }]" />`
  *   — from an array mixing plain strings with `{ text, color }` pieces, to
- *   manually color specific tokens as a stand-in for real syntax
- *   highlighting (there's no language-aware highlighter here) — `color` is
- *   a `HighlightColor` (above).
+ *   override the automatic coloring of specific tokens — `color` is a
+ *   `HighlightColor` (above).
+ *
+ * Everything given as plain text is syntax-highlighted for you (see
+ * docsCode.ts), in the colors the editor would give the same code under
+ * whatever theme is active. A hand-written `{ text, color }` piece keeps the
+ * color it names; only the plain pieces around it are tokenized.
  *
  * Any of the above works per-language too: `code` can also be an object —
  * `{ Sunsprite: a, JavaScript: b }` — keyed by language, each value one of
@@ -56,6 +63,11 @@ const props = defineProps<{
 	id?: string
 	title?: string
 }>()
+
+// The slot's own vnodes, for reading a `<pre>`-wrapped snippet as text (see
+// segments below). useSlots rather than the `slots` a render function would be
+// handed, since this is `<script setup>`.
+const slots = useSlots()
 
 function slugify(title: string): string {
 	return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
@@ -79,18 +91,71 @@ const languageItems = computed(() => languages.value.map((label) => ({ label, va
 
 const activeLanguage = ref(languages.value[0])
 
-// Whichever language is on screen right now, flattened to one plain-text
-// segment per piece so the template never has to branch on `code`'s shape —
-// a bare string (or a bare-string piece of an array) is just a segment with
-// no color class.
-const segments = computed<Array<{ text: string; class?: string }>>(() => {
+/**
+ * The text of a node whose children are all text — the `<pre>` a slot-provided
+ * snippet is written in. Returns undefined the moment it finds a real element,
+ * which is what makes hand-colored markup (a `doc-snippet-hl-*` span) opt out:
+ * there's no plain text to tokenize, so the slot is rendered as written.
+ */
+function plainText(node: VNode): string | undefined {
+	if (typeof node.children === 'string') return node.children
+	if (!Array.isArray(node.children)) return undefined
+
+	let text = ''
+	for (const child of node.children) {
+		if (typeof child === 'string') text += child
+		else if (!isVNode(child)) return undefined
+		else if (child.type === Text) text += String(child.children ?? '')
+		else if (child.type !== Comment) return undefined
+	}
+	return text
+}
+
+/** The `<pre>` in slot content, which a v-if or a v-for can leave inside a fragment. */
+function findPre(nodes: VNode[]): VNode | undefined {
+	for (const node of nodes) {
+		if (!isVNode(node)) continue
+		if (node.type === 'pre') return node
+		if (node.type === Fragment && Array.isArray(node.children)) {
+			const nested = findPre(node.children as VNode[])
+			if (nested) return nested
+		}
+	}
+	return undefined
+}
+
+/**
+ * Whichever language is on screen right now, as colored spans.
+ *
+ * A plain function rather than a computed, because part of what it reads isn't
+ * reactive: slot content arrives as vnodes, and a cached computed would go on
+ * showing the last page's code if Vue reuses this instance for the next one —
+ * the same reuse DocMethod guards its measurements against. Re-tokenizing per
+ * render costs nothing at the size of a doc snippet.
+ */
+function segments(): Array<{ text: string; class?: string }> {
 	const value: CodeValue | undefined = variants.value
 		? (activeLanguage.value ? variants.value[activeLanguage.value] : undefined)
 		: (props.code as CodeValue | undefined)
-	if (!value) return []
-	const pieces = typeof value === 'string' ? [value] : value
-	return pieces.map((piece) => (typeof piece === 'string' ? { text: piece } : { text: piece.text, class: `doc-snippet-hl-${kebabCase(piece.color)}` }))
-})
+
+	// No `code` at all means the snippet came in through the slot; its text is
+	// tokenized the same way, and only markup it can't read sends it back to
+	// rendering the slot itself.
+	const slotPre = value === undefined ? findPre(slots.default?.() ?? []) : undefined
+	const slotText = slotPre ? plainText(slotPre) : undefined
+
+	const pieces: CodeSegment[] = value === undefined
+		? (slotText === undefined ? [] : [slotText])
+		: (typeof value === 'string' ? [value] : value)
+
+	// A hand-written piece keeps the color it names; everything given as plain
+	// text is tokenized.
+	return pieces.flatMap((piece) =>
+		typeof piece === 'string'
+			? tokenizeCode(piece).map((token) => ({ text: token.text, class: `doc-snippet-hl-${kebabCase(token.kind)}` }))
+			: [{ text: piece.text, class: `doc-snippet-hl-${kebabCase(piece.color)}` }]
+	)
+}
 
 // Reads from the rendered `<pre>` rather than `segments`, so it copies
 // slot-provided code too — DocSnippet never sees that as data, only as
@@ -111,7 +176,7 @@ async function copyCode() {
 		<div class="doc-snippet-frame">
 			<UTabs v-if="languages.length > 1" v-model="activeLanguage" :items="languageItems" :content="false" color="primary" variant="link" size="xs" class="doc-snippet-tabs" />
 			<div ref="bodyEl" class="doc-snippet-body">
-				<pre v-if="segments.length" class="doc-snippet"><code><span v-for="(seg, i) in segments" :key="i" :class="seg.class">{{ seg.text }}</span></code></pre>
+				<pre v-if="segments().length" class="doc-snippet"><code><span v-for="(seg, i) in segments()" :key="i" :class="seg.class">{{ seg.text }}</span></code></pre>
 				<slot v-else></slot>
 				<UTooltip text="Copy code">
 					<UButton icon="tabler:copy-filled" variant="ghost" color="neutral" size="xs" class="doc-snippet-copy" @click="copyCode" />
@@ -122,7 +187,7 @@ async function copyCode() {
 	<div v-else class="doc-snippet-frame">
 		<UTabs v-if="languages.length > 1" v-model="activeLanguage" :items="languageItems" :content="false" color="primary" variant="link" size="xs" class="doc-snippet-tabs" />
 		<div ref="bodyEl" class="doc-snippet-body">
-			<pre v-if="segments.length" class="doc-snippet"><code><span v-for="(seg, i) in segments" :key="i" :class="seg.class">{{ seg.text }}</span></code></pre>
+			<pre v-if="segments().length" class="doc-snippet"><code><span v-for="(seg, i) in segments()" :key="i" :class="seg.class">{{ seg.text }}</span></code></pre>
 			<slot v-else></slot>
 			<UTooltip text="Copy code">
 				<UButton icon="tabler:copy-filled" variant="ghost" color="neutral" size="xs" class="doc-snippet-copy" @click="copyCode" />

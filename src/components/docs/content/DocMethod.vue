@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import type { DocRef } from '@/assets/docs/docsTypes'
+import { methodAnchor } from '@/assets/docs/docsAnchors'
+import { tokenizeSignature } from '@/assets/docs/docsSignature'
 import DocFrom from './DocFrom.vue'
 import { useDocFromColumn } from './useDocFromColumn'
+import { useDocRefs } from './useDocRefs'
 
 /**
- * One row of a DocMethods table: the signature, with the description (the
- * default slot) stacked underneath it rather than beside it, so a wide
- * signature costs row height instead of squeezing every description in the
- * table into a narrow column. Overloads are just repeated rows with the same
- * name. `from` names the trait a composing page inherits this method from —
- * omitted on a page's own methods.
+ * One entry in a DocMethods table: a row carrying the signature (and the From
+ * cell, on a page that composes traits), and the description (the default
+ * slot) on a second row under it, spanning both. Stacked rather than given a
+ * column of its own so a wide signature costs row height instead of squeezing
+ * every description in the table into a narrow column.
+ *
+ * Overloads are just repeated entries with the same name. `from` names the
+ * trait a composing page inherits this method from — omitted on a page's own
+ * methods.
  */
 const props = defineProps<{
 	signature: string
@@ -18,6 +24,41 @@ const props = defineProps<{
 }>()
 
 const fromColumn = useDocFromColumn(props.from)
+
+const { nav, normalize, labelOf, href, go } = useDocRefs()
+
+/**
+ * The page being read, named the way the From column names any other page. A
+ * row with no `from` is declared right here, so this is what fills its cell —
+ * an empty one in a column of trait names reads as a gap in the data rather
+ * than as the answer. Same treatment DocProperty gives its own rows.
+ */
+const declaredHere = computed(() => labelOf({ path: nav.currentPath.value }))
+
+/** The method's own name, i.e. the signature up to its parameter list. */
+const methodName = computed(() => {
+	const open = props.signature.indexOf('(')
+	return (open < 0 ? props.signature : props.signature.slice(0, open)).trim()
+})
+
+/**
+ * What a link to this method addresses. Carried by every row, the page's own
+ * included: a class page listing an inherited goTo() is a perfectly good place
+ * to land, and which page a given link means is already settled by its path.
+ *
+ * Overloads share it, since they share a name — deliberately. It's an
+ * attribute rather than a DOM id precisely so they can: two elements with the
+ * same id would be invalid, while a duplicate attribute is fine, and the
+ * resolver taking the first match lands on the first overload with the rest of
+ * them in view below it (see docsAnchors).
+ */
+const anchor = computed(() => methodAnchor(methodName.value))
+
+/**
+ * The page this row's method is declared on, when that isn't this one — which
+ * is exactly when there's somewhere for its signature to link to.
+ */
+const declaredOn = computed(() => (props.from ? normalize([props.from])[0]! : undefined))
 
 /**
  * Splits a parameter list on its top-level commas only — a parameter's own
@@ -58,6 +99,13 @@ const multiline = computed(() => {
 	const returns = props.signature.slice(close + 1)
 	return `${name}(\n${params.map((param) => `\t${param}`).join(',\n')}\n)${returns}`
 })
+
+/**
+ * The form currently on screen, split into colored runs. Built from the
+ * rendered text rather than the prop, so the re-laid form gets highlighted on
+ * the same terms as the one-line one — see tokenizeSignature.
+ */
+const tokens = computed(() => tokenizeSignature(wrapped.value ? multiline.value! : props.signature))
 
 const cell = useTemplateRef<HTMLElement>('cell')
 const box = useTemplateRef<HTMLElement>('box')
@@ -139,13 +187,38 @@ watch(
 </script>
 
 <template>
-	<tr>
+	<tr :data-doc-anchor="anchor">
 		<td ref="cell" class="doc-method">
-			<code ref="box" class="doc-signature" :class="{ 'doc-signature-wrapped': wrapped }">{{ wrapped ? multiline : signature }}</code>
-			<div class="doc-desc"><slot></slot></div>
+			<!-- An inherited signature doubles as the link to where it's declared,
+			     landing on the same method's row on the trait's page rather than
+			     the top of it. A row with no `from` is the page's own method —
+			     this is already where it's defined, so it stays plain text. -->
+			<!-- <UTooltip v-if="declaredOn" :text="`See ${methodName}() on ${labelOf(declaredOn)}`"> -->
+				<a
+					v-if="declaredOn"
+					class="doc-signature-link"
+					:href="href(declaredOn, anchor)"
+					@click.prevent="go(declaredOn, anchor)"
+					>
+					<!-- :title="`See ${methodName}() on ${labelOf(declaredOn)}`" -->
+					<code ref="box" class="doc-signature" :class="{ 'doc-signature-wrapped': wrapped }"><span v-for="(token, i) in tokens" :key="i" :class="token.kind === 'plain' ? undefined : `doc-signature-${token.kind}`">{{ token.text }}</span></code>
+				</a>
+			<!-- </UTooltip> -->
+			<code v-else ref="box" class="doc-signature" :class="{ 'doc-signature-wrapped': wrapped }"><span v-for="(token, i) in tokens" :key="i" :class="token.kind === 'plain' ? undefined : `doc-signature-${token.kind}`">{{ token.text }}</span></code>
 		</td>
 		<td v-if="fromColumn" class="doc-from-cell">
 			<DocFrom v-if="from" :from="from" />
+			<!-- Deliberately not a link: it would only lead back to the page it's
+			     already on. -->
+			<span v-else class="doc-from-self">{{ declaredHere }}</span>
 		</td>
+	</tr>
+	<!-- Its own row, spanning the table, so the description runs under the From
+	     cell instead of stopping at the signature column's edge — a trait name
+	     is narrow and always will be, and the column it reserves is dead width
+	     on every line of description after the first. The pair is one entry: no
+	     border of its own, and no anchor of its own (see docsPage.css). -->
+	<tr class="doc-desc-row">
+		<td class="doc-desc" :colspan="fromColumn ? 2 : 1"><slot></slot></td>
 	</tr>
 </template>

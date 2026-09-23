@@ -231,7 +231,12 @@ type PointArg = Point | ArrayPoint
 /** A Vector2-interpretable value: either an { x, y } object or a [x, y] array. */
 type Vector2Like = { x: number, y: number } | [number, number]
 
-/** Any of the nine anchor points on an object, as a lowercase string. */
+/**
+ * Any of the nine anchor points on an object, in either the canonical
+ * all-lowercase spelling ('topleft') or the camelCase spelling of the property
+ * naming the same point ('topLeft'). Hand-written copy of Alignable.ts's
+ * AnchorPoint — widen both together.
+ */
 type AnchorPoint =
     | 'topleft'
     | 'topcenter'
@@ -242,6 +247,14 @@ type AnchorPoint =
     | 'bottomleft'
     | 'bottomcenter'
     | 'bottomright'
+    | 'topLeft'
+    | 'topCenter'
+    | 'topRight'
+    | 'centerLeft'
+    | 'centerRight'
+    | 'bottomLeft'
+    | 'bottomCenter'
+    | 'bottomRight'
 
 /** An object with enough geometry to resolve anchor points on. */
 type AlignableLike = { x: number, y: number, width: number, height: number }

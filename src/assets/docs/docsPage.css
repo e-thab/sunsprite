@@ -13,6 +13,13 @@
 
 .docs-page {
 	color: var(--theme-text);
+
+	/* How far a member's description is inset from the name or signature it
+	   belongs to. One value for both tables: a method's description and a
+	   property's are the same thing in two different layouts (a block under a
+	   signature, a row under a name), and an indent that didn't match between
+	   them would read as two unrelated conventions on pages that show both. */
+	--doc-desc-indent: 1.25em;
 }
 
 /* Pages are multi-root fragments, so their top-level blocks land here as
@@ -132,6 +139,24 @@
 	font-family: monospace;
 }
 
+/* An inherited property's name doubles as the link to the trait that declares
+   it (see DocProperty) — the properties-table counterpart of
+   .doc-signature-link below. No box to lift here, just a name in a cell, so
+   the hover cue is the color shift the "From" cell on the same row already
+   uses. Underlining is left off for the same reason it is on a signature: this
+   is a member name, and an underline running through one reads as part of it. */
+.doc-name-link {
+	color: inherit;
+	text-decoration: none;
+	cursor: pointer;
+	transition: color 0.15s;
+}
+
+.doc-name-link:hover {
+	color: var(--theme-primary);
+	text-decoration: underline;
+}
+
 .doc-optional {
 	color: var(--theme-text-toned);
 }
@@ -171,8 +196,102 @@
 	tab-size: 4;
 }
 
-.doc-method .doc-desc {
-	margin-top: 0.4em;
+/* A signature's three colored parts (see docsSignature.ts). Everything the
+   tokenizer calls `plain` — punctuation, parameter names, whitespace — gets no
+   span at all and keeps the body color `.doc-signature` sets above, so these
+   two rules are the whole scheme. Set on the spans, which nothing else in the
+   cascade reaches, so no `.docs-page` qualifier is needed to outrank the code
+   color the way the rules above it need one.
+
+   Types take the editor's own color for a type in whatever theme is loaded —
+   the same var .doc-snippet-hl-type uses further down, written out of
+   `palette.tokens.type` by themeStore. A type name therefore reads the same in
+   a signature here as it does in the editor a tab away, which a fixed accent
+   couldn't promise across ten themes. */
+.doc-signature-name {
+	color: var(--theme-primary);
+}
+
+.doc-signature-type {
+	color: var(--theme-token-type);
+}
+
+/* An inherited method's signature doubles as the link to the trait that
+   declares it (see DocMethod). Deliberately not styled as a link: an
+   underline or a link color running through a signature reads as part of the
+   code. The snippet box lifting under the pointer is the affordance instead,
+   and the row's own "From" cell already names where it goes. Wrapping an
+   inline-block box, so the anchor has to be one too — left inline it would be
+   a zero-height box around a block, and the hit area wouldn't match what the
+   reader sees.
+
+   The ground moves on hover and the text doesn't: every part of a signature
+   that carries meaning now carries its own color (see .doc-signature-name and
+   .doc-signature-type above), so a color shift here could only reach the
+   punctuation between them — which would read as the brackets lighting up
+   rather than the signature as a whole. */
+.docs-page .doc-signature-link {
+	display: inline-block;
+	text-decoration: none;
+	color: inherit;
+	cursor: pointer;
+}
+
+.docs-page .doc-signature-link .doc-signature {
+	transition: background-color 0.15s;
+}
+
+.docs-page .doc-signature-link:hover .doc-signature {
+	background-color: var(--theme-bg-elevated);
+}
+
+/* Marks whatever a link just landed on, for as long as docsAnchors keeps the
+   class there. Without it an anchored jump into a methods table drops the
+   reader among a dozen near-identical signatures with nothing saying which one
+   they followed — the scroll position alone can't, since `block: 'center'` is
+   clamped near the ends of a page.
+
+   Painted on the cells rather than the row: `border-collapse: collapse` leaves
+   a `tr` background sitting under the cells' own, which the table's borders
+   then draw over. The second selector reaches the description row, which has no
+   anchor of its own but is half of the entry that does — landing on a member
+   and lighting only its top half would read as the wrong thing being marked.
+   The third covers the non-row targets the same resolver accepts (a DocSection
+   by id), where there are no cells to reach. */
+.doc-anchor-target > td,
+.doc-anchor-target + .doc-desc-row > td,
+.doc-anchor-target:not(tr) {
+	animation: doc-anchor-target-fade 1.8s ease-out;
+}
+
+@keyframes doc-anchor-target-fade {
+	from {
+		background-color: color-mix(in srgb, var(--theme-primary) 22%, transparent);
+	}
+	to {
+		background-color: transparent;
+	}
+}
+
+/* A member's description, on its own row under the one naming it — the shape
+   both tables use (see DocMethod and DocProperty). The cell spans every column,
+   which is the point: a trait name is narrow and always will be, so a
+   description held to the column beside the From cell would wrap early against
+   width that's empty on every line but the first.
+
+   The two rows are one entry, so only the first takes the rule `.doc-table td`
+   draws above every row — left on, that border would cut each member in half
+   and the table would read as twice as many members. Dropping the top padding
+   closes the doubled gap that leaves.
+
+   Inset from the name or signature above it, so the eye can tell where one
+   entry ends and the next begins: rows are two lines tall here and separated
+   only by a hairline, which makes alignment the thing distinguishing a
+   description from the next signature down. */
+.doc-desc-row > td {
+	border-top: none;
+	padding-top: 0;
+	padding-left: var(--doc-desc-indent);
 }
 
 /* The "From" column: which trait declares an inherited member, as a link to
@@ -201,6 +320,18 @@
 
 .doc-from:hover {
 	color: var(--theme-primary);
+	text-decoration: underline;
+}
+
+/* The same column, for a member the page declares itself: its own name, and no
+   link, since following it would arrive where the reader already is. Sized with
+   the links beside it so the column reads as one thing, but muted and without
+   their hover — the distinction that matters here is which of these go
+   somewhere. */
+.doc-from-self {
+	font-family: inherit;
+	font-size: 0.9em;
+	color: var(--theme-text-muted);
 }
 
 /* Sits under the type, in the properties table. */
@@ -213,6 +344,25 @@
 
 .doc-type code {
 	color: var(--theme-text-toned);
+}
+
+/* The Default column. Held to its content the way the From column is — these
+   are short literals (`0`, `true`, `'#fff'`), and letting the auto layout hand
+   them any of the leftover width would only push the columns that carry real
+   text narrower. */
+.doc-default {
+	white-space: nowrap;
+}
+
+.doc-default code {
+	color: var(--theme-text-toned);
+}
+
+/* Shown where a property has no default of its own to report — an edge or a
+   corner, computed from position and size rather than stored. Dimmer than a
+   real value so a column of them doesn't read as content. */
+.doc-default-none {
+	color: var(--theme-text-muted);
 }
 
 .doc-desc {

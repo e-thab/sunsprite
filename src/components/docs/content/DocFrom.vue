@@ -16,5 +16,7 @@ const target = computed(() => normalize([props.from])[0]!)
 </script>
 
 <template>
-	<a class="doc-from" :href="href(target)" :title="`Declared on ${labelOf(target)}`" @click.prevent="go(target)">{{ labelOf(target) }}</a>
+	<!-- <UTooltip :text="`Declared on ${labelOf(target)}`"> -->
+		<a class="doc-from" :href="href(target)"  @click.prevent="go(target)">{{ labelOf(target) }}</a>
+	<!-- </UTooltip> -->
 </template>

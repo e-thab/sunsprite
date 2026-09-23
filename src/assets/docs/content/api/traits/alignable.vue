@@ -30,6 +30,6 @@ export default {}
 
 	<DocMethods>
 		<DocMethod signature="goTo(x: number, y: number): void">Set world position from separate x and y values.</DocMethod>
-		<DocMethod signature="goTo(other: Vector2Like, anchor?: AnchorPoint): void">Set world position from a Vector2-like object. The anchor picks which of this object's own points is placed there — with 'topleft', its top left corner lands on the given position.</DocMethod>
+		<DocMethod signature="goTo(other: Vector2Like, anchor?: AnchorPoint): void">Set world position from a Vector2-like object. The anchor picks which of this object's own points is placed there — with 'topleft' (or 'topLeft'; either casing is accepted), its top left corner lands on the given position.</DocMethod>
 	</DocMethods>
 </template>
