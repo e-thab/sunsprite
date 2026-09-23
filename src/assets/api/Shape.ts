@@ -1,19 +1,20 @@
-import { Alignable, Fillable, Interactable, Outlinable, Positionable, Rotatable, Sizable, Timeable, Viewable, type ShapeProps } from "./mixins";
+import { Alignable, Fillable, Interactable, Orientable, Outlinable, Positionable, Rotatable, Sizable, Timeable, Viewable, type ShapeProps } from "./mixins";
 
 export default abstract class Shape extends
     Fillable(
     Outlinable(
-    Rotatable(
     Viewable(
     Interactable(
+    Orientable(
     Alignable(
+    Rotatable(
     Sizable(
     Positionable(
     Timeable(class {
         constructor() {
 
         }
-    }))))))))) {
+    })))))))))) {
     
     constructor() {
         super()

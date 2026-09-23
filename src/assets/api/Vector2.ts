@@ -86,20 +86,45 @@ export class Vector2 {
         return Math.sqrt((other.x - this.x) ** 2 + (other.y - this.y) ** 2)
     }
 
+    /** A human-readable string in the format [x, y]. */
+    toString(): string {
+        return `[${this.x}, ${this.y}]`
+    }
+
     /** Get a normalized copy of this vector. */
     get normal(): Vector2 {
         return new Vector2(this.x / this.length, this.y / this.length)
     }
 
-    /** A Vector2 with x & y of 0. */
+    /** A Vector2 with x & y both equal to 0: [0, 0] */
 	static get ZERO(): Vector2 {
 		return new Vector2(0, 0)
 	}
 
-    /**  */
+    /** A Vector2 with x & y both equal to 1: [1, 1] */
 	static get ONE(): Vector2 {
 		return new Vector2(1, 1)
 	}
+
+    /** A Vector2 representing a normalized upward direction: [0, 1]. */
+    static get UP(): Vector2 {
+        return new Vector2(0, 1)
+    }
+
+    /** A Vector2 representing a normalized downward direction: [0, -1]. */
+    static get DOWN(): Vector2 {
+        return new Vector2(0, -1)
+    }
+
+    /** A Vector2 representing a normalized left direction: [-1, 0]. */
+    static get LEFT(): Vector2 {
+        return new Vector2(-1, 0)
+    }
+
+    /** A Vector2 representing a normalized right direction: [1, 0]. */
+    static get RIGHT(): Vector2 {
+        return new Vector2(1, 0)
+    }
 
     /** Create a Vector2 from a pair of x/y values. */
     static from(x: number, y: number): Vector2
@@ -136,9 +161,5 @@ export class Vector2 {
     
         // Bad params. Error here
         throw new Error('Bad Vector2 args')
-    }
-
-    toString(): string {
-        return `[${this.x}, ${this.y}]`
     }
 }

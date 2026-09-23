@@ -47,19 +47,6 @@ function anchorOffsets(anchor: AnchorPoint): readonly [number, number] {
     return offsets
 }
 
-/**
- * If an object extends Alignable, it must have { x: number, y: number, width: number, height: number }.
- * When extending Positionable, Sizable, and Alignable, make sure Positionable and Sizable come
- * earlier in the inheritance chain, e.g.
- * 
- * class ClassName extends
- *  ExampleMixin(
- *  Alignable(
- *  Sizable(
- *  Positionable(
- *  OtherMixin(
- *  ...
- */
 export type AlignableProps = {
     /** Y coordinate at the top edge of this object. */
     top?: number
@@ -90,6 +77,21 @@ export type AlignableProps = {
     centerRight?: Vector2Like
 }
 
+/**
+ * A trait that defines position alignment and anchor point behaviors.
+ * 
+ * If a class composes Alignable, it must have { x: number, y: number, width: number, height: number }.
+ * When extending Positionable, Sizable, and Alignable, make sure Positionable and Sizable come
+ * earlier in the inheritance chain, e.g.
+ * 
+ * class ClassName extends
+ *  ExampleMixin(
+ *  Alignable(
+ *  Sizable(
+ *  Positionable(
+ *  OtherMixin(
+ *  ...
+ */
 export function Alignable<Base extends Class<{
     x: number
     y: number
@@ -102,13 +104,10 @@ export function Alignable<Base extends Class<{
         }
 
         _initAlignable(props?: AlignableProps) {
-            if (props === undefined) return
-
             if (props?.top !== undefined) this.top = props.top
             if (props?.bottom !== undefined) this.bottom = props.bottom
             if (props?.left !== undefined) this.left = props.left
             if (props?.right !== undefined) this.right = props.right
-
             if (props?.topLeft) this.topLeft = props.topLeft
             if (props?.topCenter) this.topCenter = props.topCenter
             if (props?.topRight) this.topRight = props.topRight
