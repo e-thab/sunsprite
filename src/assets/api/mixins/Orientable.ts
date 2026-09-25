@@ -1,5 +1,7 @@
 import type { Class } from "@mixins/shared"
 import { Vector2, type Vector2Like } from "@api/Vector2"
+import { atan2, cos, sin } from "../utility"
+import { print } from "@/sandbox/output"
 
 export type OrientableProps = {
     
@@ -25,8 +27,11 @@ export function Orientable<Base extends Class<{
     y: number
     rotation: number
     radians: number
+    direction: Vector2
 }>>(base: Base) {
     return class Orientable extends base {
+        // _rotationOffset: number = 0
+        
         constructor(...args: any[]) {
             super()
         }
@@ -35,20 +40,18 @@ export function Orientable<Base extends Class<{
             
         }
 
-        /** The direction this object will move when using move(). */
-        get forwardDirection(): Vector2 {
-            return Vector2.RIGHT // temp
-        }
-        set forwardDirection(dir: Vector2Like) {
-
-        }
+        // TODO:
+        //  - Move look/move/orbit logic into Vector2
+        //  - Add new props + doc comments here and in Rotatable
 
         /**
          * Point this object's forward direction toward a specified point.
          * @param other The point, object, or vector endpoint to look at.
          */
         lookAt(other: Vector2Like) {
-
+            other = Vector2.from(other)
+            // this.rotation = atan2(other.y - this.y, other.x - this.x,)
+            this.direction = Vector2.from(other.x - this.x, other.y - this.y)
         }
 
         /**
@@ -56,7 +59,19 @@ export function Orientable<Base extends Class<{
          * @param distance How far to move.
          */
         move(distance: number) {
+            this.x += this.direction.x * distance
+            this.y += this.direction.y * distance
+        }
 
+        /**
+         * 
+         */
+        orbit(other: Vector2Like, angle: number, unit: 'radians' | 'degrees' = 'degrees') {
+            other = Vector2.from(other)
+            const x = this.x
+            const y = this.y
+            this.x = other.x + (x - other.x) * cos(angle, unit) - (y - other.y) * sin(angle, unit)
+            this.y = other.y + (x - other.x) * sin(angle, unit) + (y - other.y) * cos(angle, unit)
         }
     }
 }

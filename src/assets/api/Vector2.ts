@@ -1,6 +1,7 @@
 import Output from "@/sandbox/output"
 import Warning from "./Warning"
 import { currentLocation } from "@api/moduleRunner"
+import { atan2, cos, deg2rad, rad2deg, sin } from "./utility"
 
 /** Vector2-interpretable array of the form [x, y]. */
 type XYArray = [number, number]
@@ -33,41 +34,95 @@ export class Vector2 {
         this.y = y
 	}
 
-    /** The magnitude of this vector. */
-	get length(): number {
-		return Math.sqrt(this.x ** 2 + this.y ** 2)
-	}
-
+    /** Sets the given x and y values. */
     set(x: number, y: number) {
         this.x = x
         this.y = y
     }
     
+    /** Sets both x and y to the same given value. */
     fill(n: number) {
         this.x = n
         this.y = n
     }
-
-    /** Set this vector's length to 1. */
+    
+    /** Set this vector's length to 1, keeping the same direction. */
 	normalize() {
         const length = this.length
         this.x /= length
         this.y /= length
 	}
-
-    rotate() {
-        // TODO
+    
+    // TODO: Come back to these, vector should implement more robust rotation and orientation behaviors
+    /**
+     * Rotates this vector by a given amount.
+     * @param amount How much to rotate by.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    rotate(amount: number, unit: 'radians' | 'degrees' = 'degrees') {
+        const cosT = cos(amount, unit)
+        const sinT = sin(amount, unit)
+        const x = this.x
+        const y = this.y
+        this.x = x * cosT - y * sinT
+        this.y = x * sinT - y * cosT
     }
 
-    setRotation() {
-        // TODO
+    /**
+     * Returns a copy of this vector rotated by a given amount.
+     * @param amount How much to rotate by.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    rotated(amount: number, unit: 'radians' | 'degrees' = 'degrees') {
+        const cosT = cos(amount, unit)
+        const sinT = sin(amount, unit)
+        const x = this.x
+        const y = this.y
+        return Vector2.from(
+            x * cosT - y * sinT,
+            x * sinT - y * cosT
+        )
     }
 
-    lookAt() {
-        // TODO
+    get rotation(): number {
+        return atan2(this.y, this.x, 'degrees')
+    }
+    set rotation(degrees: number) {
+        const { x, y, length } = this
+        this.x = length * cos(degrees, 'degrees')
+        this.y = length * sin(degrees, 'degrees')
     }
 
-    /** The distance from this vector's end point to another vector's end point. */
+    get radians(): number {
+        return atan2(this.y, this.x, 'radians')
+    }
+    set radians(radians: number) {
+        const { x, y, length } = this
+        this.x = length * cos(radians, 'radians')
+        this.y = length * sin(radians, 'radians')
+    }
+    
+    // /** Points this vector toward the position of another object or end point of another vector. */
+    // lookAt(other: Vector2Like) {
+    //     other = Vector2.from(other)
+    //     const newDir = Vector2.from(other.x - this.x, other.y - this.y)
+    // }
+
+    /** Magnitude of this vector. */
+    get length(): number {
+        return Math.sqrt(this.x ** 2 + this.y ** 2)
+    }
+
+    /**
+     * Angle of this vector in the given unit, defaults to degrees.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    // getAngle(unit: 'degrees' | 'radians' = 'degrees'): number {
+    //     const rads = Math.atan2(this.y, this.x)
+    //     return unit === 'degrees' ? rad2deg(rads) : rads
+    // }
+
+    /** Distance from this vector's end point to another vector's end point. */
     distanceTo(x: number, y: number): number
     distanceTo(other: Vector2Like): number
     distanceTo(xOrOther: number | Vector2Like, y?: number) {

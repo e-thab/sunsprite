@@ -426,7 +426,7 @@ export function setBackgroundColor(color: string) {
  * Set the background image.
  * @param src Image source to use for the background. If src is not provided, the background image is cleared instead.
  */
-async function setBackgroundImage(src: string | undefined | null, style?: string) {
+function setBackgroundImage(src: string | undefined | null, style?: string) {
 	// if (background) {
 	// 	app.stage.removeChild(background)
 	// }
@@ -485,7 +485,6 @@ function setBackgroundStyle(style: string) {
  */
 function clearBackgroundImage() {
 	if (!_backgroundImage) return
-
 	_backgroundImage.destroy()
 	_backgroundImage = undefined
 }
@@ -923,7 +922,7 @@ class UserScene extends Scene {
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			print: Output.print, watch, unwatch, play, pause, setBackgroundColor, setBackgroundImage, clearBackgroundImage,
+			print: Output.print, watch, unwatch, play, pause, setBackgroundColor, /*setBackgroundImage, clearBackgroundImage,*/
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
