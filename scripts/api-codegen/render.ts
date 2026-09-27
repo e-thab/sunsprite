@@ -9,6 +9,7 @@ const MIXIN_EXPORT_NAME: Record<string, string> = {
     Positionable: 'positionable',
     Sizable: 'sizable',
     Rotatable: 'rotatable',
+    Orientable: 'orientable',
     Viewable: 'viewable',
     Interactable: 'interactable',
     Timeable: 'timeable',

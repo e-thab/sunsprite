@@ -84,6 +84,15 @@ export class Vector2 {
         )
     }
 
+    /**
+     * Rotate this vector to face toward a specified point, keeping its length.
+     * @param other The point, object, or vector endpoint to look at.
+     */
+    lookAt(other: Vector2Like) {
+        other = Vector2.from(other)
+        this.rotation = Vector2.from(other.x - this.x, other.y - this.y).rotation
+    }
+
     get rotation(): number {
         return atan2(this.y, this.x, 'degrees')
     }

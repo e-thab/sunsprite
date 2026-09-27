@@ -30,8 +30,6 @@ export function Orientable<Base extends Class<{
     direction: Vector2
 }>>(base: Base) {
     return class Orientable extends base {
-        // _rotationOffset: number = 0
-        
         constructor(...args: any[]) {
             super()
         }
@@ -40,17 +38,12 @@ export function Orientable<Base extends Class<{
             
         }
 
-        // TODO:
-        //  - Move look/move/orbit logic into Vector2
-        //  - Add new props + doc comments here and in Rotatable
-
         /**
-         * Point this object's forward direction toward a specified point.
-         * @param other The point, object, or vector endpoint to look at.
+         * Point this object toward another.
+         * @param other The point, vector, or positionable object to look at.
          */
         lookAt(other: Vector2Like) {
             other = Vector2.from(other)
-            // this.rotation = atan2(other.y - this.y, other.x - this.x,)
             this.direction = Vector2.from(other.x - this.x, other.y - this.y)
         }
 
@@ -64,7 +57,9 @@ export function Orientable<Base extends Class<{
         }
 
         /**
-         * 
+         * Rotate this object around a point.
+         * @param other The point, vector, or positionable object to orbit.
+         * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
          */
         orbit(other: Vector2Like, angle: number, unit: 'radians' | 'degrees' = 'degrees') {
             other = Vector2.from(other)

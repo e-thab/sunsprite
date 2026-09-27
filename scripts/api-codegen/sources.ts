@@ -21,6 +21,10 @@ export const MIXINS = [
     { file: apiPath('mixins', 'Positionable.ts'), typeName: 'PositionableProps', functionName: 'Positionable' },
     { file: apiPath('mixins', 'Sizable.ts'), typeName: 'SizableProps', functionName: 'Sizable' },
     { file: apiPath('mixins', 'Rotatable.ts'), typeName: 'RotatableProps', functionName: 'Rotatable' },
+    // typeName stays undefined while OrientableProps is empty — nothing consumes
+    // an `OrientableProps` declaration, so emitting an empty one would just be noise.
+    // Fill it in the moment the type gains a real field.
+    { file: apiPath('mixins', 'Orientable.ts'), typeName: undefined, functionName: 'Orientable' },
     { file: apiPath('mixins', 'Viewable.ts'), typeName: 'ViewableProps', functionName: 'Viewable' },
     { file: apiPath('mixins', 'Interactable.ts'), typeName: 'InteractableProps', functionName: 'Interactable' },
     { file: apiPath('mixins', 'Timeable.ts'), typeName: undefined, functionName: 'Timeable' },

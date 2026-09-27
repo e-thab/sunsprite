@@ -413,6 +413,44 @@ let keysJustPressed: Map<string, number | undefined> = new Map()
 /** An array of all keys that were just released last frame. */
 let keysJustReleased: Map<string, number | undefined> = new Map()
 
+const Background = {
+	get image(): string | undefined {
+		return
+	},
+	set image(src: string | undefined | null) {
+		if (!src) {
+			clearBackgroundImage()
+			return
+		}
+
+		// Create the background image if it doesn't already exist
+		if (!_backgroundImage) {
+			_backgroundImage = scene.add.image(camera.width / 2, camera.height / 2, '__DEFAULT')
+			_backgroundImage.setDepth(-Infinity)
+		}
+
+		// If using a key, apply existing texture
+		if (scene.textures.exists(src)) {
+			_backgroundImage.setTexture(src)
+			return
+		}
+
+		// Otherwise, loading a new texture from path
+		scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
+			if (_backgroundImage) _backgroundImage.setTexture(src)
+		})
+		scene.load.image(src, src)
+		scene.load.start()
+	},
+
+	// get color(): string {
+	// 	// TODO
+	// },
+	// set color(color: string) {
+
+	// },
+}
+
 /**
  * Set the background color.
  * @param color Color to fill the background with.
@@ -780,7 +818,7 @@ function mouseOverCanvas() {
  */
 class UserScene extends Scene {
 	JScode: string
-	/** Real name of the active script JScode came from — see runEntryModule. */
+	/** Real name of the active script JScode came from, see runEntryModule. */
 	entryName: string
 	guy?: Phaser.GameObjects.Sprite
 
@@ -922,7 +960,7 @@ class UserScene extends Scene {
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			print: Output.print, watch, unwatch, play, pause, setBackgroundColor, /*setBackgroundImage, clearBackgroundImage,*/
+			print: Output.print, watch, unwatch, play, pause, setBackgroundColor, setBackgroundImage, clearBackgroundImage, Background,
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,

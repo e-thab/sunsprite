@@ -48,6 +48,21 @@ export type RotatableProps = {
 
     /** Rotation angle in radians. */
     radians?: number
+
+    /** The direction this object is pointing as a normalized Vector2. */
+    direction?: Vector2Like
+
+    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.rotationOffset = Vector2.UP.rotation */
+    rotationOffset?: number
+
+    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.radiansOffset = Vector2.UP.radians */
+    radiansOffset?: number
 }
 
 export type ViewableProps = {
@@ -202,11 +217,10 @@ export declare class Sprite {
     get screenPos(): Vector2
     set screenPos(pos: Vector2Like)
 
-    /**
-     * Set world position.
-     * @param position New world position.
-     */
-    goTo(position: Vector2Like): void
+    /** The distance from this vector's end point to another vector's end point. */
+    distanceTo(x: number, y: number): number
+
+    distanceTo(other: Vector2Like): number
 
     /**
      * Set world position.
@@ -214,6 +228,15 @@ export declare class Sprite {
      * @param y New vertical world position.
      */
     goTo(x: number, y: number): void
+
+    /**
+     * Set world position.
+     * @param other New world position.
+     * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
+(or 'topLeft' — either casing is accepted), this object's top left point will be placed
+at other's position.
+     */
+    goTo(other: Vector2Like, anchor?: AnchorPoint): void
 
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
@@ -227,35 +250,78 @@ export declare class Sprite {
     /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
     scale: number
 
+    /** Rotation angle in degrees. */
+    rotation: number
+
+    /** Rotation angle in radians. */
+    radians: number
+
+    /** The direction this object considers to be forward. (normalized) */
+    get direction(): Vector2
+    set direction(dir: Vector2Like)
+
+    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.rotationOffset = Vector2.UP */
+    get rotationOffset(): number
+    set rotationOffset(offset: number | Vector2Like)
+
+    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.radiansOffset = Vector2.UP */
+    get radiansOffset(): number
+    set radiansOffset(offset: number | Vector2Like)
+
+    /**
+     * Rotates this object by a given amount.
+     * @param amount How much to rotate by.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    rotate(amount: number, unit?: 'radians' | 'degrees'): void
+
+    /** X coordinate at the left edge of this object. */
     left: number
 
+    /** X coordinate at the right edge of this object. */
     right: number
 
+    /** Y coordinate at the top edge of this object. */
     top: number
 
+    /** Y coordinate at the bottom edge of this object. */
     bottom: number
 
+    /** Position at the top left corner of this object. */
     get topLeft(): Vector2
     set topLeft(topLeft: Vector2Like)
 
+    /** Position at the top edge in the horizontal center of this object. */
     get topCenter(): Vector2
     set topCenter(topCenter: Vector2Like)
 
+    /** Position at the top right corner of this object. */
     get topRight(): Vector2
     set topRight(topRight: Vector2Like)
 
+    /** Position at the bottom left corner of this object. */
     get bottomLeft(): Vector2
     set bottomLeft(bottomLeft: Vector2Like)
 
+    /** Position at the bottom edge in the horizontal center of this object. */
     get bottomCenter(): Vector2
     set bottomCenter(bottomCenter: Vector2Like)
 
+    /** Position at the bottom right corner of this object. */
     get bottomRight(): Vector2
     set bottomRight(bottomRight: Vector2Like)
 
+    /** Position at the vertical center of the left edge of this object. */
     get centerLeft(): Vector2
     set centerLeft(centerLeft: Vector2Like)
 
+    /** Position at the vertical center of the right edge of this object. */
     get centerRight(): Vector2
     set centerRight(centerRight: Vector2Like)
 
@@ -338,20 +404,14 @@ export declare class Sprite {
     /** Hide this object. */
     hide(): void
 
-    /** Rotation angle in degrees. */
-    rotation: number
-
-    /** Rotation angle in radians. */
-    radians: number
-
     /** A URL path to the sprite's image. */
     get src(): string
     set src(keyOrPath: string | undefined | null)
 }
 
-export type RectangleProps = GameObjectProps & {
-    /** The fill color. */
-    color?: string
+export type RectangleProps = ShapeProps & {
+    /** Radius of the rectangle's corners. */
+    cornerRadius?: number
 }
 
 export declare class Rectangle {
@@ -391,11 +451,10 @@ export declare class Rectangle {
     get screenPos(): Vector2
     set screenPos(pos: Vector2Like)
 
-    /**
-     * Set world position.
-     * @param position New world position.
-     */
-    goTo(position: Vector2Like): void
+    /** The distance from this vector's end point to another vector's end point. */
+    distanceTo(x: number, y: number): number
+
+    distanceTo(other: Vector2Like): number
 
     /**
      * Set world position.
@@ -403,6 +462,15 @@ export declare class Rectangle {
      * @param y New vertical world position.
      */
     goTo(x: number, y: number): void
+
+    /**
+     * Set world position.
+     * @param other New world position.
+     * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
+(or 'topLeft' — either casing is accepted), this object's top left point will be placed
+at other's position.
+     */
+    goTo(other: Vector2Like, anchor?: AnchorPoint): void
 
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
@@ -416,35 +484,78 @@ export declare class Rectangle {
     /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
     scale: number
 
+    /** Rotation angle in degrees. */
+    rotation: number
+
+    /** Rotation angle in radians. */
+    radians: number
+
+    /** The direction this object considers to be forward. (normalized) */
+    get direction(): Vector2
+    set direction(dir: Vector2Like)
+
+    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.rotationOffset = Vector2.UP */
+    get rotationOffset(): number
+    set rotationOffset(offset: number | Vector2Like)
+
+    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.radiansOffset = Vector2.UP */
+    get radiansOffset(): number
+    set radiansOffset(offset: number | Vector2Like)
+
+    /**
+     * Rotates this object by a given amount.
+     * @param amount How much to rotate by.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    rotate(amount: number, unit?: 'radians' | 'degrees'): void
+
+    /** X coordinate at the left edge of this object. */
     left: number
 
+    /** X coordinate at the right edge of this object. */
     right: number
 
+    /** Y coordinate at the top edge of this object. */
     top: number
 
+    /** Y coordinate at the bottom edge of this object. */
     bottom: number
 
+    /** Position at the top left corner of this object. */
     get topLeft(): Vector2
     set topLeft(topLeft: Vector2Like)
 
+    /** Position at the top edge in the horizontal center of this object. */
     get topCenter(): Vector2
     set topCenter(topCenter: Vector2Like)
 
+    /** Position at the top right corner of this object. */
     get topRight(): Vector2
     set topRight(topRight: Vector2Like)
 
+    /** Position at the bottom left corner of this object. */
     get bottomLeft(): Vector2
     set bottomLeft(bottomLeft: Vector2Like)
 
+    /** Position at the bottom edge in the horizontal center of this object. */
     get bottomCenter(): Vector2
     set bottomCenter(bottomCenter: Vector2Like)
 
+    /** Position at the bottom right corner of this object. */
     get bottomRight(): Vector2
     set bottomRight(bottomRight: Vector2Like)
 
+    /** Position at the vertical center of the left edge of this object. */
     get centerLeft(): Vector2
     set centerLeft(centerLeft: Vector2Like)
 
+    /** Position at the vertical center of the right edge of this object. */
     get centerRight(): Vector2
     set centerRight(centerRight: Vector2Like)
 
@@ -527,20 +638,41 @@ export declare class Rectangle {
     /** Hide this object. */
     hide(): void
 
-    /** Rotation angle in degrees. */
-    rotation: number
+    /** Outline color. Setting this to null or undefined will clear the outline. */
+    get outlineColor(): string | undefined
+    set outlineColor(color: Optional<string>)
 
-    /** Rotation angle in radians. */
-    radians: number
+    /** Outline width/thickness. */
+    get outlineWidth(): number | undefined
+    set outlineWidth(width: number)
 
-    /** The fill color. */
-    color: string
+    /** Outline's opacity. Range of 0-1 where 0 is transparent and 1 is opaque. */
+    get outlineAlpha(): number | undefined
+    set outlineAlpha(alpha: number)
+
+    /** Remove rectangle's outline; fill will stay visible if it was already. */
+    clearOutline(): void
+
+    /**
+     * Set each property of the outline all at once. If none are defined, the outline is cleared.
+     * @param color Outline color.
+     * @param width Outline width/thickness.
+     * @param alpha Outline's opacity. Range of 0-1 where 0 is transparent and 1 is opaque.
+     */
+    setOutline(color?: string, width?: number, alpha?: number): void
+
+    /** Fill color. */
+    get color(): string | undefined
+    set color(color: Optional<string>)
+
+    /** Remove fill (set to transparent); outline will stay visible if it was already. */
+    clearFill(): void
+
+    /** Radius of the rectangle's corners. Set to 0 to remove rounding and use default sharp corners. */
+    cornerRadius: number
 }
 
-export type CircleProps = GameObjectProps & {
-    /** The fill color. */
-    color?: string
-
+export type CircleProps = ShapeProps & {
     /** The distance from the center of the circle to the edge. */
     radius?: number
 }
@@ -582,11 +714,10 @@ export declare class Circle {
     get screenPos(): Vector2
     set screenPos(pos: Vector2Like)
 
-    /**
-     * Set world position.
-     * @param position New world position.
-     */
-    goTo(position: Vector2Like): void
+    /** The distance from this vector's end point to another vector's end point. */
+    distanceTo(x: number, y: number): number
+
+    distanceTo(other: Vector2Like): number
 
     /**
      * Set world position.
@@ -594,6 +725,15 @@ export declare class Circle {
      * @param y New vertical world position.
      */
     goTo(x: number, y: number): void
+
+    /**
+     * Set world position.
+     * @param other New world position.
+     * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
+(or 'topLeft' — either casing is accepted), this object's top left point will be placed
+at other's position.
+     */
+    goTo(other: Vector2Like, anchor?: AnchorPoint): void
 
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
@@ -607,35 +747,78 @@ export declare class Circle {
     /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
     scale: number
 
+    /** Rotation angle in degrees. */
+    rotation: number
+
+    /** Rotation angle in radians. */
+    radians: number
+
+    /** The direction this object considers to be forward. (normalized) */
+    get direction(): Vector2
+    set direction(dir: Vector2Like)
+
+    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.rotationOffset = Vector2.UP */
+    get rotationOffset(): number
+    set rotationOffset(offset: number | Vector2Like)
+
+    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.radiansOffset = Vector2.UP */
+    get radiansOffset(): number
+    set radiansOffset(offset: number | Vector2Like)
+
+    /**
+     * Rotates this object by a given amount.
+     * @param amount How much to rotate by.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    rotate(amount: number, unit?: 'radians' | 'degrees'): void
+
+    /** X coordinate at the left edge of this object. */
     left: number
 
+    /** X coordinate at the right edge of this object. */
     right: number
 
+    /** Y coordinate at the top edge of this object. */
     top: number
 
+    /** Y coordinate at the bottom edge of this object. */
     bottom: number
 
+    /** Position at the top left corner of this object. */
     get topLeft(): Vector2
     set topLeft(topLeft: Vector2Like)
 
+    /** Position at the top edge in the horizontal center of this object. */
     get topCenter(): Vector2
     set topCenter(topCenter: Vector2Like)
 
+    /** Position at the top right corner of this object. */
     get topRight(): Vector2
     set topRight(topRight: Vector2Like)
 
+    /** Position at the bottom left corner of this object. */
     get bottomLeft(): Vector2
     set bottomLeft(bottomLeft: Vector2Like)
 
+    /** Position at the bottom edge in the horizontal center of this object. */
     get bottomCenter(): Vector2
     set bottomCenter(bottomCenter: Vector2Like)
 
+    /** Position at the bottom right corner of this object. */
     get bottomRight(): Vector2
     set bottomRight(bottomRight: Vector2Like)
 
+    /** Position at the vertical center of the left edge of this object. */
     get centerLeft(): Vector2
     set centerLeft(centerLeft: Vector2Like)
 
+    /** Position at the vertical center of the right edge of this object. */
     get centerRight(): Vector2
     set centerRight(centerRight: Vector2Like)
 
@@ -718,14 +901,35 @@ export declare class Circle {
     /** Hide this object. */
     hide(): void
 
-    /** Rotation angle in degrees. */
-    rotation: number
+    /** Outline color. Setting this to null or undefined will clear the outline. */
+    get outlineColor(): string | undefined
+    set outlineColor(color: Optional<string>)
 
-    /** Rotation angle in radians. */
-    radians: number
+    /** Outline width/thickness. */
+    get outlineWidth(): number | undefined
+    set outlineWidth(width: number)
 
-    /** The fill color. */
-    color: string
+    /** Outline's opacity. Range of 0-1 where 0 is transparent and 1 is opaque. */
+    get outlineAlpha(): number | undefined
+    set outlineAlpha(alpha: number)
+
+    /** Remove rectangle's outline; fill will stay visible if it was already. */
+    clearOutline(): void
+
+    /**
+     * Set each property of the outline all at once. If none are defined, the outline is cleared.
+     * @param color Outline color.
+     * @param width Outline width/thickness.
+     * @param alpha Outline's opacity. Range of 0-1 where 0 is transparent and 1 is opaque.
+     */
+    setOutline(color?: string, width?: number, alpha?: number): void
+
+    /** Fill color. */
+    get color(): string | undefined
+    set color(color: Optional<string>)
+
+    /** Remove fill (set to transparent); outline will stay visible if it was already. */
+    clearFill(): void
 
     /** The distance from the center of the circle to the edge. */
     radius: number
@@ -782,11 +986,10 @@ export declare class Label {
     get screenPos(): Vector2
     set screenPos(pos: Vector2Like)
 
-    /**
-     * Set world position.
-     * @param position New world position.
-     */
-    goTo(position: Vector2Like): void
+    /** The distance from this vector's end point to another vector's end point. */
+    distanceTo(x: number, y: number): number
+
+    distanceTo(other: Vector2Like): number
 
     /**
      * Set world position.
@@ -794,6 +997,15 @@ export declare class Label {
      * @param y New vertical world position.
      */
     goTo(x: number, y: number): void
+
+    /**
+     * Set world position.
+     * @param other New world position.
+     * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
+(or 'topLeft' — either casing is accepted), this object's top left point will be placed
+at other's position.
+     */
+    goTo(other: Vector2Like, anchor?: AnchorPoint): void
 
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
@@ -807,35 +1019,78 @@ export declare class Label {
     /** Factor to multiply size by. Setting scale to 2 will double its size; 0.5 will halve it. */
     scale: number
 
+    /** Rotation angle in degrees. */
+    rotation: number
+
+    /** Rotation angle in radians. */
+    radians: number
+
+    /** The direction this object considers to be forward. (normalized) */
+    get direction(): Vector2
+    set direction(dir: Vector2Like)
+
+    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.rotationOffset = Vector2.UP */
+    get rotationOffset(): number
+    set rotationOffset(offset: number | Vector2Like)
+
+    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.radiansOffset = Vector2.UP */
+    get radiansOffset(): number
+    set radiansOffset(offset: number | Vector2Like)
+
+    /**
+     * Rotates this object by a given amount.
+     * @param amount How much to rotate by.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    rotate(amount: number, unit?: 'radians' | 'degrees'): void
+
+    /** X coordinate at the left edge of this object. */
     left: number
 
+    /** X coordinate at the right edge of this object. */
     right: number
 
+    /** Y coordinate at the top edge of this object. */
     top: number
 
+    /** Y coordinate at the bottom edge of this object. */
     bottom: number
 
+    /** Position at the top left corner of this object. */
     get topLeft(): Vector2
     set topLeft(topLeft: Vector2Like)
 
+    /** Position at the top edge in the horizontal center of this object. */
     get topCenter(): Vector2
     set topCenter(topCenter: Vector2Like)
 
+    /** Position at the top right corner of this object. */
     get topRight(): Vector2
     set topRight(topRight: Vector2Like)
 
+    /** Position at the bottom left corner of this object. */
     get bottomLeft(): Vector2
     set bottomLeft(bottomLeft: Vector2Like)
 
+    /** Position at the bottom edge in the horizontal center of this object. */
     get bottomCenter(): Vector2
     set bottomCenter(bottomCenter: Vector2Like)
 
+    /** Position at the bottom right corner of this object. */
     get bottomRight(): Vector2
     set bottomRight(bottomRight: Vector2Like)
 
+    /** Position at the vertical center of the left edge of this object. */
     get centerLeft(): Vector2
     set centerLeft(centerLeft: Vector2Like)
 
+    /** Position at the vertical center of the right edge of this object. */
     get centerRight(): Vector2
     set centerRight(centerRight: Vector2Like)
 
@@ -917,12 +1172,6 @@ export declare class Label {
 
     /** Hide this object. */
     hide(): void
-
-    /** Rotation angle in degrees. */
-    rotation: number
-
-    /** Rotation angle in radians. */
-    radians: number
 
     /** Text content of the label. */
     get text(): string
@@ -981,6 +1230,31 @@ export declare class Line {
 
     /** Rotation angle in radians. */
     radians: number
+
+    /** The direction this object considers to be forward. (normalized) */
+    get direction(): Vector2
+    set direction(dir: Vector2Like)
+
+    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.rotationOffset = Vector2.UP */
+    get rotationOffset(): number
+    set rotationOffset(offset: number | Vector2Like)
+
+    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
+example you may want a sprite to point along its up direction when looking at other points:
+
+this.radiansOffset = Vector2.UP */
+    get radiansOffset(): number
+    set radiansOffset(offset: number | Vector2Like)
+
+    /**
+     * Rotates this object by a given amount.
+     * @param amount How much to rotate by.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    rotate(amount: number, unit?: 'radians' | 'degrees'): void
 
     /** Position of end point A. */
     get pointA(): Vector2
@@ -1145,29 +1419,70 @@ export declare class Vector2 {
 
     y: number
 
-    /** The magnitude of this vector. */
-    readonly length: number
-
+    /** Sets the given x and y values. */
     set(x: number, y: number): void
 
+    /** Sets both x and y to the same given value. */
     fill(n: number): void
 
-    /** Set this vector's length to 1. */
+    /** Set this vector's length to 1, keeping the same direction. */
     normalize(): void
 
-    rotate(): void
+    /**
+     * Rotates this vector by a given amount.
+     * @param amount How much to rotate by.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    rotate(amount: number, unit?: 'radians' | 'degrees'): void
 
-    setRotation(): void
+    /**
+     * Returns a copy of this vector rotated by a given amount.
+     * @param amount How much to rotate by.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    rotated(amount: number, unit?: 'radians' | 'degrees'): Vector2
 
-    lookAt(): void
+    /**
+     * Rotate this vector to face toward a specified point, keeping its length.
+     * @param other The point, object, or vector endpoint to look at.
+     */
+    lookAt(other: Vector2Like): void
+
+    rotation: number
+
+    radians: number
+
+    /** Magnitude of this vector. */
+    readonly length: number
+
+    /** Distance from this vector's end point to another vector's end point. */
+    distanceTo(x: number, y: number): number
+
+    distanceTo(other: Vector2Like): number
+
+    /** A human-readable string in the format [x, y]. */
+    toString(): string
 
     /** Get a normalized copy of this vector. */
     readonly normal: Vector2
 
-    /** A Vector2 with x & y of 0. */
+    /** A Vector2 with x & y both equal to 0: [0, 0] */
     static readonly ZERO: Vector2
 
+    /** A Vector2 with x & y both equal to 1: [1, 1] */
     static readonly ONE: Vector2
+
+    /** A Vector2 representing a normalized upward direction: [0, 1]. */
+    static readonly UP: Vector2
+
+    /** A Vector2 representing a normalized downward direction: [0, -1]. */
+    static readonly DOWN: Vector2
+
+    /** A Vector2 representing a normalized left direction: [-1, 0]. */
+    static readonly LEFT: Vector2
+
+    /** A Vector2 representing a normalized right direction: [1, 0]. */
+    static readonly RIGHT: Vector2
 
     /** Create a Vector2 from a pair of x/y values. */
     static from(x: number, y: number): Vector2
@@ -1180,8 +1495,6 @@ export declare class Vector2 {
 above) to allow JS array literals from user code which will be inferred
 as number[] rather than [number, number]. */
     static from(xy: number[]): Vector2
-
-    toString(): string
 }
 
 export declare class Timer {

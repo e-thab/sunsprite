@@ -1,7 +1,7 @@
 import { atan2, deg2rad, rad2deg } from "@api/utility"
 import type { ReferenceObject } from "@api/types"
 import type { Class } from "@mixins/shared"
-import { Vector2, type Vector2Like } from "@api/Vector2"
+import { isVector2Like, Vector2, type Vector2Like } from "@api/Vector2"
 import Warning from "../Warning"
 import Output from "@/sandbox/output"
 
@@ -12,6 +12,20 @@ export type RotatableProps = {
     radians?: number
     /** The direction this object is pointing as a normalized Vector2. */
     direction?: Vector2Like
+    /**
+     * Rotation offset in degrees. Use this to change the neutral rotation of the object, for
+     * example you may want a sprite to point along its up direction when looking at other points:
+     * 
+     * this.rotationOffset = Vector2.UP.rotation
+     */
+    rotationOffset?: number | Vector2Like
+    /**
+     * Rotation offset in radians. Use this to change the neutral rotation of the object, for
+     * example you may want a sprite to point along its up direction when looking at other points:
+     * 
+     * this.radiansOffset = Vector2.UP.radians
+     */
+    radiansOffset?: number | Vector2Like
 }
 
 export function Rotatable<Base extends Class>(base: Base) {
@@ -40,7 +54,7 @@ export function Rotatable<Base extends Class>(base: Base) {
             //     throw new Warning(`Conflicting rotation properties: (radians + direction). Only radians will be set.`)
             // }
 
-            // Warn about conflicting property overwrite hierarchy
+            // Warn about conflicting property overwrite hierarchy for rotation/radians/direction
             const conflicting: Set<string> = new Set()
             if (props?.rotation !== undefined && props?.radians !== undefined) {
                 conflicting.add('rotation')
@@ -58,8 +72,8 @@ export function Rotatable<Base extends Class>(base: Base) {
                 const sorted = Array.from(conflicting).sort((a, b) => (rank.get(a) ?? Infinity) - (rank.get(b) ?? Infinity))
 
                 // TODO: Add editor line location
-                throw new Warning(`Conflicting rotation properties: (${Array.from(conflicting).join(', ')}). Only ${sorted[0]} will be set.`)
-                // Output.warn(`Conflicting rotation properties: (${Array.from(conflicting).join(', ')}). Only ${sorted[0]} will be set.`)
+                // throw new Warning(`Conflicting rotation properties: (${Array.from(conflicting).join(', ')}). Only ${sorted[0]} will be set.`)
+                Output.warn(`Conflicting rotation properties: (${Array.from(conflicting).join(', ')}). Only ${sorted[0]} will be set.`)
             }
             
             if (props?.rotation !== undefined) {
@@ -71,6 +85,18 @@ export function Rotatable<Base extends Class>(base: Base) {
             } else {
                 // default
                 this.rotation = 0
+            }
+
+            // Warn about conflicting props rotationOffset/radiansOffset
+            conflicting.clear()
+            if (props?.rotationOffset !== undefined && props?.radiansOffset !== undefined) {
+                Output.warn(`Conflicting rotation offset properties: (rotationOffset, radiansOffset). Only rotationOffset will be set.`)
+            }
+
+            if (props?.rotationOffset !== undefined) {
+                this.rotationOffset = props.rotationOffset
+            } else if (props?.radiansOffset !== undefined) {
+                this.radiansOffset = props.radiansOffset
             }
         }
 
@@ -130,31 +156,43 @@ export function Rotatable<Base extends Class>(base: Base) {
         // }
 
         /**
-         * Rotation offset in degrees. Use this to change the neutral rotation of the object, for
-         * example you may want a sprite to point along its up direction when looking at other points:
+         * Rotation offset in degrees. Controls the neutral rotation of the object, for example you may want
+         * a sprite to point along its up direction when looking at other points instead of the default right.
          * 
-         * this.rotationOffset = Vector2.UP.rotation
-         */
+         * Set degrees directly with a number: `this.rotationOffset = 90`
+         * 
+         * Set based on a Vector2: `this.rotationOffset = Vector2.UP`
+        */
         get rotationOffset(): number {
             return this._rotationOffset
         }
-        set rotationOffset(offsetDegrees: number) {
-            this._rotationOffset = offsetDegrees
+        set rotationOffset(offset: number | Vector2Like) {
+            if (typeof offset === 'number') {
+                this._rotationOffset = offset
+            } else if (isVector2Like(offset)) {
+                this._rotationOffset = Vector2.from(offset).rotation
+            }
             this._updateRefRotation()
         }
 
         /**
-         * Rotation offset in radians. Use this to change the neutral rotation of the object, for
-         * example you may want a sprite to point along its up direction when looking at other points:
+         * Rotation offset in radians. Controls the neutral rotation of the object, for example you may want
+         * a sprite to point along its up direction when looking at other points instead of the default right.
          * 
-         * this.radiansOffset = Vector2.UP.radians
-         */
+         * Set radians directly with a number: `this.radiansOffset = 90`
+         * 
+         * Set based on a Vector2: `this.radiansOffset = Vector2.UP`
+        */
         get radiansOffset(): number {
             return deg2rad(this._rotationOffset)
         }
-        set radiansOffset(offsetRadians: number) {
-            this._rotationOffset = rad2deg(offsetRadians)
-            this._updateRefRotation
+        set radiansOffset(offset: number | Vector2Like) {
+            if (typeof offset === 'number') {
+                this._rotationOffset = rad2deg(offset)
+            } else if (isVector2Like(offset)) {
+                this._rotationOffset = Vector2.from(offset).rotation
+            }
+            this._updateRefRotation()
         }
 
         /**
