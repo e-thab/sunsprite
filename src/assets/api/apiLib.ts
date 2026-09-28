@@ -37,12 +37,13 @@ import {
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers,
+    randomMembers, backgroundMembers,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
-    setBackgroundColorDeclaration, pauseDeclaration, playDeclaration, printDeclaration,
+    setBackgroundColorDeclaration, setBackgroundImageDeclaration, clearBackgroundImageDeclaration,
+    pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
     deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
 } from "./generated/apiDeclarations.generated"
@@ -85,6 +86,8 @@ export interface VersionedApiConstants {
     screenMembers: string
     mouseMembers: string
     randomMembers: string
+    // Optional: absent from snapshots cut before Background existed (1.0 and earlier).
+    backgroundMembers?: string
     foreverDeclaration: string
     repeatDeclaration: string
     repeatUntilDeclaration: string
@@ -100,6 +103,8 @@ export interface VersionedApiConstants {
     onKeyHoldDeclaration: string
     onMouseDeclaration: string
     setBackgroundColorDeclaration: string
+    setBackgroundImageDeclaration?: string
+    clearBackgroundImageDeclaration?: string
     pauseDeclaration: string
     playDeclaration: string
     printDeclaration: string
@@ -343,6 +348,17 @@ declare const keysJustPressed: Map<string, number | undefined>
 declare const keysJustReleased: Map<string, number | undefined>
 
 ${v.setBackgroundColorDeclaration}
+
+${v.setBackgroundImageDeclaration ?? ''}
+
+${v.clearBackgroundImageDeclaration ?? ''}
+
+${v.backgroundMembers === undefined ? '' : `/**
+ * Game background reference.
+ */
+declare const Background: {
+${v.backgroundMembers}
+}`}
 
 ${v.foreverDeclaration}
 
@@ -627,12 +643,13 @@ export const apiLib = buildApiLib({
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers,
+    randomMembers, backgroundMembers,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
-    setBackgroundColorDeclaration, pauseDeclaration, playDeclaration, printDeclaration,
+    setBackgroundColorDeclaration, setBackgroundImageDeclaration, clearBackgroundImageDeclaration,
+    pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
     deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
 })

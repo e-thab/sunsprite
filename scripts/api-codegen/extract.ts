@@ -249,6 +249,16 @@ function extractObjectLiteralMembers(checker: ts.TypeChecker, node: ts.ObjectLit
             continue
         }
 
+        // get/set pairs (Background.image) render the same way a class accessor does.
+        // The setter is picked up alongside its getter; a lone setter is skipped, as in groupMembers.
+        if (ts.isGetAccessor(prop)) {
+            const setter = node.properties.find(
+                (p): p is ts.SetAccessorDeclaration => ts.isSetAccessor(p) && p.name.getText(sourceFile) === name
+            )
+            result.set(name, renderAccessor(name, { kind: 'accessor', getter: prop, setter, isStatic: false }, name, checker))
+            continue
+        }
+
         if (!ts.isPropertyAssignment(prop)) continue // shorthand/spread properties aren't used in these object literals today
 
         if (ts.isIdentifier(prop.initializer)) {

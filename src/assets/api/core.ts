@@ -414,6 +414,7 @@ let keysJustPressed: Map<string, number | undefined> = new Map()
 let keysJustReleased: Map<string, number | undefined> = new Map()
 
 const Background = {
+	/** The background image source. Set to a texture key or image path; set to a falsy value to clear it. */
 	get image(): string | undefined {
 		return
 	},

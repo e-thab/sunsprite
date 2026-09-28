@@ -79,6 +79,7 @@ export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
  */
 export const OBJECT_LITERALS = [
     { file: apiPath('Random.ts'), exportName: 'Random', className: 'Random' },
+    { file: apiPath('core.ts'), exportName: 'Background', className: 'Background' },
 ] as const
 
 /**
@@ -106,6 +107,8 @@ export const FREE_FUNCTIONS = [
     { file: apiPath('core.ts'), name: 'onKeyHold' },
     { file: apiPath('core.ts'), name: 'onMouse' },
     { file: apiPath('core.ts'), name: 'setBackgroundColor' },
+    { file: apiPath('core.ts'), name: 'setBackgroundImage' },
+    { file: apiPath('core.ts'), name: 'clearBackgroundImage' },
     { file: apiPath('core.ts'), name: 'play' },
     { file: apiPath('core.ts'), name: 'pause' },
     { file: sandboxPath('watch.ts'), name: 'watch' },

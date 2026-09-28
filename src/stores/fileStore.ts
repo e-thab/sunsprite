@@ -160,15 +160,36 @@ export const useFileStore = defineStore('files', () => {
     // only thing that can see those, so it's the one that has to hand them
     // over. A script with no entry (never opened) falls back to its saved
     // content, which is necessarily what's about to run for it too.
-    function snapshotScripts(liveContent: Record<string, string> = {}) {
+    function snapshotScripts(entryName: string, liveContent: Record<string, string> = {}) {
         const snapshot: Record<string, string> = {}
         for (const script of scripts.value) snapshot[script.name] = liveContent[script.name] ?? script.content
         scriptSnapshot.value = snapshot
         filesChangedSinceRun.value = new Set()
+        runningScriptName.value = entryName
     }
 
-    // What the restart button's chip actually watches.
+    // Which script the game was last (re)started with as its entry point —
+    // main via Restart, or any script via the editor's per-script play
+    // button / FileTree's "Run script". Decides *where* the "changed since
+    // run" highlight goes: Restart only re-runs main, so it should only light
+    // up when main is what's actually running; otherwise the running
+    // script's own play button is the one that would pick the edits up.
+    const runningScriptName = ref<string | undefined>(undefined)
+
     const codeChangedSinceLastRun = computed(() => filesChangedSinceRun.value.size > 0)
+
+    // What the restart button's chip actually watches.
+    const mainChangedSinceLastRun = computed(() =>
+        codeChangedSinceLastRun.value && runningScriptName.value === mainScriptName.value,
+    )
+
+    // What a script's play button watches: it's the running (non-main)
+    // entry, and something it could depend on has changed since it started.
+    function entryChangedSinceLastRun(fileName: string): boolean {
+        return codeChangedSinceLastRun.value
+            && runningScriptName.value === fileName
+            && fileName !== mainScriptName.value
+    }
 
     // Name of the script whose runtime error is currently shown in the
     // output panel, if its location was recoverable (see output.ts's
@@ -579,6 +600,7 @@ export const useFileStore = defineStore('files', () => {
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
         scriptSnapshot.value = {}
+        runningScriptName.value = undefined
 
         const [{ data: folderRows, error: folderError }, { data: scriptRows, error: scriptError }, { data: imageRows, error: imageError }, { data: textFileRows, error: textFileError }] = await Promise.all([
             supabase.from('folders').select('id, name, parent_id, position').eq('project_id', id).order('position'),
@@ -639,6 +661,7 @@ export const useFileStore = defineStore('files', () => {
         textFiles.value = []
         dirtyFiles.value = new Set()
         scriptSnapshot.value = {}
+        runningScriptName.value = undefined
     }
 
     function setProjectName(name: string) {
@@ -663,6 +686,7 @@ export const useFileStore = defineStore('files', () => {
                 filesSavedThisSession.value = []
                 dirtyFiles.value = new Set()
                 scriptSnapshot.value = {}
+                runningScriptName.value = undefined
                 return
             } catch {
                 // Corrupted data — fall through and reseed from scratch below.
@@ -691,6 +715,7 @@ export const useFileStore = defineStore('files', () => {
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
         scriptSnapshot.value = {}
+        runningScriptName.value = undefined
         persistGuestProject()
     }
 
@@ -745,6 +770,7 @@ export const useFileStore = defineStore('files', () => {
         }
         setChangedSinceRun(newName, filesChangedSinceRun.value.has(oldName))
         setChangedSinceRun(oldName, false)
+        if (runningScriptName.value === oldName) runningScriptName.value = newName
         if (!projectId.value) persistGuestProject()
     }
 
@@ -933,7 +959,10 @@ export const useFileStore = defineStore('files', () => {
         scriptSnapshot,
         snapshotScripts,
         setChangedSinceRun,
+        runningScriptName,
         codeChangedSinceLastRun,
+        mainChangedSinceLastRun,
+        entryChangedSinceLastRun,
         projectId,
         projectName,
         scripts,
