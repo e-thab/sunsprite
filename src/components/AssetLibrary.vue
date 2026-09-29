@@ -1,14 +1,32 @@
 <script setup lang="ts">
 import type { TreeItem } from '@nuxt/ui'
 import { useToast } from '@nuxt/ui/composables'
+import { useFileStore } from '@/stores/fileStore'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
 import { exampleScriptNames } from '@/assets/api/examples'
 import { imagePath, animalFiles, cardFiles } from '@/assets/api/gameAssets'
 import CollapsiblePane from './CollapsiblePane.vue'
 
+const fileStore = useFileStore()
 const treeSelectionStore = useTreeSelectionStore()
 
 const toast = useToast()
+
+// Adds a link to this asset at the project root — no file data is copied (see
+// fileStore's library images). A name clash gets a numbered suffix rather than
+// a prompt, so this stays a single click.
+async function addToProject(path: string, fileName: string) {
+	try {
+		const name = await fileStore.addLibraryImage(path, fileStore.uniqueImageName(fileName))
+		toast.add({
+			title: 'Added to project',
+			description: name,
+			icon: 'tabler:books',
+		})
+	} catch (err) {
+		window.alert(err instanceof Error ? err.message : 'Failed to add image to project')
+	}
+}
 
 async function copyPath(path: string) {
 	await navigator.clipboard.writeText(path)
@@ -109,8 +127,11 @@ const items: TreeItem[] = [
 
 				<template #item-trailing="{ item }">
 					<div v-if="!item.children && item.path" class="item-actions">
+						<UTooltip v-if="item.thumbnail" text="Add to project">
+							<UButton icon="tabler:arrow-bar-up" variant="soft" color="neutral" size="xs" @click.stop="addToProject(item.path, item.label ?? '')" />
+						</UTooltip>
 						<UTooltip text="Copy path">
-							<UButton icon="tabler:copy-filled" variant="ghost" color="neutral" size="xs" @click.stop="copyPath(item.path)" />
+							<UButton icon="tabler:copy-filled" variant="soft" color="neutral" size="xs" @click.stop="copyPath(item.path)" />
 						</UTooltip>
 					</div>
 				</template>
