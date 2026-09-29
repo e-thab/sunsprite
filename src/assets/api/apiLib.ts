@@ -37,12 +37,12 @@ import {
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers, backgroundMembers,
+    randomMembers, backgroundMembers, backgroundStyleDeclaration,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
-    setBackgroundColorDeclaration, setBackgroundImageDeclaration, clearBackgroundImageDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
     deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
@@ -86,8 +86,24 @@ export interface VersionedApiConstants {
     screenMembers: string
     mouseMembers: string
     randomMembers: string
-    // Optional: absent from snapshots cut before Background existed (1.0 and earlier).
-    backgroundMembers?: string
+    backgroundMembers: string
+    backgroundStyleDeclaration: string
+    // Each class/singleton's own doc comment, straight from its source declaration.
+    mouseDoc: string
+    screenDoc: string
+    clockDoc: string
+    cameraDoc: string
+    backgroundDoc: string
+    randomDoc: string
+    timerDoc: string
+    vector2Doc: string
+    spriteDoc: string
+    rectangleDoc: string
+    lineDoc: string
+    vLineDoc: string
+    hLineDoc: string
+    labelDoc: string
+    circleDoc: string
     foreverDeclaration: string
     repeatDeclaration: string
     repeatUntilDeclaration: string
@@ -102,9 +118,6 @@ export interface VersionedApiConstants {
     onKeyReleaseDeclaration: string
     onKeyHoldDeclaration: string
     onMouseDeclaration: string
-    setBackgroundColorDeclaration: string
-    setBackgroundImageDeclaration?: string
-    clearBackgroundImageDeclaration?: string
     pauseDeclaration: string
     playDeclaration: string
     printDeclaration: string
@@ -292,41 +305,29 @@ type KeyAction = {
 
 // Core
 `
-/**
- * User mouse reference.
- */
-declare const Mouse: {
+${v.mouseDoc}declare const Mouse: {
 ${v.mouseMembers}
 }
 
-/**
- * Game screen reference.
- */
-declare const Screen: {
+${v.screenDoc}declare const Screen: {
 ${v.screenMembers}
 }
 
-class Timer {
+${v.timerDoc}class Timer {
     constructor()
 
 ${v.timerMembers}
 }
 
-/**
- * Game clock, derived largely from Timer but with some key differences.
- */
-declare const Clock: {
+${v.clockDoc}declare const Clock: {
 ${v.clockMembers}
 }
 
-/**
- * User camera reference.
- */
-declare const Camera: {
+${v.cameraDoc}declare const Camera: {
 ${v.cameraMembers}
 }
 
-class Vector2 {
+${v.vector2Doc}class Vector2 {
     constructor(x: number, y: number)
 
 ${v.vector2Members}
@@ -347,18 +348,11 @@ declare const keysJustPressed: Map<string, number | undefined>
  */
 declare const keysJustReleased: Map<string, number | undefined>
 
-${v.setBackgroundColorDeclaration}
+${v.backgroundStyleDeclaration}
 
-${v.setBackgroundImageDeclaration ?? ''}
-
-${v.clearBackgroundImageDeclaration ?? ''}
-
-${v.backgroundMembers === undefined ? '' : `/**
- * Game background reference.
- */
-declare const Background: {
+${v.backgroundDoc}declare const Background: {
 ${v.backgroundMembers}
-}`}
+}
 
 ${v.foreverDeclaration}
 
@@ -415,10 +409,7 @@ declare const console: {
 
 // Utilities
 `
-/**
- * A collection of functions useful for generating random values.
- */
-declare const Random: {
+${v.randomDoc}declare const Random: {
 ${v.randomMembers}
 }
 
@@ -524,7 +515,7 @@ type SpriteProps = GameObjectProps & {
 ${v.spritePropsFields}
 }
 
-class Sprite {
+${v.spriteDoc}class Sprite {
     /**
      * The Sprite class. TODO: describe
      * @param options TODO: describe
@@ -540,7 +531,7 @@ type RectangleProps = ShapeProps & {
 ${v.rectanglePropsFields}
 }
 
-class Rectangle {
+${v.rectangleDoc}class Rectangle {
     /**
      * The Rectangle class. TODO: describe
      * @param options TODO: describe
@@ -559,7 +550,7 @@ ${v.rectangleMembers}
 ${v.linePropsFields}
 }
 
-class Line {
+${v.lineDoc}class Line {
     /**
      * A straight line from point A to point B.
      * @param options TODO: describe
@@ -574,7 +565,7 @@ ${v.lineMembers}
 ${v.vLinePropsFields}
 }
 
-class VLine {
+${v.vLineDoc}class VLine {
     /**
      * A straight, infinitely long vertical line.
      * @param options TODO: describe
@@ -589,7 +580,7 @@ ${v.vLineMembers}
 ${v.hLinePropsFields}
 }
 
-class HLine {
+${v.hLineDoc}class HLine {
     /**
      * A straight, infinitely long horizontal line.
      * @param options TODO: describe
@@ -604,7 +595,7 @@ ${v.hLineMembers}
 ${v.labelPropsFields}
 }
 
-class Label {
+${v.labelDoc}class Label {
     /**
      * An object that displays text. TODO: describe (better)
      * @param options TODO: describe
@@ -619,7 +610,7 @@ ${v.labelMembers}
 ${v.circlePropsFields}
 }
 
-class Circle {
+${v.circleDoc}class Circle {
     /**
      * A basic circle shape. TODO: describe (better)
      * @param options TODO: describe
@@ -643,12 +634,12 @@ export const apiLib = buildApiLib({
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers, backgroundMembers,
+    randomMembers, backgroundMembers, backgroundStyleDeclaration,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
-    setBackgroundColorDeclaration, setBackgroundImageDeclaration, clearBackgroundImageDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
     deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,

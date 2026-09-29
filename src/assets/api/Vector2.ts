@@ -25,6 +25,7 @@ export function isVector2Like(obj: any): obj is Vector2Like {
     return isXYObject(obj) || isXYArray(obj)
 }
 
+/** A 2-dimensional vector. [Click here to read the docs.](http://localhost:5173/docs/api/classes/vector2) */
 export class Vector2 {
 	x: number = 0
 	y: number = 0
@@ -40,7 +41,7 @@ export class Vector2 {
         this.y = y
     }
     
-    /** Sets both x and y to the same given value. */
+    /** Sets both x and y to the same value. */
     fill(n: number) {
         this.x = n
         this.y = n

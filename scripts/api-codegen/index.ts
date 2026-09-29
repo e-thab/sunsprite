@@ -1,5 +1,5 @@
-import { createProgram, extractMixin, extractConcreteClass, extractObjectLiteral, extractFreeFunction } from './extract'
-import { MIXINS, CONCRETE_CLASSES, OBJECT_LITERALS, FREE_FUNCTIONS } from './sources'
+import { createProgram, extractMixin, extractConcreteClass, extractObjectLiteral, extractFreeFunction, extractTypeAlias, type TypeAliasBundle } from './extract'
+import { MIXINS, CONCRETE_CLASSES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES } from './sources'
 
 export interface MixinBundle {
     propsFields: string[]
@@ -8,6 +8,7 @@ export interface MixinBundle {
 }
 
 export interface ConcreteClassBundle {
+    doc: string
     propsFields: string[]
     members: string[]
 }
@@ -16,6 +17,7 @@ export interface GeneratedDeclarations {
     mixins: Record<string, MixinBundle>
     concreteClasses: Record<string, ConcreteClassBundle>
     freeFunctions: Record<string, string>
+    typeAliases: Record<string, TypeAliasBundle>
 }
 
 /**
@@ -52,5 +54,10 @@ export function generateApiDeclarations(): GeneratedDeclarations {
         freeFunctions[fn.name] = extractFreeFunction(checker, program, fn)
     }
 
-    return { mixins, concreteClasses, freeFunctions }
+    const typeAliases: Record<string, TypeAliasBundle> = {}
+    for (const alias of TYPE_ALIASES) {
+        typeAliases[alias.name] = extractTypeAlias(program, checker, alias)
+    }
+
+    return { mixins, concreteClasses, freeFunctions, typeAliases }
 }

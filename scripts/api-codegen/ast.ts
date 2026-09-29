@@ -98,19 +98,26 @@ export function findFunctionDeclarations(sourceFile: ts.SourceFile, name: string
     )
 }
 
-/** Finds a top-level `const name = {...}` (or `let`/`var`) object literal by name. */
+/**
+ * Strips `as const` / `satisfies T` / parentheses off an expression — an
+ * enum-like `const X = {...} as const` is still an object literal underneath,
+ * just wrapped in an AsExpression.
+ */
+export function unwrapExpression(expr: ts.Expression): ts.Expression {
+    while (ts.isAsExpression(expr) || ts.isSatisfiesExpression(expr) || ts.isParenthesizedExpression(expr)) {
+        expr = expr.expression
+    }
+    return expr
+}
+
+/** Finds a top-level `const name = {...}` (or `let`/`var`, optionally `as const`) object literal by name. */
 export function findObjectLiteralConst(sourceFile: ts.SourceFile, name: string): ts.ObjectLiteralExpression | undefined {
     for (const statement of sourceFile.statements) {
         if (!ts.isVariableStatement(statement)) continue
         for (const decl of statement.declarationList.declarations) {
-            if (
-                ts.isIdentifier(decl.name) &&
-                decl.name.text === name &&
-                decl.initializer &&
-                ts.isObjectLiteralExpression(decl.initializer)
-            ) {
-                return decl.initializer
-            }
+            if (!ts.isIdentifier(decl.name) || decl.name.text !== name || !decl.initializer) continue
+            const initializer = unwrapExpression(decl.initializer)
+            if (ts.isObjectLiteralExpression(initializer)) return initializer
         }
     }
     return undefined

@@ -1,6 +1,6 @@
 import ts from 'typescript'
-import { extractDoc, formatDocBlock, isExcluded, findTypeAlias, findMixinClassExpression, findDefaultExportClass, findFunctionDeclarations, findObjectLiteralConst } from './ast'
-import { MIXINS, CONCRETE_CLASSES, GAME_OBJECT_FILE, SET_TYPE_OVERRIDES, OBJECT_LITERALS, FREE_FUNCTIONS } from './sources'
+import { extractDoc, formatDocBlock, isExcluded, findTypeAlias, findMixinClassExpression, findDefaultExportClass, findFunctionDeclarations, findObjectLiteralConst, unwrapExpression } from './ast'
+import { MIXINS, CONCRETE_CLASSES, GAME_OBJECT_FILE, SET_TYPE_OVERRIDES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES } from './sources'
 import { REPO_ROOT, TS_PATHS } from '../aliases'
 
 const INDENT = '    '
@@ -10,6 +10,7 @@ export function createProgram(): { program: ts.Program; checker: ts.TypeChecker 
         ...CONCRETE_CLASSES.map((c) => c.file),
         ...OBJECT_LITERALS.map((o) => o.file),
         ...FREE_FUNCTIONS.map((f) => f.file),
+        ...TYPE_ALIASES.map((t) => t.file),
     ]
     const program = ts.createProgram(rootFiles, {
         target: ts.ScriptTarget.ES2020,
@@ -149,10 +150,47 @@ function groupMembers(members: ts.NodeArray<ts.ClassElement>): Map<string, Acces
     return groups
 }
 
+/**
+ * The object literal behind a getter written as `get X() { return SomeConst }`,
+ * where SomeConst is a module-level `const SomeConst = {...}` (typically
+ * `as const`, the enum-like pattern behind Background.Styles). Only for
+ * unannotated getters — an explicit return type is always read verbatim.
+ */
+function returnedConstObjectLiteral(getter: ts.GetAccessorDeclaration, checker: ts.TypeChecker): ts.ObjectLiteralExpression | undefined {
+    if (getter.type || !getter.body) return undefined
+    const [statement] = getter.body.statements
+    if (getter.body.statements.length !== 1 || !statement || !ts.isReturnStatement(statement) || !statement.expression) return undefined
+
+    const returned = unwrapExpression(statement.expression)
+    if (!ts.isIdentifier(returned)) return undefined
+
+    const decl = checker.getSymbolAtLocation(returned)?.valueDeclaration
+    if (!decl || !ts.isVariableDeclaration(decl) || !decl.initializer) return undefined
+    if (!(ts.getCombinedNodeFlags(decl) & ts.NodeFlags.Const)) return undefined
+
+    const initializer = unwrapExpression(decl.initializer)
+    return ts.isObjectLiteralExpression(initializer) ? initializer : undefined
+}
+
+/**
+ * Renders a returned const object as an inline, multi-line type literal —
+ * like functionReturnTypeText does for `repeat(...).then`, so each value keeps
+ * its own JSDoc (Background.Styles.Fit's description in autocomplete) instead
+ * of collapsing into the checker's flat, comment-less `{ readonly Fit: "fit"; ... }`.
+ * Members are readonly (they're a shared constant, not something to assign
+ * into) and indented one level deeper than the member that owns them.
+ */
+function renderConstObjectType(checker: ts.TypeChecker, literal: ts.ObjectLiteralExpression): string {
+    const members = [...extractObjectLiteralMembers(checker, literal, true).values()]
+    const indented = members.map((member) => member.replace(/^/gm, INDENT))
+    return `{\n${indented.join('\n\n')}\n${INDENT}}`
+}
+
 function renderAccessor(name: string, group: AccessorGroup, overrideKey: string, checker: ts.TypeChecker): string {
     const sourceFile = group.getter.getSourceFile()
     const doc = extractDoc(group.getter)
-    const getType = returnTypeText(group.getter, checker, sourceFile)
+    const constObject = group.setter ? undefined : returnedConstObjectLiteral(group.getter, checker)
+    const getType = constObject ? renderConstObjectType(checker, constObject) : returnTypeText(group.getter, checker, sourceFile)
     const staticPrefix = group.isStatic ? 'static ' : ''
 
     if (!group.setter) {
@@ -236,7 +274,7 @@ function extractOwnMembers(classNode: ts.ClassDeclaration | ts.ClassExpression, 
  * whatever comment (if any) sits on the property itself; anything else
  * renders as a plain value property via the checker's inferred type.
  */
-function extractObjectLiteralMembers(checker: ts.TypeChecker, node: ts.ObjectLiteralExpression): Map<string, string> {
+function extractObjectLiteralMembers(checker: ts.TypeChecker, node: ts.ObjectLiteralExpression, readonlyValues = false): Map<string, string> {
     const result = new Map<string, string>()
     const sourceFile = node.getSourceFile()
 
@@ -273,7 +311,8 @@ function extractObjectLiteralMembers(checker: ts.TypeChecker, node: ts.ObjectLit
 
         const doc = extractDoc(prop)
         const type = declaredTypeText(undefined, prop.initializer, checker, sourceFile)
-        result.set(name, `${formatDocBlock(doc, INDENT)}${INDENT}${name}: ${type}`)
+        const readonlyPrefix = readonlyValues ? 'readonly ' : ''
+        result.set(name, `${formatDocBlock(doc, INDENT)}${INDENT}${readonlyPrefix}${name}: ${type}`)
     }
     return result
 }
@@ -378,6 +417,8 @@ export function resolveComposedMembers(
 }
 
 interface ConcreteClassBundle {
+    /** The class's (or object literal's) own JSDoc as a formatted, unindented block — empty if it has none. */
+    doc: string
     propsFields: string[]
     members: string[]
 }
@@ -397,7 +438,7 @@ export function extractConcreteClass(
     if (!classDecl) throw new Error(`Could not find default export class in ${concrete.file}`)
 
     const composed = resolveComposedMembers(program, checker, sourceFile, classDecl, concrete.className, mixinCache)
-    return { propsFields, members: [...composed.values()] }
+    return { doc: formatDocBlock(extractDoc(classDecl), ''), propsFields, members: [...composed.values()] }
 }
 
 /**
@@ -417,7 +458,44 @@ export function extractObjectLiteral(
     if (!literal) throw new Error(`Could not find "const ${entry.exportName} = {...}" in ${entry.file}`)
 
     const members = extractObjectLiteralMembers(checker, literal)
-    return { propsFields: [], members: [...members.values()] }
+
+    // The JSDoc sits on the `const X = ...` statement, not the literal itself —
+    // walk up past any `as const`/parentheses to the variable declaration,
+    // which extractDoc resolves to its statement's leading comment.
+    let node: ts.Node = literal
+    while (node.parent && !ts.isVariableDeclaration(node)) node = node.parent
+    const doc = ts.isVariableDeclaration(node) ? formatDocBlock(extractDoc(node), '') : ''
+
+    return { doc, propsFields: [], members: [...members.values()] }
+}
+
+export interface TypeAliasBundle {
+    /** Already-formatted JSDoc block (possibly empty), unindented. */
+    doc: string
+    /** The alias's real type, fully expanded — e.g. `"center" | "fill" | ...`, not `typeof Styles[keyof typeof Styles]`. */
+    type: string
+}
+
+/**
+ * Extracts one TYPE_ALIASES entry. InTypeAlias makes the checker print the
+ * alias's structure rather than just its own name back (which is all a
+ * plain typeToString gives for a named alias).
+ */
+export function extractTypeAlias(
+    program: ts.Program,
+    checker: ts.TypeChecker,
+    entry: (typeof TYPE_ALIASES)[number]
+): TypeAliasBundle {
+    const sourceFile = getSourceFile(program, entry.file)
+    const alias = findTypeAlias(sourceFile, entry.name)
+    if (!alias) throw new Error(`Could not find type ${entry.name} in ${entry.file}`)
+
+    const type = checker.typeToString(
+        checker.getTypeFromTypeNode(alias.type),
+        alias,
+        ts.TypeFormatFlags.InTypeAlias | ts.TypeFormatFlags.NoTruncation
+    )
+    return { doc: formatDocBlock(extractDoc(alias), ''), type }
 }
 
 /**

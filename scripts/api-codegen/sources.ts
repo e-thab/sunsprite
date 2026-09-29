@@ -67,6 +67,7 @@ export const CONCRETE_CLASSES = [
     { file: apiPath('Clock.ts'), typeName: undefined, className: 'Clock', constructorParams: undefined },
     { file: apiPath('Screen.ts'), typeName: undefined, className: 'Screen', constructorParams: undefined },
     { file: apiPath('types.ts'), typeName: undefined, className: 'Mouse', constructorParams: undefined },
+    { file: apiPath('Background.ts'), typeName: undefined, className: 'Background', constructorParams: undefined },
 ] as const
 
 export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
@@ -79,7 +80,17 @@ export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
  */
 export const OBJECT_LITERALS = [
     { file: apiPath('Random.ts'), exportName: 'Random', className: 'Random' },
-    { file: apiPath('core.ts'), exportName: 'Background', className: 'Background' },
+] as const
+
+/**
+ * Type aliases user code needs by name because some generated member refers
+ * to them (e.g. Background.style's `BackgroundStyle`). Each is emitted as a
+ * standalone `declare type Name = ...` with its real type fully expanded by
+ * the checker, since whatever the alias is written in terms of (here,
+ * `typeof Styles[keyof typeof Styles]`) usually isn't itself part of the lib.
+ */
+export const TYPE_ALIASES = [
+    { file: apiPath('Background.ts'), name: 'BackgroundStyle' },
 ] as const
 
 /**
@@ -106,9 +117,6 @@ export const FREE_FUNCTIONS = [
     { file: apiPath('core.ts'), name: 'onKeyRelease' },
     { file: apiPath('core.ts'), name: 'onKeyHold' },
     { file: apiPath('core.ts'), name: 'onMouse' },
-    { file: apiPath('core.ts'), name: 'setBackgroundColor' },
-    { file: apiPath('core.ts'), name: 'setBackgroundImage' },
-    { file: apiPath('core.ts'), name: 'clearBackgroundImage' },
     { file: apiPath('core.ts'), name: 'play' },
     { file: apiPath('core.ts'), name: 'pause' },
     { file: sandboxPath('watch.ts'), name: 'watch' },

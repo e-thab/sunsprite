@@ -1,6 +1,7 @@
 // import { allTimers } from "./core"
 import Timer from "@api/Timer"
 
+/** Game clock, a Timer that tracks elapsed game time and can't be reset. Pausing it pauses the game. */
 export default class Clock {
     /** Internal timer component */
     _timer: Timer

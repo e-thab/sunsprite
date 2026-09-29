@@ -109,6 +109,10 @@ async function main() {
         ''
     )
 
+    for (const [name, { doc, type }] of Object.entries(generated.typeAliases)) {
+        lines.push(`${doc}export type ${name} = ${type}`, '')
+    }
+
     for (const concrete of CONCRETE_CLASSES) {
         const bundle = generated.concreteClasses[concrete.className]
         if (!bundle) continue
@@ -119,7 +123,7 @@ async function main() {
             lines.push(
                 `export type ${concrete.typeName} = ${basePrefix}{\n${bundle.propsFields.join('\n\n')}\n}`,
                 '',
-                `export declare class ${concrete.className} {`,
+                `${bundle.doc}export declare class ${concrete.className} {`,
                 `    constructor(options?: ${concrete.typeName})`,
                 '',
                 bundle.members.join('\n\n'),
@@ -129,7 +133,7 @@ async function main() {
         } else if (concrete.constructorParams !== undefined) {
             // Real classes user code constructs directly (Vector2, Timer) — no `*Props` type, a hand-known positional constructor.
             lines.push(
-                `export declare class ${concrete.className} {`,
+                `${bundle.doc}export declare class ${concrete.className} {`,
                 `    constructor(${concrete.constructorParams})`,
                 '',
                 bundle.members.join('\n\n'),
@@ -139,7 +143,7 @@ async function main() {
         } else {
             // Singleton instances the real api object exposes directly (Camera, Screen, Clock, Mouse) — never constructed by user code.
             lines.push(
-                `export declare const ${concrete.className}: {`,
+                `${bundle.doc}export declare const ${concrete.className}: {`,
                 bundle.members.join('\n\n'),
                 '}',
                 ''

@@ -17,6 +17,7 @@ import Timer from '@api/Timer'
 import Clock from '@api/Clock'
 import Camera from '@api/Camera'
 import Screen from '@api/Screen'
+import Background from '@api/Background'
 import Sprite from '@api/Sprite'
 import Rectangle from '@api/Rectangle'
 import Circle from '@api/Circle'
@@ -137,7 +138,6 @@ export let resizeReactors: { _onResize(): void }[] = []
 /** Internal. All timer objects that need updating each frame */
 export let allTimers: Timer[] = []
 
-let _backgroundImage: Phaser.GameObjects.Image | undefined
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0
@@ -405,6 +405,8 @@ export let camera: Camera
 export let screen: Screen
 export let mouse: Mouse
 export let paused = false
+/** The game's background. */
+let background: Background
 
 /** An array of all keys currently pressed. */
 let keysPressed: string[] = []
@@ -413,120 +415,16 @@ let keysJustPressed: Map<string, number | undefined> = new Map()
 /** An array of all keys that were just released last frame. */
 let keysJustReleased: Map<string, number | undefined> = new Map()
 
-const Background = {
-	/** The background image source. Set to a texture key or image path; set to a falsy value to clear it. */
-	get image(): string | undefined {
-		return
-	},
-	set image(src: string | undefined | null) {
-		if (!src) {
-			clearBackgroundImage()
-			return
-		}
-
-		// Create the background image if it doesn't already exist
-		if (!_backgroundImage) {
-			_backgroundImage = scene.add.image(camera.width / 2, camera.height / 2, '__DEFAULT')
-			_backgroundImage.setDepth(-Infinity)
-		}
-
-		// If using a key, apply existing texture
-		if (scene.textures.exists(src)) {
-			_backgroundImage.setTexture(src)
-			return
-		}
-
-		// Otherwise, loading a new texture from path
-		scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
-			if (_backgroundImage) _backgroundImage.setTexture(src)
-		})
-		scene.load.image(src, src)
-		scene.load.start()
-	},
-
-	// get color(): string {
-	// 	// TODO
-	// },
-	// set color(color: string) {
-
-	// },
-}
-
-/**
- * Set the background color.
- * @param color Color to fill the background with.
- */
-export function setBackgroundColor(color: string) {
-	// Web color name support?
-	camera._cam.setBackgroundColor(color)
-}
-
-/**
- * Set the background image.
- * @param src Image source to use for the background. If src is not provided, the background image is cleared instead.
- */
-function setBackgroundImage(src: string | undefined | null, style?: string) {
-	// if (background) {
-	// 	app.stage.removeChild(background)
-	// }
-	// background.texture = await Assets.load(src)
-	// background.anchor.set(0.5)
-	// background.x = app.screen.width / 2
-	// background.y = app.screen.height / 2
-
-	// // Missing a condition? Test narrow images
-	// if (app.screen.width > app.screen.height) {
-	// 	background.width = app.screen.width
-	// } else {
-	// 	background.height = app.screen.height
-	// }
-
-	// background.zIndex = -Infinity
-	// app.stage.addChild(background)
-	if (!src) {
-		clearBackgroundImage()
-		return
-	}
-
-	// Create the background image if it doesn't already exist
-	if (!_backgroundImage) {
-		_backgroundImage = scene.add.image(camera.width / 2, camera.height / 2, '__DEFAULT')
-		_backgroundImage.setDepth(-Infinity)
-	}
-
-	// If using a key, apply existing texture
-	if (scene.textures.exists(src)) {
-		_backgroundImage.setTexture(src)
-		return
-	}
-
-	// Otherwise, loading a new texture from path
-	scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
-		if (_backgroundImage) _backgroundImage.setTexture(src)
-	})
-	scene.load.image(src, src)
-	scene.load.start()
-}
-
-const BackgroundStyle = {
-	Center: 'center',
-	Fill: 'fill',
-	Fit: 'fit',
-	Stretch: 'stretch',
-	Tile: 'tile'
-}
-function setBackgroundStyle(style: string) {
-	// Set the positioning style of the background image
-}
-
-/**
- * Clear the background image; remove a background image if one exists.
- */
-function clearBackgroundImage() {
-	if (!_backgroundImage) return
-	_backgroundImage.destroy()
-	_backgroundImage = undefined
-}
+// const BackgroundStyle = {
+// 	Center: 'center',
+// 	Fill: 'fill',
+// 	Fit: 'fit',
+// 	Stretch: 'stretch',
+// 	Tile: 'tile'
+// }
+// function setBackgroundStyle(style: string) {
+// 	// Set the positioning style of the background image
+// }
 
 async function setCursor(src: string) {
 	// Come back to this
@@ -879,6 +777,12 @@ class UserScene extends Scene {
 			screen = new Screen(cam)
 		}
 
+		if (background) {
+			background._reset(this, camera)
+		} else {
+			background = new Background(this, camera)
+		}
+
 		// Set poll always to allow cursors to change when pointer isn't moving
 		this.input.setPollAlways()
 		this.input.setDefaultCursor('url(cursors/default.cur), default')
@@ -957,11 +861,11 @@ class UserScene extends Scene {
 		const api = {
 			Sprite, Rectangle, Circle, Label, Line, HLine, VLine,
 			Vector2, Timer, Warning,
-			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
+			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Colors,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			print: Output.print, watch, unwatch, play, pause, setBackgroundColor, setBackgroundImage, clearBackgroundImage, Background,
+			print: Output.print, watch, unwatch, play, pause, /* setBackgroundColor, setBackgroundImage, clearBackgroundImage, */
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -992,14 +896,6 @@ class UserScene extends Scene {
 		// 	mouse.y = screen.height / 2 - this.input.activePointer.worldY
 		// }
 
-		if (_backgroundImage) {
-			const cam = this.cameras.main
-			_backgroundImage.setPosition(
-				cam.scrollX + cam.width / 2,
-				cam.scrollY + cam.height / 2
-			)
-		}
-
 		if (!paused) {
 			_runWhens()
 			_runOnKeyActions()
@@ -1011,6 +907,7 @@ class UserScene extends Scene {
 			_runEverys(clock.deltaMs)
 
 			_runPropUpdaters()
+			if (background.image) background._update()
 		}
 
 		// Runs after actions have had a chance to observe this tick's just-pressed/released
@@ -1039,7 +936,6 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_repeatWhiles = []
 	resizeReactors = []
 	allTimers = []
-	_backgroundImage = undefined
 
 	_keyPressActions.clear()
 	_keyHoldActions.clear()
