@@ -21,7 +21,33 @@ const Styles = {
 /** A background image style, see Background.Styles. */
 export type BackgroundStyle = typeof Styles[keyof typeof Styles]
 
-/** Singleton game background reference */
+/** Background setter props. */
+export type BackgroundProps = {
+    /** Color of the background. */
+    color?: string
+
+    /** Source for the background's image. */
+    image?: string
+
+    /** Size/placement style of the background image. */
+    style?: BackgroundStyle
+
+    /**
+     * Whether the background image honors camera zoom level. When this is true, the
+     * background will get larger as you zoom in and smaller as you zoom out. When
+     * it's false, the background stays the same size on screen regardless of zoom.
+     */
+    canZoom?: boolean
+
+    /**
+     * Whether the background image follows the camera. When this is true, the
+     * background will stay on the screen as the camera moves around. When it's
+     * false, the background will be stuck in place in the world.
+     */
+    followCamera?: boolean
+}
+
+/** The game background. TODO: Describe / add docs link */
 export default class Background {
     _scene: Phaser.Scene
     _cam: Camera
@@ -32,16 +58,20 @@ export default class Background {
     _baseScale: Vector2 = new Vector2(1, 1)
 
     /**
-     * Whether the background image ignores camera zoom level. When this is true,
-     * the background stays the same size regardless of zoom. When it's false, the
-     * background will get larger as you zoom in and smaller as you zoom out.
+     * Whether the background image honors camera zoom level. When this is true, the
+     * background will get larger as you zoom in and smaller as you zoom out. When
+     * it's false, the background stays the same size regardless of zoom.
+     * 
+     * _Default:_  false
      */
-    ignoreZoom: boolean = true
+    canZoom: boolean = false
 
     /**
      * Whether the background image follows the camera. When this is true, the
      * background will stay on the screen as the camera moves around. When it's
      * false, the background will be stuck in place in the world.
+     * 
+     * _Default:_  true
      */
     followCamera: boolean = true
 
@@ -56,30 +86,55 @@ export default class Background {
         this.style = this._style
     }
 
+    /** Assign new scene/cam, reset props to default. */
     _reset(scene: Phaser.Scene, cam: Camera) {
         this._scene = scene
         this._cam = cam
+
         this._color = _defaultColor
         this.color = this._color
+        this._style = this.Styles.Fill
+        this.style = this._style
         this.clearImage()
+
+        this.canZoom = false
+        this.followCamera = true
+    }
+
+    /**
+     * Set any number of background properties at once.
+     * @param props The background properties to set. Any property left out is unchanged.
+     */
+    set(props: BackgroundProps) {
+        if (props.color !== undefined) this.color = props.color
+        if (props.image !== undefined) this.image = props.image
+        if (props.style !== undefined) this.style = props.style
+        if (props.canZoom !== undefined) this.canZoom = props.canZoom
+        if (props.followCamera !== undefined) this.followCamera = props.followCamera
     }
 
     /**
      * Every available background image style, for use with Background.style. For example:
      * 
-     * Background.style = Background.Styles.Fit
+     * `Background.style = Background.Styles.Fit`
      */
     get Styles() {
         return Styles
     }
 
-    /** The background image's source, if one exists. */
+    /**
+     * The background image's source, if one exists.
+     * 
+     * _Default:_  undefined
+     */
     get image(): string | undefined {
         return this._src
     }
     /**
      * Set the background image.
      * @param src Image source to use for the background. If src is not provided, the background image is cleared instead.
+     * 
+     * _Default:_  undefined
      */
     set image(src: string | undefined | null) {
         this._src = src === null ? undefined : src
@@ -112,7 +167,11 @@ export default class Background {
         this._scene.load.start()
     }
 
-    /** Current background style */
+    /**
+     * Size/placement style of the background image.
+     * 
+     * _Default:_  'fill'
+     */
     get style(): BackgroundStyle {
         return this._style
     }
@@ -122,13 +181,19 @@ export default class Background {
         this._updateStyle()
     }
 
-    /** Background color, default is #444444. */
+    /**
+     * Color of the background.
+     * 
+     * _Default:_  #444444
+     */
     get color(): string {
         return this._color
     }
     /**
      * Set the background color.
      * @param color Color to fill the background with.
+     * 
+     * _Default:_  #444444
      */
     set color(color: string) {
         this._color = color
@@ -154,7 +219,7 @@ export default class Background {
         }
 
         this._updateStyle()
-        if (this.ignoreZoom) {
+        if (!this.canZoom) {
             // this._img.scale = this._baseScale / cam.zoom
             this._img.setScale(
                 this._baseScale.x / cam.zoom,
