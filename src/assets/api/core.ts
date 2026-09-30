@@ -25,6 +25,7 @@ import Label from '@api/Label'
 import Line from '@api/Line'
 import HLine from '@api/HLine'
 import VLine from '@api/VLine'
+import Sound from '@api/Sound'
 
 export const VERSION = '1.0'
 
@@ -719,7 +720,6 @@ class UserScene extends Scene {
 	JScode: string
 	/** Real name of the active script JScode came from, see runEntryModule. */
 	entryName: string
-	guy?: Phaser.GameObjects.Sprite
 
 	constructor(JScode: string, entryName: string) {
 		super('main')
@@ -752,11 +752,37 @@ class UserScene extends Scene {
 		// this.load.image('guy', 'assets/guy.png')
 		// this.load.image('boot', 'assets/boot.png')
 		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
+		this.load.audio('confirm', 'assets/confirmation_001.ogg')
+		this.load.audio('win', 'assets/you_win.ogg')
 	}
 	
 	async create() {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
+
+		// Testing audio
+		// this.sound.unlock()
+		const confirmSfx = this.sound.add('confirm', {
+			// delay: 50, // doesn't seem to work? maybe needs to be configured on play()
+			// detune: 1000,
+			// loop: true,
+			// mute: true,
+			// pan: -1,
+			// rate: 1,
+		})
+		const winSfx = this.sound.add('win', {
+			detune: -200
+		})
+		winSfx.on(Phaser.Sound.Events.COMPLETE, () => confirmSfx.play({ delay: 0.2 }))
+		// winSfx.play({
+		// 	delay: 0.5,
+		// 	seek: 0.4,
+		// })
+		// confirmSfx.play()
+		// after(1, () => winSfx.play())
+
+		Output.print(`Confirm dur: ${confirmSfx.duration}`)
+		Output.print(`Win dur: ${winSfx.duration}`)
 
 		if (mouse) {
 			mouse._setPointer(this.input.activePointer)
@@ -859,8 +885,7 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine,
-			Vector2, Timer, Warning,
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Colors,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
