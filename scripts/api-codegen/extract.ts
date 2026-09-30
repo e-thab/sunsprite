@@ -477,9 +477,19 @@ export interface TypeAliasBundle {
 }
 
 /**
- * Extracts one TYPE_ALIASES entry. InTypeAlias makes the checker print the
- * alias's structure rather than just its own name back (which is all a
- * plain typeToString gives for a named alias).
+ * Extracts one TYPE_ALIASES entry. An object-shaped alias (BackgroundProps)
+ * renders through extractPropsFields, exactly like a mixin's own `*Props`
+ * type: the checker path below would flatten away every field's JSDoc (it
+ * only ever prints structure) and expand `style: BackgroundStyle` back into
+ * its raw string union, losing the reference to the alias the lib already
+ * declares alongside it.
+ *
+ * Anything else goes to the checker, where InTypeAlias makes it print the
+ * alias's structure rather than just its own name back (which is all a plain
+ * typeToString gives for a named alias). Intersections deliberately stay on
+ * that path too — extractPropsFields returns only an intersection's *last*
+ * member's fields (the rest being inherited from the bases a caller splices
+ * in itself), so rendering one that way here would silently drop its bases.
  */
 export function extractTypeAlias(
     program: ts.Program,
@@ -490,11 +500,13 @@ export function extractTypeAlias(
     const alias = findTypeAlias(sourceFile, entry.name)
     if (!alias) throw new Error(`Could not find type ${entry.name} in ${entry.file}`)
 
-    const type = checker.typeToString(
-        checker.getTypeFromTypeNode(alias.type),
-        alias,
-        ts.TypeFormatFlags.InTypeAlias | ts.TypeFormatFlags.NoTruncation
-    )
+    const type = ts.isTypeLiteralNode(alias.type)
+        ? `{\n${extractPropsFields(alias).join('\n\n')}\n}`
+        : checker.typeToString(
+            checker.getTypeFromTypeNode(alias.type),
+            alias,
+            ts.TypeFormatFlags.InTypeAlias | ts.TypeFormatFlags.NoTruncation
+        )
     return { doc: formatDocBlock(extractDoc(alias), ''), type }
 }
 

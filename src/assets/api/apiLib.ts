@@ -37,7 +37,7 @@ import {
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers, backgroundMembers, backgroundStyleDeclaration,
+    randomMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
     mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
@@ -88,6 +88,7 @@ export interface VersionedApiConstants {
     randomMembers: string
     backgroundMembers: string
     backgroundStyleDeclaration: string
+    backgroundPropsDeclaration: string
     // Each class/singleton's own doc comment, straight from its source declaration.
     mouseDoc: string
     screenDoc: string
@@ -349,6 +350,8 @@ declare const keysJustPressed: Map<string, number | undefined>
 declare const keysJustReleased: Map<string, number | undefined>
 
 ${v.backgroundStyleDeclaration}
+
+${v.backgroundPropsDeclaration}
 
 ${v.backgroundDoc}declare const Background: {
 ${v.backgroundMembers}
@@ -634,7 +637,7 @@ export const apiLib = buildApiLib({
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers, backgroundMembers, backgroundStyleDeclaration,
+    randomMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
     mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,

@@ -64,13 +64,16 @@ export const SCRIPT_FAMILIES: ScriptFamily[] = [
 ]
 
 // Original js icon that has no ts match: 'ri:javascript-fill'
+// catpuccin outline-block style:
+// catppuccin:javascript
+// catppuccin:typescript
 
 // Order within a family matters: the first entry is what a script gets when
 // nothing picked a type explicitly (seeding a new project's main.*), and it
 // leads the extension order an extensionless import is probed against.
 export const SCRIPT_FILE_TYPES: ScriptFileType[] = [
-	{ id: 'javascript', family: 'javascript', extension: 'js', label: 'JavaScript', icon: 'catppuccin:javascript', monacoLanguage: 'javascript' },
-	{ id: 'typescript', family: 'javascript', extension: 'ts', label: 'TypeScript', icon: 'catppuccin:typescript', monacoLanguage: 'typescript' },
+	{ id: 'javascript', family: 'javascript', extension: 'js', label: 'JavaScript', icon: 'vscode-icons:file-type-js', monacoLanguage: 'javascript' },
+	{ id: 'typescript', family: 'javascript', extension: 'ts', label: 'TypeScript', icon: 'vscode-icons:file-type-typescript', monacoLanguage: 'typescript' },
 ]
 
 // The fallback for anything unrecognized, and what a project that has never

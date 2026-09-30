@@ -84,13 +84,24 @@ export const OBJECT_LITERALS = [
 
 /**
  * Type aliases user code needs by name because some generated member refers
- * to them (e.g. Background.style's `BackgroundStyle`). Each is emitted as a
- * standalone `declare type Name = ...` with its real type fully expanded by
- * the checker, since whatever the alias is written in terms of (here,
- * `typeof Styles[keyof typeof Styles]`) usually isn't itself part of the lib.
+ * to them (e.g. Background.style's `BackgroundStyle`, Background.set's
+ * `BackgroundProps`). Each is emitted as a standalone `declare type Name = ...`.
+ *
+ * Two shapes, both handled by extractTypeAlias: an alias written in terms of
+ * something that isn't itself part of the lib (`typeof Styles[keyof typeof
+ * Styles]`) is fully expanded by the checker, while an object-shaped one
+ * (BackgroundProps) renders its own fields verbatim, JSDoc intact — the same
+ * way a mixin's `*Props` type does.
+ *
+ * Note this is where a *setter* props type belongs, not CONCRETE_CLASSES'
+ * `typeName`: that one means "the options type this class's constructor
+ * takes", and apiLib/snapshot-api both render it as exactly that. Background
+ * is a singleton with no constructor at all, so its props type is just
+ * another alias its members refer to.
  */
 export const TYPE_ALIASES = [
     { file: apiPath('Background.ts'), name: 'BackgroundStyle' },
+    { file: apiPath('Background.ts'), name: 'BackgroundProps' },
 ] as const
 
 /**
