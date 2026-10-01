@@ -762,18 +762,18 @@ class UserScene extends Scene {
 
 		// Testing audio
 		// this.sound.unlock()
-		const confirmSfx = this.sound.add('confirm', {
-			// delay: 50, // doesn't seem to work? maybe needs to be configured on play()
-			// detune: 1000,
-			// loop: true,
-			// mute: true,
-			// pan: -1,
-			// rate: 1,
-		})
-		const winSfx = this.sound.add('win', {
-			detune: -200
-		})
-		winSfx.on(Phaser.Sound.Events.COMPLETE, () => confirmSfx.play({ delay: 0.2 }))
+		// const confirmSfx = this.sound.add('confirm', {
+		// 	// delay: 50, // doesn't seem to work? maybe needs to be configured on play()
+		// 	// detune: 1000,
+		// 	// loop: true,
+		// 	// mute: true,
+		// 	// pan: -1,
+		// 	// rate: 1,
+		// })
+		// const winSfx = this.sound.add('win', {
+		// 	detune: -200
+		// })
+		// winSfx.on(Phaser.Sound.Events.COMPLETE, () => confirmSfx.play({ delay: 0.2 }))
 		// winSfx.play({
 		// 	delay: 0.5,
 		// 	seek: 0.4,
@@ -781,8 +781,8 @@ class UserScene extends Scene {
 		// confirmSfx.play()
 		// after(1, () => winSfx.play())
 
-		Output.print(`Confirm dur: ${confirmSfx.duration}`)
-		Output.print(`Win dur: ${winSfx.duration}`)
+		// Output.print(`Confirm dur: ${confirmSfx.duration}`)
+		// Output.print(`Win dur: ${winSfx.duration}`)
 
 		if (mouse) {
 			mouse._setPointer(this.input.activePointer)
