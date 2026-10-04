@@ -138,7 +138,7 @@ export let resizeReactors: { _onResize(): void }[] = []
 
 /** Internal. All timer objects that need updating each frame */
 export let allTimers: Timer[] = []
-
+export let _engineLive: boolean = false
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0
@@ -902,6 +902,7 @@ class UserScene extends Scene {
 		}
 
 		try {
+			_engineLive = true
 			await runEntryModule(this.JScode, api, this.entryName)
 		} catch (e) {
 			reportUserError(e)
@@ -988,6 +989,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
 	
+	_engineLive = false
 	if (game) game.destroy(true)
 
 	scene = new UserScene(code, entryName)

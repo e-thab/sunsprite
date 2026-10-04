@@ -3,6 +3,7 @@ import { loadVersionedRuntime, loadDevRuntime } from '@/assets/api/versions/runt
 import { DEV_VERSION } from '@/assets/api/versions/constants'
 import { onHostMessage, postToHost } from './channel'
 import { API_VERSION_PARAM, type HostMessage } from './protocol'
+import { _engineLive } from '@/assets/api/core'
 
 // Entry point for runner.html — the document inside
 // `<iframe sandbox="allow-scripts">`. Phaser, the Sunsprite API, and every line
@@ -117,7 +118,7 @@ function watchContainerSize() {
 function startStatusReports() {
     setInterval(() => {
         const { mouse, clock, screen, camera } = core
-        if (!mouse || !clock || !screen) return
+        if (!_engineLive || !mouse || !clock || !screen || !camera) return
         postToHost({
             type: 'status',
             fps: core.currentFps(),

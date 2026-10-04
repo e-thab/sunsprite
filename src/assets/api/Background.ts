@@ -49,8 +49,11 @@ export type BackgroundProps = {
 
 /** The game background. TODO: Describe / add docs link */
 export default class Background {
+    /** Phaser Scene. */
     _scene: Phaser.Scene
+    /** API Camera (this._cam._cam for Phaser cam). */
     _cam: Camera
+    /** Internal color. */
     _color: string
     _img?: Phaser.GameObjects.Image
     _src?: string

@@ -36,9 +36,10 @@ import {
     linePropsFields, lineMembers,
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
+    soundPropsFields, soundMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
     randomMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
@@ -79,6 +80,8 @@ export interface VersionedApiConstants {
     hLineMembers: string
     vLinePropsFields: string
     vLineMembers: string
+    soundPropsFields: string
+    soundMembers: string
     cameraMembers: string
     vector2Members: string
     timerMembers: string
@@ -105,6 +108,7 @@ export interface VersionedApiConstants {
     hLineDoc: string
     labelDoc: string
     circleDoc: string
+    soundDoc: string
     foreverDeclaration: string
     repeatDeclaration: string
     repeatUntilDeclaration: string
@@ -622,6 +626,21 @@ ${v.circleDoc}class Circle {
 
 ${v.circleMembers}
 }`,
+
+// Sound
+`type SoundProps = {
+${v.soundPropsFields}
+}
+
+${v.soundDoc}class Sound {
+    /**
+     * A sound that can play an audio file.
+     * @param options The sound's initial properties.
+     */
+    constructor(options?: SoundProps)
+
+${v.soundMembers}
+}`,
     ].join('\n') + '\n}\nexport {}'
 }
 
@@ -636,9 +655,10 @@ export const apiLib = buildApiLib({
     linePropsFields, lineMembers,
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
+    soundPropsFields, soundMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
     randomMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,

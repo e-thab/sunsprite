@@ -46,6 +46,11 @@ export const CONCRETE_CLASSES = [
     { file: apiPath('Line.ts'), typeName: 'LineProps', className: 'Line', constructorParams: undefined },
     { file: apiPath('HLine.ts'), typeName: 'HLineProps', className: 'HLine', constructorParams: undefined },
     { file: apiPath('VLine.ts'), typeName: 'VLineProps', className: 'VLine', constructorParams: undefined },
+    // Not a GameObject and not a singleton: a plain class user code constructs
+    // with an options object, so it takes the same typeName path the objects
+    // above do. SoundProps has no base to intersect with, which both
+    // extractPropsFields and snapshot-api's findPropsBasePrefix already handle.
+    { file: apiPath('Sound.ts'), typeName: 'SoundProps', className: 'Sound', constructorParams: undefined },
     // Singleton/value classes below have no `*Props` options-object type, so
     // typeName is left undefined (extractConcreteClass skips the props-type
     // lookup entirely in that case). Two different real shapes hide behind
