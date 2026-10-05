@@ -1,12 +1,47 @@
 import Phaser from 'phaser'
 import { scene } from '@api/core'
 
+/* TODO:
+* Create an audio bus system. Sounds should have a `bus` property that tracks
+* which bus they belong to. All sounds belonging to that bus can be adjusted
+* using Sound.Bus(name).property. i.e. Sound.Bus('effects').volume = 50
+* 
+* A few default buses should be provided:
+*   Master, Music, Effects, UI, Environment, Dialogue
+* 
+* The master bus is a special bus containing all sounds on all other buses.
+* Defaut buses can be accessed using i.e. Sound.Bus('Music') (case-insensitive)
+* or through static providers Sound.Music, Sound.Effects, etc.
+* 
+* Custom buses can be:
+*   - Created with Sound.addBus(name)
+*   - Gotten with Sound.Bus(name)
+*/
+
+/* TODO 2:
+* - Add speed, seek, loop, duration (getter)
+* - `On` events; onFinish, onStart, maybe more
+* - Look at pitch affecting playback rate
+*/
+
 export type SoundProps = {
     /** Sound's audio source. A file path or URL. */
     src?: string
-    /** True when the sound is muted. */
+    /**
+     * True while the sound is muted. Does not check volume; this being true
+     * does not mean its volume is 0.
+     */
     muted?: boolean
-    /** Loudness of the sound in a range from 0 (quietest) to 1 (loudest). */
+    /**
+     * Loudness of the sound. The lower this is, the quieter the sound.
+     * 
+     * | Volume | Result |
+     * | ------ | ------ |
+     * | 0 | Too quiet to hear |
+     * | 0.5 | Half as loud as default |
+     * | 1 | Default volume  |
+     * | 2 | Twice as loud as default |
+     */
     volume?: number
     /**
      * Pitch of the sound in [cents.](https://en.wikipedia.org/wiki/Cent_(music))
@@ -64,11 +99,21 @@ export default class Sound {
         this._ref = scene.sound.add(src)
     }
 
-    /** Loudness of the sound in a range from 0 (quietest) to 1 (loudest). */
+    /**
+     * Loudness of the sound. The lower this is, the quieter the sound.
+     * 
+     * | Volume | Result |
+     * | ------ | ------ |
+     * | 0      | Too quiet to hear |
+     * | 0.5    | Half as loud as default |
+     * | 1      | Default volume  |
+     * | 2      | Twice as loud as default |
+     */
     get volume(): number {
         return this._volume
     }
     set volume(volume: number) {
+        volume = Math.max(0, volume)
         this._volume = volume
         this._ref.setVolume(volume)
     }
@@ -97,7 +142,10 @@ export default class Sound {
         this._ref.setDetune(pitch)
     }
 
-    /** True when the sound is muted. */
+    /**
+     * True while the sound is muted. Does not check volume; a sound being
+     * muted does not mean its volume is 0.
+     */
     get muted(): boolean {
         return this._muted
     }
@@ -111,7 +159,10 @@ export default class Sound {
         this._ref.play()
     }
 
-    /** True if the sound is currently playing. */
+    /**
+     * True while the sound is playing. False if it hasn't started yet
+     * or has finished playing.
+     */
     get playing(): boolean {
         return this._ref.isPlaying
     }
@@ -137,15 +188,18 @@ export default class Sound {
     }
 
     /**
-     * Mutes the sound. This is different from setting volume to 0 because the
-     * current volume is saved and restored on unmute().
+     * Mutes the sound so that it cannot be heard, but doesn't actually change
+     * the volume property. Unmuting will put the volume back at the same level
+     * it was before mute.
      */
     mute() {
         this.muted = true
     }
     
     /**
-     * Unmutes the sound. It may still not be audible if the volume is too low.
+     * Unmutes the sound so that it can be heard (provided the volume is high
+     * enough), but doesn't actually change the volume property. This will put
+     * the volume back at the same level it was before it was muted.
      */
     unmute() {
         this.muted = false
