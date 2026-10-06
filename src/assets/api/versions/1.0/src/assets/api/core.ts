@@ -17,6 +17,7 @@ import Timer from "./Timer"
 import Clock from "./Clock"
 import Camera from "./Camera"
 import Screen from "./Screen"
+import Background from "./Background"
 import Sprite from "./Sprite"
 import Rectangle from "./Rectangle"
 import Circle from "./Circle"
@@ -24,6 +25,7 @@ import Label from "./Label"
 import Line from "./Line"
 import HLine from "./HLine"
 import VLine from "./VLine"
+import Sound from "./Sound"
 
 export const VERSION = '1.0'
 
@@ -136,8 +138,7 @@ export let resizeReactors: { _onResize(): void }[] = []
 
 /** Internal. All timer objects that need updating each frame */
 export let allTimers: Timer[] = []
-
-let _backgroundImage: Phaser.GameObjects.Image | undefined
+export let _engineLive: boolean = false
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0
@@ -405,6 +406,8 @@ export let camera: Camera
 export let screen: Screen
 export let mouse: Mouse
 export let paused = false
+/** The game's background. */
+let background: Background
 
 /** An array of all keys currently pressed. */
 let keysPressed: string[] = []
@@ -413,81 +416,16 @@ let keysJustPressed: Map<string, number | undefined> = new Map()
 /** An array of all keys that were just released last frame. */
 let keysJustReleased: Map<string, number | undefined> = new Map()
 
-/**
- * Set the background color.
- * @param color Color to fill the background with.
- */
-export function setBackgroundColor(color: string) {
-	// Web color name support?
-	camera._cam.setBackgroundColor(color)
-}
-
-/**
- * Set the background image.
- * @param src Image source to use for the background. If src is not provided, the background image is cleared instead.
- */
-function setBackgroundImage(src: string | undefined | null, style?: string) {
-	// if (background) {
-	// 	app.stage.removeChild(background)
-	// }
-	// background.texture = await Assets.load(src)
-	// background.anchor.set(0.5)
-	// background.x = app.screen.width / 2
-	// background.y = app.screen.height / 2
-
-	// // Missing a condition? Test narrow images
-	// if (app.screen.width > app.screen.height) {
-	// 	background.width = app.screen.width
-	// } else {
-	// 	background.height = app.screen.height
-	// }
-
-	// background.zIndex = -Infinity
-	// app.stage.addChild(background)
-	if (!src) {
-		clearBackgroundImage()
-		return
-	}
-
-	// Create the background image if it doesn't already exist
-	if (!_backgroundImage) {
-		_backgroundImage = scene.add.image(camera.width / 2, camera.height / 2, '__DEFAULT')
-		_backgroundImage.setDepth(-Infinity)
-	}
-
-	// If using a key, apply existing texture
-	if (scene.textures.exists(src)) {
-		_backgroundImage.setTexture(src)
-		return
-	}
-
-	// Otherwise, loading a new texture from path
-	scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
-		if (_backgroundImage) _backgroundImage.setTexture(src)
-	})
-	scene.load.image(src, src)
-	scene.load.start()
-}
-
-const BackgroundStyle = {
-	Center: 'center',
-	Fill: 'fill',
-	Fit: 'fit',
-	Stretch: 'stretch',
-	Tile: 'tile'
-}
-function setBackgroundStyle(style: string) {
-	// Set the positioning style of the background image
-}
-
-/**
- * Clear the background image; remove a background image if one exists.
- */
-function clearBackgroundImage() {
-	if (!_backgroundImage) return
-	_backgroundImage.destroy()
-	_backgroundImage = undefined
-}
+// const BackgroundStyle = {
+// 	Center: 'center',
+// 	Fill: 'fill',
+// 	Fit: 'fit',
+// 	Stretch: 'stretch',
+// 	Tile: 'tile'
+// }
+// function setBackgroundStyle(style: string) {
+// 	// Set the positioning style of the background image
+// }
 
 async function setCursor(src: string) {
 	// Come back to this
@@ -780,9 +718,8 @@ function mouseOverCanvas() {
  */
 class UserScene extends Scene {
 	JScode: string
-	/** Real name of the active script JScode came from — see runEntryModule. */
+	/** Real name of the active script JScode came from, see runEntryModule. */
 	entryName: string
-	guy?: Phaser.GameObjects.Sprite
 
 	constructor(JScode: string, entryName: string) {
 		super('main')
@@ -815,11 +752,37 @@ class UserScene extends Scene {
 		// this.load.image('guy', 'assets/guy.png')
 		// this.load.image('boot', 'assets/boot.png')
 		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
+		this.load.audio('confirm', 'assets/confirmation_001.ogg')
+		this.load.audio('win', 'assets/you_win.ogg')
 	}
 	
 	async create() {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
+
+		// Testing audio
+		// this.sound.unlock()
+		// const confirmSfx = this.sound.add('confirm', {
+		// 	// delay: 50, // doesn't seem to work? maybe needs to be configured on play()
+		// 	// detune: 1000,
+		// 	// loop: true,
+		// 	// mute: true,
+		// 	// pan: -1,
+		// 	// rate: 1,
+		// })
+		// const winSfx = this.sound.add('win', {
+		// 	detune: -200
+		// })
+		// winSfx.on(Phaser.Sound.Events.COMPLETE, () => confirmSfx.play({ delay: 0.2 }))
+		// winSfx.play({
+		// 	delay: 0.5,
+		// 	seek: 0.4,
+		// })
+		// confirmSfx.play()
+		// after(1, () => winSfx.play())
+
+		// Output.print(`Confirm dur: ${confirmSfx.duration}`)
+		// Output.print(`Win dur: ${winSfx.duration}`)
 
 		if (mouse) {
 			mouse._setPointer(this.input.activePointer)
@@ -838,6 +801,12 @@ class UserScene extends Scene {
 			screen._setCam(cam)
 		} else {
 			screen = new Screen(cam)
+		}
+
+		if (background) {
+			background._reset(this, camera)
+		} else {
+			background = new Background(this, camera)
 		}
 
 		// Set poll always to allow cursors to change when pointer isn't moving
@@ -916,13 +885,12 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine,
-			Vector2, Timer, Warning,
-			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
+			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Colors,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			print: Output.print, watch, unwatch, play, pause, setBackgroundColor, /*setBackgroundImage, clearBackgroundImage,*/
+			print: Output.print, watch, unwatch, play, pause, /* setBackgroundColor, setBackgroundImage, clearBackgroundImage, */
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -934,6 +902,7 @@ class UserScene extends Scene {
 		}
 
 		try {
+			_engineLive = true
 			await runEntryModule(this.JScode, api, this.entryName)
 		} catch (e) {
 			reportUserError(e)
@@ -953,14 +922,6 @@ class UserScene extends Scene {
 		// 	mouse.y = screen.height / 2 - this.input.activePointer.worldY
 		// }
 
-		if (_backgroundImage) {
-			const cam = this.cameras.main
-			_backgroundImage.setPosition(
-				cam.scrollX + cam.width / 2,
-				cam.scrollY + cam.height / 2
-			)
-		}
-
 		if (!paused) {
 			_runWhens()
 			_runOnKeyActions()
@@ -972,6 +933,7 @@ class UserScene extends Scene {
 			_runEverys(clock.deltaMs)
 
 			_runPropUpdaters()
+			if (background.image) background._update()
 		}
 
 		// Runs after actions have had a chance to observe this tick's just-pressed/released
@@ -1000,7 +962,6 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_repeatWhiles = []
 	resizeReactors = []
 	allTimers = []
-	_backgroundImage = undefined
 
 	_keyPressActions.clear()
 	_keyHoldActions.clear()
@@ -1028,6 +989,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
 	
+	_engineLive = false
 	if (game) game.destroy(true)
 
 	scene = new UserScene(code, entryName)

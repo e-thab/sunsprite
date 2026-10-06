@@ -209,13 +209,13 @@ declare type RotatableProps = {
 example you may want a sprite to point along its up direction when looking at other points:
 
 this.rotationOffset = Vector2.UP.rotation */
-    rotationOffset?: number
+    rotationOffset?: number | Vector2Like
 
     /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
 example you may want a sprite to point along its up direction when looking at other points:
 
 this.radiansOffset = Vector2.UP.radians */
-    radiansOffset?: number
+    radiansOffset?: number | Vector2Like
 }`
 export const rotatableApi = `    /** Rotation angle in degrees. */
     rotation: number
@@ -227,17 +227,21 @@ export const rotatableApi = `    /** Rotation angle in degrees. */
     get direction(): Vector2
     set direction(dir: Vector2Like)
 
-    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in degrees. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.rotationOffset = Vector2.UP */
+Set degrees directly with a number: \`this.rotationOffset = 90\`
+
+Set based on a Vector2: \`this.rotationOffset = Vector2.UP\` */
     get rotationOffset(): number
     set rotationOffset(offset: number | Vector2Like)
 
-    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in radians. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.radiansOffset = Vector2.UP */
+Set radians directly with a number: \`this.radiansOffset = 90\`
+
+Set based on a Vector2: \`this.radiansOffset = Vector2.UP\` */
     get radiansOffset(): number
     set radiansOffset(offset: number | Vector2Like)
 
@@ -247,6 +251,25 @@ this.radiansOffset = Vector2.UP */
      * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
      */
     rotate(amount: number, unit?: 'radians' | 'degrees'): void`
+
+export const orientableApi = `    /**
+     * Point this object toward another.
+     * @param other The point, vector, or positionable object to look at.
+     */
+    lookAt(other: Vector2Like): void
+
+    /**
+     * Move this object along its forward direction.
+     * @param distance How far to move.
+     */
+    move(distance: number): void
+
+    /**
+     * Rotate this object around a point.
+     * @param other The point, vector, or positionable object to orbit.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    orbit(other: Vector2Like, angle: number, unit?: 'radians' | 'degrees'): void`
 
 export const viewablePropsTypeDef = `
 declare type ViewableProps = {
@@ -452,6 +475,7 @@ export const outlinableApi = `    /** Outline color. Setting this to null or und
      */
     setOutline(color?: string, width?: number, alpha?: number): void`
 
+export const spriteDoc = ``
 export const spritePropsFields = `    /** A URL path to the sprite's image. */
     src?: string`
 export const spriteMembers = `    /** How long this object has existed, in seconds (not including paused time). */
@@ -531,17 +555,21 @@ at other's position.
     get direction(): Vector2
     set direction(dir: Vector2Like)
 
-    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in degrees. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.rotationOffset = Vector2.UP */
+Set degrees directly with a number: \`this.rotationOffset = 90\`
+
+Set based on a Vector2: \`this.rotationOffset = Vector2.UP\` */
     get rotationOffset(): number
     set rotationOffset(offset: number | Vector2Like)
 
-    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in radians. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.radiansOffset = Vector2.UP */
+Set radians directly with a number: \`this.radiansOffset = 90\`
+
+Set based on a Vector2: \`this.radiansOffset = Vector2.UP\` */
     get radiansOffset(): number
     set radiansOffset(offset: number | Vector2Like)
 
@@ -595,6 +623,25 @@ this.radiansOffset = Vector2.UP */
     /** Position at the vertical center of the right edge of this object. */
     get centerRight(): Vector2
     set centerRight(centerRight: Vector2Like)
+
+    /**
+     * Point this object toward another.
+     * @param other The point, vector, or positionable object to look at.
+     */
+    lookAt(other: Vector2Like): void
+
+    /**
+     * Move this object along its forward direction.
+     * @param distance How far to move.
+     */
+    move(distance: number): void
+
+    /**
+     * Rotate this object around a point.
+     * @param other The point, vector, or positionable object to orbit.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    orbit(other: Vector2Like, angle: number, unit?: 'radians' | 'degrees'): void
 
     /** The cursor shown when the mouse is over this object. */
     get cursor(): Cursor
@@ -679,6 +726,8 @@ this.radiansOffset = Vector2.UP */
     get src(): string
     set src(keyOrPath: string | undefined | null)`
 
+export const rectangleDoc = `/** Rectangle class */
+`
 export const rectanglePropsFields = `    /** Radius of the rectangle's corners. */
     cornerRadius?: number`
 export const rectangleMembers = `    /** How long this object has existed, in seconds (not including paused time). */
@@ -758,17 +807,21 @@ at other's position.
     get direction(): Vector2
     set direction(dir: Vector2Like)
 
-    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in degrees. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.rotationOffset = Vector2.UP */
+Set degrees directly with a number: \`this.rotationOffset = 90\`
+
+Set based on a Vector2: \`this.rotationOffset = Vector2.UP\` */
     get rotationOffset(): number
     set rotationOffset(offset: number | Vector2Like)
 
-    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in radians. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.radiansOffset = Vector2.UP */
+Set radians directly with a number: \`this.radiansOffset = 90\`
+
+Set based on a Vector2: \`this.radiansOffset = Vector2.UP\` */
     get radiansOffset(): number
     set radiansOffset(offset: number | Vector2Like)
 
@@ -822,6 +875,25 @@ this.radiansOffset = Vector2.UP */
     /** Position at the vertical center of the right edge of this object. */
     get centerRight(): Vector2
     set centerRight(centerRight: Vector2Like)
+
+    /**
+     * Point this object toward another.
+     * @param other The point, vector, or positionable object to look at.
+     */
+    lookAt(other: Vector2Like): void
+
+    /**
+     * Move this object along its forward direction.
+     * @param distance How far to move.
+     */
+    move(distance: number): void
+
+    /**
+     * Rotate this object around a point.
+     * @param other The point, vector, or positionable object to orbit.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    orbit(other: Vector2Like, angle: number, unit?: 'radians' | 'degrees'): void
 
     /** The cursor shown when the mouse is over this object. */
     get cursor(): Cursor
@@ -935,6 +1007,8 @@ this.radiansOffset = Vector2.UP */
     /** Radius of the rectangle's corners. Set to 0 to remove rounding and use default sharp corners. */
     cornerRadius: number`
 
+export const circleDoc = `/** Circle class */
+`
 export const circlePropsFields = `    /** The distance from the center of the circle to the edge. */
     radius?: number`
 export const circleMembers = `    /** How long this object has existed, in seconds (not including paused time). */
@@ -1014,17 +1088,21 @@ at other's position.
     get direction(): Vector2
     set direction(dir: Vector2Like)
 
-    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in degrees. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.rotationOffset = Vector2.UP */
+Set degrees directly with a number: \`this.rotationOffset = 90\`
+
+Set based on a Vector2: \`this.rotationOffset = Vector2.UP\` */
     get rotationOffset(): number
     set rotationOffset(offset: number | Vector2Like)
 
-    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in radians. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.radiansOffset = Vector2.UP */
+Set radians directly with a number: \`this.radiansOffset = 90\`
+
+Set based on a Vector2: \`this.radiansOffset = Vector2.UP\` */
     get radiansOffset(): number
     set radiansOffset(offset: number | Vector2Like)
 
@@ -1078,6 +1156,25 @@ this.radiansOffset = Vector2.UP */
     /** Position at the vertical center of the right edge of this object. */
     get centerRight(): Vector2
     set centerRight(centerRight: Vector2Like)
+
+    /**
+     * Point this object toward another.
+     * @param other The point, vector, or positionable object to look at.
+     */
+    lookAt(other: Vector2Like): void
+
+    /**
+     * Move this object along its forward direction.
+     * @param distance How far to move.
+     */
+    move(distance: number): void
+
+    /**
+     * Rotate this object around a point.
+     * @param other The point, vector, or positionable object to orbit.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    orbit(other: Vector2Like, angle: number, unit?: 'radians' | 'degrees'): void
 
     /** The cursor shown when the mouse is over this object. */
     get cursor(): Cursor
@@ -1191,6 +1288,7 @@ this.radiansOffset = Vector2.UP */
     /** The distance from the center of the circle to the edge. */
     radius: number`
 
+export const labelDoc = ``
 export const labelPropsFields = `    /** Text content of the label. */
     text?: string | string[]
 
@@ -1279,17 +1377,21 @@ at other's position.
     get direction(): Vector2
     set direction(dir: Vector2Like)
 
-    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in degrees. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.rotationOffset = Vector2.UP */
+Set degrees directly with a number: \`this.rotationOffset = 90\`
+
+Set based on a Vector2: \`this.rotationOffset = Vector2.UP\` */
     get rotationOffset(): number
     set rotationOffset(offset: number | Vector2Like)
 
-    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in radians. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.radiansOffset = Vector2.UP */
+Set radians directly with a number: \`this.radiansOffset = 90\`
+
+Set based on a Vector2: \`this.radiansOffset = Vector2.UP\` */
     get radiansOffset(): number
     set radiansOffset(offset: number | Vector2Like)
 
@@ -1343,6 +1445,25 @@ this.radiansOffset = Vector2.UP */
     /** Position at the vertical center of the right edge of this object. */
     get centerRight(): Vector2
     set centerRight(centerRight: Vector2Like)
+
+    /**
+     * Point this object toward another.
+     * @param other The point, vector, or positionable object to look at.
+     */
+    lookAt(other: Vector2Like): void
+
+    /**
+     * Move this object along its forward direction.
+     * @param distance How far to move.
+     */
+    move(distance: number): void
+
+    /**
+     * Rotate this object around a point.
+     * @param other The point, vector, or positionable object to orbit.
+     * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+     */
+    orbit(other: Vector2Like, angle: number, unit?: 'radians' | 'degrees'): void
 
     /** The cursor shown when the mouse is over this object. */
     get cursor(): Cursor
@@ -1436,6 +1557,7 @@ this.radiansOffset = Vector2.UP */
     /** Fill color. */
     color: string`
 
+export const lineDoc = ``
 export const linePropsFields = `    /** Position of end point A. */
     pointA?: Returnable<Vector2Like>
 
@@ -1478,17 +1600,21 @@ export const lineMembers = `    /** How long this object has existed, in seconds
     get direction(): Vector2
     set direction(dir: Vector2Like)
 
-    /** Rotation offset in degrees. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in degrees. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.rotationOffset = Vector2.UP */
+Set degrees directly with a number: \`this.rotationOffset = 90\`
+
+Set based on a Vector2: \`this.rotationOffset = Vector2.UP\` */
     get rotationOffset(): number
     set rotationOffset(offset: number | Vector2Like)
 
-    /** Rotation offset in radians. Use this to change the neutral rotation of the object, for
-example you may want a sprite to point along its up direction when looking at other points:
+    /** Rotation offset in radians. Controls the neutral rotation of the object, for example you may want
+a sprite to point along its up direction when looking at other points instead of the default right.
 
-this.radiansOffset = Vector2.UP */
+Set radians directly with a number: \`this.radiansOffset = 90\`
+
+Set based on a Vector2: \`this.radiansOffset = Vector2.UP\` */
     get radiansOffset(): number
     set radiansOffset(offset: number | Vector2Like)
 
@@ -1519,6 +1645,7 @@ this.radiansOffset = Vector2.UP */
     /** Set both endpoints of the line at once. */
     setPoints(pointA: Vector2Like, pointB: Vector2Like): void`
 
+export const hLineDoc = ``
 export const hLinePropsFields = `    /** The vertical position of the line. */
     y?: number
 
@@ -1557,6 +1684,7 @@ export const hLineMembers = `    /** How long this object has existed, in second
     /** The thickness of the line. */
     thickness: number`
 
+export const vLineDoc = ``
 export const vLinePropsFields = `    /** The horizontal position of the line. */
     x?: number
 
@@ -1595,6 +1723,125 @@ export const vLineMembers = `    /** How long this object has existed, in second
     /** The thickness of the line. */
     thickness: number`
 
+export const soundDoc = `/** A sound that can play an audio file. */
+`
+export const soundPropsFields = `    /** Sound's audio source. A file path or URL. */
+    src?: string
+
+    /** True while the sound is muted. Does not check volume; this being true
+does not mean its volume is 0. */
+    muted?: boolean
+
+    /** Loudness of the sound. The lower this is, the quieter the sound.
+
+| Volume | Result |
+| ------ | ------ |
+| 0 | Too quiet to hear |
+| 0.5 | Half as loud as default |
+| 1 | Default volume  |
+| 2 | Twice as loud as default | */
+    volume?: number
+
+    /** Pitch of the sound in [cents.](https://en.wikipedia.org/wiki/Cent_(music))
+
+0 means no change in pitch, every 100 adjusts by one semitone. For example,
+if your sound is 440hz (A4):
+
+| Pitch (cents) | Hz      | Note       |
+| ------------- | ------- | ---------- |
+| -1200         | 220     | A3         |
+| -200          | 392     | G4         |
+| -100          | 415.30  | Ab4 / G#4  |
+| 0             | 440     | A4         |
+| 100           | 466.16  | A#4 / Bb4  |
+| 200           | 493.88  | B4         |
+| 1200          | 880     | A5         | */
+    pitch?: number
+
+    /** Playback speed of the sound. 1 is normal speed, 0.5 is half (takes twice as long), */
+    speed: number
+
+    /** Whether this sound automatically repeats when it's finished. */
+    loop: boolean`
+export const soundMembers = `    /** Set any number of sound properties at once. */
+    set(props?: SoundProps): void
+
+    /** Sound's audio source. A file path or URL. */
+    src: string
+
+    /** How long this sound is in seconds. */
+    readonly duration: number
+
+    /** Current playback time in seconds. Goes back to 0 when playback ends. */
+    seek: number
+
+    /** Playback rate of the sound. */
+    speed: number
+
+    /** Loudness of the sound. The lower this is, the quieter the sound.
+
+| Volume | Result |
+| ------ | ------ |
+| 0      | Too quiet to hear |
+| 0.5    | Half as loud as default |
+| 1      | Default volume  |
+| 2      | Twice as loud as default | */
+    volume: number
+
+    /** Pitch of the sound in [cents.](https://en.wikipedia.org/wiki/Cent_(music))
+
+0 means no change in pitch, every 100 adjusts by one semitone, every 1200
+by one octave. For example, if your sound is 440hz (A4):
+
+| Pitch (cents) | Hz      | Note       |
+| ------------- | ------- | ---------- |
+| -1200         | 220     | A3         |
+| -200          | 392     | G4         |
+| -100          | 415.30  | Ab4 / G#4  |
+| 0             | 440     | A4         |
+| 100           | 466.16  | A#4 / Bb4  |
+| 200           | 493.88  | B4         |
+| 1200          | 880     | A5         | */
+    pitch: number
+
+    /** True while the sound is muted. Does not check volume; a sound being
+muted does not mean its volume is 0. */
+    muted: boolean
+
+    /** Whether this sound automatically repeats when it's finished. */
+    loop: boolean
+
+    /** Play the sound until finished or stopped manually. */
+    play(): void
+
+    /** True while the sound is playing. False if it hasn't started yet
+or has finished playing. */
+    readonly playing: boolean
+
+    /** Pause the sound until stopped or resumed manually. */
+    pause(): void
+
+    /** True if the sound is currently paused. */
+    readonly paused: boolean
+
+    /** Continue playing the sound from where it was paused. */
+    resume(): void
+
+    /** Stop playing the sound and reset to the beginning. */
+    stop(): void
+
+    /** Mutes the sound so that it cannot be heard, but doesn't actually change
+the volume property. Unmuting will put the volume back at the same level
+it was before mute. */
+    mute(): void
+
+    /** Unmutes the sound so that it can be heard (provided the volume is high
+enough), but doesn't actually change the volume property. This will put
+the volume back at the same level it was before it was muted. */
+    unmute(): void`
+
+export const cameraDoc = `/** User camera reference. */
+`
 export const cameraPropsFields = ``
 export const cameraMembers = `    following?: { _refObj: any }
 
@@ -1639,6 +1886,8 @@ export const cameraMembers = `    following?: { _refObj: any }
 
     reset(): void`
 
+export const vector2Doc = `/** A 2-dimensional vector. [Click here to read the docs.](http://localhost:5173/docs/api/classes/vector2) */
+`
 export const vector2PropsFields = ``
 export const vector2Members = `    x: number
 
@@ -1647,7 +1896,7 @@ export const vector2Members = `    x: number
     /** Sets the given x and y values. */
     set(x: number, y: number): void
 
-    /** Sets both x and y to the same given value. */
+    /** Sets both x and y to the same value. */
     fill(n: number): void
 
     /** Set this vector's length to 1, keeping the same direction. */
@@ -1721,9 +1970,11 @@ above) to allow JS array literals from user code which will be inferred
 as number[] rather than [number, number]. */
     static from(xy: number[]): Vector2`
 
+export const timerDoc = `/** The timer class... TODO: DESCRIBE */
+`
 export const timerPropsFields = ``
 export const timerMembers = `    /** Time since start in milliseconds, does not increment during pause */
-    timeMs: number
+    readonly timeMs: number
 
     /** Time since start in seconds, does not increment during pause */
     readonly time: number
@@ -1735,13 +1986,13 @@ export const timerMembers = `    /** Time since start in milliseconds, does not 
     readonly age: number
 
     /** Time this run started in milliseconds since the Unix epoch */
-    startTimeMs: number
+    readonly startTimeMs: number
 
     /** Time this run started in seconds since the Unix epoch */
     readonly startTime: number
 
     /** Current time in milliseconds since the Unix epoch */
-    nowMs: number
+    readonly nowMs: number
 
     /** Current time in seconds since the Unix epoch */
     readonly now: number
@@ -1758,6 +2009,8 @@ export const timerMembers = `    /** Time since start in milliseconds, does not 
     /** Reset */
     reset(): void`
 
+export const clockDoc = `/** Game clock, a Timer that tracks elapsed game time and can't be reset. Pausing it pauses the game. */
+`
 export const clockPropsFields = ``
 export const clockMembers = `    /** Actual (but smoothed) time since last frame in milliseconds */
     deltaMs: number
@@ -1800,6 +2053,8 @@ export const clockMembers = `    /** Actual (but smoothed) time since last frame
     /** Resume the timer */
     play(): void`
 
+export const screenDoc = `/** Game screen reference. */
+`
 export const screenPropsFields = ``
 export const screenMembers = `    readonly width: number
 
@@ -1813,6 +2068,8 @@ export const screenMembers = `    readonly width: number
 
     readonly right: number`
 
+export const mouseDoc = `/** User mouse reference. */
+`
 export const mousePropsFields = ``
 export const mouseMembers = `    readonly x: number
 
@@ -1836,6 +2093,70 @@ export const mouseMembers = `    readonly x: number
 
     readonly isOnScreen: boolean`
 
+export const backgroundDoc = `/** The game background. TODO: Describe / add docs link */
+`
+export const backgroundPropsFields = ``
+export const backgroundMembers = `    /** Whether the background image honors camera zoom level. When this is true, the
+background will get larger as you zoom in and smaller as you zoom out. When
+it's false, the background stays the same size regardless of zoom.
+
+_Default:_  false */
+    canZoom: boolean
+
+    /** Whether the background image follows the camera. When this is true, the
+background will stay on the screen as the camera moves around. When it's
+false, the background will be stuck in place in the world.
+
+_Default:_  true */
+    followCamera: boolean
+
+    /**
+     * Set any number of background properties at once.
+     * @param props The background properties to set. Any property left out is unchanged.
+     */
+    set(props: BackgroundProps): void
+
+    /** Every available background image style, for use with Background.style. For example:
+
+\`Background.style = Background.Styles.Fit\` */
+    readonly Styles: {
+        /** Place image in the center at its original size, screen size does not affect image size. */
+        readonly Center: "center"
+
+        /** Size image to fill the screen, keeping its aspect ratio. */
+        readonly Fill: "fill"
+
+        /** Size image to fit within the screen, keeping its aspect ratio. */
+        readonly Fit: "fit"
+
+        /** Stretch image to match the screen's aspect ratio. */
+        readonly Stretch: "stretch"
+
+        /** Repeat the image in a grid, each cell using the original image size and aspect ratio. */
+        readonly Tile: "tile"
+    }
+
+    /** The background image's source, if one exists.
+
+_Default:_  undefined */
+    get image(): string | undefined
+    set image(src: string | undefined | null)
+
+    /** Size/placement style of the background image.
+
+_Default:_  'fill' */
+    style: BackgroundStyle
+
+    /** Color of the background.
+
+_Default:_  #444444 */
+    color: string
+
+    /** Removes the background image if one exists. */
+    clearImage(): void`
+
+export const randomDoc = `/** A collection of functions useful for generating random values. */
+`
 export const randomPropsFields = ``
 export const randomMembers = `    /** Without arguments: returns a random float of any possible value, from around -1.79 * 10^308 to
 1.79 * 10^308, the limit for 64-bit floats. That's from -179 uncentillion to 179 uncentillion.
@@ -2028,12 +2349,6 @@ export const onMouseDeclaration = `/**
  */
 declare function onMouse(actions: MouseInputAction): void`
 
-export const setBackgroundColorDeclaration = `/**
- * Set the background color.
- * @param color Color to fill the background with.
- */
-declare function setBackgroundColor(color: string): void`
-
 export const playDeclaration = `/** Resume engine processing. There is currently no practical way to use this function since it can't be processed while paused. (WIP) */
 declare function play(): void`
 
@@ -2114,3 +2429,28 @@ export const clampDeclaration = `/**
  * @param max The high end of the constraint range.
  */
 declare function clamp(value: number, min: number, max: number): number`
+
+export const backgroundStyleDeclaration = `/** A background image style, see Background.Styles. */
+declare type BackgroundStyle = "center" | "fill" | "fit" | "stretch" | "tile"`
+
+export const backgroundPropsDeclaration = `/** Background setter props. */
+declare type BackgroundProps = {
+    /** Color of the background. */
+    color?: string
+
+    /** Source for the background's image. */
+    image?: string
+
+    /** Size/placement style of the background image. */
+    style?: BackgroundStyle
+
+    /** Whether the background image honors camera zoom level. When this is true, the
+background will get larger as you zoom in and smaller as you zoom out. When
+it's false, the background stays the same size on screen regardless of zoom. */
+    canZoom?: boolean
+
+    /** Whether the background image follows the camera. When this is true, the
+background will stay on the screen as the camera moves around. When it's
+false, the background will be stuck in place in the world. */
+    followCamera?: boolean
+}`

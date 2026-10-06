@@ -9,7 +9,7 @@ export * from './Timeable'
 export * from './Alignable'
 export * from './Fillable'
 export * from './Outlinable'
-export * from "../../../../../../mixins/Orientable"
+export * from './Orientable'
 
 import { type PositionableProps } from './Positionable'
 import { type SizableProps } from './Sizable'
@@ -19,7 +19,7 @@ import { type InteractableProps } from './Interactable'
 import { type AlignableProps } from './Alignable'
 import { type FillableProps } from './Fillable'
 import { type OutlinableProps } from './Outlinable'
-import { type OrientableProps } from "../../../../../../mixins/Orientable"
+import { type OrientableProps } from './Orientable'
 
 export type AnyProps = InteractableProps | PositionableProps | RotatableProps | SizableProps | ViewableProps | AlignableProps | OrientableProps
 export type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps & AlignableProps & OrientableProps /* ...etc. */

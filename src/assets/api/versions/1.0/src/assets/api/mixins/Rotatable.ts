@@ -18,14 +18,14 @@ export type RotatableProps = {
      * 
      * this.rotationOffset = Vector2.UP.rotation
      */
-    rotationOffset?: number
+    rotationOffset?: number | Vector2Like
     /**
      * Rotation offset in radians. Use this to change the neutral rotation of the object, for
      * example you may want a sprite to point along its up direction when looking at other points:
      * 
      * this.radiansOffset = Vector2.UP.radians
      */
-    radiansOffset?: number
+    radiansOffset?: number | Vector2Like
 }
 
 export function Rotatable<Base extends Class>(base: Base) {
@@ -156,11 +156,13 @@ export function Rotatable<Base extends Class>(base: Base) {
         // }
 
         /**
-         * Rotation offset in degrees. Use this to change the neutral rotation of the object, for
-         * example you may want a sprite to point along its up direction when looking at other points:
+         * Rotation offset in degrees. Controls the neutral rotation of the object, for example you may want
+         * a sprite to point along its up direction when looking at other points instead of the default right.
          * 
-         * this.rotationOffset = Vector2.UP
-         */
+         * Set degrees directly with a number: `this.rotationOffset = 90`
+         * 
+         * Set based on a Vector2: `this.rotationOffset = Vector2.UP`
+        */
         get rotationOffset(): number {
             return this._rotationOffset
         }
@@ -174,11 +176,13 @@ export function Rotatable<Base extends Class>(base: Base) {
         }
 
         /**
-         * Rotation offset in radians. Use this to change the neutral rotation of the object, for
-         * example you may want a sprite to point along its up direction when looking at other points:
+         * Rotation offset in radians. Controls the neutral rotation of the object, for example you may want
+         * a sprite to point along its up direction when looking at other points instead of the default right.
          * 
-         * this.radiansOffset = Vector2.UP
-         */
+         * Set radians directly with a number: `this.radiansOffset = 90`
+         * 
+         * Set based on a Vector2: `this.radiansOffset = Vector2.UP`
+        */
         get radiansOffset(): number {
             return deg2rad(this._rotationOffset)
         }

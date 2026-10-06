@@ -1,3 +1,4 @@
+/** Game screen reference. */
 export default class Screen {
     _cam: Phaser.Cameras.Scene2D.Camera
 

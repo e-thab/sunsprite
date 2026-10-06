@@ -122,6 +122,7 @@ export type MouseInputAction = {
 // 	[key in MouseHoldEvent]?: Action
 // }
 
+/** User mouse reference. */
 export class Mouse {
 	_pointer: Phaser.Input.Pointer
 	// _x: number = 0
