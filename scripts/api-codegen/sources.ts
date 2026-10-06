@@ -181,6 +181,8 @@ export const SUPPORTING_API_FILES = [
     apiPath('types.ts'),
     apiPath('mixins', 'index.ts'),
     apiPath('mixins', 'shared.ts'),
+    apiPath('Shape.ts'),
+    apiPath('Warning.ts'),
 ]
 
 /**

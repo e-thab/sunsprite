@@ -2,7 +2,7 @@ import { resizeReactors, scene } from "./core"
 import type { ShapeProps } from "./mixins/index"
 import type { Optional } from "./types"
 import Phaser from 'phaser'
-import Shape from "../../../../../Shape"
+import Shape from "./Shape"
 
 type RectangleProps = ShapeProps & {
     /** Radius of the rectangle's corners. */

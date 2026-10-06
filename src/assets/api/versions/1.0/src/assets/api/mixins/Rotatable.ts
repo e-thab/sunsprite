@@ -2,7 +2,7 @@ import { atan2, deg2rad, rad2deg } from "../utility"
 import type { ReferenceObject } from "../types"
 import type { Class } from "./shared"
 import { isVector2Like, Vector2, type Vector2Like } from "../Vector2"
-import Warning from "../../../../../../Warning"
+import Warning from "../Warning"
 import Output from "../../../sandbox/output"
 
 export type RotatableProps = {

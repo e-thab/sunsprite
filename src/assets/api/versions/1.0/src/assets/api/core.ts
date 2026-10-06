@@ -10,7 +10,7 @@ import { runEntryModule, locateError } from "../../../../../moduleRunner"
 import { watch, unwatch, clearWatchCards } from "../../sandbox/watch"
 
 import Output from "../../sandbox/output"
-import Warning from "../../../../../Warning"
+import Warning from "./Warning"
 import Random from "./Random"
 import Colors from "./Colors"
 import Timer from "./Timer"

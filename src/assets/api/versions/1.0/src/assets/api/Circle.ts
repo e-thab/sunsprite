@@ -1,7 +1,7 @@
 import type { ShapeProps } from "./mixins/index"
 import { resizeReactors, scene } from "./core"
 import Phaser from 'phaser'
-import Shape from "../../../../../Shape"
+import Shape from "./Shape"
 
 function getPhaserColor(colorString: string) {
     return Phaser.Display.Color.HexStringToColor(colorString).color

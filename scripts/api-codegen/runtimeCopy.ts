@@ -59,6 +59,33 @@ export function toSpecifier(fromFile: string, toFile: string): string {
     return rel
 }
 
+/**
+ * The only real source files outside the copy set that a copied file may still
+ * import — src-relative, the same spelling mirroredPath mirrors by. Everything
+ * here is deliberate (see sources.ts's own notes on each): moduleRunner is the
+ * generic, version-agnostic script-compilation engine, channel is the host
+ * transport, and the other two are imported for their types alone.
+ *
+ * Anything *not* on this list that a copied file reaches for is the bug
+ * verifyCopySetClosed exists to catch: the rewriter leaves an import it can't
+ * find in the copy set pointing at the live original (see rewriteFile), so a
+ * file missing from runtimeCopySet() doesn't fail the snapshot — it silently
+ * welds live code into it. Shape.ts was missing exactly this way, which put
+ * the *live* mixins (and so a second, never-initialized copy of core.ts's
+ * module state) behind every frozen Rectangle and Circle.
+ *
+ * Adding an entry here is saying "this file is deliberately shared with the
+ * live app, and changing it later is allowed to change this frozen version's
+ * behavior". That's rarely what you want — the usual fix is adding the file to
+ * SUPPORTING_API_FILES instead.
+ */
+const ALLOWED_EXTERNAL_IMPORTS: ReadonlySet<string> = new Set([
+    'assets/api/moduleRunner.ts',
+    'assets/theme/themes.ts',
+    'sandbox/channel.ts',
+    'sandbox/protocol.ts',
+])
+
 interface RewriteResult {
     copiedFile: string
     content: string
@@ -126,22 +153,87 @@ export function copyAndRewriteRuntime(realFiles: string[], outDir: string): stri
 }
 
 /**
- * Two checks, together covering what actually matters — not "does the whole
+ * Asserts the copy set is closed under its own imports: every relative import
+ * in a copied file lands on another copied file, or on one of the few live
+ * files ALLOWED_EXTERNAL_IMPORTS names outright.
+ *
+ * This runs against the rewritten output rather than the real sources, so it
+ * catches a rewriter bug (a specifier pointed somewhere wrong) and a copy-set
+ * gap (a file nobody listed) with the same pass. Neither is visible to the two
+ * checks below: an escaping path is not an alias, and it type-checks perfectly
+ * — the live file it reaches is real, valid source. The damage is at runtime,
+ * where the frozen snapshot ends up sharing module instances with the live app.
+ *
+ * Only relative specifiers are examined. A bare one ('phaser') names a package
+ * and resolves the same wherever the importing file sits, and an alias
+ * specifier is already the subject of its own check. Dynamic `import()` isn't
+ * walked — nothing in the copy set uses one — so this is a guard on static
+ * imports, not a proof about every possible reference.
+ */
+function verifyCopySetClosed(copiedFiles: string[]): void {
+    const absolute = (p: string) => normalizeSlashes(path.resolve(p))
+    const copied = new Set(copiedFiles.map(absolute))
+
+    for (const file of copiedFiles) {
+        const sourceFile = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.ES2020, true, ts.ScriptKind.TS)
+
+        for (const statement of sourceFile.statements) {
+            if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) continue
+
+            const moduleSpecifier = statement.moduleSpecifier
+            if (!moduleSpecifier || !ts.isStringLiteral(moduleSpecifier)) continue
+
+            const specifier = moduleSpecifier.text
+            if (!specifier.startsWith('.')) continue
+
+            const resolved = resolveSpecifier(specifier, file)
+            if (!resolved) {
+                throw new Error(`Runtime snapshot has a dangling import: "${specifier}" in ${file} resolves to nothing.`)
+            }
+            if (copied.has(absolute(resolved))) continue
+
+            const srcRelative = normalizeSlashes(path.relative(SRC_ROOT, resolved))
+            if (ALLOWED_EXTERNAL_IMPORTS.has(srcRelative)) continue
+
+            const { line } = sourceFile.getLineAndCharacterOfPosition(moduleSpecifier.getStart(sourceFile))
+            const where = normalizeSlashes(path.relative(REPO_ROOT, file))
+            throw new Error(
+                `Runtime snapshot is not standalone: ${where}:${line + 1} imports "${specifier}", ` +
+                `which resolves to ${normalizeSlashes(path.relative(REPO_ROOT, resolved))} — a live file this snapshot didn't copy.\n` +
+                `The rewriter leaves an import it can't find in the copy set pointing at the live original, so this snapshot would ` +
+                `run partly on live code (and on a second copy of any module state that code holds).\n` +
+                `Fix: add src/${srcRelative} to SUPPORTING_API_FILES in scripts/api-codegen/sources.ts. ` +
+                `If sharing it with the live app really is intended, add "${srcRelative}" to ALLOWED_EXTERNAL_IMPORTS instead.`
+            )
+        }
+    }
+}
+
+/**
+ * Three checks, together covering what actually matters — not "does the whole
  * transitive closure resolve with zero alias support" (files outside the copy
  * set, like moduleRunner.ts, are never touched and are *expected* to keep
  * using the real project's `@/` alias; that's correct, not a bug):
  *
- * 1. Completeness: no copy-set file still contains an unrewritten alias
+ * 1. Closure: every relative import in a copied file lands inside the snapshot,
+ *    or on a live file ALLOWED_EXTERNAL_IMPORTS names on purpose — see
+ *    verifyCopySetClosed for why neither check below can see this one's failure.
+ * 2. Completeness: no copy-set file still contains an unrewritten alias
  *    specifier (`@/…`, `@api/…`) — proves the rewriter didn't miss one (the exact failure mode
  *    hit during development: a Windows path-separator mismatch silently made
  *    every copy-set-internal reference look external).
- * 2. Correctness: the copy-set files, together with whatever they legitimately
+ * 3. Correctness: the copy-set files, together with whatever they legitimately
  *    still reference outside it, actually type-check with zero errors, using
  *    this project's real resolution config (skipLibCheck: false, so — unlike
  *    the declaration snapshots — a genuinely broken reference can't hide
  *    behind that leniency).
+ *
+ * Closure runs first: it's the cheapest, and its failure explains an otherwise
+ * baffling clean type-check on a snapshot that breaks at runtime.
  */
 export function verifyStandalone(copiedFiles: string[]): void {
+    verifyCopySetClosed(copiedFiles)
+
     for (const file of copiedFiles) {
         const text = readFileSync(file, 'utf8')
         const unrewritten = unrewrittenAliasSpecifiers(text, file)
