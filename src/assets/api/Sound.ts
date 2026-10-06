@@ -10,7 +10,7 @@ import { scene } from '@api/core'
 *   Master, Music, Effects, UI, Environment, Dialogue
 * 
 * The master bus is a special bus containing all sounds on all other buses.
-* Defaut buses can be accessed using i.e. Sound.Bus('Music') (case-insensitive)
+* Default buses can be accessed using i.e. Sound.Bus('Music') (case-insensitive)
 * or through static providers Sound.Music, Sound.Effects, etc.
 * 
 * Custom buses can be:
@@ -19,9 +19,8 @@ import { scene } from '@api/core'
 */
 
 /* TODO 2:
-* - Add speed, seek, loop, duration (getter)
+* - Look into adjusting pitch/speed without affecting each other
 * - `On` events; onFinish, onStart, maybe more
-* - Look at pitch affecting playback rate
 */
 
 export type SoundProps = {
@@ -46,8 +45,8 @@ export type SoundProps = {
     /**
      * Pitch of the sound in [cents.](https://en.wikipedia.org/wiki/Cent_(music))
      * 
-     * 0 means no change in pitch, every 100 increases by one semitone. For example,
-     * if your sound is around 440hz (A4):
+     * 0 means no change in pitch, every 100 adjusts by one semitone. For example,
+     * if your sound is 440hz (A4):
      * 
      * | Pitch (cents) | Hz      | Note       |
      * | ------------- | ------- | ---------- |
@@ -60,17 +59,23 @@ export type SoundProps = {
      * | 1200          | 880     | A5         |
      */
     pitch?: number
+    /**
+     * Playback speed of the sound. 1 is normal speed, 0.5 is half (takes twice as long),
+     */
+    speed: number
+    /** Whether this sound automatically repeats when it's finished. */
+    loop: boolean
 }
 
 /** A sound that can play an audio file. */
 export default class Sound {
     _ref: Phaser.Sound.NoAudioSound | Phaser.Sound.HTML5AudioSound | Phaser.Sound.WebAudioSound
-
     _src: string
-    // muted: boolean = false
     _volume: number
     _pitch: number
+    _speed: number
     _muted: boolean
+    _loop: boolean
 
     constructor(props?: SoundProps) {
         // TODO: Check if key exists in scene (from file tree preload), otherwise load now
@@ -78,13 +83,29 @@ export default class Sound {
         this._ref = scene.sound.add(this._src)
 
         this._volume = props?.volume ?? 1
-        // this.volume = this._volume
+        this.volume = this._volume
 
         this._pitch = props?.pitch ?? 0
-        // this.pitch = this._pitch
+        this.pitch = this._pitch
 
         this._muted = props?.muted ?? false
-        // this.muted = this._muted
+        this.muted = this._muted
+
+        this._speed = props?.speed ?? 1
+        this.speed = this._speed
+
+        this._loop = props?.loop ?? false
+        this.loop = this._loop
+    }
+
+    /** Set any number of sound properties at once. */
+    set(props?: SoundProps) {
+        if (props?.src !== undefined) this.src = props.src
+        if (props?.volume !== undefined) this.volume = props.volume
+        if (props?.pitch !== undefined) this.pitch = props.pitch
+        if (props?.speed !== undefined) this.speed = props.speed
+        if (props?.muted !== undefined) this.muted = props.muted
+        if (props?.loop !== undefined) this.loop = props.loop
     }
 
     /** Sound's audio source. A file path or URL. */
@@ -97,6 +118,35 @@ export default class Sound {
 
         this._ref.destroy()
         this._ref = scene.sound.add(src)
+        this.set({
+            volume: this._volume,
+            pitch: this._pitch,
+            muted: this._muted,
+            speed: this._speed,
+            loop: this._loop,
+        })
+    }
+
+    /** How long this sound is in seconds. */
+    get duration(): number {
+        return this._ref.duration
+    }
+
+    /** Current playback time in seconds. Goes back to 0 when playback ends. */
+    get seek(): number {
+        return this._ref.seek
+    }
+    set seek(seek: number) {
+        this._ref.setSeek(seek)
+    }
+
+    /** Playback rate of the sound. */
+    get speed(): number {
+        return this._speed
+    }
+    set speed(speed: number) {
+        this._speed = speed
+        this._ref.setRate(speed)
     }
 
     /**
@@ -121,8 +171,8 @@ export default class Sound {
     /**
      * Pitch of the sound in [cents.](https://en.wikipedia.org/wiki/Cent_(music))
      * 
-     * 0 means no change in pitch, every 100 increases by one semitone. For example,
-     * if your sound is around 440hz (A4):
+     * 0 means no change in pitch, every 100 adjusts by one semitone, every 1200
+     * by one octave. For example, if your sound is 440hz (A4):
      * 
      * | Pitch (cents) | Hz      | Note       |
      * | ------------- | ------- | ---------- |
@@ -152,6 +202,15 @@ export default class Sound {
     set muted(mute: boolean) {
         this._muted = mute
         this._ref.setMute(mute)
+    }
+
+    /** Whether this sound automatically repeats when it's finished. */
+    get loop(): boolean {
+        return this._loop
+    }
+    set loop(loop: boolean) {
+        this._loop = loop
+        this._ref.setLoop(loop)
     }
 
     /** Play the sound until finished or stopped manually. */

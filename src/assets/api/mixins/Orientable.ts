@@ -1,7 +1,6 @@
 import type { Class } from "@mixins/shared"
 import { Vector2, type Vector2Like } from "@api/Vector2"
-import { atan2, cos, sin } from "../utility"
-import { print } from "@/sandbox/output"
+import { cos, sin } from "../utility"
 
 export type OrientableProps = {
     
