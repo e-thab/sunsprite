@@ -1,5 +1,5 @@
 import Output from "../../sandbox/output"
-import Warning from "../../../../../Warning"
+import Warning from "./Warning"
 import { currentLocation } from "../../../../../moduleRunner"
 import { atan2, cos, deg2rad, rad2deg, sin } from "./utility"
 
