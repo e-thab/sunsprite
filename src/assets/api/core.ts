@@ -17,6 +17,7 @@ import Timer from '@api/Timer'
 import Clock from '@api/Clock'
 import Camera from '@api/Camera'
 import Screen from '@api/Screen'
+import Background from '@api/Background'
 import Sprite from '@api/Sprite'
 import Rectangle from '@api/Rectangle'
 import Circle from '@api/Circle'
@@ -24,6 +25,7 @@ import Label from '@api/Label'
 import Line from '@api/Line'
 import HLine from '@api/HLine'
 import VLine from '@api/VLine'
+import Sound from '@api/Sound'
 
 export const VERSION = '1.0'
 
@@ -136,7 +138,7 @@ export let resizeReactors: { _onResize(): void }[] = []
 
 /** Internal. All timer objects that need updating each frame */
 export let allTimers: Timer[] = []
-
+export let _engineLive: boolean = false
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0
@@ -404,6 +406,8 @@ export let camera: Camera
 export let screen: Screen
 export let mouse: Mouse
 export let paused = false
+/** The game's background. */
+let background: Background
 
 /** An array of all keys currently pressed. */
 let keysPressed: string[] = []
@@ -412,38 +416,16 @@ let keysJustPressed: Map<string, number | undefined> = new Map()
 /** An array of all keys that were just released last frame. */
 let keysJustReleased: Map<string, number | undefined> = new Map()
 
-/**
- * Set the background color.
- * @param color Color to fill the background with.
- */
-export function setBackgroundColor(color: string) {
-	// Web color name support?
-	camera._cam.setBackgroundColor(color)
-}
-
-async function setBackgroundImage(src: string) {
-	// // if (background) {
-	// // 	app.stage.removeChild(background)
-	// // }
-	// background.texture = await Assets.load(src)
-	// background.anchor.set(0.5)
-	// background.x = app.screen.width / 2
-	// background.y = app.screen.height / 2
-
-	// // Missing a condition? Test narrow images
-	// if (app.screen.width > app.screen.height) {
-	// 	background.width = app.screen.width
-	// } else {
-	// 	background.height = app.screen.height
-	// }
-
-	// background.zIndex = -Infinity
-	// app.stage.addChild(background)
-}
-
-function clearBackgroundImage() {
-
-}
+// const BackgroundStyle = {
+// 	Center: 'center',
+// 	Fill: 'fill',
+// 	Fit: 'fit',
+// 	Stretch: 'stretch',
+// 	Tile: 'tile'
+// }
+// function setBackgroundStyle(style: string) {
+// 	// Set the positioning style of the background image
+// }
 
 async function setCursor(src: string) {
 	// Come back to this
@@ -736,9 +718,8 @@ function mouseOverCanvas() {
  */
 class UserScene extends Scene {
 	JScode: string
-	/** Real name of the active script JScode came from — see runEntryModule. */
+	/** Real name of the active script JScode came from, see runEntryModule. */
 	entryName: string
-	guy?: Phaser.GameObjects.Sprite
 
 	constructor(JScode: string, entryName: string) {
 		super('main')
@@ -771,11 +752,37 @@ class UserScene extends Scene {
 		// this.load.image('guy', 'assets/guy.png')
 		// this.load.image('boot', 'assets/boot.png')
 		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
+		this.load.audio('confirm', 'assets/confirmation_001.ogg')
+		this.load.audio('win', 'assets/you_win.ogg')
 	}
 	
 	async create() {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
+
+		// Testing audio
+		// this.sound.unlock()
+		// const confirmSfx = this.sound.add('confirm', {
+		// 	// delay: 50, // doesn't seem to work? maybe needs to be configured on play()
+		// 	// detune: 1000,
+		// 	// loop: true,
+		// 	// mute: true,
+		// 	// pan: -1,
+		// 	// rate: 1,
+		// })
+		// const winSfx = this.sound.add('win', {
+		// 	detune: -200
+		// })
+		// winSfx.on(Phaser.Sound.Events.COMPLETE, () => confirmSfx.play({ delay: 0.2 }))
+		// winSfx.play({
+		// 	delay: 0.5,
+		// 	seek: 0.4,
+		// })
+		// confirmSfx.play()
+		// after(1, () => winSfx.play())
+
+		// Output.print(`Confirm dur: ${confirmSfx.duration}`)
+		// Output.print(`Win dur: ${winSfx.duration}`)
 
 		if (mouse) {
 			mouse._setPointer(this.input.activePointer)
@@ -794,6 +801,12 @@ class UserScene extends Scene {
 			screen._setCam(cam)
 		} else {
 			screen = new Screen(cam)
+		}
+
+		if (background) {
+			background._reset(this, camera)
+		} else {
+			background = new Background(this, camera)
 		}
 
 		// Set poll always to allow cursors to change when pointer isn't moving
@@ -869,19 +882,15 @@ class UserScene extends Scene {
 			this.input.emit(PointerEvents.POINTER_MOVE, mouse.x, mouse.y)
 		})
 
-		// At the moment, moving camera doesn't actually render the new area; sprites will get sliced
-		// in half when up against the previous screen edge
-
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine,
-			Vector2, Timer, Warning,
-			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Colors,
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
+			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Colors,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
-			print: Output.print, watch, unwatch, play, pause, setBackgroundColor,
+			print: Output.print, watch, unwatch, play, pause, /* setBackgroundColor, setBackgroundImage, clearBackgroundImage, */
 			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
@@ -892,49 +901,8 @@ class UserScene extends Scene {
 			PI: Math.PI,
 		}
 
-		// Trying some ways to get error line/col within user script from stack trace
-		// function tryCompileDynamicCode(codeBody) {
-		// 	try {
-		// 		// If syntax is perfect, this compiles smoothly
-		// 		return new Function(this.JScode);
-		// 	} catch (syntaxError) {
-		// 		if (syntaxError instanceof SyntaxError) {
-		// 		console.error("❌ Construction Syntax Error caught!");
-				
-		// 		// Some engines provide the raw offset line directly inside syntaxError.lineNumber
-		// 		// If missing, we read the error stack line or fall back to checking line-by-line
-		// 		console.error(`Message: ${syntaxError.message}`);
-		// 		console.error(`Stack trace details:\n`, syntaxError.stack);
-		// 		}
-		// 		throw syntaxError;
-		// 	}
-		// }
-
-		// // Example: Missing closing parenthesis on line 2
-		// tryCompileDynamicCode(`
-		// 	console.log("Starting..." 
-		// 	const val = 100;
-		// `);
-
-		// const fn = new Function(
-		// 	...keys,
-		// 	`
-		// 	return async function userScript() {
-		// 		// try {
-		// 			${this.JScode}
-		// 		// } catch (e) {
-		// 		// 	// console.log(e.stack)
-		// 		// 	throw new Error(e.message)
-		// 		// }
-		// 	}
-		// 	`
-		// )
-		
-		// const factory = new Function(codeString)
-		// const run = fn(...values)
-		
-		// Another problem post-phaser: user code errors prevent reloading of the game sometimes?
 		try {
+			_engineLive = true
 			await runEntryModule(this.JScode, api, this.entryName)
 		} catch (e) {
 			reportUserError(e)
@@ -947,12 +915,12 @@ class UserScene extends Scene {
 		_updateTimers()
 
 		// Only update mouse pos while mouse is over canvas, otherwise clicking code editor updates
-		if (mouseOverCanvas()) {
-			// mouse.x = clamp(this.input.activePointer.worldX - screen.width / 2, screen.left, screen.right)
-			// mouse.y = clamp(screen.height / 2 - this.input.activePointer.worldY, screen.bottom, screen.top)
-			// mouse.x = this.input.activePointer.worldX - screen.width / 2
-			// mouse.y = screen.height / 2 - this.input.activePointer.worldY
-		}
+		// if (mouseOverCanvas()) {
+		// 	mouse.x = clamp(this.input.activePointer.worldX - screen.width / 2, screen.left, screen.right)
+		// 	mouse.y = clamp(screen.height / 2 - this.input.activePointer.worldY, screen.bottom, screen.top)
+		// 	mouse.x = this.input.activePointer.worldX - screen.width / 2
+		// 	mouse.y = screen.height / 2 - this.input.activePointer.worldY
+		// }
 
 		if (!paused) {
 			_runWhens()
@@ -965,6 +933,7 @@ class UserScene extends Scene {
 			_runEverys(clock.deltaMs)
 
 			_runPropUpdaters()
+			if (background.image) background._update()
 		}
 
 		// Runs after actions have had a chance to observe this tick's just-pressed/released
@@ -1020,6 +989,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
 	
+	_engineLive = false
 	if (game) game.destroy(true)
 
 	scene = new UserScene(code, entryName)

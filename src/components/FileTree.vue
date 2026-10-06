@@ -155,6 +155,21 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			typeLabel: imageFileTypeForExtension(splitFileName(node.name).extension)?.label,
 		}
 	}
+	if (node.kind === 'libraryImage') {
+		// Same shape as an uploaded image — thumbnail/path are what EditorView's
+		// preview and the "Copy image URL" action read — just pointed at the
+		// Library asset instead of an R2 object. No size: a link stores nothing,
+		// so the trailing slot shows the library chip in its place.
+		return {
+			label: node.name,
+			kind: 'libraryImage',
+			id: node.id,
+			parentId,
+			thumbnail: node.libraryPath,
+			path: node.libraryPath,
+			typeLabel: imageFileTypeForExtension(splitFileName(node.name).extension)?.label,
+		}
+	}
 	if (node.kind === 'text') {
 		return {
 			label: node.name,
@@ -234,7 +249,7 @@ function itemStateClass(item: TreeItem): string | undefined {
 // better here than a 4-way ternary once 'text' joins 'folder'/'image'/'script'.
 function kindLabel(item: TreeItem): string {
 	if (item.kind === 'folder') return 'folder'
-	if (item.kind === 'image') return 'image'
+	if (item.kind === 'image' || item.kind === 'libraryImage') return 'image'
 	if (item.kind === 'text') return 'text file'
 	return 'script'
 }
@@ -339,7 +354,7 @@ function uploadFile(folderId: string | null) {
 		// called (see imageDisplayName) — is what has to be unique, not file.name.
 		const name = imageDisplayName(file)
 		if (!checkNameLength(splitFileName(name).base)) return
-		if (fileStore.images.some((img) => img.name === name)) {
+		if (fileStore.isImageNameTaken(name)) {
 			window.alert('A file with that name already exists in this project.')
 			return
 		}
@@ -473,7 +488,7 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 		primary.push({ label: 'Run script', icon: 'tabler:player-play-filled', onSelect: () => emit('runScript', scriptName(item)) })
 	}
 	if (item.kind === 'folder') primary.push(...folderMenuItems(item.id))
-	if (item.kind === 'image' && item.path) {
+	if ((item.kind === 'image' || item.kind === 'libraryImage') && item.path) {
 		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyImageUrl(item.path) })
 	}
 	if (item.kind === 'script') {
@@ -487,7 +502,12 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 	// The canonical entry script can be renamed (that stays a legitimate
 	// reorganization) but never deleted from here — nothing else guarantees
 	// a project always has one, and Restart depends on it existing.
-	if (!(item.kind === 'script' && isMainScript(scriptName(item)))) {
+	//
+	// A library image only ever loses its link (the asset stays in the
+	// Library), so it reads as "Remove" rather than "Delete".
+	if (item.kind === 'libraryImage') {
+		groups.push([{ label: `Remove ${kindLabel(item)}`, icon: 'tabler:link-off', color: 'error', onSelect: () => deleteItem(item) }])
+	} else if (!(item.kind === 'script' && isMainScript(scriptName(item)))) {
 		groups.push([{ label: `Delete ${kindLabel(item)}`, icon: 'tabler:trash-filled', color: 'error', onSelect: () => deleteItem(item) }])
 	}
 
@@ -684,15 +704,18 @@ async function renameFolder(id: string, currentName: string, parentId: string | 
 	await fileStore.renameFolder(id, name)
 }
 
-async function renameImage(id: string, currentName: string, name: string) {
-	if (!name || name === currentName) return
+// Covers library links too — they share one namespace with uploads (see
+// fileStore.isImageNameTaken), and only differ in which table gets written.
+async function renameImage(item: TreeItem, name: string) {
+	if (!name || name === scriptName(item)) return
 
-	if (fileStore.images.some((img) => img.id !== id && img.name === name)) {
+	if (fileStore.isImageNameTaken(name, item.id)) {
 		window.alert('A file with that name already exists in this project.')
 		return
 	}
 
-	await fileStore.renameImage(id, name)
+	if (item.kind === 'libraryImage') await fileStore.renameLibraryImage(item.id, name)
+	else await fileStore.renameImage(item.id, name)
 }
 
 async function renameTextFile(id: string, currentName: string, name: string) {
@@ -731,7 +754,7 @@ function commitRename(item: TreeItem) {
 	// The extension itself was never part of renamingValue (see startRename),
 	// so it's re-attached here rather than trusted from what was typed.
 	const name = joinFileName(typed, fileExtension(item))
-	if (item.kind === 'image') renameImage(item.id, scriptName(item), name)
+	if (item.kind === 'image' || item.kind === 'libraryImage') renameImage(item, name)
 	else if (item.kind === 'text') renameTextFile(item.id, scriptName(item), name)
 	else renameScript(scriptName(item), name)
 }
@@ -803,9 +826,20 @@ async function deleteTextFile(id: string, name: string) {
 	}
 }
 
+// No confirm, unlike every delete above: nothing is lost — the same asset can
+// be added back from the Library in one click.
+async function removeLibraryImage(id: string) {
+	try {
+		await fileStore.removeLibraryImage(id)
+	} catch (err) {
+		window.alert(err instanceof Error ? err.message : 'Failed to remove image')
+	}
+}
+
 function deleteItem(item: TreeItem) {
 	if (item.kind === 'folder') return deleteFolder(item.id, scriptName(item))
 	if (item.kind === 'image') return deleteImage(item.id, scriptName(item))
+	if (item.kind === 'libraryImage') return removeLibraryImage(item.id)
 	if (item.kind === 'text') return deleteTextFile(item.id, scriptName(item))
 	return deleteScript(scriptName(item))
 }
@@ -829,7 +863,7 @@ function deleteItem(item: TreeItem) {
 // children at that index, so the projected drop location reads as a real,
 // highlighted empty slot rather than just a highlighted existing row.
 
-type DraggedNode = { id: string, kind: 'folder' | 'script' | 'image' | 'text' }
+type DraggedNode = { id: string, kind: 'folder' | 'script' | 'image' | 'libraryImage' | 'text' }
 type DropTarget = { folderId: string | null, index: number }
 
 const draggedNode = ref<DraggedNode | null>(null)
@@ -837,12 +871,13 @@ const dragOverId = ref<string | null>(null)
 const dropTarget = ref<DropTarget | null>(null)
 
 function isDraggable(item: TreeItem): boolean {
-	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image' || item.kind === 'text'
+	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image' || item.kind === 'libraryImage' || item.kind === 'text'
 }
 
 async function moveDraggedTo(dragged: DraggedNode, folderId: string | null, position: number) {
 	if (dragged.kind === 'folder') await fileStore.moveFolder(dragged.id, folderId, position)
 	else if (dragged.kind === 'image') await fileStore.moveImage(dragged.id, folderId, position)
+	else if (dragged.kind === 'libraryImage') await fileStore.moveLibraryImage(dragged.id, folderId, position)
 	else if (dragged.kind === 'text') await fileStore.moveTextFile(dragged.id, folderId, position)
 	else await fileStore.moveScript(dragged.id, folderId, position)
 }
@@ -1091,7 +1126,13 @@ async function onDropOnRoot() {
 							     shown the same way regardless, since the
 							     distinction doesn't matter for what this column
 							     is answering ("where is my space going"). -->
-							<span class="item-size" :title="`${(item.size ?? 0).toLocaleString()} bytes`">{{ formatBytes(item.size ?? 0) }}</span>
+							<!-- A library link has no size of its own (it stores
+							     nothing — see buildNode), so its chip takes the
+							     size column's place instead of a meaningless "0 B". -->
+							<span v-if="item.kind === 'libraryImage'" class="library-chip" title="Linked from the Library. Doesn't use project storage">
+								<UIcon name="tabler:link" class="library-chip-icon" /><div class="library-label">Library</div>
+							</span>
+							<span v-else class="item-size" :title="`${(item.size ?? 0).toLocaleString()} bytes`">{{ formatBytes(item.size ?? 0) }}</span>
 							<div class="item-actions" @contextmenu="forwardRowContextMenu($event, item)">
 								<UDropdownMenu
 									:items="itemMenuItems(item)"
@@ -1342,6 +1383,31 @@ async function onDropOnRoot() {
 	font-size: 0.75em;
 	color: var(--theme-text-toned);
 	white-space: nowrap;
+}
+
+/* Marks a library link. Unlike .item-size it doesn't shrink away as the row
+   narrows — it's the only thing distinguishing the row from an upload. */
+.library-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25em;
+	flex-shrink: 0;
+	padding: 0.1em 0.45em;
+	font-size: 0.7em;
+	white-space: nowrap;
+	color: var(--theme-primary);
+	border: 1px solid var(--theme-primary);
+	border-radius: 0.4em;
+}
+
+.library-chip-icon {
+	width: 1.15em;
+	height: 1.15em;
+	color: var(--theme-primary);
+}
+
+.library-label {
+	transform: translateY(-1px);
 }
 
 /* Nuxt UI only gives this element `truncate` (overflow-hidden + text-

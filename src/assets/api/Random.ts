@@ -135,6 +135,14 @@ const Random = {
     },
 
     /**
+     * Returns a normalized vector pointed in a random direction.
+     */
+    direction(): Vector2 {
+        const theta = this.radians()
+        return Vector2.from(Math.cos(theta), Math.sin(theta))
+    },
+
+    /**
      * Returns a random position within the currently visible area.
      */
     position(): Vector2 {

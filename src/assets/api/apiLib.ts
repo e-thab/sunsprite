@@ -27,7 +27,8 @@
 // export default api
 import {
     positionableApi,
-    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef,
+    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
+    fillablePropsTypeDef, outlinablePropsTypeDef,
     spritePropsFields, spriteMembers,
     rectanglePropsFields, rectangleMembers,
     circlePropsFields, circleMembers,
@@ -35,17 +36,18 @@ import {
     linePropsFields, lineMembers,
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
+    soundPropsFields, soundMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers,
+    randomMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
-    setBackgroundColorDeclaration, pauseDeclaration, playDeclaration, printDeclaration,
+    pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
     deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
 } from "./generated/apiDeclarations.generated"
-import Colors from './Colors'
 
 /**
  * The subset of apiLib's content that varies by API version — everything
@@ -61,6 +63,9 @@ export interface VersionedApiConstants {
     rotatablePropsTypeDef: string
     viewablePropsTypeDef: string
     interactablePropsTypeDef: string
+    alignablePropsTypeDef: string
+    fillablePropsTypeDef: string
+    outlinablePropsTypeDef: string
     spritePropsFields: string
     spriteMembers: string
     rectanglePropsFields: string
@@ -75,6 +80,8 @@ export interface VersionedApiConstants {
     hLineMembers: string
     vLinePropsFields: string
     vLineMembers: string
+    soundPropsFields: string
+    soundMembers: string
     cameraMembers: string
     vector2Members: string
     timerMembers: string
@@ -82,6 +89,26 @@ export interface VersionedApiConstants {
     screenMembers: string
     mouseMembers: string
     randomMembers: string
+    backgroundMembers: string
+    backgroundStyleDeclaration: string
+    backgroundPropsDeclaration: string
+    // Each class/singleton's own doc comment, straight from its source declaration.
+    mouseDoc: string
+    screenDoc: string
+    clockDoc: string
+    cameraDoc: string
+    backgroundDoc: string
+    randomDoc: string
+    timerDoc: string
+    vector2Doc: string
+    spriteDoc: string
+    rectangleDoc: string
+    lineDoc: string
+    vLineDoc: string
+    hLineDoc: string
+    labelDoc: string
+    circleDoc: string
+    soundDoc: string
     foreverDeclaration: string
     repeatDeclaration: string
     repeatUntilDeclaration: string
@@ -96,7 +123,6 @@ export interface VersionedApiConstants {
     onKeyReleaseDeclaration: string
     onKeyHoldDeclaration: string
     onMouseDeclaration: string
-    setBackgroundColorDeclaration: string
     pauseDeclaration: string
     playDeclaration: string
     printDeclaration: string
@@ -116,16 +142,28 @@ export interface VersionedApiConstants {
 
 // TODO: Fix all this vvv, model and lib should probably just stay the same for now
 
+// Colors is deliberately declared as an index signature rather than the
+// `declare enum Colors { AliceBlue = "#f0f8ff", ... }` this used to emit.
+//
+// The enum's members were TypeScript's to complete, and Monaco's TypeScript
+// worker can only ever label them Property — its convertKind never emits
+// CompletionItemKind.Color, which is what makes the suggest widget draw a
+// color swatch. Handing the member list to our own provider (see
+// monaco-colors.ts) is the only way to get swatches, and an index signature is
+// what stops TypeScript offering the same names alongside ours: Monaco
+// de-duplicates nothing between providers, so both lists would show — every
+// color twice.
+//
+// Nothing downstream is weakened by the looser type: no API surface takes a
+// Colors value, every color property is a plain `string`. The one thing the
+// enum did give — an error on a misspelt name — is reinstated as a marker in
+// monaco-colors.ts. Put the enum back and the duplicate rows come back too.
 /** 
  * Added to the editor as a model, allows viewing definitions and better ts
  * support, but can't have direct const declarations. User-facing.
  */
 export const apiModel = `
-declare enum Colors ${
-    // Enums are stringified as if they're regular objects, so this needs conversion
-    JSON.stringify(Colors, null, 2) // Convert to pretty string with newlines & tabs
-    .replace(/"([^"]+)":/g, '$1 =') // Unquote keys and replace colons with =
-}
+declare const Colors: { readonly [name: string]: string }
 `
 
 /**
@@ -156,7 +194,11 @@ ${v.sizablePropsTypeDef}
 ${v.rotatablePropsTypeDef}
 ${v.viewablePropsTypeDef}
 ${v.interactablePropsTypeDef}
-type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps
+${v.alignablePropsTypeDef}
+${v.fillablePropsTypeDef ?? `declare type FillableProps = {}`}
+${v.outlinablePropsTypeDef ?? `declare type OutlinableProps = {}`}
+type GameObjectProps = PositionableProps & SizableProps & RotatableProps & InteractableProps & ViewableProps & AlignableProps
+type ShapeProps = GameObjectProps & FillableProps & OutlinableProps
 `,
 
 // Types (hand-written — not derived from source, see mixin/class-derived block above)
@@ -212,6 +254,34 @@ type PointArg = Point | ArrayPoint
 /** A Vector2-interpretable value: either an { x, y } object or a [x, y] array. */
 type Vector2Like = { x: number, y: number } | [number, number]
 
+/**
+ * Any of the nine anchor points on an object, in either the canonical
+ * all-lowercase spelling ('topleft') or the camelCase spelling of the property
+ * naming the same point ('topLeft'). Hand-written copy of Alignable.ts's
+ * AnchorPoint — widen both together.
+ */
+type AnchorPoint =
+    | 'topleft'
+    | 'topcenter'
+    | 'topright'
+    | 'centerleft'
+    | 'center'
+    | 'centerright'
+    | 'bottomleft'
+    | 'bottomcenter'
+    | 'bottomright'
+    | 'topLeft'
+    | 'topCenter'
+    | 'topRight'
+    | 'centerLeft'
+    | 'centerRight'
+    | 'bottomLeft'
+    | 'bottomCenter'
+    | 'bottomRight'
+
+/** An object with enough geometry to resolve anchor points on. */
+type AlignableLike = { x: number, y: number, width: number, height: number }
+
 type Action = (...args: any[]) => void
 type Predicate = (...args: any[]) => boolean
 
@@ -240,41 +310,29 @@ type KeyAction = {
 
 // Core
 `
-/**
- * User mouse reference.
- */
-declare const Mouse: {
+${v.mouseDoc}declare const Mouse: {
 ${v.mouseMembers}
 }
 
-/**
- * Game screen reference.
- */
-declare const Screen: {
+${v.screenDoc}declare const Screen: {
 ${v.screenMembers}
 }
 
-class Timer {
+${v.timerDoc}class Timer {
     constructor()
 
 ${v.timerMembers}
 }
 
-/**
- * Game clock, derived largely from Timer but with some key differences.
- */
-declare const Clock: {
+${v.clockDoc}declare const Clock: {
 ${v.clockMembers}
 }
 
-/**
- * User camera reference.
- */
-declare const Camera: {
+${v.cameraDoc}declare const Camera: {
 ${v.cameraMembers}
 }
 
-class Vector2 {
+${v.vector2Doc}class Vector2 {
     constructor(x: number, y: number)
 
 ${v.vector2Members}
@@ -295,7 +353,13 @@ declare const keysJustPressed: Map<string, number | undefined>
  */
 declare const keysJustReleased: Map<string, number | undefined>
 
-${v.setBackgroundColorDeclaration}
+${v.backgroundStyleDeclaration}
+
+${v.backgroundPropsDeclaration}
+
+${v.backgroundDoc}declare const Background: {
+${v.backgroundMembers}
+}
 
 ${v.foreverDeclaration}
 
@@ -352,10 +416,7 @@ declare const console: {
 
 // Utilities
 `
-/**
- * A collection of functions useful for generating random values.
- */
-declare const Random: {
+${v.randomDoc}declare const Random: {
 ${v.randomMembers}
 }
 
@@ -461,7 +522,7 @@ type SpriteProps = GameObjectProps & {
 ${v.spritePropsFields}
 }
 
-class Sprite {
+${v.spriteDoc}class Sprite {
     /**
      * The Sprite class. TODO: describe
      * @param options TODO: describe
@@ -473,11 +534,11 @@ ${v.spriteMembers}
 
 // Rectangle
 `
-type RectangleProps = GameObjectProps & {
+type RectangleProps = ShapeProps & {
 ${v.rectanglePropsFields}
 }
 
-class Rectangle {
+${v.rectangleDoc}class Rectangle {
     /**
      * The Rectangle class. TODO: describe
      * @param options TODO: describe
@@ -496,7 +557,7 @@ ${v.rectangleMembers}
 ${v.linePropsFields}
 }
 
-class Line {
+${v.lineDoc}class Line {
     /**
      * A straight line from point A to point B.
      * @param options TODO: describe
@@ -511,7 +572,7 @@ ${v.lineMembers}
 ${v.vLinePropsFields}
 }
 
-class VLine {
+${v.vLineDoc}class VLine {
     /**
      * A straight, infinitely long vertical line.
      * @param options TODO: describe
@@ -526,7 +587,7 @@ ${v.vLineMembers}
 ${v.hLinePropsFields}
 }
 
-class HLine {
+${v.hLineDoc}class HLine {
     /**
      * A straight, infinitely long horizontal line.
      * @param options TODO: describe
@@ -541,7 +602,7 @@ ${v.hLineMembers}
 ${v.labelPropsFields}
 }
 
-class Label {
+${v.labelDoc}class Label {
     /**
      * An object that displays text. TODO: describe (better)
      * @param options TODO: describe
@@ -552,11 +613,11 @@ ${v.labelMembers}
 }`,
 
 // Circle
-`type CircleProps = GameObjectProps & {
+`type CircleProps = ShapeProps & {
 ${v.circlePropsFields}
 }
 
-class Circle {
+${v.circleDoc}class Circle {
     /**
      * A basic circle shape. TODO: describe (better)
      * @param options TODO: describe
@@ -565,12 +626,28 @@ class Circle {
 
 ${v.circleMembers}
 }`,
+
+// Sound
+`type SoundProps = {
+${v.soundPropsFields}
+}
+
+${v.soundDoc}class Sound {
+    /**
+     * A sound that can play an audio file.
+     * @param options The sound's initial properties.
+     */
+    constructor(options?: SoundProps)
+
+${v.soundMembers}
+}`,
     ].join('\n') + '\n}\nexport {}'
 }
 
 export const apiLib = buildApiLib({
     positionableApi,
-    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef,
+    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
+    fillablePropsTypeDef, outlinablePropsTypeDef,
     spritePropsFields, spriteMembers,
     rectanglePropsFields, rectangleMembers,
     circlePropsFields, circleMembers,
@@ -578,13 +655,15 @@ export const apiLib = buildApiLib({
     linePropsFields, lineMembers,
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
+    soundPropsFields, soundMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers,
+    randomMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
-    setBackgroundColorDeclaration, pauseDeclaration, playDeclaration, printDeclaration,
+    pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
     deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
 })

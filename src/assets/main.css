@@ -37,6 +37,45 @@ body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
   }
 }
 
+/*
+  Gutters for markdown tables in API doc comments (e.g. Sound.pitch's cents
+  table). Monaco's markdown renderer emits real table/thead/tr/th/td — they're
+  all on its sanitizer allowlist (base/browser/domSanitize.js) — but it ships
+  no CSS for any of them, so cells land on the browser default of zero padding
+  and the columns run together. Nothing in the comment itself can fix that:
+  .docs.markdown-docs resets white-space to `initial`, so runs of spaces (or
+  spacer columns) collapse the way they do in any markdown.
+
+  Both surfaces that show these docs are covered: the suggest widget's details
+  pane, and the hover widget — which is matched on .monaco-hover alone rather
+  than under .monaco-editor, because it's reparented to a
+  .workbench-hover-container on <body> (see the rule above).
+*/
+.monaco-editor .suggest-details .markdown-docs table,
+.monaco-hover table {
+  border-collapse: collapse;
+  margin: 5px 0 5px 10px;
+}
+
+.monaco-editor .suggest-details .markdown-docs th,
+.monaco-editor .suggest-details .markdown-docs td,
+.monaco-hover th,
+.monaco-hover td {
+  padding: 0 1em 0 0;
+  vertical-align: top;
+}
+
+/*
+  `th` defaults to center, which reads badly against left-aligned body cells.
+  Excluding [align] leaves GFM's own column alignment (`|---:|` emits
+  align="right", an allowed attribute) in charge where a table asks for it —
+  an unconditional text-align here would beat that presentational attribute.
+*/
+.monaco-editor .suggest-details .markdown-docs th:not([align]),
+.monaco-hover th:not([align]) {
+  text-align: left;
+}
+
 .panel-wrapper {
   display: flex;
   flex-direction: column;

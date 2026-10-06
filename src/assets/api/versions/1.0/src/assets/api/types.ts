@@ -33,8 +33,10 @@ export type ReferenceObject =
 	| Phaser.GameObjects.Line
 	| Phaser.GameObjects.Rectangle
 	| Phaser.GameObjects.Sprite
-	| Phaser.GameObjects.Graphics
-	| any // TEMP, 
+	// | Phaser.GameObjects.Graphics
+	| Phaser.GameObjects.Rectangle
+	| Phaser.GameObjects.Arc
+	| any
 
 export interface Touchable {
 	left: number
@@ -120,6 +122,7 @@ export type MouseInputAction = {
 // 	[key in MouseHoldEvent]?: Action
 // }
 
+/** User mouse reference. */
 export class Mouse {
 	_pointer: Phaser.Input.Pointer
 	// _x: number = 0

@@ -1,35 +1,32 @@
-import GameObject from "@api/GameObject"
-import type { GameObjectProps } from "./mixins"
 import { resizeReactors, scene } from "@api/core"
+import type { ShapeProps } from "./mixins"
+import type { Optional } from "./types"
 import Phaser from 'phaser'
+import Shape from "./Shape"
 
-/**
- * Rectangle class, using position setters from that one WoofJS project
- */
-
-type RectangleProps = GameObjectProps & {
-    /** The fill color. */
-    color?: string
-    // outlineColor?: string
+type RectangleProps = ShapeProps & {
+    /** Radius of the rectangle's corners. */
+    cornerRadius?: number
 }
 
-export default class Rectangle extends GameObject {
+/**
+ * Rectangle class
+ */
+export default class Rectangle extends Shape {
     readonly _rect: Phaser.GameObjects.Rectangle
-    _color: string
 
 	// What should happen when supplying contradictory size/place properties?
 	// Just pick one to overwrite and push a warning to the output panel?
+
+    // TODO: Look into the weird paths created when assigning an outline to a rect with rounded corners
 	constructor(props?: RectangleProps) {
         super()
 
         const rect = scene.add.rectangle() // Phaser Rectangle
         this._refObj = rect // Reference to Phaser object used in mixins
         this._rect = rect   // Reference to Phaser object used within this class (for readability)
-        
-        this._color = props?.color ?? '#fff'
-        this.color = this._color
 
-        rect.getCenter()
+        if (props?.cornerRadius !== undefined) this.cornerRadius = props.cornerRadius
 
         // Set mixin props
         this._initMixins(props)
@@ -40,16 +37,11 @@ export default class Rectangle extends GameObject {
         resizeReactors.push(this)
 	}
 
-    /** The fill color. */
-    get color() {
-        return this._color
+    /** Radius of the rectangle's corners. Set to 0 to remove rounding and use default sharp corners. */
+    get cornerRadius(): number {
+        return this._rect.radius
     }
-    set color(color: string) {
-        // May move color logic to a mixin
-        // Also need to implement support for CSS color names for phaser objects
-        this._color = color
-        // this._rect.fill(color)
-        const phaserColor = Phaser.Display.Color.HexStringToColor(color).color
-        this._rect.setFillStyle(phaserColor)
+    set cornerRadius(radius: number) {
+        this._rect.setRounded(radius)
     }
 }

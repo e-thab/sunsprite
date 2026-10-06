@@ -1,12 +1,14 @@
 import { allTimers, clock } from "@api/core"
 
 /** The timer class... TODO: DESCRIBE */
-// TODO: Add Timer class to API
 export default class Timer {
 	/** Internal pause state references */
 	_paused: boolean = false
 	_lastPauseTime: number = 0
 	_totalPauseElapsed: number = 0
+	_timeMs: number = 0
+	_startTimeMs: number = 0
+	_nowMs: number = 0
 
 	constructor() {
 		this.reset()
@@ -14,7 +16,9 @@ export default class Timer {
 	}
 
 	/** Time since start in milliseconds, does not increment during pause */
-	timeMs: number = 0
+	get timeMs(): number {
+		return this._timeMs
+	}
 	/** Time since start in seconds, does not increment during pause */
 	get time(): number {
 		return this.timeMs / 1000
@@ -33,14 +37,18 @@ export default class Timer {
 	// frame: number = 0
 
 	/** Time this run started in milliseconds since the Unix epoch */
-	startTimeMs: number = 0
+	get startTimeMs(): number {
+		return this._startTimeMs
+	}
 	/** Time this run started in seconds since the Unix epoch */
 	get startTime(): number {
 		return this.startTimeMs / 1000
 	}
 
 	/** Current time in milliseconds since the Unix epoch */
-	nowMs: number = 0
+	get nowMs(): number {
+		return this._nowMs
+	}
 	/** Current time in seconds since the Unix epoch */
 	get now(): number {
 		return this.nowMs / 1000
@@ -73,10 +81,10 @@ export default class Timer {
 	/** Reset */
 	reset() {
 		const now = Date.now()
-		this.nowMs = now
-		this.startTimeMs = now
-		
-		this.timeMs = 0
+		this._nowMs = now
+		this._startTimeMs = now
+
+		this._timeMs = 0
 		// this.frame = 0
 		this._totalPauseElapsed = 0
 		this._lastPauseTime = 0
@@ -84,9 +92,9 @@ export default class Timer {
 
 	/** Update */
 	_update() {
-		this.nowMs = Date.now()
+		this._nowMs = Date.now()
 		if (!this.paused && !clock.paused) {
-			this.timeMs = this.ageMs - this._totalPauseElapsed
+			this._timeMs = this.ageMs - this._totalPauseElapsed
 			// this.frame++
 		}
 	}

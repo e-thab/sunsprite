@@ -9,9 +9,13 @@ const MIXIN_EXPORT_NAME: Record<string, string> = {
     Positionable: 'positionable',
     Sizable: 'sizable',
     Rotatable: 'rotatable',
+    Orientable: 'orientable',
     Viewable: 'viewable',
     Interactable: 'interactable',
     Timeable: 'timeable',
+    Alignable: 'alignable',
+    Fillable: 'fillable',
+    Outlinable: 'outlinable',
 }
 
 /**
@@ -32,6 +36,15 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
 
     for (const [functionName, bundle] of Object.entries(generated.mixins)) {
         const prefix = MIXIN_EXPORT_NAME[functionName]
+        // A missing entry would otherwise interpolate the literal string
+        // "undefined" into the export name below — valid JS, so nothing
+        // catches it: the mixin's real content silently ships under
+        // `undefinedPropsTypeDef`/`undefinedApi`, unimported anywhere, while
+        // every consumer that actually needs it (apiLib.ts) looks like it's
+        // just missing that mixin entirely. Failing here instead of a few
+        // lines later means a new entry in sources.ts's MIXINS with no
+        // matching one here breaks generate-api.ts loudly, at the source.
+        if (!prefix) throw new Error(`render.ts: no MIXIN_EXPORT_NAME entry for mixin "${functionName}" — add one alongside its MIXINS entry in sources.ts.`)
         if (bundle.propsTypeDef) {
             lines.push(`export const ${prefix}PropsTypeDef = \`${esc(bundle.propsTypeDef)}\``)
         }
@@ -41,6 +54,9 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
     for (const [className, bundle] of Object.entries(generated.concreteClasses)) {
         const prefix = className.charAt(0).toLowerCase() + className.slice(1)
         lines.push(
+            // The class's own doc block (ends in a newline when present), for
+            // apiLib to splice directly above its `class X`/`declare const X`.
+            `export const ${prefix}Doc = \`${esc(bundle.doc)}\``,
             `export const ${prefix}PropsFields = \`${esc(bundle.propsFields.join('\n\n'))}\``,
             `export const ${prefix}Members = \`${esc(bundle.members.join('\n\n'))}\``,
             ''
@@ -52,6 +68,13 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
     // splice directly into apiLib's declare-global block.
     for (const [name, declaration] of Object.entries(generated.freeFunctions)) {
         lines.push(`export const ${name}Declaration = \`${esc(declaration)}\``, '')
+    }
+
+    // Same standalone-statement shape as the free functions above, e.g.
+    // BackgroundStyle -> backgroundStyleDeclaration = `declare type BackgroundStyle = ...`.
+    for (const [name, { doc, type }] of Object.entries(generated.typeAliases)) {
+        const prefix = name.charAt(0).toLowerCase() + name.slice(1)
+        lines.push(`export const ${prefix}Declaration = \`${esc(`${doc}declare type ${name} = ${type}`)}\``, '')
     }
 
     return lines.join('\n')

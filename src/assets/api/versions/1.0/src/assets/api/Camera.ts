@@ -1,6 +1,7 @@
 import { getOurPoint, mouse, repeatUntil } from "./core"
 import { Vector2, type Vector2Like } from "./Vector2"
 
+/** User camera reference. */
 export default class Camera {
     _cam: Phaser.Cameras.Scene2D.Camera
     _pos: Vector2 = new Vector2(0, 0)

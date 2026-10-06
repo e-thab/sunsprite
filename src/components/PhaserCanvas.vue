@@ -45,8 +45,8 @@ function togglePlayPause() {
 const fullscreenIcon = computed(() => fullscreenStore.fullscreen ? 'tabler:minimize' : 'tabler:maximize')
 const fullscreenTooltip = computed(() => fullscreenStore.fullscreen ? 'Minimize' : 'Maximize')
 
-const restartVariant = computed(() => fileStore.codeChangedSinceLastRun ? 'subtle' : 'ghost')
-const restartColor = computed(() => fileStore.codeChangedSinceLastRun ? 'warning' : 'neutral')
+const restartVariant = computed(() => fileStore.mainChangedSinceLastRun ? 'subtle' : 'ghost')
+const restartColor = computed(() => fileStore.mainChangedSinceLastRun ? 'warning' : 'neutral')
 
 const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 </script>
@@ -61,7 +61,7 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
       <!-- </UTooltip> -->
 
       <!-- Restart / Run code -->
-      <UChip inset color="warning" :show="fileStore.codeChangedSinceLastRun">
+      <UChip inset color="warning" :show="fileStore.mainChangedSinceLastRun">
         <!-- <UTooltip text="Restart"> -->
           <UButton icon="tabler:refresh" :variant="restartVariant" :color="restartColor" label="Restart" size="xs" @click="onRestartClick" />
         <!-- </UTooltip> -->

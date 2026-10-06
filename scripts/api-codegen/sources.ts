@@ -17,12 +17,25 @@ export function sandboxPath(...segments: string[]): string {
 }
 
 export const MIXINS = [
+    { file: apiPath('mixins', 'Alignable.ts'), typeName: 'AlignableProps', functionName: 'Alignable' },
     { file: apiPath('mixins', 'Positionable.ts'), typeName: 'PositionableProps', functionName: 'Positionable' },
     { file: apiPath('mixins', 'Sizable.ts'), typeName: 'SizableProps', functionName: 'Sizable' },
     { file: apiPath('mixins', 'Rotatable.ts'), typeName: 'RotatableProps', functionName: 'Rotatable' },
+    // typeName stays undefined while OrientableProps is empty — nothing consumes
+    // an `OrientableProps` declaration, so emitting an empty one would just be noise.
+    // Fill it in the moment the type gains a real field.
+    { file: apiPath('mixins', 'Orientable.ts'), typeName: undefined, functionName: 'Orientable' },
     { file: apiPath('mixins', 'Viewable.ts'), typeName: 'ViewableProps', functionName: 'Viewable' },
     { file: apiPath('mixins', 'Interactable.ts'), typeName: 'InteractableProps', functionName: 'Interactable' },
     { file: apiPath('mixins', 'Timeable.ts'), typeName: undefined, functionName: 'Timeable' },
+    // Shape-only, composed by Shape.ts rather than GameObject.ts — so they
+    // reach Rectangle/Circle through `extends Shape`, not a mixin chain the
+    // class itself writes out. Still listed here like any other mixin:
+    // resolveComposedMembers looks every name in a chain up in this array, so
+    // a mixin missing from it is silently skipped and its members vanish from
+    // the composing class's declarations.
+    { file: apiPath('mixins', 'Fillable.ts'), typeName: 'FillableProps', functionName: 'Fillable' },
+    { file: apiPath('mixins', 'Outlinable.ts'), typeName: 'OutlinableProps', functionName: 'Outlinable' },
 ] as const
 
 export const CONCRETE_CLASSES = [
@@ -33,6 +46,11 @@ export const CONCRETE_CLASSES = [
     { file: apiPath('Line.ts'), typeName: 'LineProps', className: 'Line', constructorParams: undefined },
     { file: apiPath('HLine.ts'), typeName: 'HLineProps', className: 'HLine', constructorParams: undefined },
     { file: apiPath('VLine.ts'), typeName: 'VLineProps', className: 'VLine', constructorParams: undefined },
+    // Not a GameObject and not a singleton: a plain class user code constructs
+    // with an options object, so it takes the same typeName path the objects
+    // above do. SoundProps has no base to intersect with, which both
+    // extractPropsFields and snapshot-api's findPropsBasePrefix already handle.
+    { file: apiPath('Sound.ts'), typeName: 'SoundProps', className: 'Sound', constructorParams: undefined },
     // Singleton/value classes below have no `*Props` options-object type, so
     // typeName is left undefined (extractConcreteClass skips the props-type
     // lookup entirely in that case). Two different real shapes hide behind
@@ -54,6 +72,7 @@ export const CONCRETE_CLASSES = [
     { file: apiPath('Clock.ts'), typeName: undefined, className: 'Clock', constructorParams: undefined },
     { file: apiPath('Screen.ts'), typeName: undefined, className: 'Screen', constructorParams: undefined },
     { file: apiPath('types.ts'), typeName: undefined, className: 'Mouse', constructorParams: undefined },
+    { file: apiPath('Background.ts'), typeName: undefined, className: 'Background', constructorParams: undefined },
 ] as const
 
 export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
@@ -66,6 +85,28 @@ export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
  */
 export const OBJECT_LITERALS = [
     { file: apiPath('Random.ts'), exportName: 'Random', className: 'Random' },
+] as const
+
+/**
+ * Type aliases user code needs by name because some generated member refers
+ * to them (e.g. Background.style's `BackgroundStyle`, Background.set's
+ * `BackgroundProps`). Each is emitted as a standalone `declare type Name = ...`.
+ *
+ * Two shapes, both handled by extractTypeAlias: an alias written in terms of
+ * something that isn't itself part of the lib (`typeof Styles[keyof typeof
+ * Styles]`) is fully expanded by the checker, while an object-shaped one
+ * (BackgroundProps) renders its own fields verbatim, JSDoc intact — the same
+ * way a mixin's `*Props` type does.
+ *
+ * Note this is where a *setter* props type belongs, not CONCRETE_CLASSES'
+ * `typeName`: that one means "the options type this class's constructor
+ * takes", and apiLib/snapshot-api both render it as exactly that. Background
+ * is a singleton with no constructor at all, so its props type is just
+ * another alias its members refer to.
+ */
+export const TYPE_ALIASES = [
+    { file: apiPath('Background.ts'), name: 'BackgroundStyle' },
+    { file: apiPath('Background.ts'), name: 'BackgroundProps' },
 ] as const
 
 /**
@@ -92,7 +133,6 @@ export const FREE_FUNCTIONS = [
     { file: apiPath('core.ts'), name: 'onKeyRelease' },
     { file: apiPath('core.ts'), name: 'onKeyHold' },
     { file: apiPath('core.ts'), name: 'onMouse' },
-    { file: apiPath('core.ts'), name: 'setBackgroundColor' },
     { file: apiPath('core.ts'), name: 'play' },
     { file: apiPath('core.ts'), name: 'pause' },
     { file: sandboxPath('watch.ts'), name: 'watch' },

@@ -6,6 +6,7 @@
   "scripts": {
     "predev": "tsx scripts/generate-api.ts",
     "dev": "vite",
+    "dev-nogen": "vite",
     "prebuild": "tsx scripts/generate-api.ts",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",

@@ -1,7 +1,7 @@
 import ts from 'typescript'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { ALIAS_IMPORT_RE, isAliasSpecifier, REPO_ROOT, TS_PATHS } from '../aliases'
+import { isAliasSpecifier, REPO_ROOT, TS_PATHS, unrewrittenAliasSpecifiers } from '../aliases'
 
 export const SRC_ROOT = path.join(REPO_ROOT, 'src')
 
@@ -11,6 +11,26 @@ export const RESOLUTION_OPTIONS: ts.CompilerOptions = {
     baseUrl: REPO_ROOT,
     paths: TS_PATHS,
     target: ts.ScriptTarget.ES2020,
+    // Both real tsconfigs (tsconfig.app.json, tsconfig.node.json) pin `types`
+    // explicitly for the same reason: leaving it unset makes TypeScript
+    // auto-include *every* package under node_modules/@types as an implicit
+    // type library, and some installed ones (companion-only packages like
+    // @types/earcut or @types/estree — pulled in as someone else's
+    // dependency, never meant to be a standalone entry point) fail that with
+    // TS2688.
+    //
+    // `['node']` rather than `[]`: moduleRunner.ts — outside the copy set,
+    // but still pulled into this program transitively (core.ts imports it
+    // live, see rewriteFile above) — reads/writes Error.stackTraceLimit, a
+    // V8 extension only @types/node's global.d.ts declares. tsconfig.app.json
+    // itself never lists "node" either, yet the live app build accepts that
+    // line anyway: @types/node rides in there by accident, via `vite`'s own
+    // .d.ts (pulled in transitively by an unrelated dependency's types), not
+    // because the app deliberately opted in. This program has no such
+    // accidental path — nothing else here imports 'vite' — so it has to ask
+    // for `node` outright to see what the live build already, if
+    // incidentally, sees.
+    types: ['node'],
 }
 
 // ts.resolveModuleName always returns forward-slash paths regardless of
@@ -124,9 +144,9 @@ export function copyAndRewriteRuntime(realFiles: string[], outDir: string): stri
 export function verifyStandalone(copiedFiles: string[]): void {
     for (const file of copiedFiles) {
         const text = readFileSync(file, 'utf8')
-        const unrewritten = text.match(ALIAS_IMPORT_RE)
-        if (unrewritten) {
-            throw new Error(`Runtime snapshot incomplete: ${file} still has an unrewritten alias import (${unrewritten[0].trim()}…).`)
+        const unrewritten = unrewrittenAliasSpecifiers(text, file)
+        if (unrewritten.length > 0) {
+            throw new Error(`Runtime snapshot incomplete: ${file} still has an unrewritten alias import ("${unrewritten[0]}").`)
         }
     }
 

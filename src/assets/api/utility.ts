@@ -32,7 +32,7 @@ export function rad2deg(rad: number): number {
  * @param angle The angle.
  * @param [unit=degrees] The measurement unit ('radians' or 'degrees'). If not provided, defaults to degrees.
  */
-export function sin(angle: number, unit: string = 'degrees'): number {
+export function sin(angle: number, unit: 'radians' | 'degrees' = 'degrees'): number {
     if (unit === 'radians') {
         return Math.sin(angle)
     } else {
@@ -45,7 +45,7 @@ export function sin(angle: number, unit: string = 'degrees'): number {
  * @param angle An angle.
  * @param [unit=degrees] The measurement unit ('radians' or 'degrees'). If not provided, defaults to degrees.
  */
-export function cos(angle: number, unit: string = 'degrees'): number {
+export function cos(angle: number, unit: 'radians' | 'degrees' = 'degrees'): number {
     if (unit === 'radians') {
         return Math.cos(angle)
     } else {
@@ -58,7 +58,7 @@ export function cos(angle: number, unit: string = 'degrees'): number {
  * @param angle An angle.
  * @param [unit=degrees] The measurement unit ('radians' or 'degrees'). If not provided, defaults to degrees.
  */
-export function tan(angle: number, unit: string = 'degrees'): number {
+export function tan(angle: number, unit: 'radians' | 'degrees' = 'degrees'): number {
     if (unit === 'radians') {
         return Math.tan(angle)
     } else {
@@ -73,7 +73,7 @@ export function tan(angle: number, unit: string = 'degrees'): number {
  * @param x The x position of the given point.
  * @param [unit=degrees] The measurement unit (radians/degrees). If not provided, defaults to degrees.
  */
-export function atan2(y: number, x: number, unit: string = 'degrees'): number {
+export function atan2(y: number, x: number, unit: 'radians' | 'degrees' = 'degrees'): number {
     if (unit === 'radians') {
         return Math.atan2(y, x)
     } else {

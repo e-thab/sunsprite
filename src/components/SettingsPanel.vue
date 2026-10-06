@@ -353,6 +353,7 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
 			{
 				id: 'output.autoScroll',
 				label: 'Scroll to newest',
+				description: 'Pauses while you scroll up, and resumes when you scroll back to the bottom.',
 				control: { kind: 'checkbox' },
 				get: () => projectSettings.outputAutoScroll,
 				set: (value) => projectSettingsStore.set('outputAutoScroll', asBoolean(value)),

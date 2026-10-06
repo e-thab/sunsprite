@@ -1,6 +1,6 @@
 import type { Class } from "@mixins/shared"
 import type { ReferenceObject } from "@api/types"
-import { Vector2, type Vector2Like } from "@api/Vector2"
+import { isVector2Like, Vector2, type Vector2Like } from "@api/Vector2"
 import { camera } from "@api/core"
 import Random from "@api/Random"
 
@@ -116,11 +116,28 @@ export function Positionable<Base extends Class>(base: Base) {
             this.screenPosition = pos
         }
 
+        /** The distance from this vector's end point to another vector's end point. */
+        distanceTo(x: number, y: number): number
+        distanceTo(other: Vector2Like): number
+        distanceTo(xOrOther: number | Vector2Like, y?: number) {
+            if (isVector2Like(xOrOther)) {
+                // other = Vector2.from(xOrOther)
+                return this.position.distanceTo(xOrOther)
+            }
+            else if (typeof xOrOther === 'number' && typeof y === 'number') {
+                // other = Vector2.from(xOrOther, y)
+                return this.position.distanceTo(xOrOther, y)
+            }
+            
+            return new Vector2(NaN, NaN)
+        }
+
         // goTo overloads, can go to:
         //  - Any object containing numeric x/y props
         //  - A [number, number] array as [x, y]
         //  - A Vector2
         //  - Two args (x, y)
+        // NOTE: Alignable has its own set of overloads
         /**
          * Set world position.
          * @param position New world position.

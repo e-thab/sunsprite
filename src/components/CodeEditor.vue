@@ -767,10 +767,19 @@ async function saveAll() {
 // ensureModel loads a script that's never been opened from its last saved
 // content; one that's already open (with live, possibly unsaved edits)
 // keeps using that model, same as running the active file always has.
+// Every run (re)starts the game, so every run re-baselines the "changed
+// since run" snapshot — along with which script it ran, which is what
+// decides whether Restart or that script's own play button gets the
+// highlight (see fileStore's runningScriptName).
 function runNamedScript(name: string) {
 	clearErrorDecoration()
 	clearWarningHighlights()
 	const code = ensureModel(name)?.getValue() ?? ''
+	const liveContent: Record<string, string> = {}
+	for (const [modelName, entry] of modelEntries) {
+		if (!entry.isText) liveContent[modelName] = entry.model.getValue()
+	}
+	fileStore.snapshotScripts(name, liveContent)
 	runUserCode(code, name, themeStore.current)
 }
 
@@ -778,21 +787,23 @@ function runActiveUserCode() {
 	runNamedScript(fileStore.activeFileName)
 }
 
+// Blurs the play button once clicked: a button keeps focus after a mouse
+// press, and Space/Enter on a focused button re-clicks it — so without this,
+// pressing Space for the game (e.g. jump) would restart the script instead.
+function onRunActiveClick(event: MouseEvent) {
+	(event.currentTarget as HTMLElement | null)?.blur()
+	runActiveUserCode()
+}
+
 // The game header's Restart button always runs this — the project's main
 // script is its canonical entry point regardless of whichever script happens
 // to be open in the editor at the time. Its name comes from the store rather
-// than a literal, since in a TypeScript project it's main.ts. Snapshotting here (not inside the
-// shared runNamedScript, which FileTree's per-script "Run" action also
-// calls) is what ties the restart chip's baseline specifically to an actual
-// game (re)start.
+// than a literal, since in a TypeScript project it's main.ts.
 function runMainScript() {
-	const liveContent: Record<string, string> = {}
-	for (const [name, entry] of modelEntries) {
-		if (!entry.isText) liveContent[name] = entry.model.getValue()
-	}
-	fileStore.snapshotScripts(liveContent)
 	runNamedScript(fileStore.mainScriptName)
 }
+
+const runActiveHighlighted = computed(() => fileStore.entryChangedSinceLastRun(fileStore.activeFileName))
 
 function onEditorChange(value: string) {
 	updateSaveMsg(value)
@@ -903,7 +914,13 @@ function scheduleAutoRun() {
 		// *after* the user turned auto-run off is exactly the surprise this
 		// feature shouldn't produce.
 		if (!projectSettingsStore.settings.autoRun) return
-		runMainScript()
+		// Re-runs whatever the game was last started with, so an edit while a
+		// non-main script is running doesn't swap the game back to main. Falls
+		// back to main if nothing has run yet or that script has since been
+		// deleted.
+		const running = fileStore.runningScriptName
+		if (running && fileStore.scripts.some((s) => s.name === running)) runNamedScript(running)
+		else runMainScript()
 	}, AUTO_RUN_DELAY_MS)
 }
 
@@ -1050,7 +1067,9 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 				     which one the game header's Restart button runs (always
 				     main.js — see runMainScript). Text files aren't scripts. -->
 				<UTooltip v-if="!fileStore.isTextFile(fileStore.activeFileName)" text="Run this script">
-					<UButton icon="tabler:player-play-filled" variant="subtle" color="primary" size="xs" @click="runActiveUserCode" />
+					<UChip inset color="warning" :show="runActiveHighlighted">
+						<UButton icon="tabler:player-play-filled" variant="subtle" :color="runActiveHighlighted ? 'warning' : 'primary'" size="xs" @click="onRunActiveClick" />
+					</UChip>
 				</UTooltip>
 			</div>
 
