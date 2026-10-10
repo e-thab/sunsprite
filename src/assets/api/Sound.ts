@@ -16,12 +16,124 @@ import { scene } from '@api/core'
 * Custom buses can be:
 *   - Created with Sound.addBus(name)
 *   - Gotten with Sound.Bus(name)
+* 
+* note: ensure name uniqueness?
 */
 
 /* TODO 2:
 * - Look into adjusting pitch/speed without affecting each other
 * - `On` events; onFinish, onStart, maybe more
 */
+
+type BusProps = {
+    /** A list of sounds to add to the bus. */
+    sounds?: Sound[]
+    /**
+     * True while the sound is muted. Does not check volume; this being true
+     * does not mean its volume is 0.
+     */
+    muted?: boolean
+    /**
+     * Loudness of sounds on the bus. The lower this is, the quieter the sounds.
+     * 
+     * | Volume | Result |
+     * | ------ | ------ |
+     * | 0 | Too quiet to hear |
+     * | 0.5 | Half as loud as default |
+     * | 1 | Default volume  |
+     * | 2 | Twice as loud as default |
+     */
+    volume?: number
+    /**
+     * Pitch of the sound in [cents.](https://en.wikipedia.org/wiki/Cent_(music))
+     * 
+     * 0 means no change in pitch, every 100 adjusts by one semitone. For example,
+     * if your sound is 440hz (A4):
+     * 
+     * | Pitch (cents) | Hz      | Note       |
+     * | ------------- | ------- | ---------- |
+     * | -1200         | 220     | A3         |
+     * | -200          | 392     | G4         |
+     * | -100          | 415.30  | Ab4 / G#4  |
+     * | 0             | 440     | A4         |
+     * | 100           | 466.16  | A#4 / Bb4  |
+     * | 200           | 493.88  | B4         |
+     * | 1200          | 880     | A5         |
+     */
+    pitch?: number
+    /**
+     * Playback speed of the sound. 1 is normal speed, 0.5 is half (takes twice as long),
+     */
+    speed?: number
+}
+
+const busDefaults = {
+    muted: false,
+    volume: 1,
+    pitch: 0,
+    speed: 1,
+    sounds: []
+}
+
+/** An audio bus, tracks specified sounds and applies properties to each of them. */
+class Bus {
+    name: string
+    muted: boolean
+    volume: number
+    pitch: number
+    speed: number
+    sounds: Sound[]
+
+    constructor(name: string)
+    constructor(props: { name: string } & BusProps)
+    constructor(nameOrProps: string | { name: string } & BusProps) {
+        if (typeof nameOrProps === 'string') {
+            this.name = nameOrProps.toLowerCase()
+            this.muted = busDefaults.muted
+            this.volume = busDefaults.volume
+            this.pitch = busDefaults.pitch
+            this.speed = busDefaults.speed
+            this.sounds = busDefaults.sounds // valid? or issue with pointer causing every default to point to the same array?
+        } else {
+            const props = nameOrProps
+            const name = props.name
+            this.name = name.toLowerCase()
+            this.muted = props?.muted ?? busDefaults.muted
+            this.volume = props?.volume ?? busDefaults.volume
+            this.pitch = props?.pitch ?? busDefaults.pitch
+            this.speed = props?.speed ?? busDefaults.speed
+            this.sounds = props?.sounds ?? busDefaults.sounds // same as above
+        }
+    }
+
+    addSound(sound: Sound) {
+        this.sounds.push(sound)
+    }
+
+    removeSound(sound: Sound) {
+        this.sounds = this.sounds.filter((item) => sound !== item)
+    }
+
+    clear() {
+        this.sounds = []
+    }
+
+    reset() {
+        this.muted = busDefaults.muted
+        this.volume = busDefaults.volume
+        this.pitch = busDefaults.pitch
+        this.speed = busDefaults.speed
+    }
+}
+
+const defaultBuses = [
+    new Bus('Master'),
+    new Bus('Music'),
+    new Bus('Effects'),
+    new Bus('UI'),
+    new Bus('Environment'),
+    new Bus('Dialogue')
+]
 
 export type SoundProps = {
     /** Sound's audio source. A file path or URL. */
@@ -62,9 +174,9 @@ export type SoundProps = {
     /**
      * Playback speed of the sound. 1 is normal speed, 0.5 is half (takes twice as long),
      */
-    speed: number
+    speed?: number
     /** Whether this sound automatically repeats when it's finished. */
-    loop: boolean
+    loop?: boolean
 }
 
 /** A sound that can play an audio file. */
@@ -76,6 +188,20 @@ export default class Sound {
     _speed: number
     _muted: boolean
     _loop: boolean
+    bus?: string
+    static buses: Bus[] = defaultBuses
+
+    static Bus(name: string): Bus | undefined {
+        return Sound.buses.find((item) => item.name === name)
+    }
+
+    static addBus(name: string): Bus
+    static addBus(props: { name: string } & BusProps): Bus
+    static addBus(nameOrProps: string | { name: string } & BusProps): Bus {
+        const bus = new Bus(nameOrProps)
+        Sound.buses.push(bus)
+        return bus
+    }
 
     constructor(props?: SoundProps) {
         // TODO: Check if key exists in scene (from file tree preload), otherwise load now
