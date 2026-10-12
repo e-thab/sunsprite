@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { scene } from '@api/core'
+import { _audioSourceStatus, _reportFailedLoad, type AudioSource } from '@api/assets'
 
 /* TODO:
 * Create an audio bus system. Sounds should have a `bus` property that tracks
@@ -136,8 +137,8 @@ const defaultBuses = [
 ]
 
 export type SoundProps = {
-    /** Sound's audio source. A file path or URL. */
-    src?: string
+    /** The sound's audio: the name of an audio file in your project, like 'jump.mp3', or a URL. */
+    src?: AudioSource
     /**
      * True while the sound is muted. Does not check volume; this being true
      * does not mean its volume is 0.
@@ -195,33 +196,75 @@ export default class Sound {
         return Sound.buses.find((item) => item.name === name)
     }
 
-    static addBus(name: string): Bus
-    static addBus(props: { name: string } & BusProps): Bus
-    static addBus(nameOrProps: string | { name: string } & BusProps): Bus {
-        const bus = new Bus(nameOrProps)
-        Sound.buses.push(bus)
-        return bus
-    }
+    // static addBus(name: string): Bus
+    // static addBus(props: { name: string } & BusProps): Bus
+    // static addBus(nameOrProps: string | { name: string } & BusProps): Bus {
+    //     const bus = new Bus(nameOrProps)
+    //     Sound.buses.push(bus)
+    //     return bus
+    // }
 
     constructor(props?: SoundProps) {
-        // TODO: Check if key exists in scene (from file tree preload), otherwise load now
         this._src = props?.src ?? 'win'
-        this._ref = scene.sound.add(this._src)
-
-        this._volume = props?.volume ?? 1
-        this.volume = this._volume
-
+        this._volume = Math.max(0, props?.volume ?? 1)
         this._pitch = props?.pitch ?? 0
-        this.pitch = this._pitch
-
         this._muted = props?.muted ?? false
-        this.muted = this._muted
-
         this._speed = props?.speed ?? 1
-        this.speed = this._speed
-
         this._loop = props?.loop ?? false
-        this.loop = this._loop
+
+        this._ref = this._createRef(this._src)
+    }
+
+    /**
+     * True while `src` is a path/URL still downloading. Project files never
+     * are — they're preloaded before the script runs (see assets.ts).
+     */
+    _loading = false
+    /** play() was called while loading; honored once the file arrives, unless pause()/stop() came after. */
+    _playWhenLoaded = false
+
+    /**
+     * The Phaser sound behind `src`, with every current property applied. A
+     * file that isn't in the cache gets a silent stand-in — reported first if
+     * it's a project file name that doesn't exist, or loaded on demand and
+     * swapped in when it arrives if it's a path/URL — so the rest of the
+     * script can keep calling play()/volume/etc. on it either way.
+     */
+    _createRef(src: string): Phaser.Sound.NoAudioSound | Phaser.Sound.HTML5AudioSound | Phaser.Sound.WebAudioSound {
+        this._loading = false
+        this._playWhenLoaded = false
+
+        const status = _audioSourceStatus(scene.cache.audio, src)
+        const ref = status === 'ready'
+            ? scene.sound.add(src)
+            : new Phaser.Sound.NoAudioSound(scene.sound as Phaser.Sound.NoAudioSoundManager, src)
+
+        if (status === 'load') {
+            this._loading = true
+            const loadingScene = scene
+            loadingScene.load.once(Phaser.Loader.Events.COMPLETE, () => {
+                // Superseded by a newer src, or the game restarted meanwhile.
+                if (this._src !== src || scene !== loadingScene) return
+                this._loading = false
+                if (!loadingScene.cache.audio.exists(src)) {
+                    _reportFailedLoad(src, 'audio')
+                    return
+                }
+                const playWhenLoaded = this._playWhenLoaded
+                this._ref.destroy()
+                this._ref = this._createRef(src)
+                if (playWhenLoaded) this._ref.play()
+            })
+            loadingScene.load.audio(src, src)
+            loadingScene.load.start()
+        }
+
+        ref.setVolume(this._volume)
+        ref.setDetune(this._pitch)
+        ref.setMute(this._muted)
+        ref.setRate(this._speed)
+        ref.setLoop(this._loop)
+        return ref
     }
 
     /** Set any number of sound properties at once. */
@@ -234,23 +277,16 @@ export default class Sound {
         if (props?.loop !== undefined) this.loop = props.loop
     }
 
-    /** Sound's audio source. A file path or URL. */
+    /** The sound's audio: the name of an audio file in your project, like 'jump.mp3', or a URL. */
     get src(): string {
         return this._src
     }
-    set src(src: string) {
-        // Check for key existence
+    set src(src: AudioSource) {
         if (src === this._src) return
 
+        this._src = src
         this._ref.destroy()
-        this._ref = scene.sound.add(src)
-        this.set({
-            volume: this._volume,
-            pitch: this._pitch,
-            muted: this._muted,
-            speed: this._speed,
-            loop: this._loop,
-        })
+        this._ref = this._createRef(src)
     }
 
     /** How long this sound is in seconds. */
@@ -341,7 +377,8 @@ export default class Sound {
 
     /** Play the sound until finished or stopped manually. */
     play() {
-        this._ref.play()
+        if (this._loading) this._playWhenLoaded = true
+        else this._ref.play()
     }
 
     /**
@@ -354,6 +391,7 @@ export default class Sound {
 
     /** Pause the sound until stopped or resumed manually. */
     pause() {
+        this._playWhenLoaded = false
         this._ref.pause()
     }
 
@@ -369,6 +407,7 @@ export default class Sound {
 
     /** Stop playing the sound and reset to the beginning. */
     stop() {
+        this._playWhenLoaded = false
         this._ref.stop()
     }
 

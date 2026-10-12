@@ -5,7 +5,7 @@ import { useWatchPanelStore } from '@/stores/watchPanelStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
 import { DEV_VERSION } from '@api/versions/constants'
 import type { ThemePalette } from '@/assets/theme/themes'
-import { HOST_ORIGIN_PARAM, API_VERSION_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
+import { HOST_ORIGIN_PARAM, API_VERSION_PARAM, OPAQUE_ORIGIN, type HostMessage, type ProjectAsset, type SandboxMessage } from './protocol'
 
 // Host side of the sandbox. User code no longer runs in the editor app at all:
 // it runs in runner.html inside an `<iframe sandbox="allow-scripts">`, which
@@ -49,7 +49,7 @@ let loadedVersion: string = DEV_VERSION
 let sentPauseSeq = 0
 
 /** Set while the sandbox is still booting, so an early Run isn't dropped. */
-let queuedRun: { code: string, entryName: string, theme?: ThemePalette } | null = null
+let queuedRun: { code: string, entryName: string, theme?: ThemePalette, assets: ProjectAsset[] } | null = null
 
 /**
  * URL for the sandbox document, carrying our origin so it can address replies,
@@ -196,11 +196,16 @@ export function runUserCode(code: string, entryName: string, theme?: ThemePalett
         frame.src = sandboxUrl()
     }
 
+    // Read here, at the one choke-point every run path shares, for the same
+    // reason the version check above is. Copied into fresh plain objects so
+    // nothing reactive ever reaches postMessage's structured clone.
+    const assets = useFileStore().projectAssets.map(({ name, kind, url }) => ({ name, kind, url }))
+
     if (!sandboxReady) {
-        queuedRun = { code, entryName, theme }
+        queuedRun = { code, entryName, theme, assets }
         return
     }
-    post({ type: 'run', code, entryName, theme })
+    post({ type: 'run', code, entryName, theme, assets })
 }
 
 export function pause() {

@@ -282,6 +282,21 @@ type AnchorPoint =
 /** An object with enough geometry to resolve anchor points on. */
 type AlignableLike = { x: number, y: number, width: number, height: number }
 
+/**
+ * An image: the name of an image file in your project, like 'player.png', or a URL.
+ *
+ * ImageFile is the project's own image names, declared per project by
+ * CodeEditor.vue (see projectAssetsLib) so they complete inside the quotes.
+ * The (string & {}) arm keeps any other string legal — a URL, or a name built
+ * at runtime like 'card_' + n + '.png' — without TypeScript collapsing the
+ * whole union to plain string and losing those completions. Misspelt literal
+ * names are flagged separately, by monaco-assets.ts.
+ */
+type ImageSource = ImageFile | (string & {})
+
+/** A sound: the name of an audio file in your project, like 'jump.mp3', or a URL. See ImageSource. */
+type AudioSource = AudioFile | (string & {})
+
 type Action = (...args: any[]) => void
 type Predicate = (...args: any[]) => boolean
 
@@ -642,6 +657,29 @@ ${v.soundDoc}class Sound {
 ${v.soundMembers}
 }`,
     ].join('\n') + '\n}\nexport {}'
+}
+
+/**
+ * Declares the project's own file names, which ImageSource/AudioSource above
+ * build on. Its own lib rather than part of buildApiLib's output: it changes
+ * whenever a file is added, renamed, or removed, which is far more often than
+ * the API itself does, and is the same regardless of API version. Always
+ * installed — with no files the unions are `never`, which still leaves
+ * ImageSource/AudioSource as plain strings.
+ */
+export function buildProjectAssetsLib(assets: readonly { name: string, kind: 'image' | 'audio' }[]): string {
+    const union = (kind: 'image' | 'audio') => {
+        const names = assets.filter((asset) => asset.kind === kind).map((asset) => JSON.stringify(asset.name))
+        return names.length ? names.join(' | ') : 'never'
+    }
+    return `declare global {
+/** The name of an image file in this project. */
+type ImageFile = ${union('image')}
+
+/** The name of an audio file in this project. */
+type AudioFile = ${union('audio')}
+}
+export {}`
 }
 
 export const apiLib = buildApiLib({

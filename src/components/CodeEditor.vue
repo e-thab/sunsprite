@@ -13,6 +13,7 @@ import { scriptTypeForFile, TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileType
 import { configureLanguageServices, installExtraLib, languageSupportFor, type EditorLanguageSupport } from '@/assets/languages/monacoLanguages'
 import CollapsiblePane from './CollapsiblePane.vue'
 import '@/assets/code-completion/monaco-colors'
+import { setKnownAssets } from '@/assets/code-completion/monaco-assets'
 
 // CodeMirror
 // import { Codemirror } from 'vue-codemirror'
@@ -170,7 +171,7 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 	// console.log(editor)
 }
 
-import { apiLib, apiModel } from '@/assets/api/apiLib'
+import { apiLib, apiModel, buildProjectAssetsLib } from '@/assets/api/apiLib'
 import { apiVersionDropdownItems, loadVersionedApiLib } from '@/assets/api/versions'
 import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
@@ -1026,19 +1027,40 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 
 	apiLibDisposable.dispose()
 	apiLibDisposable = installExtraLib(newLib, libUri)
+	revalidateActiveModel()
+})
 
-	// Nudge the currently active model to re-validate against the swapped
-	// declarations — same mechanism handleMount already uses after attaching
-	// a model (see refreshDiagnostics above), needed here for the same reason:
-	// Monaco's TS worker doesn't automatically repaint already-open squiggles
-	// just because the ambient lib changed underneath it.
+// Nudges the currently active model to re-validate against swapped
+// declarations — same mechanism handleMount already uses after attaching
+// a model (see refreshDiagnostics above), needed here for the same reason:
+// Monaco's TS worker doesn't automatically repaint already-open squiggles
+// just because the ambient lib changed underneath it.
+function revalidateActiveModel() {
 	const editor = editorInstance.value
 	const model = editor?.getModel()
 	if (editor && model && !fileStore.isTextFile(fileStore.activeFileName)) {
 		const importedNames = ensureImportedModels(model.getValue(), fileStore.activeFileName)
 		refreshDiagnostics(editor, model, importedNames)
 	}
+}
+
+// The project's own image/sound names, which ImageSource/AudioSource complete
+// from (see buildProjectAssetsLib). Watched as the generated text itself, so
+// moving or reordering a file — which changes projectAssets but not a single
+// name — doesn't reinstall anything.
+const projectAssetsLibUri = 'file:///project-assets.d.ts'
+let projectAssetsLibDisposable = installExtraLib(buildProjectAssetsLib(fileStore.projectAssets), projectAssetsLibUri)
+
+watch(() => buildProjectAssetsLib(fileStore.projectAssets), (lib) => {
+	projectAssetsLibDisposable.dispose()
+	projectAssetsLibDisposable = installExtraLib(lib, projectAssetsLibUri)
+	revalidateActiveModel()
 })
+
+// Same names, for the unknown-file markers in monaco-assets.ts.
+watch(() => fileStore.projectAssets, (assets) => setKnownAssets(assets), { immediate: true })
+
+onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 </script>
 
 <template>

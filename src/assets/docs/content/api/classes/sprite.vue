@@ -36,7 +36,7 @@ export default {}
 	<DocMixins :paths="['api/traits/game-object']" />
 
 	<DocProperties>
-		<DocProperty name="src" type="string">A URL path to the sprite's image.</DocProperty>
+		<DocProperty name="src" type="string">The sprite's image: the name of an image file in your project, like <code>'player.png'</code>, or a URL. Names are case-sensitive.</DocProperty>
 		<DocProperty name="x" type="number" from="api/traits/positionable">Horizontal position in the world.</DocProperty>
 		<DocProperty name="y" type="number" from="api/traits/positionable">Vertical position in the world.</DocProperty>
 		<DocProperty name="position" type="Vector2" from="api/traits/positionable">Position in the world.</DocProperty>

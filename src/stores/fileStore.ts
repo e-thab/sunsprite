@@ -2,9 +2,10 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { supabase } from "@/assets/utils/supabase";
 import { getExampleCode } from "@/assets/api/examples";
-import { DEFAULT_SCRIPT_FILE_TYPE, imageDisplayName, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, splitFileName, type ScriptFileType } from "@/assets/utils/fileTypes";
+import { type AssetKind, DEFAULT_SCRIPT_FILE_TYPE, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, splitFileName, type ScriptFileType, uploadDisplayName, uploadFileTypeFor } from "@/assets/utils/fileTypes";
 import { useProjectSettingsStore } from "./projectSettingsStore";
 import { MAX_PROJECT_SIZE as PROJECT_STORAGE_QUOTA_BYTES } from "../../supabase/functions/_shared/uploadLimits.ts";
+import type { ProjectAsset } from "@/sandbox/protocol";
 
 function publicUrlForKey(objectKey: string): string {
     return `${import.meta.env.VITE_R2_PUBLIC_BASE_URL}/${objectKey}`
@@ -62,6 +63,9 @@ type FolderRecord = {
     position: number
 }
 
+// Any uploaded file — images and audio alike, despite the name. Both live in
+// the images table (see 20261012120000_allow_audio_uploads.sql for why) and
+// are told apart by contentType; see uploadKind below.
 type ImageRecord = {
     id: string
     name: string
@@ -106,10 +110,17 @@ export type TreeNode =
     | { kind: 'folder', id: string, name: string, position: number }
     | { kind: 'script', id: string, name: string, position: number, size: number }
     | { kind: 'image', id: string, name: string, position: number, publicUrl: string, size: number }
+    | { kind: 'audio', id: string, name: string, position: number, publicUrl: string, size: number }
     // size is always 0 — a link stores nothing — but kept on the node so
     // folderSizeBytes can sum every non-folder kind the same way.
     | { kind: 'libraryImage', id: string, name: string, position: number, libraryPath: string, size: number }
     | { kind: 'text', id: string, name: string, position: number, size: number }
+
+// Unknown content types fall to 'image' — every row predating audio uploads is
+// one, and the images table's own check rules out anything else.
+function uploadKind(record: ImageRecord): AssetKind {
+    return record.contentType.startsWith('audio/') ? 'audio' : 'image'
+}
 
 export const useFileStore = defineStore('files', () => {
     // Only what's shown before anything has loaded — every real load path
@@ -450,7 +461,7 @@ export const useFileStore = defineStore('files', () => {
             .map((s) => ({ kind: 'script' as const, id: s.id, name: s.name, position: s.position, size: sizeEncoder.encode(s.content).length }))
         const containedImages: TreeNode[] = images.value
             .filter((img) => img.folderId === folderId)
-            .map((img) => ({ kind: 'image' as const, id: img.id, name: img.name, position: img.position, publicUrl: img.publicUrl, size: img.size }))
+            .map((img) => ({ kind: uploadKind(img), id: img.id, name: img.name, position: img.position, publicUrl: img.publicUrl, size: img.size }))
         const containedLibraryImages: TreeNode[] = libraryImages.value
             .filter((img) => img.folderId === folderId)
             .map((img) => ({ kind: 'libraryImage' as const, id: img.id, name: img.name, position: img.position, libraryPath: img.libraryPath, size: 0 }))
@@ -831,22 +842,31 @@ export const useFileStore = defineStore('files', () => {
     // action is also hidden entirely in the sandbox, but this is the actual
     // enforcement point).
 
+    // Images and audio both — the name is from before audio existed, and still
+    // matches the table every upload lands in.
     async function uploadImage(file: File, folderId: string | null = null) {
         if (!projectId.value) throw new Error('No active project')
 
-        // The stored name always carries the canonical extension for file.type
-        // (see imageDisplayName) rather than whatever the source file was
-        // called — this is what "type recognized and assigned automatically"
-        // means for an upload, same as a locked extension means for a rename.
-        const name = imageDisplayName(file)
+        // The stored name always carries the canonical extension for the
+        // recognized type (see uploadDisplayName) rather than whatever the
+        // source file was called — this is what "type recognized and assigned
+        // automatically" means for an upload, same as a locked extension means
+        // for a rename.
+        const name = uploadDisplayName(file)
+
+        // The canonical content type, not file.type as reported — that can be
+        // an alias (audio/x-wav) or empty (.ogg on Windows), neither of which
+        // the edge functions or the images table accept. It's what gets signed,
+        // so it has to be what the PUT below sends too.
+        const contentType = uploadFileTypeFor(file)?.contentType ?? file.type
 
         const { data: signed, error: signError } = await supabase.functions.invoke('r2-sign-upload', {
-            body: { projectId: projectId.value, fileName: name, contentType: file.type, size: file.size },
+            body: { projectId: projectId.value, fileName: name, contentType, size: file.size },
         })
         if (signError) throw new Error(await functionErrorMessage(signError))
 
-        const putRes = await fetch(signed.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
-        if (!putRes.ok) throw new Error('Failed to upload image to storage')
+        const putRes = await fetch(signed.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': contentType } })
+        if (!putRes.ok) throw new Error('Failed to upload file to storage')
 
         // r2-confirm-upload HEADs the object we just PUT to verify the real
         // size/content-type before creating the DB row (and cleans up the R2
@@ -904,10 +924,11 @@ export const useFileStore = defineStore('files', () => {
         image.position = position
     }
 
-    // Uploaded images and library links live in separate tables, each with its
-    // own unique(project_id, name), but they read as one kind of file in the
-    // tree — so a name has to be free across both, which only the client can
-    // check. `exceptId` is the row being renamed, so it doesn't clash with itself.
+    // Uploaded files and library links live in separate tables, each with its
+    // own unique(project_id, name), but share one namespace — a file's name is
+    // its asset key in the running game (see projectAssets) — so a name has to
+    // be free across both, which only the client can check. `exceptId` is the
+    // row being renamed, so it doesn't clash with itself.
     function isImageNameTaken(name: string, exceptId?: string): boolean {
         return images.value.some((img) => img.id !== exceptId && img.name === name)
             || libraryImages.value.some((img) => img.id !== exceptId && img.name === name)
@@ -924,6 +945,20 @@ export const useFileStore = defineStore('files', () => {
             if (!isImageNameTaken(candidate)) return candidate
         }
     }
+
+    // Every image and sound file in the project, by the name the user sees in
+    // the tree. The game preloads all of them under exactly that name before a
+    // script runs (see core.ts's UserScene.preload), which is what lets a
+    // script say `new Sprite({ src: 'player.png' })`; the editor offers the
+    // same names as completions and flags literals that match none of them.
+    //
+    // Library links resolve to an absolute URL here because the game runs in
+    // a document of its own (runner.html) — a root-relative /images/... path
+    // means the same thing there today, but nothing should have to know that.
+    const projectAssets = computed<ProjectAsset[]>(() => [
+        ...images.value.map((img) => ({ name: img.name, kind: uploadKind(img), url: img.publicUrl })),
+        ...libraryImages.value.map((img) => ({ name: img.name, kind: 'image' as const, url: new URL(img.libraryPath, window.location.href).href })),
+    ])
 
     // ---- Library images ----
     // Links to built-in Library assets. Unlike uploads these work in the guest
@@ -1138,6 +1173,7 @@ export const useFileStore = defineStore('files', () => {
         moveImage,
         isImageNameTaken,
         uniqueImageName,
+        projectAssets,
         addLibraryImage,
         renameLibraryImage,
         removeLibraryImage,

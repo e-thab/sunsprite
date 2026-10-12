@@ -15,8 +15,14 @@ export type HostMessage =
      * `entryName` is that file's real name, so compiled stack traces (and
      * therefore locateError) attribute errors to it correctly instead of
      * always assuming "main.js".
+     *
+     * `assets` is every image and sound in the project's file tree, preloaded
+     * under its own name before the entry script runs (see ProjectAsset).
+     * Sent whole with every run rather than requested lazily like scripts:
+     * preloading has to know the full set before the game starts, and a file
+     * added mid-run should wait for the next run like any other change does.
      */
-    | { type: 'run', code: string, entryName: string, theme?: ThemePalette }
+    | { type: 'run', code: string, entryName: string, theme?: ThemePalette, assets?: ProjectAsset[] }
     /** Reply to a 'script-request'. `content: null` means "no such script". */
     | { type: 'script-response', id: number, content: string | null }
     /**
@@ -97,6 +103,18 @@ export type SandboxMessage =
         /** Current values of every card registered via the user-facing watch(). */
         watch: WatchCardSnapshot[],
     }
+
+/**
+ * One file from the project's file tree, as the running game sees it. `name`
+ * is exactly what the tree shows ('player.png') and becomes the file's Phaser
+ * texture/audio key — case-sensitive, like every other name in a project.
+ * `url` is absolute, since it's fetched from inside the sandbox document.
+ */
+export interface ProjectAsset {
+    name: string
+    kind: 'image' | 'audio'
+    url: string
+}
 
 export type OutputKind = 'print' | 'warn' | 'error' | 'start'
 

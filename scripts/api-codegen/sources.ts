@@ -183,6 +183,10 @@ export const SUPPORTING_API_FILES = [
     apiPath('mixins', 'shared.ts'),
     apiPath('Shape.ts'),
     apiPath('Warning.ts'),
+    // Project-file preloading/caching (core.ts, Sprite, Background, Sound) and
+    // the pure name helpers it shares with the editor's typo markers.
+    apiPath('assets.ts'),
+    apiPath('fileNames.ts'),
 ]
 
 /**

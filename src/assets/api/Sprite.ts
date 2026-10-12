@@ -1,6 +1,7 @@
 import type { GameObjectProps } from "./mixins"
 import { scene, resizeReactors } from "@api/core"
 import GameObject from "@api/GameObject"
+import { _imageSourceStatus, type ImageSource } from "@api/assets"
 import Phaser from "phaser"
 // import type { Sprite } from 'phaser'
 
@@ -19,8 +20,8 @@ import Phaser from "phaser"
 */
 
 type SpriteProps = GameObjectProps & {
-    /** A URL path to the sprite's image. */
-    src?: string
+    /** The sprite's image: the name of an image file in your project, like 'player.png', or a URL. */
+    src?: ImageSource
 }
 
 export default class Sprite extends GameObject {
@@ -44,11 +45,11 @@ export default class Sprite extends GameObject {
         resizeReactors.push(this)
     }
     
-    /** A URL path to the sprite's image. */
+    /** The sprite's image: the name of an image file in your project, like 'player.png', or a URL. */
     get src() {
         return this._src
     }
-    set src(keyOrPath: string | undefined | null) {
+    set src(keyOrPath: ImageSource | undefined | null) {
         this._src = keyOrPath ?? undefined
         
         // Undefined; use default 'missing' texture
@@ -57,12 +58,20 @@ export default class Sprite extends GameObject {
             return
         }
         
-        // If using a key, apply existing texture
-        if (scene.textures.exists(keyOrPath)) {
+        // A project file (preloaded under its own name) or a texture loaded
+        // earlier applies right away. A bare name that matches neither has
+        // already been reported, and shows the 'missing' texture so the
+        // sprite is still visible where the image would have been.
+        const status = _imageSourceStatus(scene.textures, keyOrPath)
+        if (status === 'ready') {
             this._sprite.setTexture(keyOrPath)
             return
         }
-        
+        if (status === 'missing') {
+            this._sprite.setTexture('__MISSING')
+            return
+        }
+
         // Otherwise, loading a new texture from path
         this._sprite.setTexture('__DEFAULT') // Temp?: Use invisible texture while loading
 
@@ -71,12 +80,12 @@ export default class Sprite extends GameObject {
         // this.load.svg('pointer_c', 'cursors/pointer_c.svg', { width: 400, height: 400 })
         // Additionally, look into svg exploits (like Scratch malware injection)
         scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
+            // A failed load has been reported by assets.ts's loader error
+            // handler; setTexture on the missing key falls back to __MISSING.
             this._sprite.setTexture(keyOrPath)
         })
         scene.load.image(keyOrPath, keyOrPath)
         scene.load.start()
-
-        // Investigate handling failed to load resource error
     }
 
     // Override

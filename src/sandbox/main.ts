@@ -48,7 +48,9 @@ setScriptResolver((name) => {
 function handleMessage(message: HostMessage) {
     switch (message.type) {
         case 'run':
-            core.runUserCode(message.code, message.entryName, message.theme)
+            // A snapshot version's runUserCode predates `assets` and simply
+            // ignores the extra argument — its scripts never had filename keys.
+            core.runUserCode(message.code, message.entryName, message.theme, message.assets ?? [])
             break
 
         case 'script-response': {

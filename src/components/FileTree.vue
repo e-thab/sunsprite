@@ -8,11 +8,12 @@ import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
 import { useNamePromptStore } from '@/stores/namePromptStore'
 import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
 import {
-	ALLOWED_IMAGE_CONTENT_TYPES,
 	DEFAULT_TEXT_FILE_TYPE,
-	IMAGE_ACCEPT_ATTR,
-	imageDisplayName,
-	imageFileTypeForExtension,
+	UPLOAD_ACCEPT_ATTR,
+	UPLOAD_FORMAT_LABELS,
+	uploadDisplayName,
+	uploadFileTypeFor,
+	uploadFileTypeForExtension,
 	isFileNameTooLong,
 	isMainScript,
 	joinFileName,
@@ -50,7 +51,7 @@ function checkNameLength(base: string): boolean {
 	return false
 }
 
-async function copyImageUrl(path: string) {
+async function copyFileUrl(path: string) {
 	await navigator.clipboard.writeText(path)
 	toast.add({
 		title: 'Copied to clipboard',
@@ -152,7 +153,22 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			size: node.size,
 			thumbnail: node.publicUrl,
 			path: node.publicUrl,
-			typeLabel: imageFileTypeForExtension(splitFileName(node.name).extension)?.label,
+			typeLabel: uploadFileTypeForExtension(splitFileName(node.name).extension)?.label,
+		}
+	}
+	if (node.kind === 'audio') {
+		// No thumbnail, so selecting one doesn't open EditorView's image
+		// preview — the row's menu has its own Play instead (see audioPreview).
+		const fileType = uploadFileTypeForExtension(splitFileName(node.name).extension)
+		return {
+			label: node.name,
+			kind: 'audio',
+			id: node.id,
+			parentId,
+			size: node.size,
+			path: node.publicUrl,
+			icon: fileType?.icon,
+			typeLabel: fileType?.label,
 		}
 	}
 	if (node.kind === 'libraryImage') {
@@ -167,7 +183,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			parentId,
 			thumbnail: node.libraryPath,
 			path: node.libraryPath,
-			typeLabel: imageFileTypeForExtension(splitFileName(node.name).extension)?.label,
+			typeLabel: uploadFileTypeForExtension(splitFileName(node.name).extension)?.label,
 		}
 	}
 	if (node.kind === 'text') {
@@ -250,6 +266,7 @@ function itemStateClass(item: TreeItem): string | undefined {
 function kindLabel(item: TreeItem): string {
 	if (item.kind === 'folder') return 'folder'
 	if (item.kind === 'image' || item.kind === 'libraryImage') return 'image'
+	if (item.kind === 'audio') return 'sound'
 	if (item.kind === 'text') return 'text file'
 	return 'script'
 }
@@ -331,28 +348,31 @@ async function addFolder(parentId: string | null) {
 	await fileStore.createFolder(name, parentId)
 }
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10MB
+
+// "PNG, JPG, SVG, WebP, MP3, Ogg, WAV, and M4A"
+const supportedFormatsText = `${UPLOAD_FORMAT_LABELS.slice(0, -1).join(', ')}, and ${UPLOAD_FORMAT_LABELS[UPLOAD_FORMAT_LABELS.length - 1]}`
 
 function uploadFile(folderId: string | null) {
 	const input = document.createElement('input')
 	input.type = 'file'
-	input.accept = IMAGE_ACCEPT_ATTR
+	input.accept = UPLOAD_ACCEPT_ATTR
 	input.onchange = async () => {
 		const file = input.files?.[0]
 		if (!file) return
 
-		if (!ALLOWED_IMAGE_CONTENT_TYPES.has(file.type)) {
-			window.alert('Only PNG, JPG, SVG, and WebP images are supported.')
+		if (!uploadFileTypeFor(file)) {
+			window.alert(`Only ${supportedFormatsText} files are supported.`)
 			return
 		}
-		if (file.size > MAX_IMAGE_SIZE) {
-			window.alert('That file is too large — images must be 10MB or smaller.')
+		if (file.size > MAX_UPLOAD_SIZE) {
+			window.alert('That file is too large — uploads must be 10MB or smaller.')
 			return
 		}
 		// The name it'll actually be stored under — its recognized type's
 		// canonical extension, not necessarily whatever this source file was
-		// called (see imageDisplayName) — is what has to be unique, not file.name.
-		const name = imageDisplayName(file)
+		// called (see uploadDisplayName) — is what has to be unique, not file.name.
+		const name = uploadDisplayName(file)
 		if (!checkNameLength(splitFileName(name).base)) return
 		if (fileStore.isImageNameTaken(name)) {
 			window.alert('A file with that name already exists in this project.')
@@ -362,11 +382,40 @@ function uploadFile(folderId: string | null) {
 		try {
 			await fileStore.uploadImage(file, folderId)
 		} catch (err) {
-			window.alert(err instanceof Error ? err.message : 'Failed to upload image')
+			window.alert(err instanceof Error ? err.message : 'Failed to upload file')
 		}
 	}
 	input.click()
 }
+
+// ---- Audio preview ----
+// One shared element, so starting a second file's preview stops the first.
+
+const previewingAudioId = ref<string | null>(null)
+let previewAudio: HTMLAudioElement | null = null
+
+function toggleAudioPreview(item: TreeItem) {
+	if (previewingAudioId.value === item.id) {
+		stopAudioPreview()
+		return
+	}
+	stopAudioPreview()
+	previewAudio = new Audio(item.path)
+	previewAudio.addEventListener('ended', stopAudioPreview)
+	previewingAudioId.value = item.id
+	previewAudio.play().catch((err) => {
+		stopAudioPreview()
+		window.alert(`Couldn't play "${scriptName(item)}": ${err instanceof Error ? err.message : err}`)
+	})
+}
+
+function stopAudioPreview() {
+	previewAudio?.pause()
+	previewAudio = null
+	previewingAudioId.value = null
+}
+
+onBeforeUnmount(stopAudioPreview)
 
 // Blank creation, same shape as addScript — not upload-based: there's no
 // file picker here, just a name prompt and an empty new row.
@@ -489,7 +538,13 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 	}
 	if (item.kind === 'folder') primary.push(...folderMenuItems(item.id))
 	if ((item.kind === 'image' || item.kind === 'libraryImage') && item.path) {
-		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyImageUrl(item.path) })
+		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyFileUrl(item.path) })
+	}
+	if (item.kind === 'audio' && item.path) {
+		primary.push(previewingAudioId.value === item.id
+			? { label: 'Stop', icon: 'tabler:player-stop-filled', onSelect: () => toggleAudioPreview(item) }
+			: { label: 'Play', icon: 'tabler:player-play-filled', onSelect: () => toggleAudioPreview(item) })
+		primary.push({ label: 'Copy sound URL', icon: 'tabler:copy-filled', onSelect: () => copyFileUrl(item.path) })
 	}
 	if (item.kind === 'script') {
 		const typeItem = scriptTypeItem(item)
@@ -754,7 +809,7 @@ function commitRename(item: TreeItem) {
 	// The extension itself was never part of renamingValue (see startRename),
 	// so it's re-attached here rather than trusted from what was typed.
 	const name = joinFileName(typed, fileExtension(item))
-	if (item.kind === 'image' || item.kind === 'libraryImage') renameImage(item, name)
+	if (item.kind === 'image' || item.kind === 'audio' || item.kind === 'libraryImage') renameImage(item, name)
 	else if (item.kind === 'text') renameTextFile(item.id, scriptName(item), name)
 	else renameScript(scriptName(item), name)
 }
@@ -838,7 +893,10 @@ async function removeLibraryImage(id: string) {
 
 function deleteItem(item: TreeItem) {
 	if (item.kind === 'folder') return deleteFolder(item.id, scriptName(item))
-	if (item.kind === 'image') return deleteImage(item.id, scriptName(item))
+	if (item.kind === 'image' || item.kind === 'audio') {
+		if (previewingAudioId.value === item.id) stopAudioPreview()
+		return deleteImage(item.id, scriptName(item))
+	}
 	if (item.kind === 'libraryImage') return removeLibraryImage(item.id)
 	if (item.kind === 'text') return deleteTextFile(item.id, scriptName(item))
 	return deleteScript(scriptName(item))
@@ -863,7 +921,7 @@ function deleteItem(item: TreeItem) {
 // children at that index, so the projected drop location reads as a real,
 // highlighted empty slot rather than just a highlighted existing row.
 
-type DraggedNode = { id: string, kind: 'folder' | 'script' | 'image' | 'libraryImage' | 'text' }
+type DraggedNode = { id: string, kind: 'folder' | 'script' | 'image' | 'audio' | 'libraryImage' | 'text' }
 type DropTarget = { folderId: string | null, index: number }
 
 const draggedNode = ref<DraggedNode | null>(null)
@@ -871,12 +929,12 @@ const dragOverId = ref<string | null>(null)
 const dropTarget = ref<DropTarget | null>(null)
 
 function isDraggable(item: TreeItem): boolean {
-	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image' || item.kind === 'libraryImage' || item.kind === 'text'
+	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image' || item.kind === 'audio' || item.kind === 'libraryImage' || item.kind === 'text'
 }
 
 async function moveDraggedTo(dragged: DraggedNode, folderId: string | null, position: number) {
 	if (dragged.kind === 'folder') await fileStore.moveFolder(dragged.id, folderId, position)
-	else if (dragged.kind === 'image') await fileStore.moveImage(dragged.id, folderId, position)
+	else if (dragged.kind === 'image' || dragged.kind === 'audio') await fileStore.moveImage(dragged.id, folderId, position)
 	else if (dragged.kind === 'libraryImage') await fileStore.moveLibraryImage(dragged.id, folderId, position)
 	else if (dragged.kind === 'text') await fileStore.moveTextFile(dragged.id, folderId, position)
 	else await fileStore.moveScript(dragged.id, folderId, position)

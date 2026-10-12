@@ -1,8 +1,10 @@
 import Phaser from "phaser"
 import Camera from "@api/Camera"
+import { _imageSourceStatus, type ImageSource } from "@api/assets"
 import { Vector2 } from "./Vector2"
 
-const _defaultColor = '#444444'
+/** Also what assets.ts paints behind its loading bar, so loading and the game's first frame match. */
+export const _defaultColor = '#444444'
 
 /** Every background image style. The one source of truth: BackgroundStyle and Background.Styles both derive from this. */
 const Styles = {
@@ -26,8 +28,8 @@ export type BackgroundProps = {
     /** Color of the background. */
     color?: string
 
-    /** Source for the background's image. */
-    image?: string
+    /** The background's image: the name of an image file in your project, like 'sky.png', or a URL. */
+    image?: ImageSource
 
     /** Size/placement style of the background image. */
     style?: BackgroundStyle
@@ -139,7 +141,7 @@ export default class Background {
      * 
      * _Default:_  undefined
      */
-    set image(src: string | undefined | null) {
+    set image(src: ImageSource | undefined | null) {
         this._src = src === null ? undefined : src
 
         if (!src) {
@@ -153,10 +155,17 @@ export default class Background {
             this._img.setDepth(-Infinity)
         }
 
-        // If using a key, apply existing texture
-        if (this._scene.textures.exists(src)) {
+        // A project file (preloaded under its own name) or an already-loaded
+        // texture applies right away; a bare name matching neither has been
+        // reported, and clears the image rather than showing a stale one.
+        const status = _imageSourceStatus(this._scene.textures, src)
+        if (status === 'ready') {
             this._img.setTexture(src)
             this._updateStyle()
+            return
+        }
+        if (status === 'missing') {
+            this.clearImage()
             return
         }
 

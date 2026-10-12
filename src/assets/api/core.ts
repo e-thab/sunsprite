@@ -3,6 +3,8 @@ import Phaser from 'phaser'
 
 import type { Repeatable, Delayable, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
 import type { ThemePalette } from '@/assets/theme/themes'
+import type { ProjectAsset } from '@/sandbox/protocol'
+import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@api/assets'
 import { Vector2, type Vector2Like } from '@api/Vector2'
 import { Mouse } from '@api/types'
 import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from '@api/utility'
@@ -749,6 +751,10 @@ class UserScene extends Scene {
 
 		// _totalPauseTime = 0
 		// _lastPauseTime = 0
+
+		// Every image/sound in the project's file tree, under its own file name.
+		_preloadProjectAssets(this)
+
 		// this.load.image('guy', 'assets/guy.png')
 		// this.load.image('boot', 'assets/boot.png')
 		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
@@ -783,6 +789,19 @@ class UserScene extends Scene {
 
 		// Output.print(`Confirm dur: ${confirmSfx.duration}`)
 		// Output.print(`Win dur: ${winSfx.duration}`)
+
+		// Prevent audio from pausing when canvas loses focus... maybe expose this to the API?
+		this.sound.pauseOnBlur = false
+
+		// Manually pause/resume audio when hiding tab or minimizing; play()/pause() still need to
+		// be synced otherwise sound will still play on pause
+		const context = (this.sound as Phaser.Sound.WebAudioSoundManager).context
+		if (context) {
+			this.game.events.on(Phaser.Core.Events.HIDDEN, () => context.suspend())
+			this.game.events.on(Phaser.Core.Events.VISIBLE, () => {
+				if (!paused) context.resume()
+			})
+		}
 
 		if (mouse) {
 			mouse._setPointer(this.input.activePointer)
@@ -945,8 +964,9 @@ class UserScene extends Scene {
 	}
 }
 
-export async function runUserCode(code: string, entryName: string, theme?: ThemePalette): Promise<void> {
+export async function runUserCode(code: string, entryName: string, theme?: ThemePalette, assets: readonly ProjectAsset[] = []): Promise<void> {
 	Output.clear()
+	_setProjectAssets(assets, theme)
 
 	if (_sessionCount > 0) console.groupEnd()
 	// Be cool to print the group header in the theme primary color, but can't use the theme store here
@@ -1038,6 +1058,13 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 		// `Origin: null` matches.
 		loader: {
 			crossOrigin: 'anonymous'
+		},
+		// Shared across every Game this document builds, so decoded project
+		// sounds and the user's audio unlock both survive a restart — see
+		// assets.ts's _sharedAudioContext. Undefined (no Web Audio) leaves
+		// Phaser to pick its own fallback, same as before.
+		audio: {
+			context: _sharedAudioContext()
 		},
 		scene
 	}

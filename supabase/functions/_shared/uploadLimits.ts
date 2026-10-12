@@ -1,8 +1,16 @@
+// Canonical types only — the client maps browser/OS aliases (audio/x-wav,
+// audio/x-m4a, ...) onto these before signing (see src/assets/utils/fileTypes.ts),
+// so what R2 stores and what images.content_type's check allows (see
+// 20261012120000_allow_audio_uploads.sql) are always one of these exact strings.
 export const ALLOWED_CONTENT_TYPES = new Set([
   "image/png",
   "image/jpeg",
   "image/svg+xml",
   "image/webp",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/mp4",
 ]);
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 

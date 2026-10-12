@@ -123,29 +123,72 @@ export function isMainScript(fileName: string): boolean {
 	return splitFileName(fileName).base === MAIN_SCRIPT_BASE
 }
 
-export interface ImageFileType {
+/** What the game runtime loads an uploaded file as — a texture or a sound. */
+export type AssetKind = 'image' | 'audio'
+
+export interface UploadFileType {
+	kind: AssetKind
 	extension: string
+	/** The one content type stored for this format — see ALLOWED_CONTENT_TYPES in uploadLimits.ts. */
 	contentType: string
+	/**
+	 * Other content types browsers report for the same format — which one you
+	 * get depends on the browser and, on Windows, the registry (a .wav can
+	 * arrive as audio/wav, audio/x-wav, or audio/wave). Mapped onto
+	 * contentType before upload, so only the canonical form is ever stored.
+	 */
+	aliases?: string[]
 	label: string
 	icon: string
 }
 
-const IMAGE_FILE_TYPES: ImageFileType[] = [
-	{ extension: 'png', contentType: 'image/png', label: 'PNG', icon: 'catppuccin:image' },
-	{ extension: 'jpg', contentType: 'image/jpeg', label: 'JPG', icon: 'catppuccin:image' },
-	{ extension: 'svg', contentType: 'image/svg+xml', label: 'SVG', icon: 'catppuccin:svg' },
-	{ extension: 'webp', contentType: 'image/webp', label: 'WebP', icon: 'catppuccin:image' },
+const UPLOAD_FILE_TYPES: UploadFileType[] = [
+	{ kind: 'image', extension: 'png', contentType: 'image/png', label: 'PNG', icon: 'catppuccin:image' },
+	{ kind: 'image', extension: 'jpg', contentType: 'image/jpeg', label: 'JPG', icon: 'catppuccin:image' },
+	{ kind: 'image', extension: 'svg', contentType: 'image/svg+xml', label: 'SVG', icon: 'catppuccin:svg' },
+	{ kind: 'image', extension: 'webp', contentType: 'image/webp', label: 'WebP', icon: 'catppuccin:image' },
+	{ kind: 'audio', extension: 'mp3', contentType: 'audio/mpeg', aliases: ['audio/mp3'], label: 'MP3', icon: 'catppuccin:audio' },
+	{ kind: 'audio', extension: 'ogg', contentType: 'audio/ogg', aliases: ['application/ogg', 'video/ogg'], label: 'Ogg', icon: 'catppuccin:audio' },
+	{ kind: 'audio', extension: 'wav', contentType: 'audio/wav', aliases: ['audio/x-wav', 'audio/wave', 'audio/vnd.wave'], label: 'WAV', icon: 'catppuccin:audio' },
+	{ kind: 'audio', extension: 'm4a', contentType: 'audio/mp4', aliases: ['audio/x-m4a', 'audio/m4a'], label: 'M4A', icon: 'catppuccin:audio' },
 ]
 
-export const ALLOWED_IMAGE_CONTENT_TYPES = new Set(IMAGE_FILE_TYPES.map((t) => t.contentType))
-export const IMAGE_ACCEPT_ATTR = IMAGE_FILE_TYPES.map((t) => t.contentType).join(',')
+// Extensions as well as content types: a file picker's accept list matches on
+// either, and some formats (.ogg especially) come through with a content type
+// the browser doesn't consider audio at all.
+export const UPLOAD_ACCEPT_ATTR = UPLOAD_FILE_TYPES
+	.flatMap((t) => [`.${t.extension}`, t.contentType, ...(t.aliases ?? [])])
+	.join(',')
 
-export function imageFileTypeForContentType(contentType: string): ImageFileType | undefined {
-	return IMAGE_FILE_TYPES.find((t) => t.contentType === contentType)
+/** Human list of every uploadable format, for "only X, Y, and Z are supported" messages. */
+export const UPLOAD_FORMAT_LABELS = UPLOAD_FILE_TYPES.map((t) => t.label)
+
+export function uploadFileTypeForContentType(contentType: string): UploadFileType | undefined {
+	return UPLOAD_FILE_TYPES.find((t) => t.contentType === contentType || t.aliases?.includes(contentType))
 }
 
-export function imageFileTypeForExtension(extension: string): ImageFileType | undefined {
-	return IMAGE_FILE_TYPES.find((t) => t.extension === extension.toLowerCase())
+export function uploadFileTypeForExtension(extension: string): UploadFileType | undefined {
+	return UPLOAD_FILE_TYPES.find((t) => t.extension === extension.toLowerCase())
+}
+
+/**
+ * The format an uploaded file is recognized as, from its reported content type
+ * first and its extension only when the content type says nothing useful —
+ * empty, or generic, which is what Windows hands over for any extension its
+ * registry doesn't map (.ogg and .m4a on a fresh install, typically).
+ */
+export function uploadFileTypeFor(file: File): UploadFileType | undefined {
+	return uploadFileTypeForContentType(file.type)
+		?? (isGenericContentType(file.type) ? uploadFileTypeForExtension(splitFileName(file.name).extension) : undefined)
+}
+
+function isGenericContentType(contentType: string): boolean {
+	return contentType === '' || contentType === 'application/octet-stream'
+}
+
+/** Which kind of asset a stored file name is, going by its extension. */
+export function assetKindForName(name: string): AssetKind | undefined {
+	return uploadFileTypeForExtension(splitFileName(name).extension)?.kind
 }
 
 // "photo.png" -> { base: "photo", extension: "png" }. No dot (or nothing
@@ -193,12 +236,12 @@ export function isFileContentTooLong(content: string): boolean {
 }
 
 // The name an upload is stored under: type is recognized from the file's
-// real content type (not trusted from whatever extension, if any, the source
-// file's own name happened to have), and that recognized type's canonical
-// extension is what gets appended to it.
-export function imageDisplayName(file: File): string {
+// real content type where it has a useful one (see uploadFileTypeFor), and
+// that recognized type's canonical extension is what gets appended to it —
+// "song.MP3" and "song.mpeg" both become "song.mp3".
+export function uploadDisplayName(file: File): string {
 	const { base, extension } = splitFileName(file.name)
-	const canonicalExtension = imageFileTypeForContentType(file.type)?.extension ?? extension
+	const canonicalExtension = uploadFileTypeFor(file)?.extension ?? extension
 	return joinFileName(base, canonicalExtension)
 }
 
