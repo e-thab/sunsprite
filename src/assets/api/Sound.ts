@@ -26,7 +26,7 @@ import { _audioSourceStatus, _reportFailedLoad, type AudioSource } from '@api/as
 * - `On` events; onFinish, onStart, maybe more
 */
 
-type BusProps = {
+export type BusProps = {
     /** A list of sounds to add to the bus. */
     sounds?: Sound[]
     /**
@@ -68,46 +68,92 @@ type BusProps = {
     speed?: number
 }
 
-const busDefaults = {
+const soundDefaults = {
     muted: false,
     volume: 1,
     pitch: 0,
     speed: 1,
-    sounds: []
+    loop: false
 }
 
-/** An audio bus, tracks specified sounds and applies properties to each of them. */
-class Bus {
+/**
+ * An audio bus, holds an array of sounds and applies properties to each of them. This class is
+ * not meant to be instantiated manually, to add a new bus use Sound.addBus() instead.
+ */
+export class Bus {
     name: string
-    muted: boolean
-    volume: number
-    pitch: number
-    speed: number
     sounds: Sound[]
+    _muted: boolean = false
+    _volume: number = 1
+    _pitch: number = 0
+    _speed: number = 1
 
-    constructor(name: string)
-    constructor(props: { name: string } & BusProps)
     constructor(nameOrProps: string | { name: string } & BusProps) {
+        // TODO: ensure name uniqueness
         if (typeof nameOrProps === 'string') {
             this.name = nameOrProps.toLowerCase()
-            this.muted = busDefaults.muted
-            this.volume = busDefaults.volume
-            this.pitch = busDefaults.pitch
-            this.speed = busDefaults.speed
-            this.sounds = busDefaults.sounds // valid? or issue with pointer causing every default to point to the same array?
+            this.sounds = []
+            this.muted = soundDefaults.muted
+            this.volume = soundDefaults.volume
+            this.pitch = soundDefaults.pitch
+            this.speed = soundDefaults.speed
         } else {
             const props = nameOrProps
             const name = props.name
             this.name = name.toLowerCase()
-            this.muted = props?.muted ?? busDefaults.muted
-            this.volume = props?.volume ?? busDefaults.volume
-            this.pitch = props?.pitch ?? busDefaults.pitch
-            this.speed = props?.speed ?? busDefaults.speed
-            this.sounds = props?.sounds ?? busDefaults.sounds // same as above
+            this.sounds = props?.sounds ?? []
+            this.muted = props?.muted ?? soundDefaults.muted
+            this.volume = props?.volume ?? soundDefaults.volume
+            this.pitch = props?.pitch ?? soundDefaults.pitch
+            this.speed = props?.speed ?? soundDefaults.speed
         }
     }
 
-    addSound(sound: Sound) {
+    get muted(): boolean {
+        return this._muted
+    }
+    set muted(mute: boolean) {
+        this._muted = mute
+        for (const sound of this.sounds) {
+            sound._applyMuted()
+        }
+    }
+
+    get volume(): number {
+        return this._volume
+    }
+    set volume(volume: number) {
+        this._volume = volume
+        for (const sound of this.sounds) {
+            sound._applyVolume()
+        }
+    }
+
+    get pitch(): number {
+        return this._pitch
+    }
+    set pitch(pitch: number) {
+        this._pitch = pitch
+        for (const sound of this.sounds) {
+            sound._applyPitch()
+        }
+    }
+
+    get speed(): number {
+        return this._speed
+    }
+    set speed(speed: number) {
+        this._speed = speed
+        for (const sound of this.sounds) {
+            sound._applySpeed()
+        }
+    }
+
+    addSound(sound: Sound, unique: boolean = true) {
+        // Guarantee uniqueness (each Sound must have at most 1 bus)
+        if (unique) for (const bus of Sound.buses) {
+            if (bus.sounds.includes(sound)) bus.removeSound(sound)
+        }
         this.sounds.push(sound)
     }
 
@@ -120,25 +166,44 @@ class Bus {
     }
 
     reset() {
-        this.muted = busDefaults.muted
-        this.volume = busDefaults.volume
-        this.pitch = busDefaults.pitch
-        this.speed = busDefaults.speed
+        this.muted = soundDefaults.muted
+        this.volume = soundDefaults.volume
+        this.pitch = soundDefaults.pitch
+        this.speed = soundDefaults.speed
+        return this
+    }
+
+    toString(): string {
+        return `<Bus: ${this.name}>`
     }
 }
 
-const defaultBuses = [
-    new Bus('Master'),
+/**
+ * A locally-controlled client bus. This is like the master bus, but can't be accessed via user
+ * scripts. This is the bus modified when users adjust the volume sliders in the editor UI.
+ * Only volume is changed as of now.
+ */
+const _clientBus = new Bus('Client')
+
+/** The API-accessible master bus. */
+const masterBus = new Bus('Master')
+const defaultBuses = () => [
+    masterBus,
     new Bus('Music'),
     new Bus('Effects'),
     new Bus('UI'),
-    new Bus('Environment'),
+    new Bus('Ambient'),
     new Bus('Dialogue')
 ]
 
 export type SoundProps = {
     /** The sound's audio: the name of an audio file in your project, like 'jump.mp3', or a URL. */
     src?: AudioSource
+    /**
+     * Bus this sound belongs to. Buses are used to modify categories of sounds together so that
+     * you can do things like add separate volume sliders for music, effects, and UI sounds.
+     */
+    bus?: string
     /**
      * True while the sound is muted. Does not check volume; this being true
      * does not mean its volume is 0.
@@ -174,10 +239,15 @@ export type SoundProps = {
     pitch?: number
     /**
      * Playback speed of the sound. 1 is normal speed, 0.5 is half (takes twice as long),
+     * 2 is double (twice as fast).
      */
     speed?: number
     /** Whether this sound automatically repeats when it's finished. */
     loop?: boolean
+}
+
+function _getBus(name: string | undefined): Bus | undefined {
+    return Sound.buses.find((item) => item.name === name)
 }
 
 /** A sound that can play an audio file. */
@@ -189,20 +259,9 @@ export default class Sound {
     _speed: number
     _muted: boolean
     _loop: boolean
-    bus?: string
-    static buses: Bus[] = defaultBuses
-
-    static Bus(name: string): Bus | undefined {
-        return Sound.buses.find((item) => item.name === name)
-    }
-
-    // static addBus(name: string): Bus
-    // static addBus(props: { name: string } & BusProps): Bus
-    // static addBus(nameOrProps: string | { name: string } & BusProps): Bus {
-    //     const bus = new Bus(nameOrProps)
-    //     Sound.buses.push(bus)
-    //     return bus
-    // }
+    _bus?: Bus
+    static buses: Bus[] = defaultBuses()
+    static allSounds: Sound[] = []
 
     constructor(props?: SoundProps) {
         this._src = props?.src ?? 'win'
@@ -211,13 +270,104 @@ export default class Sound {
         this._muted = props?.muted ?? false
         this._speed = props?.speed ?? 1
         this._loop = props?.loop ?? false
-
+        this._bus = _getBus(props?.bus)
+        this._bus?.addSound(this, false)
         this._ref = this._createRef(this._src)
+        Sound.allSounds.push(this)
+    }
+
+    /** Returns the Bus object matching a given name. */
+    static Bus(name: string): Bus | undefined {
+        return _getBus(name)
+    }
+
+    /** Creates and adds a new Bus. */
+    static addBus(nameOrProps: string | { name: string } & BusProps): Bus {
+        const bus = new Bus(nameOrProps)
+        Sound.buses.push(bus)
+        return bus
+    }
+
+    /**
+     * Volume of the master bus. All sounds are on the master bus, so adjusting this property
+     * changes the overall volume of the entire game.
+     */
+    static get volume(): number {
+        return masterBus.volume
+    }
+    static set volume(volume: number) {
+        masterBus.volume = volume
+        Sound._applyAll()
+    }
+
+    /**
+     * Pitch of the master bus. All sounds are on the master bus, so adjusting this property
+     * changes the overall pitch of the entire game.
+     */
+    static get pitch(): number {
+        return masterBus.pitch
+    }
+    static set pitch(pitch: number) {
+        masterBus.pitch = pitch
+        Sound._applyAll()
+    }
+
+    /**
+     * Speed of the master bus. All sounds are on the master bus, so adjusting this property
+     * changes the overall playback speed of all the audio in the game.
+     */
+    static get speed(): number {
+        return masterBus.speed
+    }
+    static set speed(speed: number) {
+        masterBus.speed = speed
+        Sound._applyAll()
+    }
+
+    /**
+     * Mute state of the master bus. All sounds are on the master bus, so adjusting this property
+     * (or using Sound.mute() & Sound.unmute()) affects all the audio in the game.
+     */
+    static get muted(): boolean {
+        return masterBus.muted
+    }
+    static set muted(muted: boolean) {
+        masterBus.muted = muted
+        Sound._applyAll()
+    }
+
+    /** Mute all sounds in the game. */
+    static mute() {
+        Sound.muted = true
+    }
+
+    /**
+     * Unmute all sounds in the game. NOTE: This does not automatically make all sounds able to be
+     * heard, since sounds are also considered muted if their non-master bus is still muted or if
+     * they're still individually muted.
+     */
+    static unmute() {
+        Sound.muted = false
+    }
+
+    /** Internal. Calculates and applies all net values for all sounds. */
+    static _applyAll() {
+        for (const sound of Sound.allSounds) {
+            sound._applyAll()
+        }
+    }
+
+    /** Internal. Reset sound manager on each game run. */
+    static _reset() {
+        masterBus.clear()
+        masterBus.reset()
+        Sound.buses = defaultBuses()
+        Sound.allSounds = []
     }
 
     /**
      * True while `src` is a path/URL still downloading. Project files never
-     * are — they're preloaded before the script runs (see assets.ts).
+     * are, they're preloaded before the script runs.
      */
     _loading = false
     /** play() was called while loading; honored once the file arrives, unless pause()/stop() came after. */
@@ -259,22 +409,55 @@ export default class Sound {
             loadingScene.load.start()
         }
 
-        ref.setVolume(this._volume)
-        ref.setDetune(this._pitch)
-        ref.setMute(this._muted)
-        ref.setRate(this._speed)
-        ref.setLoop(this._loop)
+        this._applyAll(ref)
         return ref
     }
 
     /** Set any number of sound properties at once. */
     set(props?: SoundProps) {
         if (props?.src !== undefined) this.src = props.src
+        if (props?.bus !== undefined) this.bus = props.bus
         if (props?.volume !== undefined) this.volume = props.volume
         if (props?.pitch !== undefined) this.pitch = props.pitch
         if (props?.speed !== undefined) this.speed = props.speed
         if (props?.muted !== undefined) this.muted = props.muted
         if (props?.loop !== undefined) this.loop = props.loop
+    }
+
+    /*
+    * Each _apply* pushes one stored property, combined with the bus's, to a
+    * Phaser sound. These are the only places that combination happens. `ref`
+    * is a parameter because _createRef applies to its new sound before it
+    * becomes this._ref.
+    */
+
+    _applyVolume(ref = this._ref) {
+        // UI volume slider value applies here.
+        ref.setVolume(this.netVolume * _clientBus.volume)
+    }
+
+    _applyPitch(ref = this._ref) {
+        ref.setDetune(this.netPitch)
+    }
+
+    _applySpeed(ref = this._ref) {
+        ref.setRate(this.netSpeed)
+    }
+
+    _applyMuted(ref = this._ref) {
+        ref.setMute(this.muted)
+    }
+
+    _applyLoop(ref = this._ref) {
+        ref.setLoop(this._loop)
+    }
+
+    _applyAll(ref = this._ref) {
+        this._applyVolume(ref)
+        this._applyPitch(ref)
+        this._applySpeed(ref)
+        this._applyMuted(ref)
+        this._applyLoop(ref)
     }
 
     /** The sound's audio: the name of an audio file in your project, like 'jump.mp3', or a URL. */
@@ -302,13 +485,22 @@ export default class Sound {
         this._ref.setSeek(seek)
     }
 
-    /** Playback rate of the sound. */
+    /**
+     * Playback speed of the sound. 1 is normal speed, 0.5 is half (takes twice as long),
+     * 2 is double (twice as fast).
+     * 
+     * Speed is multiplied by bus speed.
+     */
     get speed(): number {
         return this._speed
     }
     set speed(speed: number) {
         this._speed = speed
-        this._ref.setRate(speed)
+        this._applySpeed()
+    }
+    /** The actual calculated playback speed after multiplying bus value. */
+    get netSpeed(): number {
+        return this._speed * masterBus.speed * (this._bus?.speed ?? 1)
     }
 
     /**
@@ -320,14 +512,22 @@ export default class Sound {
      * | 0.5    | Half as loud as default |
      * | 1      | Default volume  |
      * | 2      | Twice as loud as default |
+     * 
+     * Volume is multplied by bus volume.
      */
     get volume(): number {
         return this._volume
     }
     set volume(volume: number) {
-        volume = Math.max(0, volume)
-        this._volume = volume
-        this._ref.setVolume(volume)
+        this._volume = Math.max(0, volume)
+        this._applyVolume()
+    }
+    /**
+     * The actual calculated output volume after multiplying bus value. Does not consider the client
+     * volume controlled by the slider in the canvas UI. Scripts have no control over that value.
+     */
+    get netVolume(): number {
+        return this._volume * masterBus.volume * (this._bus?.volume ?? 1)
     }
 
     /**
@@ -345,25 +545,34 @@ export default class Sound {
      * | 100           | 466.16  | A#4 / Bb4  |
      * | 200           | 493.88  | B4         |
      * | 1200          | 880     | A5         |
+     * 
+     * Pitch is added to bus pitch.
      */
     get pitch(): number {
         return this._pitch
     }
     set pitch(pitch: number) {
         this._pitch = pitch
-        this._ref.setDetune(pitch)
+        this._applyPitch()
+    }
+    /** The actual calculated output volume after multiplying bus value. */
+    get netPitch(): number {
+        return this._pitch + masterBus.pitch + (this._bus?.pitch ?? 0)
     }
 
     /**
      * True while the sound is muted. Does not check volume; a sound being
-     * muted does not mean its volume is 0.
+     * muted does not mean its volume is 0, even though it can't be heard.
+     * 
+     * If this sound's bus is muted, this sound is considered muted.
      */
     get muted(): boolean {
-        return this._muted
+        return masterBus.muted || this._bus?.muted || this._muted
     }
-    set muted(mute: boolean) {
-        this._muted = mute
-        this._ref.setMute(mute)
+    set muted(muted: boolean) {
+        // _muted always keeps the manually assigned value, saving value between bus mute/unmutes
+        this._muted = muted
+        this._applyMuted()
     }
 
     /** Whether this sound automatically repeats when it's finished. */
@@ -372,7 +581,22 @@ export default class Sound {
     }
     set loop(loop: boolean) {
         this._loop = loop
-        this._ref.setLoop(loop)
+        this._applyLoop()
+    }
+
+    /** Name of the bus this sound belongs to, or undefined if it doesn't have one. */
+    get bus(): string | undefined {
+        return this._bus?.name
+    }
+    set bus(bus: string | undefined) {
+        const nextBus = _getBus(bus)
+        if (nextBus === undefined) return
+
+        this._bus?.removeSound(this)
+        nextBus?.addSound(this)
+        this._bus = nextBus
+        // Every bus-combined property changes with the bus
+        this._applyAll()
     }
 
     /** Play the sound until finished or stopped manually. */
@@ -427,6 +651,20 @@ export default class Sound {
      */
     unmute() {
         this.muted = false
+    }
+
+    /**
+     * Resets commonly used properties to default. Doesn't change src, bus, seek, 
+     * 
+     * | Property | Default |
+     * | volume | 1 |
+     * | speed | 1 |
+     * | pitch | 0 |
+     * | muted | false |
+     * | loop | false |
+     */
+    reset() {
+        this.set(soundDefaults)
     }
 
     // on() {

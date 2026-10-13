@@ -990,6 +990,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_mouseHoldActions.clear()
 	_propUpdaters.clear()
 	clearWatchCards()
+	Sound._reset()
 
 	keysPressed = []
 	keysJustPressed.clear()

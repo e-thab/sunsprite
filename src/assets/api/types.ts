@@ -8,7 +8,7 @@ export type Action = (...args: any[]) => void
 export type Predicate = (...args: any[]) => boolean
 export type Returnable<T> = T | (() => T)
 export type Optional<T> = T | undefined | null
-export type Printable = { toString(): string }
+export type Printable = { toString(): string | undefined }
 
 // TODO: verify jsdoc descriptions... are they pointer coords
 // or offset coords?
