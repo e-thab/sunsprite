@@ -6,7 +6,7 @@ import { generateApiDeclarations } from './api-codegen/index'
 import { renderGeneratedModule } from './api-codegen/render'
 import { createProgram } from './api-codegen/extract'
 import { findTypeAlias } from './api-codegen/ast'
-import { CONCRETE_CLASSES, apiPath, docsCopySet, runtimeCopySet } from './api-codegen/sources'
+import { CONCRETE_CLASSES, TYPE_ONLY_CLASSES, apiPath, docsCopySet, runtimeCopySet } from './api-codegen/sources'
 import { copyAndRewriteRuntime, verifyStandalone, normalizeSlashes } from './api-codegen/runtimeCopy'
 import { copyAndRewriteVueFiles, verifyVueStandalone } from './api-codegen/vueCopy'
 import { DEV_VERSION } from '../src/assets/api/versions/constants'
@@ -149,6 +149,18 @@ async function main() {
                 ''
             )
         }
+    }
+
+    for (const typeOnly of TYPE_ONLY_CLASSES) {
+        const bundle = generated.concreteClasses[typeOnly.className]
+        if (!bundle) continue
+        // Instances user code only ever gets handed (Bus) — a type, never a value to construct or reference.
+        lines.push(
+            `${bundle.doc}export interface ${typeOnly.className} {`,
+            bundle.members.join('\n\n'),
+            '}',
+            ''
+        )
     }
 
     mkdirSync(outDir, { recursive: true })

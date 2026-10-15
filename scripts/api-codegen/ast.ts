@@ -73,14 +73,17 @@ export function findMixinClassExpression(sourceFile: ts.SourceFile, functionName
     return undefined
 }
 
-/** Finds `export default class Name extends ... {...}`. */
-export function findDefaultExportClass(sourceFile: ts.SourceFile): ts.ClassDeclaration | undefined {
+/**
+ * Finds `export [default] class Name extends ... {...}` by its class name. By
+ * name rather than "the file's first exported class": Sound.ts exports both
+ * Bus and Sound, and taking the first one silently swapped Bus's members in
+ * as Sound's.
+ */
+export function findExportedClass(sourceFile: ts.SourceFile, name: string): ts.ClassDeclaration | undefined {
     for (const statement of sourceFile.statements) {
-        if (!ts.isClassDeclaration(statement)) continue
-        const isDefault = statement.modifiers?.some(
-            (m) => m.kind === ts.SyntaxKind.ExportKeyword || m.kind === ts.SyntaxKind.DefaultKeyword
-        )
-        if (isDefault) return statement
+        if (!ts.isClassDeclaration(statement) || statement.name?.text !== name) continue
+        const isExported = statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+        if (isExported) return statement
     }
     return undefined
 }

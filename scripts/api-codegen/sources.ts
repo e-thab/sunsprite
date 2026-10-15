@@ -63,9 +63,8 @@ export const CONCRETE_CLASSES = [
     // Timer()`, `new Vector2(x, y)`), so constructorParams carries their
     // real (hand-written — constructors aren't extracted) parameter list,
     // and both render as `declare class X { constructor(...); ... }`.
-    // Mouse lives in types.ts, not its own file — findDefaultExportClass
-    // matches any exported class regardless of file name, and it's the
-    // only exported class in that file.
+    // Mouse lives in types.ts, not its own file — findExportedClass looks
+    // the class up by className, regardless of file name.
     { file: apiPath('Camera.ts'), typeName: undefined, className: 'Camera', constructorParams: undefined },
     { file: apiPath('Vector2.ts'), typeName: undefined, className: 'Vector2', constructorParams: 'x: number, y: number' },
     { file: apiPath('Timer.ts'), typeName: undefined, className: 'Timer', constructorParams: '' },
@@ -73,6 +72,18 @@ export const CONCRETE_CLASSES = [
     { file: apiPath('Screen.ts'), typeName: undefined, className: 'Screen', constructorParams: undefined },
     { file: apiPath('types.ts'), typeName: undefined, className: 'Mouse', constructorParams: undefined },
     { file: apiPath('Background.ts'), typeName: undefined, className: 'Background', constructorParams: undefined },
+] as const
+
+/**
+ * Classes user code gets instances of but never reaches by name — not keys of
+ * core.ts's `api` object, so neither constructible nor a global value. Their
+ * members are extracted exactly like CONCRETE_CLASSES', but they're declared
+ * as an `interface` (type only): a `class`/`const` declaration would let the
+ * editor accept `new Bus(...)` or `Bus.x`, which throw at runtime.
+ */
+export const TYPE_ONLY_CLASSES = [
+    // Reached through Sound.Bus(name) / Sound.addBus(...) / Sound.buses.
+    { file: apiPath('Sound.ts'), className: 'Bus' },
 ] as const
 
 export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
@@ -108,6 +119,8 @@ export const OBJECT_LITERALS = [
 export const TYPE_ALIASES = [
     { file: apiPath('Background.ts'), name: 'BackgroundStyle' },
     { file: apiPath('Background.ts'), name: 'BackgroundProps' },
+    // Sound.addBus's options object.
+    { file: apiPath('Sound.ts'), name: 'BusProps' },
 ] as const
 
 /**

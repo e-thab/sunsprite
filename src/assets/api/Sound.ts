@@ -138,21 +138,18 @@ export class Bus {
     }
 
     /**
-     * An array of all the sounds that should belong to this bus. Setting this removes any sounds
+     * An array of all the sounds that belong to this bus. Setting this removes any sounds
      * not in the new array. If you want to add sounds without removing any current ones, instead
      * use bus.addSounds()
      */
     get sounds(): Sound[] {
-        return this._sounds
+        // A copy, so pushing to/splicing the returned array can't add or remove a sound without
+        // that sound knowing which bus it's on
+        return [...this._sounds]
     }
     set sounds(sounds: Sound[]) {
-        if (sounds === this._sounds) return
-
         this.clear()
-        this._sounds = sounds
-        for (const sound of sounds) {
-            sound.bus = this
-        }
+        this.addSounds(sounds)
     }
 
     /**
@@ -164,7 +161,7 @@ export class Bus {
     }
     set muted(mute: boolean) {
         this._muted = mute
-        for (const sound of this.sounds) {
+        for (const sound of this._sounds) {
             sound._applyMuted()
         }
     }
@@ -184,7 +181,7 @@ export class Bus {
     }
     set volume(volume: number) {
         this._volume = volume
-        for (const sound of this.sounds) {
+        for (const sound of this._sounds) {
             sound._applyVolume()
         }
     }
@@ -210,7 +207,7 @@ export class Bus {
     }
     set pitch(pitch: number) {
         this._pitch = pitch
-        for (const sound of this.sounds) {
+        for (const sound of this._sounds) {
             sound._applyPitch()
         }
     }
@@ -230,7 +227,7 @@ export class Bus {
     }
     set speed(speed: number) {
         this._speed = speed
-        for (const sound of this.sounds) {
+        for (const sound of this._sounds) {
             sound._applySpeed()
         }
     }
@@ -239,12 +236,9 @@ export class Bus {
      * Add a sound to this bus.
      * @param sound The sound object to add to the bus.
      */
-    addSound(sound: Sound, _unique: boolean = true) {
-        // Guarantee uniqueness (each Sound must have at most 1 bus)
-        if (_unique) for (const bus of Sound.buses) {
-            if (bus.sounds.includes(sound)) bus.removeSound(sound)
-        }
-        this.sounds.push(sound)
+    addSound(sound: Sound) {
+        // Also takes the sound off its previous bus, if any
+        sound._setBus(this)
     }
 
     /**
@@ -260,7 +254,7 @@ export class Bus {
      * @param sound The sound to remove.
      */
     removeSound(sound: Sound) {
-        this.sounds = this.sounds.filter((item) => sound !== item)
+        if (sound._bus === this) sound._setBus(undefined)
     }
 
     /** 
@@ -276,11 +270,25 @@ export class Bus {
      * @returns This bus object.
      */
     clear() {
-        for (const sound of this.sounds) {
-            sound.bus = undefined
+        // Copy first, each _setBus(undefined) removes that sound from this._sounds
+        for (const sound of [...this._sounds]) {
+            sound._setBus(undefined)
         }
-        this._sounds = []
         return this
+    }
+
+    /*
+     * Internal membership bookkeeping, only called from Sound._setBus (and the Sound constructor)
+     * so that a bus's _sounds and each sound's _bus always agree. Everything else, including the
+     * public methods above, goes through _setBus.
+     */
+
+    _addSound(sound: Sound) {
+        if (!this._sounds.includes(sound)) this._sounds.push(sound)
+    }
+
+    _removeSound(sound: Sound) {
+        this._sounds = this._sounds.filter((item) => item !== sound)
     }
 
     /**
@@ -439,8 +447,9 @@ export default class Sound {
         this._muted = props?.muted ?? false
         this._speed = props?.speed ?? 1
         this._loop = props?.loop ?? false
+        // Bookkeeping only, _createRef below applies the bus's values
         this._bus = _getBus(props?.bus)
-        this._bus?.addSound(this, false)
+        this._bus?._addSound(this)
         this._ref = this._createRef(this._src)
         Sound.allSounds.push(this)
     }
@@ -557,7 +566,9 @@ export default class Sound {
 
     /** Internal. Reset sound manager on each game run. */
     static _reset() {
-        masterBus.clear()
+        // Not clear(): that re-applies each old sound's values, and their Phaser sounds may
+        // already be gone with the previous run. They're all being dropped anyway.
+        masterBus._sounds = []
         masterBus.reset()
         Sound.buses = defaultBuses()
         Sound.allSounds = []
@@ -811,21 +822,29 @@ export default class Sound {
     }
     /**
      * A sound's bus property can be set using either the name of the bus or an actual Bus instance.
-     * e.g. `song.bus = Sound.Bus('Music')` or just `song.bus = 'Music'`
+     * e.g. `song.bus = Sound.Bus('Music')` or just `song.bus = 'Music'`. Set it to undefined to
+     * take the sound off its bus.
      */
     set bus(bus: string | Bus | undefined) {
+        if (bus === undefined) {
+            this._setBus(undefined)
+            return
+        }
         const nextBus = bus instanceof Bus ? bus : _getBus(bus)
         if (nextBus === undefined) return
         this._setBus(nextBus)
-        // Properties multiplied by bus values need to be recalculated and applied
-        this._applyAll()
     }
 
-    /** Internal method for setting bus directly from Bus object. */
-    _setBus(bus: Bus) {
-        this._bus?.removeSound(this)
-        bus.addSound(this)
+    /**
+     * Internal. The one place a sound changes buses: keeps the old and new bus's sound lists
+     * and this._bus in sync, then re-applies the bus-combined values.
+     */
+    _setBus(bus: Bus | undefined) {
+        if (bus === this._bus) return
+        this._bus?._removeSound(this)
         this._bus = bus
+        bus?._addSound(this)
+        this._applyAll()
     }
 
     /** Play the sound until finished or stopped manually. */

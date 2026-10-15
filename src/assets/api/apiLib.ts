@@ -36,10 +36,10 @@ import {
     linePropsFields, lineMembers,
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
-    soundPropsFields, soundMembers,
+    soundPropsFields, soundMembers, busMembers, busPropsDeclaration,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
     randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
@@ -83,6 +83,10 @@ export interface VersionedApiConstants {
     vLineMembers: string
     soundPropsFields: string
     soundMembers: string
+    // Optional: snapshots cut before buses existed don't export these, and
+    // buildApiLib leaves Bus/BusProps out for them.
+    busMembers?: string
+    busPropsDeclaration?: string
     cameraMembers: string
     vector2Members: string
     timerMembers: string
@@ -114,6 +118,7 @@ export interface VersionedApiConstants {
     labelDoc: string
     circleDoc: string
     soundDoc: string
+    busDoc?: string
     foreverDeclaration: string
     repeatDeclaration: string
     repeatUntilDeclaration: string
@@ -671,7 +676,14 @@ ${v.soundDoc}class Sound {
     constructor(options?: SoundProps)
 
 ${v.soundMembers}
-}`,
+}
+${v.busMembers === undefined ? '' : `
+${v.busPropsDeclaration ?? ''}
+
+${v.busDoc ?? ''}interface Bus {
+${v.busMembers}
+}
+`}`,
     ].join('\n') + '\n}\nexport {}'
 }
 
@@ -712,10 +724,10 @@ export const apiLib = buildApiLib({
     linePropsFields, lineMembers,
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
-    soundPropsFields, soundMembers,
+    soundPropsFields, soundMembers, busMembers, busPropsDeclaration,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
     randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,

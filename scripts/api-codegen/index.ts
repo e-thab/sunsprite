@@ -1,5 +1,5 @@
 import { createProgram, extractMixin, extractConcreteClass, extractObjectLiteral, extractFreeFunction, extractTypeAlias, type TypeAliasBundle } from './extract'
-import { MIXINS, CONCRETE_CLASSES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES } from './sources'
+import { MIXINS, CONCRETE_CLASSES, TYPE_ONLY_CLASSES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES } from './sources'
 
 export interface MixinBundle {
     propsFields: string[]
@@ -41,6 +41,10 @@ export function generateApiDeclarations(): GeneratedDeclarations {
     const concreteClasses: Record<string, ConcreteClassBundle> = {}
     for (const concrete of CONCRETE_CLASSES) {
         concreteClasses[concrete.className] = extractConcreteClass(program, checker, concrete, mixinCache)
+    }
+    // Same {doc, members} output; only how apiLib/snapshot-api declare them differs.
+    for (const typeOnly of TYPE_ONLY_CLASSES) {
+        concreteClasses[typeOnly.className] = extractConcreteClass(program, checker, typeOnly, mixinCache)
     }
     // Random (a plain object literal, not a class) slots into the same
     // output bucket as the classes above — same {propsFields, members}

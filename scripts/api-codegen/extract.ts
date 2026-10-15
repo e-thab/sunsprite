@@ -1,6 +1,6 @@
 import ts from 'typescript'
-import { extractDoc, formatDocBlock, isExcluded, findTypeAlias, findMixinClassExpression, findDefaultExportClass, findFunctionDeclarations, findObjectLiteralConst, unwrapExpression } from './ast'
-import { MIXINS, CONCRETE_CLASSES, GAME_OBJECT_FILE, SET_TYPE_OVERRIDES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES } from './sources'
+import { extractDoc, formatDocBlock, isExcluded, findTypeAlias, findMixinClassExpression, findExportedClass, findFunctionDeclarations, findObjectLiteralConst, unwrapExpression } from './ast'
+import { MIXINS, CONCRETE_CLASSES, TYPE_ONLY_CLASSES, GAME_OBJECT_FILE, SET_TYPE_OVERRIDES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES } from './sources'
 import { REPO_ROOT, TS_PATHS } from '../aliases'
 
 const INDENT = '    '
@@ -8,6 +8,7 @@ const INDENT = '    '
 export function createProgram(): { program: ts.Program; checker: ts.TypeChecker } {
     const rootFiles = [
         ...CONCRETE_CLASSES.map((c) => c.file),
+        ...TYPE_ONLY_CLASSES.map((c) => c.file),
         ...OBJECT_LITERALS.map((o) => o.file),
         ...FREE_FUNCTIONS.map((f) => f.file),
         ...TYPE_ALIASES.map((t) => t.file),
@@ -122,29 +123,43 @@ function isStaticMember(member: ts.ClassElement): boolean {
     return (ts.getCombinedModifierFlags(member as ts.Declaration) & ts.ModifierFlags.Static) !== 0
 }
 
+const STATIC_KEY_PREFIX = 'static '
+
+/**
+ * Static and instance members can share a name (Sound's static `volume` for the
+ * master bus and each sound's own `volume`), so they're keyed apart — keyed by
+ * bare name, whichever came second merged into or replaced the first.
+ */
+function memberKey(name: string, isStatic: boolean): string {
+    return isStatic ? STATIC_KEY_PREFIX + name : name
+}
+
+/** Groups a class body's members by {@link memberKey}. */
 function groupMembers(members: ts.NodeArray<ts.ClassElement>): Map<string, AccessorGroup | MethodGroup | PropertyGroup> {
     const groups = new Map<string, AccessorGroup | MethodGroup | PropertyGroup>()
 
     for (const member of members) {
         const name = member.name?.getText()
         if (!name || isExcluded(name)) continue
+        const isStatic = isStaticMember(member)
+        const key = memberKey(name, isStatic)
 
         if (ts.isGetAccessor(member)) {
-            const existing = groups.get(name)
+            const existing = groups.get(key)
             if (existing?.kind === 'accessor') existing.getter = member
-            else groups.set(name, { kind: 'accessor', getter: member, isStatic: isStaticMember(member) })
+            else groups.set(key, { kind: 'accessor', getter: member, isStatic })
         } else if (ts.isSetAccessor(member)) {
-            const existing = groups.get(name)
+            const existing = groups.get(key)
             if (existing?.kind === 'accessor') existing.setter = member
             // A setter with no getter yet (declaration order) shouldn't happen in this
             // codebase's real source, and a setter alone isn't renderable — skip until
             // its getter is found; if it never is, it's silently omitted.
         } else if (ts.isMethodDeclaration(member)) {
-            const existing = groups.get(name)
+            const existing = groups.get(key)
             if (existing?.kind === 'method') existing.signatures.push(member)
-            else groups.set(name, { kind: 'method', signatures: [member], isStatic: isStaticMember(member) })
+            else groups.set(key, { kind: 'method', signatures: [member], isStatic })
         } else if (ts.isPropertyDeclaration(member)) {
-            groups.set(name, { kind: 'property', decl: member, isStatic: isStaticMember(member) })
+            groups.set(key, { kind: 'property', decl: member, isStatic })
         }
     }
     return groups
@@ -248,16 +263,17 @@ function renderProperty(name: string, group: PropertyGroup, checker: ts.TypeChec
     return `${formatDocBlock(doc, INDENT)}${INDENT}${staticPrefix}${name}${optional}: ${type}`
 }
 
-/** Renders a class body's own (non-`_`-prefixed) members as an ordered map of name -> line(s). */
+/** Renders a class body's own (non-`_`-prefixed) members as an ordered map of {@link memberKey} -> line(s). */
 function extractOwnMembers(classNode: ts.ClassDeclaration | ts.ClassExpression, ownerName: string, checker: ts.TypeChecker): Map<string, string> {
     const result = new Map<string, string>()
     const groups = groupMembers(classNode.members)
 
-    for (const [name, group] of groups) {
+    for (const [key, group] of groups) {
+        const name = group.isStatic ? key.slice(STATIC_KEY_PREFIX.length) : key
         const overrideKey = `${ownerName}.${name}`
-        if (group.kind === 'accessor') result.set(name, renderAccessor(name, group, overrideKey, checker))
-        else if (group.kind === 'method') result.set(name, renderMethod(name, group, checker))
-        else result.set(name, renderProperty(name, group, checker))
+        if (group.kind === 'accessor') result.set(key, renderAccessor(name, group, overrideKey, checker))
+        else if (group.kind === 'method') result.set(key, renderMethod(name, group, checker))
+        else result.set(key, renderProperty(name, group, checker))
     }
     return result
 }
@@ -426,7 +442,8 @@ interface ConcreteClassBundle {
 export function extractConcreteClass(
     program: ts.Program,
     checker: ts.TypeChecker,
-    concrete: (typeof CONCRETE_CLASSES)[number],
+    // A CONCRETE_CLASSES or TYPE_ONLY_CLASSES entry, the latter just never has a typeName
+    concrete: { file: string; className: string; typeName?: string },
     mixinCache: Map<string, Map<string, string>>
 ): ConcreteClassBundle {
     const sourceFile = getSourceFile(program, concrete.file)
@@ -434,8 +451,8 @@ export function extractConcreteClass(
     const typeAlias = concrete.typeName ? findTypeAlias(sourceFile, concrete.typeName) : undefined
     const propsFields = typeAlias ? extractPropsFields(typeAlias) : []
 
-    const classDecl = findDefaultExportClass(sourceFile)
-    if (!classDecl) throw new Error(`Could not find default export class in ${concrete.file}`)
+    const classDecl = findExportedClass(sourceFile, concrete.className)
+    if (!classDecl) throw new Error(`Could not find exported class ${concrete.className} in ${concrete.file}`)
 
     const composed = resolveComposedMembers(program, checker, sourceFile, classDecl, concrete.className, mixinCache)
     return { doc: formatDocBlock(extractDoc(classDecl), ''), propsFields, members: [...composed.values()] }
