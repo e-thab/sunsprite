@@ -3,9 +3,7 @@ import { _projectTextFile } from '@api/assets'
 /** The name of a text file in your project as a string. */
 export type TextSource = string
 
-/**
- * Reads the files in your project.
- */
+/** Used to get data from files in your project. */
 const Files = {
     /**
      * Returns everything in a text file in your project, like 'level1.txt', as one string. The

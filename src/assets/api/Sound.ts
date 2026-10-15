@@ -30,7 +30,7 @@ import { currentLocation } from './moduleRunner'
 
 export type BusProps = {
     /**
-     * This bus's name. A few names are already taken by the default buses:
+     * This bus's name. These names are already taken by the default buses:
      * - Ambient
      * - Dialogue
      * - Effects
@@ -38,16 +38,20 @@ export type BusProps = {
      * - Music
      * - UI
      */
-    name?: string
-    /** A list of sounds to add to the bus. */
+    name: string
+    /**
+     * An array of all the sounds that should belong to this bus. Setting this removes any sounds
+     * not in the new array. If you want to add sounds without removing any current ones, instead
+     * use bus.addSounds()
+     */
     sounds?: Sound[]
     /**
-     * True while the sound is muted. Does not check volume; this being true
-     * does not mean its volume is 0.
+     * True while the bus's sound is muted. Does not check volume; this being true
+     * does not necessarily mean that its volume is 0.
      */
     muted?: boolean
     /**
-     * Loudness of sounds on the bus. The lower this is, the quieter the sounds.
+     * Loudness of the bus's sounds. The lower this is, the quieter the sounds.
      * 
      * | Volume | Result |
      * | ------ | ------ |
@@ -58,7 +62,7 @@ export type BusProps = {
      */
     volume?: number
     /**
-     * Pitch of the sound in [cents.](https://en.wikipedia.org/wiki/Cent_(music))
+     * Pitch of the bus's sounds in [cents.](https://en.wikipedia.org/wiki/Cent_(music))
      * 
      * 0 means no change in pitch, every 100 adjusts by one semitone. For example,
      * if your sound is 440hz (A4):
@@ -75,14 +79,19 @@ export type BusProps = {
      */
     pitch?: number
     /**
-     * Playback speed of the sound. 1 is normal speed, 0.5 is half (takes twice as long),
+     * Playback speed of the bus's sound.
+     * 
+     * | Speed | Result |
+     * | ------ | ------ |
+     * | 0 | Playback never advances, sound can't be heard |
+     * | 0.5 | Half the default speed |
+     * | 1 | Default playback  |
+     * | 2 | Twice as fast as default |
      */
     speed?: number
 }
 
-type BusPropsWithName = Omit<BusProps, 'name'> & Required<Pick<BusProps, 'name'>>
-
-function isBusPropsWithName(value: unknown): value is BusPropsWithName {
+function isBusProps(value: unknown): value is BusProps {
     return typeof value === 'object'
         && value !== null
         && typeof (value as BusProps).name === 'string'
@@ -102,16 +111,15 @@ const soundDefaults = {
  */
 export class Bus {
     name: string
-    sounds: Sound[]
-    _muted: boolean = false
-    _volume: number = 1
-    _pitch: number = 0
-    _speed: number = 1
+    _sounds: Sound[] = []
+    _muted: boolean = soundDefaults.muted
+    _volume: number = soundDefaults.volume
+    _pitch: number = soundDefaults.pitch
+    _speed: number = soundDefaults.speed
 
-    constructor(nameOrProps: string | BusPropsWithName) {
+    constructor(nameOrProps: string | BusProps) {
         if (typeof nameOrProps === 'string') {
             this.name = nameOrProps.toLowerCase()
-            this.sounds = []
             this.muted = soundDefaults.muted
             this.volume = soundDefaults.volume
             this.pitch = soundDefaults.pitch
@@ -119,8 +127,9 @@ export class Bus {
         } else {
             const props = nameOrProps
             const name = props.name
-            this.name = name.toLowerCase()
+
             this.sounds = props?.sounds ?? []
+            this.name = name.toLowerCase()
             this.muted = props?.muted ?? soundDefaults.muted
             this.volume = props?.volume ?? soundDefaults.volume
             this.pitch = props?.pitch ?? soundDefaults.pitch
@@ -128,6 +137,28 @@ export class Bus {
         }
     }
 
+    /**
+     * An array of all the sounds that should belong to this bus. Setting this removes any sounds
+     * not in the new array. If you want to add sounds without removing any current ones, instead
+     * use bus.addSounds()
+     */
+    get sounds(): Sound[] {
+        return this._sounds
+    }
+    set sounds(sounds: Sound[]) {
+        if (sounds === this._sounds) return
+
+        this.clear()
+        this._sounds = sounds
+        for (const sound of sounds) {
+            sound.bus = this
+        }
+    }
+
+    /**
+     * True while the bus's sound is muted. Does not check volume; this being true
+     * does not necessarily mean that its volume is 0.
+     */
     get muted(): boolean {
         return this._muted
     }
@@ -138,6 +169,16 @@ export class Bus {
         }
     }
 
+    /**
+     * Loudness of the bus's sounds. The lower this is, the quieter the sounds.
+     * 
+     * | Volume | Result |
+     * | ------ | ------ |
+     * | 0 | Too quiet to hear |
+     * | 0.5 | Half as loud as default |
+     * | 1 | Default volume  |
+     * | 2 | Twice as loud as default |
+     */
     get volume(): number {
         return this._volume
     }
@@ -148,6 +189,22 @@ export class Bus {
         }
     }
 
+    /**
+     * Pitch of the bus's sounds in [cents.](https://en.wikipedia.org/wiki/Cent_(music))
+     * 
+     * 0 means no change in pitch, every 100 adjusts by one semitone. For example,
+     * if your sound is 440hz (A4):
+     * 
+     * | Pitch (cents) | Hz      | Note       |
+     * | ------------- | ------- | ---------- |
+     * | -1200         | 220     | A3         |
+     * | -200          | 392     | G4         |
+     * | -100          | 415.30  | Ab4 / G#4  |
+     * | 0             | 440     | A4         |
+     * | 100           | 466.16  | A#4 / Bb4  |
+     * | 200           | 493.88  | B4         |
+     * | 1200          | 880     | A5         |
+     */
     get pitch(): number {
         return this._pitch
     }
@@ -158,6 +215,16 @@ export class Bus {
         }
     }
 
+    /**
+     * Playback speed of the bus's sound.
+     * 
+     * | Speed | Result |
+     * | ------ | ------ |
+     * | 0 | Playback never advances, sound can't be heard |
+     * | 0.5 | Half the default speed |
+     * | 1 | Default playback  |
+     * | 2 | Twice as fast as default |
+     */
     get speed(): number {
         return this._speed
     }
@@ -168,30 +235,72 @@ export class Bus {
         }
     }
 
-    addSound(sound: Sound, unique: boolean = true) {
+    /**
+     * Add a sound to this bus.
+     * @param sound The sound object to add to the bus.
+     */
+    addSound(sound: Sound, _unique: boolean = true) {
         // Guarantee uniqueness (each Sound must have at most 1 bus)
-        if (unique) for (const bus of Sound.buses) {
+        if (_unique) for (const bus of Sound.buses) {
             if (bus.sounds.includes(sound)) bus.removeSound(sound)
         }
         this.sounds.push(sound)
     }
 
+    /**
+     * Add multiple sounds to this bus.
+     * @param sounds An array of sound objects to add to the bus.
+     */
+    addSounds(sounds: Sound[]) {
+        for (const sound of sounds) this.addSound(sound)
+    }
+
+    /**
+     * Remove a sound from this bus.
+     * @param sound The sound to remove.
+     */
     removeSound(sound: Sound) {
         this.sounds = this.sounds.filter((item) => sound !== item)
     }
 
-    clear() {
-        this.sounds = []
+    /** 
+     * Remove multiple sounds from this bus.
+     * @param sounds An array of sound objects to remove from the bus.
+     */
+    removeSounds(sounds: Sound[]) {
+        for (const sound of sounds) this.removeSound(sound)
     }
 
-    set(props: BusProps) {
+    /**
+     * Remove all sounds from this bus.
+     * @returns This bus object.
+     */
+    clear() {
+        for (const sound of this.sounds) {
+            sound.bus = undefined
+        }
+        this._sounds = []
+        return this
+    }
+
+    /**
+     * Set any number of bus properties at once, except name.
+     * @param props An object containing the properties to set and their values.
+     * @returns This bus object.
+     */
+    set(props: Omit<BusProps, 'name'>) {
         if (props.sounds !== undefined) this.sounds = props.sounds
         if (props.muted !== undefined) this.muted = props.muted
         if (props.volume !== undefined) this.volume = props.volume
         if (props.pitch !== undefined) this.pitch = props.pitch
         if (props.speed !== undefined) this.speed = props.speed
+        return this
     }
 
+    /**
+     * Reset this bus's properties back to default. Doesn't change which sounds belong to the bus.
+     * @returns This bus object.
+     */
     reset() {
         this.muted = soundDefaults.muted
         this.volume = soundDefaults.volume
@@ -200,17 +309,20 @@ export class Bus {
         return this
     }
 
+    /**
+     * How the bus should look when converted to a string.
+     * @returns A string of the format `<Bus: {name}>`
+     */
     toString(): string {
         return `<Bus: ${this.name}>`
     }
 }
 
 /**
- * A locally-controlled client bus. This is like the master bus, but can't be accessed via user
- * scripts. This is the bus modified when users adjust the volume sliders in the editor UI.
- * Only volume and mute are used as of now.
+ * A locally-controlled client pseudo bus. This is like the master bus, but can't be accessed via
+ * user scripts. This is the bus modified when users adjust the volume sliders in the editor UI.
+ * Not a real Bus instance because only volume and mute are used as of now.
  */
-// const _clientBus = new Bus('Client')
 const _client = {
     volume: 1,
     muted: false
@@ -249,6 +361,8 @@ export type SoundProps = {
      * | 0.5 | Half as loud as default |
      * | 1 | Default volume  |
      * | 2 | Twice as loud as default |
+     * 
+     * Volume is multiplied by bus volume.
      */
     volume?: number
     /**
@@ -266,11 +380,21 @@ export type SoundProps = {
      * | 100           | 466.16  | A#4 / Bb4  |
      * | 200           | 493.88  | B4         |
      * | 1200          | 880     | A5         |
+     * 
+     * Pitch is added to bus pitch.
      */
     pitch?: number
     /**
-     * Playback speed of the sound. 1 is normal speed, 0.5 is half (takes twice as long),
-     * 2 is double (twice as fast).
+     * Playback speed of the sound.
+     * 
+     * | Speed | Result |
+     * | ------ | ------ |
+     * | 0 | Playback never advances, sound can't be heard |
+     * | 0.5 | Half the default speed |
+     * | 1 | Default playback  |
+     * | 2 | Twice as fast as default |
+     * 
+     * Speed is multiplied by bus speed.
      */
     speed?: number
     /** Whether this sound automatically repeats when it's finished. */
@@ -278,7 +402,7 @@ export type SoundProps = {
 }
 
 function _getBus(name: string | undefined): Bus | undefined {
-    return Sound.buses.find((item) => item.name === name)
+    return Sound.buses.find((item) => item.name.toLowerCase() === name?.toLowerCase())
 }
 
 /*
@@ -321,13 +445,20 @@ export default class Sound {
         Sound.allSounds.push(this)
     }
 
-    /** Returns the Bus object matching a given name. */
+    /**
+     * Returns the Bus object matching a given name.
+     */
     static Bus(name: string): Bus | undefined {
         return _getBus(name)
     }
 
-    /** Creates and adds a new Bus. */
-    static addBus(nameOrProps: string | BusPropsWithName): Bus {
+    /**
+     * Creates and adds a new Bus.
+     */
+    static addBus(nameOrProps: string | BusProps): Bus {
+        if (typeof nameOrProps !== 'string' && !isBusProps(nameOrProps)) {
+            throw new Error(`Sound.addBus() needs a bus name or a bus options object with at least a 'name' property, like Sound.addBus({ name: 'footsteps' })`)
+        }
         const busName = typeof nameOrProps === 'string' ? nameOrProps : nameOrProps.name
         const existingBus = Sound.Bus(busName)
         
@@ -338,9 +469,8 @@ export default class Sound {
                 if (typeof nameOrProps === 'string') {
                     // If a duplicate bus name was provided only, don't do anything
                     warnMsg += `Ignoring Sound.addBus('${busName}')`
-                }
-                if (isBusPropsWithName(nameOrProps)) {
-                    // If a BusPropsWithName object was provided with a duplicate name, just
+                } else {
+                    // If a BusProps object was provided with a duplicate name, just
                     // set properties of the extant bus
                     warnMsg += `Setting properties of the existing bus rather than adding a new one`
                     existingBus.set(nameOrProps)
@@ -481,7 +611,9 @@ export default class Sound {
         return ref
     }
 
-    /** Set any number of sound properties at once. */
+    /**
+     * Set any number of sound properties at once.
+     */
     set(props?: SoundProps) {
         if (props?.src !== undefined) this.src = props.src
         if (props?.bus !== undefined) this.bus = props.bus
@@ -490,6 +622,20 @@ export default class Sound {
         if (props?.speed !== undefined) this.speed = props.speed
         if (props?.muted !== undefined) this.muted = props.muted
         if (props?.loop !== undefined) this.loop = props.loop
+    }
+
+    /**
+     * Resets commonly used properties to default. Doesn't change src, bus, seek, 
+     * 
+     * | Property | Default |
+     * | volume | 1 |
+     * | speed | 1 |
+     * | pitch | 0 |
+     * | muted | false |
+     * | loop | false |
+     */
+    reset() {
+        this.set(soundDefaults)
     }
 
     /*
@@ -555,8 +701,14 @@ export default class Sound {
     }
 
     /**
-     * Playback speed of the sound. 1 is normal speed, 0.5 is half (takes twice as long),
-     * 2 is double (twice as fast).
+     * Playback speed of the bus's sound.
+     * 
+     * | Speed | Result |
+     * | ------ | ------ |
+     * | 0 | Playback never advances, sound can't be heard |
+     * | 0.5 | Half the default speed |
+     * | 1 | Default playback  |
+     * | 2 | Twice as fast as default |
      * 
      * Speed is multiplied by bus speed.
      */
@@ -657,15 +809,23 @@ export default class Sound {
     get bus(): string | undefined {
         return this._bus?.name
     }
-    set bus(bus: string | undefined) {
-        const nextBus = _getBus(bus)
+    /**
+     * A sound's bus property can be set using either the name of the bus or an actual Bus instance.
+     * e.g. `song.bus = Sound.Bus('Music')` or just `song.bus = 'Music'`
+     */
+    set bus(bus: string | Bus | undefined) {
+        const nextBus = bus instanceof Bus ? bus : _getBus(bus)
         if (nextBus === undefined) return
-
-        this._bus?.removeSound(this)
-        nextBus?.addSound(this)
-        this._bus = nextBus
-        // Every bus-combined property changes with the bus
+        this._setBus(nextBus)
+        // Properties multiplied by bus values need to be recalculated and applied
         this._applyAll()
+    }
+
+    /** Internal method for setting bus directly from Bus object. */
+    _setBus(bus: Bus) {
+        this._bus?.removeSound(this)
+        bus.addSound(this)
+        this._bus = bus
     }
 
     /** Play the sound until finished or stopped manually. */
@@ -720,20 +880,6 @@ export default class Sound {
      */
     unmute() {
         this.muted = false
-    }
-
-    /**
-     * Resets commonly used properties to default. Doesn't change src, bus, seek, 
-     * 
-     * | Property | Default |
-     * | volume | 1 |
-     * | speed | 1 |
-     * | pitch | 0 |
-     * | muted | false |
-     * | loop | false |
-     */
-    reset() {
-        this.set(soundDefaults)
     }
 
     // on() {
