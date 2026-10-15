@@ -10,6 +10,7 @@ import { useApiVersionStore } from '@/stores/apiVersionStore'
 import { runUserCode, resizeStage } from '@/sandbox/hostBridge'
 import { formatDate } from '@/assets/utils/timeAgo'
 import GameFrame from '@/components/GameFrame.vue'
+import VolumeControl from '@/components/VolumeControl.vue'
 import ErrorView from './ErrorView.vue'
 
 // Matches the literal name every other run entry point uses (fileStore.ts,
@@ -149,9 +150,9 @@ onUnmounted(() => {
               <UButton icon="tabler:refresh" variant="ghost" color="neutral" label="Restart" size="xs" @click="runGame" />
             </UTooltip>
 
-            <UTooltip text="Volume — coming soon" ignore-non-keyboard-focus>
-              <UButton icon="tabler:volume" variant="ghost" color="neutral" label="Volume" size="xs" disabled />
-            </UTooltip>
+            <!-- No UTooltip around this one: the button is a popover trigger,
+                 and the panel it opens is its own label. -->
+            <VolumeControl />
 
             <UTooltip :text="fullscreenStore.fullscreen ? 'Exit fullscreen' : 'Fullscreen'" ignore-non-keyboard-focus>
               <UButton

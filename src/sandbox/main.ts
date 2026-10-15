@@ -67,6 +67,12 @@ function handleMessage(message: HostMessage) {
             appliedPauseSeq = message.seq
             break
 
+        case 'set-client-audio':
+            // Snapshot versions predate the toolbar's volume control and
+            // don't export this, so their audio stays as the script set it.
+            core.setClientAudio?.(message.volume, message.muted)
+            break
+
         case 'resize':
             core.resizeStage()
             break

@@ -5,6 +5,7 @@ import { useFullscreenStore } from '@/stores/fullscreen'
 import { useFileStore } from '@/stores/fileStore'
 import GameFrame from '@/components/GameFrame.vue'
 import CollapsiblePane from './CollapsiblePane.vue'
+import VolumeControl from './VolumeControl.vue'
 import Output from '@/assets/api/output'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
@@ -67,11 +68,9 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
         <!-- </UTooltip> -->
       </UChip>
 
-      <!-- Sound -->
-      <!-- Icon should change based on volume -->
-      <!-- <UTooltip text="Volume"> -->
-        <UButton icon="tabler:volume" variant="ghost" color="neutral" label="Volume" size="xs" @click="Output.print('sound')" />
-      <!-- </UTooltip> -->
+      <!-- Sound: volume slider + mute for the client bus. Its own component
+           so PlayView.vue's toolbar can show the same control. -->
+      <VolumeControl />
 
       <!-- Fullscreen toggle -->
       <!-- <UTooltip :text="fullscreenTooltip"> -->

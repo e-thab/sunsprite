@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { scene } from '@api/core'
 import { _audioSourceStatus, _reportFailedLoad, type AudioSource } from '@api/assets'
+import Output from '@/sandbox/output'
 
 /* TODO:
 * Create an audio bus system. Sounds should have a `bus` property that tracks
@@ -8,7 +9,7 @@ import { _audioSourceStatus, _reportFailedLoad, type AudioSource } from '@api/as
 * using Sound.Bus(name).property. i.e. Sound.Bus('effects').volume = 50
 * 
 * A few default buses should be provided:
-*   Master, Music, Effects, UI, Environment, Dialogue
+*   Master, Music, Effects, UI, Ambient, Dialogue
 * 
 * The master bus is a special bus containing all sounds on all other buses.
 * Default buses can be accessed using i.e. Sound.Bus('Music') (case-insensitive)
@@ -27,6 +28,16 @@ import { _audioSourceStatus, _reportFailedLoad, type AudioSource } from '@api/as
 */
 
 export type BusProps = {
+    /**
+     * This bus's name. A few names are already taken by the default buses:
+     * - Ambient
+     * - Dialogue
+     * - Effects
+     * - Master
+     * - Music
+     * - UI
+     */
+    name?: string
     /** A list of sounds to add to the bus. */
     sounds?: Sound[]
     /**
@@ -68,6 +79,14 @@ export type BusProps = {
     speed?: number
 }
 
+type BusPropsWithName = Omit<BusProps, 'name'> & Required<Pick<BusProps, 'name'>>
+
+function isBusPropsWithName(value: unknown): value is BusPropsWithName {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as BusProps).name === 'string'
+}
+
 const soundDefaults = {
     muted: false,
     volume: 1,
@@ -88,8 +107,7 @@ export class Bus {
     _pitch: number = 0
     _speed: number = 1
 
-    constructor(nameOrProps: string | { name: string } & BusProps) {
-        // TODO: ensure name uniqueness
+    constructor(nameOrProps: string | BusPropsWithName) {
         if (typeof nameOrProps === 'string') {
             this.name = nameOrProps.toLowerCase()
             this.sounds = []
@@ -165,6 +183,14 @@ export class Bus {
         this.sounds = []
     }
 
+    set(props: BusProps) {
+        if (props.sounds !== undefined) this.sounds = props.sounds
+        if (props.muted !== undefined) this.muted = props.muted
+        if (props.volume !== undefined) this.volume = props.volume
+        if (props.pitch !== undefined) this.pitch = props.pitch
+        if (props.speed !== undefined) this.speed = props.speed
+    }
+
     reset() {
         this.muted = soundDefaults.muted
         this.volume = soundDefaults.volume
@@ -181,9 +207,13 @@ export class Bus {
 /**
  * A locally-controlled client bus. This is like the master bus, but can't be accessed via user
  * scripts. This is the bus modified when users adjust the volume sliders in the editor UI.
- * Only volume is changed as of now.
+ * Only volume and mute are used as of now.
  */
-const _clientBus = new Bus('Client')
+// const _clientBus = new Bus('Client')
+const _client = {
+    volume: 1,
+    muted: false
+}
 
 /** The API-accessible master bus. */
 const masterBus = new Bus('Master')
@@ -250,6 +280,20 @@ function _getBus(name: string | undefined): Bus | undefined {
     return Sound.buses.find((item) => item.name === name)
 }
 
+/*
+ * The client's volume/mute control (the canvas toolbar's volume dropdown)
+ * lands here, routed through core.ts's setClientAudio. The client bus
+ * can't be accessed through user scripts.
+ */
+export function setClientVolume(volume: number) {
+    _client.volume = volume
+    Sound._applyAll()
+}
+export function setClientMute(muted: boolean) {
+    _client.muted = muted
+    Sound._applyAll()
+}
+
 /** A sound that can play an audio file. */
 export default class Sound {
     _ref: Phaser.Sound.NoAudioSound | Phaser.Sound.HTML5AudioSound | Phaser.Sound.WebAudioSound
@@ -282,7 +326,29 @@ export default class Sound {
     }
 
     /** Creates and adds a new Bus. */
-    static addBus(nameOrProps: string | { name: string } & BusProps): Bus {
+    static addBus(nameOrProps: string | BusPropsWithName): Bus {
+        const busName = typeof nameOrProps === 'string' ? nameOrProps : nameOrProps.name
+        
+        for (const bus of Sound.buses) {
+            // Warn if name is not unique
+            // TODO: TEST!!
+            if (bus.name === busName) {
+                let warnMsg = `A sound bus with name ${busName} already exists. `
+                try {
+                    if (typeof nameOrProps === 'string') {
+                        warnMsg += `Ignoring Sound.addBus('${busName}')`
+                    }
+                    if (isBusPropsWithName(nameOrProps)) {
+                        warnMsg += `Setting properties of the existing bus rather than adding a new one.`
+                        bus.set(nameOrProps)
+                    }
+                } finally {
+                    Output.warn(warnMsg)
+                }
+                break
+            }
+        }
+        
         const bus = new Bus(nameOrProps)
         Sound.buses.push(bus)
         return bus
@@ -432,8 +498,8 @@ export default class Sound {
     */
 
     _applyVolume(ref = this._ref) {
-        // UI volume slider value applies here.
-        ref.setVolume(this.netVolume * _clientBus.volume)
+        // UI volume slider value applies here
+        ref.setVolume(this.netVolume * _client.volume)
     }
 
     _applyPitch(ref = this._ref) {
@@ -445,7 +511,8 @@ export default class Sound {
     }
 
     _applyMuted(ref = this._ref) {
-        ref.setMute(this.muted)
+        // UI mute applies here
+        ref.setMute(this.muted || _client.muted)
     }
 
     _applyLoop(ref = this._ref) {

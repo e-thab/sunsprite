@@ -37,7 +37,40 @@ const clockRef = ref({
 const screenRef = ref({ width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0 })
 const camRef = ref({ x: 0, y: 0, width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0, zoom: 0 })
 
-export { fpsRef, mouseRef, pausedRef, clockRef, screenRef, camRef }
+/*
+ * The listener's own volume, as set by the canvas toolbar's Volume dropdown —
+ * the client bus sandbox-side (see api/Sound.ts). It's a property of this
+ * machine, not of the project or of the running game, so it's kept here with
+ * the rest of the sandbox's host-side state and persisted to localStorage the
+ * way the other editor-chrome preferences are (see stores/editorSettingsStore.ts).
+ * Nothing reads it back out of the sandbox: this is the authoritative copy,
+ * re-sent on every 'ready' because a reloaded sandbox starts at its defaults.
+ */
+const CLIENT_AUDIO_KEY = 'sunsprite-client-audio'
+
+function loadClientAudio(): { volume: number, muted: boolean } {
+    try {
+        const raw = localStorage.getItem(CLIENT_AUDIO_KEY)
+        if (!raw) return { volume: 1, muted: false }
+        const stored = JSON.parse(raw) as Record<string, unknown>
+        return {
+            volume: typeof stored?.volume === 'number' && stored.volume >= 0 && stored.volume <= 1
+                ? stored.volume
+                : 1,
+            muted: stored?.muted === true,
+        }
+    } catch {
+        // Unparseable, or localStorage unavailable in a locked-down context.
+        // Full volume is the right answer either way.
+        return { volume: 1, muted: false }
+    }
+}
+
+const stored = loadClientAudio()
+const clientVolumeRef = ref(stored.volume)
+const clientMutedRef = ref(stored.muted)
+
+export { fpsRef, mouseRef, pausedRef, clockRef, screenRef, camRef, clientVolumeRef, clientMutedRef }
 
 let frame: HTMLIFrameElement | null = null
 let sandboxReady = false
@@ -113,6 +146,9 @@ function onSandboxMessage(event: MessageEvent) {
             // (rather than failing) when a requested version isn't found, so
             // this can legitimately differ from what sandboxUrl() last asked for.
             loadedVersion = message.apiVersion
+            // Before any queued run: a game that starts playing audio in its
+            // first frames should already be at the volume the slider shows.
+            postClientAudio()
             if (queuedRun) {
                 post({ type: 'run', ...queuedRun })
                 queuedRun = null
@@ -222,6 +258,40 @@ export function play() {
 
 export function resizeStage() {
     post({ type: 'resize' })
+}
+
+function postClientAudio() {
+    post({ type: 'set-client-audio', volume: clientVolumeRef.value, muted: clientMutedRef.value })
+}
+
+function persistClientAudio() {
+    try {
+        localStorage.setItem(CLIENT_AUDIO_KEY, JSON.stringify({
+            volume: clientVolumeRef.value,
+            muted: clientMutedRef.value,
+        }))
+    } catch {
+        // Storage unavailable or full — the setting still applies to this
+        // session, it just won't be remembered. Not worth failing the click.
+    }
+}
+
+/**
+ * Volume for everything the game plays, 0..1, multiplied into every sound's
+ * own volume sandbox-side. Called straight from the slider, so it's written
+ * on every drag tick — a postMessage of two numbers, nothing heavier.
+ */
+export function setClientVolume(volume: number) {
+    clientVolumeRef.value = Math.min(1, Math.max(0, volume))
+    persistClientAudio()
+    postClientAudio()
+}
+
+/** Silence the game without losing the volume the slider is set to. */
+export function setClientMuted(muted: boolean) {
+    clientMutedRef.value = muted
+    persistClientAudio()
+    postClientAudio()
 }
 
 /*

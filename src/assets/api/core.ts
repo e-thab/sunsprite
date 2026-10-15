@@ -27,7 +27,7 @@ import Label from '@api/Label'
 import Line from '@api/Line'
 import HLine from '@api/HLine'
 import VLine from '@api/VLine'
-import Sound from '@api/Sound'
+import Sound, { setClientVolume, setClientMute } from '@api/Sound'
 
 export const VERSION = '1.0'
 
@@ -110,15 +110,52 @@ function wrapUserCallback<A extends unknown[]>(fn: (...args: A) => void): (...ar
 	return (...args: A) => runUserCallback(() => fn(...args), undefined)
 }
 
+/**
+ * Internal. The game's Web Audio context — the same one assets.ts hands
+ * Phaser at boot (see _sharedAudioContext). Undefined before a game exists,
+ * or when the browser left Phaser on a NoAudio/HTML5 sound manager, which
+ * has no context to suspend.
+ */
+function audioContext(): AudioContext | undefined {
+	return (game?.sound as Phaser.Sound.WebAudioSoundManager | undefined)?.context
+}
+
+/**
+ * Internal. Stops and restarts the clock in audio hardware time, so a paused
+ * game is silent rather than paused-but-still-playing.
+ */
+function suspendAudio() {
+	const context = audioContext()
+	if (context?.state === 'running') context.suspend()
+}
+function resumeAudio() {
+	const context = audioContext()
+	if (context?.state === 'suspended') context.resume()
+}
+
 /** Pause engine processing. Must be manually un-paused using the UI button for now. */
 export function pause() {
 	clock.pause()
 	paused = true
+	suspendAudio()
 }
 /** Resume engine processing. There is currently no practical way to use this function since it can't be processed while paused. (WIP) */
 export function play() {
 	clock.play()
 	paused = false
+	resumeAudio()
+}
+
+/**
+ * Internal. The host's own volume/mute control (the canvas toolbar's Volume
+ * dropdown), applied to the client bus. Host-driven like pause()/play(), so
+ * it lives here with the rest of the sandbox's message entry points rather
+ * than on Sound itself, where user scripts could reach it. Survives a restart
+ * untouched: Sound._reset() rebuilds the script-facing buses only.
+ */
+export function setClientAudio(volume: number, muted: boolean) {
+	setClientVolume(volume)
+	setClientMute(muted)
 }
 
 /** Current renderer frame rate, or 0 before a game exists. */
@@ -766,40 +803,58 @@ class UserScene extends Scene {
 		// !! PROBLEM: every and after don't honor pause state when using delayed call method
 		console.log('create')
 
-		// Testing audio
-		// this.sound.unlock()
-		// const confirmSfx = this.sound.add('confirm', {
-		// 	// delay: 50, // doesn't seem to work? maybe needs to be configured on play()
-		// 	// detune: 1000,
-		// 	// loop: true,
-		// 	// mute: true,
-		// 	// pan: -1,
-		// 	// rate: 1,
-		// })
-		// const winSfx = this.sound.add('win', {
-		// 	detune: -200
-		// })
-		// winSfx.on(Phaser.Sound.Events.COMPLETE, () => confirmSfx.play({ delay: 0.2 }))
-		// winSfx.play({
-		// 	delay: 0.5,
-		// 	seek: 0.4,
-		// })
-		// confirmSfx.play()
-		// after(1, () => winSfx.play())
-
-		// Output.print(`Confirm dur: ${confirmSfx.duration}`)
-		// Output.print(`Win dur: ${winSfx.duration}`)
-
 		// Prevent audio from pausing when canvas loses focus... maybe expose this to the API?
 		this.sound.pauseOnBlur = false
 
-		// Manually pause/resume audio when hiding tab or minimizing; play()/pause() still need to
-		// be synced otherwise sound will still play on pause
-		const context = (this.sound as Phaser.Sound.WebAudioSoundManager).context
-		if (context) {
-			this.game.events.on(Phaser.Core.Events.HIDDEN, () => context.suspend())
+		// Manually pause/resume audio when hiding tab or minimizing.
+		const soundManager = this.sound as Phaser.Sound.WebAudioSoundManager
+		if (soundManager.context) {
+			// Phaser registers its own VISIBLE handler in the sound manager's
+			// constructor, outside pauseOnBlur's control, which cycles
+			// suspend() + resume() 100ms after the tab comes back — an iOS 17/18
+			// workaround (phaserjs/phaser#6829). Because it's late *and*
+			// unconditional, it would undo the `if (!paused)` below and hand a
+			// paused game its audio back. Dropping it and re-doing the same
+			// cycle ourselves is what keeps audio and the clock in sync; the
+			// handler is private, hence the cast.
+			const manager = soundManager as unknown as { onGameVisible: () => void, onFocus: () => void }
+			this.game.events.off(Phaser.Core.Events.VISIBLE, manager.onGameVisible, soundManager)
+
+			// And the sound manager resumes the context from its own update(),
+			// on every single game step: WebAudioSoundManager.update() ends
+			// with `if (!this.gameLostFocus) this.onFocus()`, and onFocus()
+			// resumes whatever is suspended — iOS "interrupted audio"
+			// recovery, and not gated by pauseOnBlur either.
+			const phaserOnFocus = manager.onFocus.bind(soundManager)
+			manager.onFocus = () => {
+				if (paused) suspendAudio()
+				else phaserOnFocus()
+			}
+
+			// A fresh Game resumes the shared context on its way up (Phaser's
+			// createAudioContext resumes whatever context the config handed
+			// it — see assets.ts's _sharedAudioContext), so restarting while
+			// paused would come back audible. Re-assert the pause instead of
+			// going through suspendAudio(), whose `running` check can't see a
+			// resume that's still in flight this early in the boot.
+			if (paused && soundManager.context.state !== 'closed') soundManager.context.suspend()
+
+			this.game.events.on(Phaser.Core.Events.HIDDEN, () => suspendAudio())
 			this.game.events.on(Phaser.Core.Events.VISIBLE, () => {
-				if (!paused) context.resume()
+				// Same 100ms delay Phaser's own handler used — the artifacts it
+				// avoids are a property of the context, not of who asked.
+				window.setTimeout(() => {
+					if (paused) {
+						// The browser may have resumed it on our behalf while
+						// handing focus back. Put it back where pause() left it.
+						suspendAudio()
+						return
+					}
+					const context = audioContext()
+					if (!context) return
+					context.suspend()
+					context.resume()
+				}, 100)
 			})
 		}
 

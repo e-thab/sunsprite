@@ -36,6 +36,15 @@ export type HostMessage =
      * discard those stale snapshots instead of trusting whichever arrives last.
      */
     | { type: 'set-paused', paused: boolean, seq: number }
+    /**
+     * The editor's own volume/mute control (the canvas toolbar's Volume
+     * dropdown), applied to the client bus — the one bus user scripts can't
+     * reach, so a game can't override what the person listening chose. Both
+     * fields travel together, and the host re-sends them on every 'ready': a
+     * sandbox that just reloaded (an API version change) boots at the client
+     * bus's defaults and has no way to ask what the slider says.
+     */
+    | { type: 'set-client-audio', volume: number, muted: boolean }
     /** Nudge the game to re-measure its container (splitter drags, etc.). */
     | { type: 'resize' }
     /**
