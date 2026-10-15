@@ -21,8 +21,17 @@ export type HostMessage =
      * Sent whole with every run rather than requested lazily like scripts:
      * preloading has to know the full set before the game starts, and a file
      * added mid-run should wait for the next run like any other change does.
+     *
+     * `paused` builds the game but leaves it paused and silent on its first
+     * frame, waiting for Play, as if a 'set-paused' carrying `pauseSeq` had
+     * arrived the moment the run began. It's part of the run rather than a
+     * 'set-paused' sent after it because core's runUserCode unpauses as it
+     * starts, and an unpaused run can be held back (see audioGate.ts), so a
+     * separate pause could land first and be undone. main.ts applies it, so
+     * it works for every API version. Omitted, the run starts playing as soon
+     * as it's allowed to make sound.
      */
-    | { type: 'run', code: string, entryName: string, theme?: ThemePalette, assets?: ProjectAsset[] }
+    | { type: 'run', code: string, entryName: string, theme?: ThemePalette, assets?: ProjectAsset[], paused?: boolean, pauseSeq?: number }
     /** Reply to a 'script-request'. `content: null` means "no such script". */
     | { type: 'script-response', id: number, content: string | null }
     /**

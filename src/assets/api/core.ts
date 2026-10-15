@@ -817,8 +817,21 @@ class UserScene extends Scene {
 			// paused game its audio back. Dropping it and re-doing the same
 			// cycle ourselves is what keeps audio and the clock in sync; the
 			// handler is private, hence the cast.
-			const manager = soundManager as unknown as { onGameVisible: () => void, onFocus: () => void }
+			const manager = soundManager as unknown as { onGameVisible: () => void, onFocus: () => void, locked: boolean }
 			this.game.events.off(Phaser.Core.Events.VISIBLE, manager.onGameVisible, soundManager)
+
+			// Phaser decides `locked` once, at construction, from whether the
+			// context is suspended — meaning "the browser hasn't allowed audio
+			// yet" — and won't resume a locked context from onFocus() below
+			// until a click or key lands on this document. With a shared
+			// context that test reads our own state, not the browser's:
+			// restarting a paused game boots on the context pause() suspended,
+			// so the new game came up locked, its script running and its
+			// audio stuck until the canvas was clicked. Whether audio is
+			// allowed is sandbox/audioGate.ts's job, and it holds every
+			// unpaused start until it is, so by the time this game is allowed
+			// to play, so is its audio.
+			manager.locked = false
 
 			// And the sound manager resumes the context from its own update(),
 			// on every single game step: WebAudioSoundManager.update() ends

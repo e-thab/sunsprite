@@ -35,6 +35,8 @@ watch(fpsRef, (fps) => {
 
 const playPauseIcon = computed(() => pausedRef.value ? 'tabler:player-play-filled' : 'tabler:player-pause-filled')
 const playPauseLabel = computed(() => pausedRef.value ? 'Play' : 'Pause')
+const playPauseColor = computed(() => pausedRef.value ? 'warning' : 'neutral')
+const playPauseVariant = computed(() => pausedRef.value ? 'subtle' : 'ghost')
 function togglePlayPause() {
   if (pausedRef.value) {
     play()
@@ -58,7 +60,7 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
     <div class="panel-bar">
       <!-- Play / Pause -->
       <!-- <UTooltip :text="playPauseLabel"> -->
-        <UButton :icon="playPauseIcon" variant="subtle" color="primary" :label="playPauseLabel" size="xs" @click="togglePlayPause" />
+        <UButton :icon="playPauseIcon" :variant="playPauseVariant" :color="playPauseColor" :label="playPauseLabel" size="xs" @click="togglePlayPause" />
       <!-- </UTooltip> -->
 
       <!-- Restart / Run code -->

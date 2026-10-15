@@ -5,7 +5,7 @@ import { useWatchPanelStore } from '@/stores/watchPanelStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
 import { DEV_VERSION } from '@api/versions/constants'
 import type { ThemePalette } from '@/assets/theme/themes'
-import { HOST_ORIGIN_PARAM, API_VERSION_PARAM, OPAQUE_ORIGIN, type HostMessage, type ProjectAsset, type SandboxMessage } from './protocol'
+import { HOST_ORIGIN_PARAM, API_VERSION_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
 
 // Host side of the sandbox. User code no longer runs in the editor app at all:
 // it runs in runner.html inside an `<iframe sandbox="allow-scripts">`, which
@@ -81,8 +81,10 @@ let loadedVersion: string = DEV_VERSION
 /** seq of the last 'set-paused' command sent — see protocol.ts's comment on that type. */
 let sentPauseSeq = 0
 
+type RunMessage = Extract<HostMessage, { type: 'run' }>
+
 /** Set while the sandbox is still booting, so an early Run isn't dropped. */
-let queuedRun: { code: string, entryName: string, theme?: ThemePalette, assets: ProjectAsset[] } | null = null
+let queuedRun: Omit<RunMessage, 'type'> | null = null
 
 /**
  * URL for the sandbox document, carrying our origin so it can address replies,
@@ -217,7 +219,16 @@ function resolveScript(name: string): string | undefined {
     return useFileStore().getLocalCode(name)
 }
 
-export function runUserCode(code: string, entryName: string, theme?: ThemePalette) {
+export interface RunOptions {
+    /**
+     * Build the game but leave it paused on its first frame until Play (or
+     * another run) starts it — the editor's first run after loading, so
+     * opening a project doesn't start a game, and its sound, unasked.
+     */
+    paused?: boolean
+}
+
+export function runUserCode(code: string, entryName: string, theme?: ThemePalette, options: RunOptions = {}) {
     // A version change only ever takes effect here, at the next run — not by
     // live-patching a game that's already running. Reloading is the only sane
     // option: Phaser scenes/GameObjects already built from the old classes
@@ -237,11 +248,21 @@ export function runUserCode(code: string, entryName: string, theme?: ThemePalett
     // nothing reactive ever reaches postMessage's structured clone.
     const assets = useFileStore().projectAssets.map(({ name, kind, url }) => ({ name, kind, url }))
 
+    const run: Omit<RunMessage, 'type'> = { code, entryName, theme, assets }
+    if (options.paused) {
+        // Same optimistic write and seq bump as pause(), for the same reason:
+        // the button should read Play now, not after the next status.
+        pausedRef.value = true
+        sentPauseSeq += 1
+        run.paused = true
+        run.pauseSeq = sentPauseSeq
+    }
+
     if (!sandboxReady) {
-        queuedRun = { code, entryName, theme, assets }
+        queuedRun = run
         return
     }
-    post({ type: 'run', code, entryName, theme, assets })
+    post({ type: 'run', ...run })
 }
 
 export function pause() {

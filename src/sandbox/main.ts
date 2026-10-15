@@ -3,6 +3,7 @@ import { loadVersionedRuntime, loadDevRuntime } from '@/assets/api/versions/runt
 import { DEV_VERSION } from '@/assets/api/versions/constants'
 import { onHostMessage, postToHost } from './channel'
 import { API_VERSION_PARAM, type HostMessage } from './protocol'
+import { whenAudioUnlocked, cancelAudioUnlock } from './audioGate'
 import { _engineLive } from '@/assets/api/core'
 
 // Entry point for runner.html — the document inside
@@ -45,13 +46,49 @@ setScriptResolver((name) => {
     })
 })
 
+/**
+ * Whatever's waiting on audioGate.ts for permission to make sound: an unpaused
+ * run, or Play on a paused game. Only the newest counts, so a Restart pressed
+ * while the overlay is up replaces the run it was holding.
+ */
+let held: { start: () => void, isRun: boolean } | null = null
+
+function startWhenAudible(start: () => void, isRun: boolean) {
+    const entry = { start, isRun }
+    held = entry
+    whenAudioUnlocked().then(() => {
+        if (held !== entry) return
+        held = null
+        start()
+    })
+}
+
+/** Drops whatever's held, handing it back so the caller can start it some other way. */
+function releaseHeld() {
+    const released = held
+    held = null
+    cancelAudioUnlock()
+    return released
+}
+
 function handleMessage(message: HostMessage) {
     switch (message.type) {
-        case 'run':
+        case 'run': {
             // A snapshot version's runUserCode predates `assets` and simply
             // ignores the extra argument — its scripts never had filename keys.
-            core.runUserCode(message.code, message.entryName, message.theme, message.assets ?? [])
+            const run = () => core.runUserCode(message.code, message.entryName, message.theme, message.assets ?? [])
+            if (message.paused) {
+                // A paused game makes no sound, so there's nothing to wait
+                // for; Play gets held instead, if it needs to be.
+                releaseHeld()
+                run()
+                core.pause()
+                if (message.pauseSeq !== undefined) appliedPauseSeq = message.pauseSeq
+            } else {
+                startWhenAudible(run, true)
+            }
             break
+        }
 
         case 'script-response': {
             const resolve = pendingScripts.get(message.id)
@@ -62,8 +99,18 @@ function handleMessage(message: HostMessage) {
         }
 
         case 'set-paused':
-            if (message.paused) core.pause()
-            else core.play()
+            if (message.paused) {
+                // Pausing needs no sound. A run still held starts now, paused
+                // on its first frame like any other paused run.
+                const released = releaseHeld()
+                if (released?.isRun) released.start()
+                core.pause()
+            } else if (!held) {
+                startWhenAudible(() => core.play(), false)
+            }
+            // Applied now even if Play is held: the game really is still
+            // paused, and status reporting that sends the host's button back
+            // to Play, which is accurate until the overlay is clicked.
             appliedPauseSeq = message.seq
             break
 

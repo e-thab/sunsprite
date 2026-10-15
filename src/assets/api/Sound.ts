@@ -328,25 +328,23 @@ export default class Sound {
     /** Creates and adds a new Bus. */
     static addBus(nameOrProps: string | BusPropsWithName): Bus {
         const busName = typeof nameOrProps === 'string' ? nameOrProps : nameOrProps.name
+        const existingBus = Sound.Bus(busName)
         
-        for (const bus of Sound.buses) {
-            // Warn if name is not unique
-            // TODO: TEST!!
-            if (bus.name === busName) {
-                let warnMsg = `A sound bus with name ${busName} already exists. `
-                try {
-                    if (typeof nameOrProps === 'string') {
-                        warnMsg += `Ignoring Sound.addBus('${busName}')`
-                    }
-                    if (isBusPropsWithName(nameOrProps)) {
-                        warnMsg += `Setting properties of the existing bus rather than adding a new one.`
-                        bus.set(nameOrProps)
-                    }
-                } finally {
-                    Output.warn(warnMsg)
+        // Ensure name uniqueness
+        if (existingBus) {
+            let warnMsg = `A sound bus with name ${busName} already exists. `
+            try {
+                if (typeof nameOrProps === 'string') {
+                    warnMsg += `Ignoring Sound.addBus('${busName}')`
                 }
-                break
+                if (isBusPropsWithName(nameOrProps)) {
+                    warnMsg += `Setting properties of the existing bus rather than adding a new one.`
+                    existingBus.set(nameOrProps)
+                }
+            } finally {
+                Output.warn(warnMsg)
             }
+            return existingBus
         }
         
         const bus = new Bus(nameOrProps)

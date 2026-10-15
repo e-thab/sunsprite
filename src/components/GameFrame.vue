@@ -44,12 +44,17 @@ onBeforeUnmount(() => {
     localStorage (Supabase session), or navigating us. Do not add
     allow-same-origin — combined with allow-scripts it lets the frame remove
     its own sandboxing, which would undo all of this.
+
+    `allow="autoplay *"` lends the frame this page's permission to make sound.
+    `*` rather than the default 'src': the frame's origin is opaque, which a
+    'src' allowlist isn't reliably matched against.
   -->
   <iframe
     ref="sandboxFrame"
     class="canvas"
     title="Game canvas"
     sandbox="allow-scripts"
+    allow="autoplay *"
     :src="initialSrc"
   ></iframe>
 </template>

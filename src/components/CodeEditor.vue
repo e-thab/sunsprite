@@ -5,7 +5,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
-import { runUserCode } from '@/sandbox/hostBridge'
+import { runUserCode, type RunOptions } from '@/sandbox/hostBridge'
 import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
 import { resolveSpecifierCandidates, listImportSpecifiers } from '@/assets/api/scriptResolution'
@@ -772,7 +772,7 @@ async function saveAll() {
 // since run" snapshot — along with which script it ran, which is what
 // decides whether Restart or that script's own play button gets the
 // highlight (see fileStore's runningScriptName).
-function runNamedScript(name: string) {
+function runNamedScript(name: string, options?: RunOptions) {
 	clearErrorDecoration()
 	clearWarningHighlights()
 	const code = ensureModel(name)?.getValue() ?? ''
@@ -781,7 +781,7 @@ function runNamedScript(name: string) {
 		if (!entry.isText) liveContent[modelName] = entry.model.getValue()
 	}
 	fileStore.snapshotScripts(name, liveContent)
-	runUserCode(code, name, themeStore.current)
+	runUserCode(code, name, themeStore.current, options)
 }
 
 function runActiveUserCode() {
@@ -800,8 +800,8 @@ function onRunActiveClick(event: MouseEvent) {
 // script is its canonical entry point regardless of whichever script happens
 // to be open in the editor at the time. Its name comes from the store rather
 // than a literal, since in a TypeScript project it's main.ts.
-function runMainScript() {
-	runNamedScript(fileStore.mainScriptName)
+function runMainScript(options?: RunOptions) {
+	runNamedScript(fileStore.mainScriptName, options)
 }
 
 const runActiveHighlighted = computed(() => fileStore.entryChangedSinceLastRun(fileStore.activeFileName))

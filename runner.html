@@ -40,10 +40,53 @@
       canvas {
         display: block;
       }
+
+      /* Shown by src/sandbox/audioGate.ts only when the browser won't let the
+         game make sound yet. Sits over the canvas, so the click that dismisses
+         it never reaches the game as input. */
+      #audio-gate {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: rgba(0, 0, 0, 0.45);
+        color: #fff;
+        font: 600 16px system-ui, sans-serif;
+        cursor: pointer;
+      }
+
+      #audio-gate[hidden] {
+        display: none;
+      }
+
+      #audio-gate svg {
+        width: 64px;
+        height: 64px;
+        transition: transform 0.1s ease-out;
+      }
+
+      #audio-gate:hover svg {
+        transform: scale(1.08);
+      }
     </style>
   </head>
   <body>
     <div id="game-container"></div>
+    <button id="audio-gate" type="button" hidden>
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="30" fill="rgba(255, 255, 255, 0.15)" stroke="currentColor" stroke-width="3" />
+        <path d="M26 20 L46 32 L26 44 Z" fill="currentColor" />
+      </svg>
+      Click to play
+    </button>
     <script type="module" src="/src/sandbox/main.ts"></script>
   </body>
 </html>

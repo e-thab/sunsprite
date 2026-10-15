@@ -732,7 +732,10 @@ onMounted(async () => {
 		}
 	}
 
-	runMainScript()
+	// Loaded paused: opening a project shows the game's first frame but
+	// doesn't start it, or its sound, until the user asks — Play, Restart, or
+	// an edit that auto-run picks up, all of which run it unpaused.
+	editor.value.runMainScript({ paused: true })
 	editor.value.updateSaveMsg()
 
 	window.addEventListener('beforeunload', onBeforeUnload)
