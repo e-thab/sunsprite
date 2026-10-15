@@ -9,7 +9,7 @@ import { runUserCode, type RunOptions } from '@/sandbox/hostBridge'
 import { getExampleCode } from '@/assets/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
 import { resolveSpecifierCandidates, listImportSpecifiers } from '@/assets/api/scriptResolution'
-import { scriptTypeForFile, TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
+import { FILE_TREE_DRAG_MIME, scriptTypeForFile, TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
 import { configureLanguageServices, installExtraLib, languageSupportFor, type EditorLanguageSupport } from '@/assets/languages/monacoLanguages'
 import CollapsiblePane from './CollapsiblePane.vue'
 import '@/assets/code-completion/monaco-colors'
@@ -93,6 +93,33 @@ const themeStore = useThemeStore()
 // returning something that isn't === the model actually attached via
 // setModel(), and revealLineInCenter() becoming a silent no-op.
 const editorInstance = shallowRef<monaco.editor.IStandaloneCodeEditor>()
+
+// A file dragged in from the file tree drops its name as a quoted string
+// literal, ready to pass to whatever wants a file name.
+//
+// Monaco's own text drop can't do this: it inserts drops as a snippet
+// (`<text>$0`, $0 marking where the cursor ends up), but the standalone
+// editor's bulk-edit service ignores the snippet flag and writes that text
+// verbatim, so a literal "$0" landed after every drop. The tree's drags carry
+// their name under FILE_TREE_DRAG_MIME instead of text/plain, which none of
+// Monaco's built-in drop providers accept, so Monaco still draws the drop
+// caret, focuses and clears it, but inserts nothing, and this (bound on the
+// editor's container, so it runs after Monaco's own handler) inserts the name.
+function onEditorDrop(event: DragEvent) {
+	const name = event.dataTransfer?.getData(FILE_TREE_DRAG_MIME)
+	const editor = editorInstance.value
+	if (!name || !editor || editor.getOption(monaco.editor.EditorOption.readOnly)) return
+	event.preventDefault()
+
+	const position = editor.getTargetAtClientPoint(event.clientX, event.clientY)?.position
+	if (!position) return
+
+	// Escaped so a name holding a quote or backslash still makes a valid literal.
+	const text = `'${name.replace(/[\\']/g, '\\$&')}'`
+	editor.executeEdits('file-tree-drop', [{ range: monaco.Range.fromPositions(position), text, forceMoveMarkers: true }])
+	editor.setPosition({ lineNumber: position.lineNumber, column: position.column + text.length })
+	editor.focus()
+}
 
 function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	editorInstance.value = editor
@@ -1112,7 +1139,7 @@ onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 				</UTooltip>
 			</div>
 		</div>
-		<div id="code-container" class="editor">
+		<div id="code-container" class="editor" @drop="onEditorDrop">
 			<!-- :key forces a full remount on file switch rather than calling
 			     editorInstance.setModel() on the live instance. Calling setModel
 			     a second time — from any later event (click, setTimeout, whatever),

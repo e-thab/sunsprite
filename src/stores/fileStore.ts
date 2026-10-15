@@ -103,9 +103,9 @@ type TextFileRecord = {
     position: number
 }
 
-// A folder/script/image/text file blended and sorted by position, for
+// A folder/script/image/text file blended into one sorted list, for
 // rendering one ordered list per tree level regardless of which kind each
-// row is.
+// row is (see compareTreeNodes for the order).
 export type TreeNode =
     | { kind: 'folder', id: string, name: string, position: number }
     | { kind: 'script', id: string, name: string, position: number, size: number }
@@ -115,6 +115,20 @@ export type TreeNode =
     // folderSizeBytes can sum every non-folder kind the same way.
     | { kind: 'libraryImage', id: string, name: string, position: number, libraryPath: string, size: number }
     | { kind: 'text', id: string, name: string, position: number, size: number }
+
+// VS Code's default explorer order: folders before files, each alphabetical,
+// case-insensitive, with digit runs compared as numbers (sprite2 before
+// sprite10). The tree is always shown in this order — `position` is still
+// written on create/move but no longer decides anything. The final plain
+// comparison only breaks ties the collator calls equal ("A.js" vs "a.js"), so
+// the order never depends on load order.
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
+function compareTreeNodes(a: TreeNode, b: TreeNode): number {
+    const aIsFolder = a.kind === 'folder'
+    if (aIsFolder !== (b.kind === 'folder')) return aIsFolder ? -1 : 1
+    return nameCollator.compare(a.name, b.name) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+}
 
 // Unknown content types fall to 'image' — every row predating audio uploads is
 // one, and the images table's own check rules out anything else.
@@ -468,7 +482,7 @@ export const useFileStore = defineStore('files', () => {
         const containedTextFiles: TreeNode[] = textFiles.value
             .filter((f) => f.folderId === folderId)
             .map((f) => ({ kind: 'text' as const, id: f.id, name: f.name, position: f.position, size: sizeEncoder.encode(f.content).length }))
-        return [...subfolders, ...containedScripts, ...containedImages, ...containedLibraryImages, ...containedTextFiles].sort((a, b) => a.position - b.position)
+        return [...subfolders, ...containedScripts, ...containedImages, ...containedLibraryImages, ...containedTextFiles].sort(compareTreeNodes)
     }
 
     // Recursive sum of everything under a folder — descends into
@@ -501,8 +515,8 @@ export const useFileStore = defineStore('files', () => {
     }
 
     // Appends after the current last sibling (folders and scripts share one
-    // position sequence per parent, so newly added items — whichever kind —
-    // land at the end of what's already there).
+    // position sequence per parent). Only keeps the stored column sensible —
+    // the tree itself is sorted by name (see compareTreeNodes).
     function nextPosition(folderId: string | null): number {
         const siblings = childNodes(folderId)
         if (siblings.length === 0) return 0

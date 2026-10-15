@@ -9,6 +9,7 @@ import { useNamePromptStore } from '@/stores/namePromptStore'
 import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
 import {
 	DEFAULT_TEXT_FILE_TYPE,
+	FILE_TREE_DRAG_MIME,
 	UPLOAD_ACCEPT_ATTR,
 	UPLOAD_FORMAT_LABELS,
 	uploadDisplayName,
@@ -86,31 +87,13 @@ function preventFolderSelect(event: Event) {
 
 // ---- Folders + scripts, in a loaded project or the guest sandbox alike ----
 
-// Hovering a folder's own header means "drop inside, at the end" (the only
-// shape onDragOverItem's folder branch ever produces — index always equals
-// the current child count). Splicing a placeholder into *that* folder's
-// children is safe from the reflow-flicker loop line-indicators elsewhere
-// avoid: the folder header row a script's placeholder would've shifted
-// away from the cursor isn't in this array at all, just its contents are —
-// so the header never moves. A script row within the folder being hovered
-// instead (to reorder before/after it) produces index < children.length,
-// which is left alone here and shown via the line-indicator (dropLineTarget)
-// instead, same as any other sibling-reorder.
-function withFolderDropPlaceholder(realChildren: TreeItem[], folderId: string): TreeItem[] {
-	if (!dropTarget.value || dropTarget.value.folderId !== folderId) return realChildren
-	if (dropTarget.value.index !== realChildren.length) return realChildren
-	const placeholder: TreeItem = { label: `__drop-placeholder__${folderId}`, slot: 'drop-placeholder' }
-	return [...realChildren, placeholder]
-}
-
 // Nuxt UI's `defaultExpanded` per item only seeds Reka's *initial*,
 // uncontrolled expand state once at mount — a folder created afterward
 // (during this session, after that one seeding pass already ran) never
-// gets added to it and stays permanently collapsed regardless of the field,
-// which silently hid the placeholder above for exactly the folders someone
-// would actually be testing drag-and-drop into. Switching to the
-// *controlled* `expanded` prop (bound below) fixes that generally, and
-// additionally lets a hover force a specific folder open on demand.
+// gets added to it and stays permanently collapsed regardless of the field.
+// Switching to the *controlled* `expanded` prop (bound below) fixes that
+// generally, and additionally lets a drag hover open a specific folder on
+// demand (see scheduleAutoExpand).
 const expandedFolderIds = ref<string[]>([])
 const seededFolderIds = new Set<string>()
 
@@ -141,7 +124,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			// inside it, recursively (see folderSizeBytes's own comment).
 			size: fileStore.folderSizeBytes(node.id),
 			onSelect: preventFolderSelect,
-			children: withFolderDropPlaceholder(fileStore.childNodes(node.id).map((child) => buildNode(child, node.id)), node.id),
+			children: fileStore.childNodes(node.id).map((child) => buildNode(child, node.id)),
 		}
 	}
 	if (node.kind === 'image') {
@@ -214,31 +197,6 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 }
 
 const items = computed<TreeItem[]>(() => fileStore.childNodes(null).map((node) => buildNode(node, null)))
-
-// A dropped-into row shifting position because a placeholder row got
-// spliced in right next to it — the previous approach — moves the row out
-// from under the cursor, which fires a native dragleave, clears the
-// target, snaps the row back, re-triggers dragover... an infinite flicker
-// loop. This never inserts anything into the list at all: it just derives
-// which existing row (if any) should show a drop-line indicator, so the
-// layout can never shift under the pointer. `index < siblings.length`
-// means "insert before that sibling" (line on its top edge); reaching the
-// end of the list means "insert after the last one" (line on its bottom
-// edge) instead, since there's no next sibling to draw a top edge on.
-const dropLineTarget = computed(() => {
-	if (!dropTarget.value) return null
-	const { folderId, index } = dropTarget.value
-	const siblings = fileStore.childNodes(folderId)
-	if (siblings.length === 0) return null
-	if (index < siblings.length) return { beforeId: siblings[index]!.id, afterId: null }
-	// Reaching the end of a folder's children is hovering that folder's own
-	// header (see withFolderDropPlaceholder) — shown via the nested
-	// placeholder instead, not a line, so don't show both. The root has no
-	// header row of its own to nest a placeholder under, so it still gets
-	// an after-line on its last item.
-	if (folderId !== null) return null
-	return { beforeId: null, afterId: siblings[siblings.length - 1]!.id }
-})
 
 function scriptName(item: TreeItem): string {
 	return item.label ?? ''
@@ -576,6 +534,11 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 // can look it up and re-target its own right-clicks there.
 const rowDndRefs = new Map<string, HTMLElement>()
 
+// The reverse direction: from a row's element back to the item it was
+// rendered for, which is how drag-and-drop works out what's being hovered
+// (see hoveredItem).
+const rowItems = new WeakMap<Element, TreeItem>()
+
 function rowKey(item: TreeItem): string | undefined {
 	return item.id ?? item.label
 }
@@ -583,8 +546,12 @@ function rowKey(item: TreeItem): string | undefined {
 function setRowDndRef(item: TreeItem, el: Element | ComponentPublicInstance | null) {
 	const key = rowKey(item)
 	if (!key) return
-	if (el) rowDndRefs.set(key, el as HTMLElement)
-	else rowDndRefs.delete(key)
+	if (el) {
+		rowDndRefs.set(key, el as HTMLElement)
+		rowItems.set(el as HTMLElement, item)
+	} else {
+		rowDndRefs.delete(key)
+	}
 }
 
 // The actions button lives in Nuxt UI's separate item-trailing slot, outside
@@ -904,35 +871,47 @@ function deleteItem(item: TreeItem) {
 
 // ---- Drag and drop ----
 //
-// Native HTML5 DnD rather than a tree-DnD library — the drag handle/drop
-// target is a div rendered into the item-label slot (the one bit of each
-// row's markup this component fully controls; Nuxt UI's Tree renders the
-// rest of the row itself), absolutely positioned to cover the whole row
-// rather than just the label text, so hovering/dropping anywhere on the
-// item works, not only directly over its name. Dropping on a folder reparents into it
-// (appended at the end); dropping on a script makes the dragged item that
-// script's sibling, inserted just before it; dropping on the tree's own
-// background (nothing more specific claimed the event) sends it to the
-// project root (or the guest sandbox's own root, in the sandbox).
+// Native HTML5 DnD, modeled on VS Code's explorer. The tree is always sorted
+// (see fileStore's compareTreeNodes), so a drop only ever chooses a *folder*,
+// never a spot within one: hovering a folder's row targets that folder,
+// hovering a file targets the folder it sits in, and hovering the empty space
+// below the rows targets the project root. That folder's whole block — its
+// own row and every row under it — is tinted (the whole tree, for the root),
+// so the highlight reads as "into here" rather than "next to this row".
 //
-// `dropTarget` mirrors whichever of those three outcomes is currently
-// hovered as a { folderId, index } pair — withDropPlaceholder (above)
-// splices an actual placeholder row into that folder's/root's rendered
-// children at that index, so the projected drop location reads as a real,
-// highlighted empty slot rather than just a highlighted existing row.
+// Each row's drag handle is a div rendered into the item-label slot (the one
+// bit of each row's markup this component fully controls; Nuxt UI's Tree
+// renders the rest of the row itself), absolutely positioned to cover the
+// whole row rather than just the label text. Only dragstart/dragend live on
+// it — dragover and drop are handled once, on the tree's container, by
+// resolving the hovered <li> (see hoveredItem). That gives the parts of a row
+// the handle doesn't cover (the actions button, the indent gutter beside a
+// folder's children) the same answer as the row itself, so sweeping the
+// pointer across them never flickers the target off and back on.
 
-type DraggedNode = { id: string, kind: 'folder' | 'script' | 'image' | 'audio' | 'libraryImage' | 'text' }
-type DropTarget = { folderId: string | null, index: number }
+type DraggedNode = {
+	id: string
+	kind: 'folder' | 'script' | 'image' | 'audio' | 'libraryImage' | 'text'
+	name: string
+	parentId: string | null
+	// For a folder: itself plus everything under it, none of which it can be
+	// moved into. Worked out once at dragstart rather than on every dragover.
+	blockedFolderIds: Set<string>
+}
+// folderId is null for the project root.
+type DropTarget = { folderId: string | null }
 
 const draggedNode = ref<DraggedNode | null>(null)
-const dragOverId = ref<string | null>(null)
 const dropTarget = ref<DropTarget | null>(null)
 
 function isDraggable(item: TreeItem): boolean {
 	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image' || item.kind === 'audio' || item.kind === 'libraryImage' || item.kind === 'text'
 }
 
-async function moveDraggedTo(dragged: DraggedNode, folderId: string | null, position: number) {
+// The stored position is still written, but only so the column stays
+// sensible — it no longer affects where anything is shown.
+async function moveDraggedTo(dragged: DraggedNode, folderId: string | null) {
+	const position = fileStore.nextPosition(folderId)
 	if (dragged.kind === 'folder') await fileStore.moveFolder(dragged.id, folderId, position)
 	else if (dragged.kind === 'image' || dragged.kind === 'audio') await fileStore.moveImage(dragged.id, folderId, position)
 	else if (dragged.kind === 'libraryImage') await fileStore.moveLibraryImage(dragged.id, folderId, position)
@@ -940,150 +919,142 @@ async function moveDraggedTo(dragged: DraggedNode, folderId: string | null, posi
 	else await fileStore.moveScript(dragged.id, folderId, position)
 }
 
-// Native `dragover` fires continuously — many times a second — for as long
-// as the pointer sits over a valid target, not just when it actually moves
-// to a new one. `dropTarget` feeds the `items` computed (via
-// withDropPlaceholder), so assigning a plain new object here on every one
-// of those events, even while hovering the exact same spot, was invalidating
-// that computed and rebuilding the *entire* tree dozens of times a second —
-// this was the "extremely slow" drag lag. Skipping the write when the
-// target hasn't actually changed cuts that down to once per real crossing.
-function dropTargetsEqual(a: DropTarget | null, b: DropTarget | null): boolean {
-	if (a === b) return true
-	if (!a || !b) return false
-	return a.folderId === b.folderId && a.index === b.index
-}
-
+// Native `dragover` fires continuously — many times a second — even while
+// the pointer sits still. `dropTarget` drives a class on every row, so a
+// fresh object on each of those events would re-render the whole tree each
+// time; only real changes are written.
 function setDropTarget(next: DropTarget | null) {
-	if (dropTargetsEqual(dropTarget.value, next)) return
+	const current = dropTarget.value
+	if (current === next || (current && next && current.folderId === next.folderId)) return
 	dropTarget.value = next
 }
 
-// Skipping no-op writes (above) stopped the *reactive* explosion, but
-// `fileStore.childNodes(...)` — an O(n) filter+sort over every folder and
-// script — still ran synchronously on every single dragover event before
-// that equality check ever saw the result, and dragover can fire faster
-// than the screen can repaint. Capping the actual computation to once per
-// rendered frame (via rAF) fixes that: at most ~60 of these a second no
-// matter how fast the browser fires the raw event, while dragOverId (cheap,
-// just a CSS class) still updates immediately so hover feedback stays
-// instant.
-let dragOverFrameId: number | null = null
-let pendingDragOverUpdate: (() => void) | null = null
-
-function scheduleDragOverUpdate(update: () => void) {
-	pendingDragOverUpdate = update
-	if (dragOverFrameId !== null) return
-	dragOverFrameId = requestAnimationFrame(() => {
-		dragOverFrameId = null
-		pendingDragOverUpdate?.()
-		pendingDragOverUpdate = null
-	})
+// The row under the pointer, or null over the empty space below the last
+// row. Nuxt UI wraps every row in an <li> holding the row's own link and, for
+// an expanded folder, the nested list of its children — so the nearest <li>
+// is either the hovered row, or (in the gutter beside a folder's children)
+// that folder, which is the right drop target for that spot too.
+function hoveredItem(event: DragEvent): TreeItem | null {
+	const li = event.target instanceof Element ? event.target.closest('li') : null
+	const handle = li?.querySelector(':scope > [data-slot="link"] .tree-row-dnd')
+	return handle ? rowItems.get(handle) ?? null : null
 }
 
-function cancelScheduledDragOverUpdate() {
-	if (dragOverFrameId !== null) cancelAnimationFrame(dragOverFrameId)
-	dragOverFrameId = null
-	pendingDragOverUpdate = null
+function dropFolderFor(item: TreeItem | null): string | null {
+	if (!item) return null
+	return item.kind === 'folder' ? item.id : (item.parentId ?? null)
 }
+
+// Same rules as VS Code: nothing moves into the folder it's already in (with
+// the order fixed, that would do nothing), and a folder can't move into
+// itself or anything under it. moveFolder refuses the latter as well; this is
+// what keeps the highlight from offering it in the first place.
+function canDropInto(dragged: DraggedNode, folderId: string | null): boolean {
+	if (folderId === dragged.parentId) return false
+	return folderId === null || !dragged.blockedFolderIds.has(folderId)
+}
+
+// VS Code opens a collapsed folder once the pointer rests on it for a moment,
+// so a drag can reach somewhere deeper without letting go first.
+const AUTO_EXPAND_DELAY_MS = 500
+let autoExpandFolderId: string | null = null
+let autoExpandTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleAutoExpand(folderId: string | null) {
+	if (folderId === autoExpandFolderId) return
+	cancelAutoExpand()
+	if (folderId === null || expandedFolderIds.value.includes(folderId)) return
+	autoExpandFolderId = folderId
+	autoExpandTimer = setTimeout(() => {
+		autoExpandTimer = null
+		ensureFolderExpanded(folderId)
+	}, AUTO_EXPAND_DELAY_MS)
+}
+
+function cancelAutoExpand() {
+	if (autoExpandTimer !== null) clearTimeout(autoExpandTimer)
+	autoExpandTimer = null
+	autoExpandFolderId = null
+}
+
+function endDrag() {
+	cancelAutoExpand()
+	draggedNode.value = null
+	dropTarget.value = null
+}
+
+onBeforeUnmount(cancelAutoExpand)
 
 function onDragStart(event: DragEvent, item: TreeItem) {
 	if (!isDraggable(item)) return
-	draggedNode.value = { id: item.id, kind: item.kind }
-	event.dataTransfer?.setData('text/plain', item.label ?? '')
+	draggedNode.value = {
+		id: item.id,
+		kind: item.kind,
+		name: scriptName(item),
+		parentId: item.parentId ?? null,
+		blockedFolderIds: new Set(item.kind === 'folder' ? fileStore.folderAndDescendantIds(item.id) : []),
+	}
+	// Read back by the code editor, which inserts it on drop (see
+	// CodeEditor.vue's onEditorDrop).
+	event.dataTransfer?.setData(FILE_TREE_DRAG_MIME, scriptName(item))
 	if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
 }
 
-function onDragEnd() {
-	cancelScheduledDragOverUpdate()
-	draggedNode.value = null
-	dragOverId.value = null
-	dropTarget.value = null
+function onDragOverTree(event: DragEvent) {
+	const dragged = draggedNode.value
+	// Only rows dragged from this tree are accepted — not files dragged in
+	// from the OS, or text from elsewhere on the page. Leaving dragover
+	// un-prevented is what gives those the browser's no-drop cursor.
+	if (!dragged) return
+
+	const item = hoveredItem(event)
+	const folderId = dropFolderFor(item)
+	const allowed = canDropInto(dragged, folderId)
+
+	scheduleAutoExpand(allowed && item?.kind === 'folder' ? item.id : null)
+	setDropTarget(allowed ? { folderId } : null)
+	if (!allowed) return
+
+	event.preventDefault()
+	if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
 }
 
-function canDropOn(item: TreeItem): boolean {
-	if (!draggedNode.value || !isDraggable(item)) return false
-	// Refuse dropping a folder onto itself — moveFolder also guards against
-	// dropping into one of its own descendants, since that's only knowable
-	// by walking the tree the store already owns.
-	return !(draggedNode.value.kind === 'folder' && draggedNode.value.id === item.id)
-}
-
-function onDragOverItem(item: TreeItem) {
-	if (!canDropOn(item)) return
-	dragOverId.value = item.id
-
-	scheduleDragOverUpdate(() => {
-		if (item.kind === 'folder') {
-			ensureFolderExpanded(item.id)
-			setDropTarget({ folderId: item.id, index: fileStore.childNodes(item.id).length })
-			return
-		}
-
-		const parentId: string | null = item.parentId ?? null
-		const siblings = fileStore.childNodes(parentId)
-		const index = siblings.findIndex((n) => n.id === item.id)
-		setDropTarget({ folderId: parentId, index: index >= 0 ? index : siblings.length })
-	})
-}
-
-function onDragLeaveItem(item: TreeItem) {
-	if (dragOverId.value !== item.id) return
-	dragOverId.value = null
-	cancelScheduledDragOverUpdate()
+// dragleave also fires each time the pointer crosses from one element to
+// another *inside* the tree; only leaving the container outright clears the
+// target. relatedTarget is the element the pointer moved onto.
+function onDragLeaveTree(event: DragEvent) {
+	const container = event.currentTarget as HTMLElement
+	if (event.relatedTarget instanceof Node && container.contains(event.relatedTarget)) return
+	cancelAutoExpand()
 	setDropTarget(null)
 }
 
-function onDragOverRoot() {
-	scheduleDragOverUpdate(() => {
-		setDropTarget({ folderId: null, index: fileStore.childNodes(null).length })
-	})
-}
-
-function onDragLeaveRoot() {
-	if (dropTarget.value?.folderId === null) {
-		cancelScheduledDragOverUpdate()
-		setDropTarget(null)
-	}
-}
-
-async function onDropOnItem(item: TreeItem) {
+async function onDropOnTree(event: DragEvent) {
 	const dragged = draggedNode.value
-	const droppable = canDropOn(item)
-	cancelScheduledDragOverUpdate()
-	dragOverId.value = null
-	draggedNode.value = null
-	dropTarget.value = null
-	if (!dragged || !droppable) return
+	const target = dropTarget.value
+	endDrag()
+	if (!dragged || !target) return
+	event.preventDefault()
 
-	if (item.kind === 'folder') {
-		const position = fileStore.nextPosition(item.id)
-		await moveDraggedTo(dragged, item.id, position)
+	// Folder names only have to be unique among siblings (files are unique
+	// project-wide already, so moving one can't collide).
+	const nameTaken = dragged.kind === 'folder'
+		&& fileStore.childNodes(target.folderId).some((node) => node.kind === 'folder' && node.name === dragged.name)
+	if (nameTaken) {
+		window.alert(`A folder named "${dragged.name}" already exists there.`)
 		return
 	}
 
-	// Dropped on a script/image/text-file row: become its sibling, inserted just before it.
-	const targetParentId: string | null = item.parentId ?? null
-	const siblings = fileStore.childNodes(targetParentId)
-	const targetIndex = siblings.findIndex((n) => n.id === item.id)
-	const target = siblings[targetIndex]
-	if (!target) return
-	const before = targetIndex > 0 ? siblings[targetIndex - 1] : undefined
-	const position = before ? (before.position + target.position) / 2 : target.position - 1
+	try {
+		await moveDraggedTo(dragged, target.folderId)
+	} catch (err) {
+		window.alert(err instanceof Error ? err.message : `Failed to move "${dragged.name}"`)
+		return
+	}
 
-	await moveDraggedTo(dragged, targetParentId, position)
-}
-
-async function onDropOnRoot() {
-	const dragged = draggedNode.value
-	cancelScheduledDragOverUpdate()
-	draggedNode.value = null
-	dragOverId.value = null
-	dropTarget.value = null
-	if (!dragged) return
-
-	const position = fileStore.nextPosition(null)
-	await moveDraggedTo(dragged, null, position)
+	// So the moved item is visible where it landed, even if the drop went
+	// onto a folder's row without waiting for it to auto-expand.
+	if (target.folderId !== null) ensureFolderExpanded(target.folderId)
 }
 </script>
 
@@ -1103,7 +1074,13 @@ async function onDropOnRoot() {
 		</div>
 
 		<UContextMenu :items="folderMenuItems(null)">
-			<div class="file-tree" @dragover.prevent="onDragOverRoot" @dragleave="onDragLeaveRoot" @drop="onDropOnRoot">
+			<div
+				class="file-tree"
+				:class="{ 'drop-target-root': dropTarget?.folderId === null }"
+				@dragover="onDragOverTree"
+				@dragleave="onDragLeaveTree"
+				@drop="onDropOnTree"
+			>
 				<!-- selection-behavior="replace": Reka's own default ('toggle')
 				deselects an item when it's clicked again while already
 				selected, which — since this is a real v-model straight to the
@@ -1133,17 +1110,12 @@ async function onDropOnRoot() {
 								class="tree-row-dnd"
 								:ref="(el) => setRowDndRef(item, el)"
 								:class="{
-									'drag-over': dragOverId === item.id,
-									'drop-line-before': dropLineTarget?.beforeId === item.id,
-									'drop-line-after': dropLineTarget?.afterId === item.id,
+									'drop-target': dropTarget?.folderId === item.id,
 									'renaming': renamingItemId === item.id,
 								}"
 								:draggable="isDraggable(item) && renamingItemId !== item.id"
 								@dragstart="onDragStart($event, item)"
-								@dragend="onDragEnd"
-								@dragover.prevent.stop="onDragOverItem(item)"
-								@dragleave="onDragLeaveItem(item)"
-								@drop.stop="onDropOnItem(item)"
+								@dragend="endDrag"
 								@mousedown="onRowMouseDown($event, item)"
 								@click="onRowClick($event, item)"
 							></div>
@@ -1215,10 +1187,6 @@ async function onDropOnRoot() {
 							</div>
 						</template>
 					</template>
-
-					<template #drop-placeholder>
-						<div class="drop-placeholder"></div>
-					</template>
 				</UTree>
 			</div>
 		</UContextMenu>
@@ -1238,6 +1206,7 @@ async function onDropOnRoot() {
 	min-height: 0;
 	overflow-y: auto;
 	background-color: var(--theme-bg-elevated);
+	--drop-highlight: color-mix(in srgb, var(--theme-primary) 18%, transparent);
 }
 
 .spacer {
@@ -1291,8 +1260,8 @@ async function onDropOnRoot() {
 }
 
 /* Absolutely positioned against the tree-item link's own `position:
-   relative` rather than sized to the label text, so the drag handle/drop
-   target covers the whole row — icon, whitespace, and trailing-button area
+   relative` rather than sized to the label text, so the drag handle covers
+   the whole row — icon, whitespace, and trailing-button area
    included — not just wherever the label happens to be. The label text
    itself renders as a plain sibling in this slot; Nuxt UI's own linkLabel
    span already truncates it. */
@@ -1349,43 +1318,24 @@ async function onDropOnRoot() {
 	user-select: none;
 }
 
-/* Needs to stay the topmost element in the row — it's what dragstart/
-   dragover/drop are actually bound to, and giving it a negative z-index to
-   avoid covering the label text (tried previously) also pulled it out of
-   the hit-testing order, silently breaking drag-and-drop entirely. A
-   translucent fill keeps it on top for events while still letting the text
-   read through underneath, instead of fighting over paint order. */
-.tree-row-dnd.drag-over {
-	outline: 2px solid var(--theme-accent, var(--theme-text-muted));
-	outline-offset: -1px;
-	background-color: color-mix(in srgb, var(--theme-bg-accented) 55%, transparent);
-}
-
-/* Only ever spliced into a *folder's* own children (see
-   withFolderDropPlaceholder) — never into the same list a hovered row
-   itself lives in — so unlike the old script-drop placeholder, this can't
-   shift anything out from under the cursor and re-trigger itself. */
-.drop-placeholder {
-	width: 100%;
-	height: 1.25rem;
+/* The drop highlight (see the Drag and drop section of the script). A folder
+   target tints its <li>, which Nuxt UI renders around both the folder's own
+   row and the nested list of everything under it, so the whole block lights
+   up as one piece. The child combinators matter: every ancestor folder's <li>
+   also contains the target row somewhere inside it, and would otherwise be
+   tinted too. Translucent, so a selected row stays visible underneath. */
+.file-tree :deep(li:has(> [data-slot="link"] .tree-row-dnd.drop-target)) {
+	background-color: var(--drop-highlight);
 	border-radius: 0.25rem;
-	border: 1.5px dashed var(--theme-text-muted);
-	background-color: var(--theme-bg-accented);
-	pointer-events: none;
 }
 
-/* box-shadow rather than a border/outline: it's purely visual and never
-   contributes to layout, so drawing it on the hovered row can't shift that
-   row's own position — which a spliced-in placeholder row used to do,
-   moving the hovered row out from under the cursor and causing dragleave
-   to fire, clearing the target, snapping it back, re-triggering dragover,
-   and so on in an endless flicker loop. */
-.tree-row-dnd.drop-line-before {
-	box-shadow: inset 0 2px 0 0 var(--theme-accent, var(--theme-text-muted));
-}
-
-.tree-row-dnd.drop-line-after {
-	box-shadow: inset 0 -2px 0 0 var(--theme-accent, var(--theme-text-muted));
+/* The project root has no row of its own, so the whole tree is tinted. Both
+   the outer container and the UTree inside it carry .file-tree, and the
+   UTree's own opaque background would hide a tint on the outer one alone —
+   so both get it, layered over (not replacing) their background color. */
+.file-tree.drop-target-root,
+.drop-target-root .file-tree {
+	background-image: linear-gradient(var(--drop-highlight), var(--drop-highlight));
 }
 
 /* Rendered inside Nuxt UI's own linkTrailing span (data-slot="linkTrailing"

@@ -263,3 +263,9 @@ export const DEFAULT_TEXT_FILE_TYPE: TextFileType = { extension: 'txt', label: '
 // highlighting): "text file" as a category always means no language worker,
 // no diagnostics, no completions, same as opening a .txt in VS Code.
 export const TEXT_MONACO_LANGUAGE = 'plaintext'
+
+// What a row dragged out of the file tree carries its name under — set in
+// FileTree.vue, read by CodeEditor.vue's drop handler. Deliberately not
+// text/plain: Monaco's own text drop would claim that and insert it with a
+// literal "$0" appended (see CodeEditor.vue's onEditorDrop for why).
+export const FILE_TREE_DRAG_MIME = 'application/x-sunsprite-file-name'
