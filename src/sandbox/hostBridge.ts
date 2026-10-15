@@ -214,9 +214,16 @@ function onSandboxMessage(event: MessageEvent) {
  * the running game always agree on what './helper.js' means. A miss — in a
  * loaded project or the guest sandbox alike, both real record-backed file
  * lists now — is a genuine error and stays undefined.
+ *
+ * Text files are excluded: getLocalCode serves them too (the editor opens
+ * them through it), but they're data, not modules — `import './notes.txt'`
+ * would otherwise run the text as JavaScript. Files.read is how a script reads
+ * one, and a miss here reports "no script named ..." instead of a syntax error.
  */
 function resolveScript(name: string): string | undefined {
-    return useFileStore().getLocalCode(name)
+    const fileStore = useFileStore()
+    if (fileStore.isTextFile(name)) return undefined
+    return fileStore.getLocalCode(name)
 }
 
 export interface RunOptions {
@@ -246,9 +253,13 @@ export function runUserCode(code: string, entryName: string, theme?: ThemePalett
     // Read here, at the one choke-point every run path shares, for the same
     // reason the version check above is. Copied into fresh plain objects so
     // nothing reactive ever reaches postMessage's structured clone.
-    const assets = useFileStore().projectAssets.map(({ name, kind, url }) => ({ name, kind, url }))
+    const fileStore = useFileStore()
+    const assets = fileStore.projectAssets.map(({ name, kind, url }) => ({ name, kind, url }))
+    // Read straight off the store at post time rather than through a computed
+    // like projectAssets, which would re-run on every keystroke in a text file.
+    const textFiles = fileStore.textFiles.map(({ name, content }) => ({ name, content }))
 
-    const run: Omit<RunMessage, 'type'> = { code, entryName, theme, assets }
+    const run: Omit<RunMessage, 'type'> = { code, entryName, theme, assets, textFiles }
     if (options.paused) {
         // Same optimistic write and seq bump as pause(), for the same reason:
         // the button should read Play now, not after the next status.

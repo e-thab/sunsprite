@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { scene } from '@api/core'
 import { _audioSourceStatus, _reportFailedLoad, type AudioSource } from '@api/assets'
 import Output from '@/sandbox/output'
+import { currentLocation } from './moduleRunner'
 
 /* TODO:
 * Create an audio bus system. Sounds should have a `bus` property that tracks
@@ -332,17 +333,20 @@ export default class Sound {
         
         // Ensure name uniqueness
         if (existingBus) {
-            let warnMsg = `A sound bus with name ${busName} already exists. `
+            let warnMsg = `A sound bus with name '${busName}' already exists. `
             try {
                 if (typeof nameOrProps === 'string') {
+                    // If a duplicate bus name was provided only, don't do anything
                     warnMsg += `Ignoring Sound.addBus('${busName}')`
                 }
                 if (isBusPropsWithName(nameOrProps)) {
-                    warnMsg += `Setting properties of the existing bus rather than adding a new one.`
+                    // If a BusPropsWithName object was provided with a duplicate name, just
+                    // set properties of the extant bus
+                    warnMsg += `Setting properties of the existing bus rather than adding a new one`
                     existingBus.set(nameOrProps)
                 }
             } finally {
-                Output.warn(warnMsg)
+                Output.runtimeWarning(warnMsg, currentLocation())
             }
             return existingBus
         }

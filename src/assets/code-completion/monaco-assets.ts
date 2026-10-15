@@ -1,7 +1,7 @@
 import * as monaco from 'monaco-editor'
 import { SCRIPT_MONACO_LANGUAGES } from '@/assets/languages/monacoLanguages'
-import { assetKindForName } from '@/assets/utils/fileTypes'
-import { describeMissingFile, type NamedAsset } from '@/assets/api/fileNames'
+import { assetKindForName, DEFAULT_TEXT_FILE_TYPE, splitFileName } from '@/assets/utils/fileTypes'
+import { describeMissingFile, type AssetKind, type NamedAsset } from '@/assets/api/fileNames'
 
 // Flags string literals that name a project file which doesn't exist —
 // `new Sprite({ src: 'playr.png' })` — before the script ever runs. The
@@ -11,7 +11,7 @@ import { describeMissingFile, type NamedAsset } from '@/assets/api/fileNames'
 // as monaco-colors.ts's unknown-color markers.
 //
 // Purely textual, like that one: any quoted, complete, bare file name with an
-// image/audio extension counts, wherever it appears. A path or URL ('/', ':')
+// image/audio/.txt extension counts, wherever it appears. A path or URL ('/', ':')
 // isn't a project file name, and a template literal with a `${}` in it isn't
 // a complete name, so neither is checked. The running game reports the same
 // problems with the same wording (see describeMissingFile), for anything this
@@ -33,6 +33,19 @@ export function setKnownAssets(assets: readonly NamedAsset[]) {
 	}
 }
 
+/**
+ * Which kind of file a quoted name looks like it means, going by extension.
+ * Text files only count as .txt — the one extension "New text file" creates.
+ * A text file renamed to anything else still completes and still reads fine
+ * with Files.read; a misspelling of one just isn't flagged here, the same as
+ * any other unrecognized extension (the running game still reports it).
+ */
+function literalKind(name: string): AssetKind | undefined {
+	const assetKind = assetKindForName(name)
+	if (assetKind) return assetKind
+	return splitFileName(name).extension.toLowerCase() === DEFAULT_TEXT_FILE_TYPE.extension ? 'text' : undefined
+}
+
 function refreshMarkers(model: monaco.editor.ITextModel) {
 	const text = model.getValue()
 	const markers: monaco.editor.IMarkerData[] = []
@@ -40,7 +53,7 @@ function refreshMarkers(model: monaco.editor.ITextModel) {
 	for (const match of text.matchAll(FILE_NAME_LITERAL_PATTERN)) {
 		const name = match[2]!
 		if (knownNames.has(name)) continue
-		const kind = assetKindForName(name)
+		const kind = literalKind(name)
 		if (!kind) continue
 
 		// Inside the quotes only, where a squiggle reads as "this name".

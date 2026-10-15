@@ -14,6 +14,7 @@ import { configureLanguageServices, installExtraLib, languageSupportFor, type Ed
 import CollapsiblePane from './CollapsiblePane.vue'
 import '@/assets/code-completion/monaco-colors'
 import { setKnownAssets } from '@/assets/code-completion/monaco-assets'
+import type { NamedAsset } from '@/assets/api/fileNames'
 
 // CodeMirror
 // import { Codemirror } from 'vue-codemirror'
@@ -1071,21 +1072,29 @@ function revalidateActiveModel() {
 	}
 }
 
-// The project's own image/sound names, which ImageSource/AudioSource complete
-// from (see buildProjectAssetsLib). Watched as the generated text itself, so
-// moving or reordering a file — which changes projectAssets but not a single
-// name — doesn't reinstall anything.
-const projectAssetsLibUri = 'file:///project-assets.d.ts'
-let projectAssetsLibDisposable = installExtraLib(buildProjectAssetsLib(fileStore.projectAssets), projectAssetsLibUri)
+// The project's own image/sound/text file names. Text files contribute only
+// their names — content is never read here, so typing in one doesn't
+// recompute this (the running game gets content separately, see hostBridge.ts).
+const namedProjectFiles = computed<NamedAsset[]>(() => [
+	...fileStore.projectAssets.map(({ name, kind }) => ({ name, kind })),
+	...fileStore.textFiles.map(({ name }) => ({ name, kind: 'text' as const })),
+])
 
-watch(() => buildProjectAssetsLib(fileStore.projectAssets), (lib) => {
+// What ImageSource/AudioSource/TextSource complete from (see
+// buildProjectAssetsLib). Watched as the generated text itself, so moving or
+// reordering a file — which changes the list but not a single name — doesn't
+// reinstall anything.
+const projectAssetsLibUri = 'file:///project-assets.d.ts'
+let projectAssetsLibDisposable = installExtraLib(buildProjectAssetsLib(namedProjectFiles.value), projectAssetsLibUri)
+
+watch(() => buildProjectAssetsLib(namedProjectFiles.value), (lib) => {
 	projectAssetsLibDisposable.dispose()
 	projectAssetsLibDisposable = installExtraLib(lib, projectAssetsLibUri)
 	revalidateActiveModel()
 })
 
 // Same names, for the unknown-file markers in monaco-assets.ts.
-watch(() => fileStore.projectAssets, (assets) => setKnownAssets(assets), { immediate: true })
+watch(namedProjectFiles, (files) => setKnownAssets(files), { immediate: true })
 
 onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 </script>

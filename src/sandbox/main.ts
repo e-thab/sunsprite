@@ -74,9 +74,10 @@ function releaseHeld() {
 function handleMessage(message: HostMessage) {
     switch (message.type) {
         case 'run': {
-            // A snapshot version's runUserCode predates `assets` and simply
-            // ignores the extra argument — its scripts never had filename keys.
-            const run = () => core.runUserCode(message.code, message.entryName, message.theme, message.assets ?? [])
+            // A snapshot version's runUserCode may predate `assets` or
+            // `textFiles` and simply ignores the extra arguments — its
+            // scripts never had filename keys or Files.read to use them.
+            const run = () => core.runUserCode(message.code, message.entryName, message.theme, message.assets ?? [], message.textFiles ?? [])
             if (message.paused) {
                 // A paused game makes no sound, so there's nothing to wait
                 // for; Play gets held instead, if it needs to be.

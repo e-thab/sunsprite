@@ -1,9 +1,9 @@
 import Phaser from 'phaser'
 import type { ThemePalette } from '@/assets/theme/themes'
-import type { ProjectAsset } from '@/sandbox/protocol'
+import type { ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
 import Output from '@/sandbox/output'
 import { currentLocation } from '@api/moduleRunner'
-import { describeMissingFile, isBareFileName } from '@api/fileNames'
+import { describeMissingFile, isBareFileName, type NamedAsset } from '@api/fileNames'
 import { _defaultColor as backgroundColor } from '@api/Background'
 
 // Project files as game assets. Every image and sound in the file tree is
@@ -38,6 +38,13 @@ export type AudioSource = string
 /** The project's files for the current run, set by runUserCode before the game exists. */
 let manifest: readonly ProjectAsset[] = []
 let theme: ThemePalette | undefined
+
+/**
+ * Every text file's content for the current run, by name. Nothing to load or
+ * cache across runs the way images and sounds are: the host sends the text
+ * itself with every run, so this is simply replaced each time.
+ */
+let textFiles = new Map<string, string>()
 
 const imageCache = new Map<string, HTMLImageElement>()
 const audioCache = new Map<string, AudioBuffer>()
@@ -77,9 +84,10 @@ export function _sharedAudioContext(): AudioContext | undefined {
 }
 
 /** Called by runUserCode at the start of every run, before the new Game is built. */
-export function _setProjectAssets(assets: readonly ProjectAsset[], runTheme?: ThemePalette) {
+export function _setProjectAssets(assets: readonly ProjectAsset[], runTheme?: ThemePalette, runTextFiles: readonly ProjectTextFile[] = []) {
     manifest = assets
     theme = runTheme
+    textFiles = new Map(runTextFiles.map((file) => [file.name, file.content]))
     failedNames.clear()
     reported.clear()
 
@@ -233,6 +241,24 @@ function checkMissing(src: string, kind: 'image' | 'audio'): 'load' | 'missing' 
         Output.runtimeWarning(describeMissingFile(src, kind, manifest), currentLocation())
     }
     return 'missing'
+}
+
+/**
+ * A text file's content, for Files.read — undefined, reported once at the
+ * user's own line, when there's no text file by that name. Unlike an image
+ * src there's no URL fallback to try: a script can only read text that's in
+ * the project, so any miss is a mistake worth pointing out.
+ */
+export function _projectTextFile(name: string): string | undefined {
+    const content = textFiles.get(name)
+    if (content !== undefined) return content
+
+    if (!reported.has(name)) {
+        reported.add(name)
+        const known: NamedAsset[] = [...manifest, ...[...textFiles.keys()].map((textName) => ({ name: textName, kind: 'text' as const }))]
+        Output.runtimeWarning(describeMissingFile(name, 'text', known), currentLocation())
+    }
+    return undefined
 }
 
 /**

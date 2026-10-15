@@ -22,6 +22,13 @@ export type HostMessage =
      * preloading has to know the full set before the game starts, and a file
      * added mid-run should wait for the next run like any other change does.
      *
+     * `textFiles` is every text file's current content, for Files.read. Also
+     * sent whole rather than requested: Files.read has to answer synchronously,
+     * mid-frame, and a round trip can't. Collected only here, as the run is
+     * posted — never kept as a standing computed — so typing in a text file
+     * doesn't rebuild anything. At MAX_FILE_CONTENT_LENGTH per file the copy
+     * stays in the low milliseconds for any realistic project.
+     *
      * `paused` builds the game but leaves it paused and silent on its first
      * frame, waiting for Play, as if a 'set-paused' carrying `pauseSeq` had
      * arrived the moment the run began. It's part of the run rather than a
@@ -31,7 +38,7 @@ export type HostMessage =
      * it works for every API version. Omitted, the run starts playing as soon
      * as it's allowed to make sound.
      */
-    | { type: 'run', code: string, entryName: string, theme?: ThemePalette, assets?: ProjectAsset[], paused?: boolean, pauseSeq?: number }
+    | { type: 'run', code: string, entryName: string, theme?: ThemePalette, assets?: ProjectAsset[], textFiles?: ProjectTextFile[], paused?: boolean, pauseSeq?: number }
     /** Reply to a 'script-request'. `content: null` means "no such script". */
     | { type: 'script-response', id: number, content: string | null }
     /**
@@ -132,6 +139,12 @@ export interface ProjectAsset {
     name: string
     kind: 'image' | 'audio'
     url: string
+}
+
+/** One text file from the project's file tree, by the name the tree shows. */
+export interface ProjectTextFile {
+    name: string
+    content: string
 }
 
 export type OutputKind = 'print' | 'warn' | 'error' | 'start'

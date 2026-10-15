@@ -38,8 +38,8 @@ import {
     vLinePropsFields, vLineMembers,
     soundPropsFields, soundMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc,
+    randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
@@ -48,6 +48,7 @@ import {
     watchDeclaration, unwatchDeclaration,
     deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
 } from "./generated/apiDeclarations.generated"
+import type { AssetKind, NamedAsset } from "./fileNames"
 
 /**
  * The subset of apiLib's content that varies by API version — everything
@@ -89,6 +90,9 @@ export interface VersionedApiConstants {
     screenMembers: string
     mouseMembers: string
     randomMembers: string
+    // Optional: snapshots cut before Files existed don't export these, and
+    // buildApiLib leaves the whole Files section out for them.
+    filesMembers?: string
     backgroundMembers: string
     backgroundStyleDeclaration: string
     backgroundPropsDeclaration: string
@@ -99,6 +103,7 @@ export interface VersionedApiConstants {
     cameraDoc: string
     backgroundDoc: string
     randomDoc: string
+    filesDoc?: string
     timerDoc: string
     vector2Doc: string
     spriteDoc: string
@@ -434,7 +439,18 @@ declare const console: {
 ${v.randomDoc}declare const Random: {
 ${v.randomMembers}
 }
+${v.filesMembers === undefined ? '' : `
+/**
+ * A text file: the name of a text file in your project, like 'level1.txt'.
+ * TextFile is the project's own text file names; see ImageSource for why the
+ * (string & {}) arm is there.
+ */
+type TextSource = TextFile | (string & {})
 
+${v.filesDoc ?? ''}declare const Files: {
+${v.filesMembers}
+}
+`}
 /**
  * Throw to report a problem without the fatal-looking treatment of a thrown
  * Error — an uncaught Warning shows in the output panel styled as a warning
@@ -660,15 +676,15 @@ ${v.soundMembers}
 }
 
 /**
- * Declares the project's own file names, which ImageSource/AudioSource above
- * build on. Its own lib rather than part of buildApiLib's output: it changes
- * whenever a file is added, renamed, or removed, which is far more often than
- * the API itself does, and is the same regardless of API version. Always
- * installed — with no files the unions are `never`, which still leaves
- * ImageSource/AudioSource as plain strings.
+ * Declares the project's own file names, which ImageSource/AudioSource/
+ * TextSource above build on. Its own lib rather than part of buildApiLib's
+ * output: it changes whenever a file is added, renamed, or removed, which is
+ * far more often than the API itself does, and is the same regardless of API
+ * version. Always installed — with no files the unions are `never`, which
+ * still leaves the *Source types as plain strings.
  */
-export function buildProjectAssetsLib(assets: readonly { name: string, kind: 'image' | 'audio' }[]): string {
-    const union = (kind: 'image' | 'audio') => {
+export function buildProjectAssetsLib(assets: readonly NamedAsset[]): string {
+    const union = (kind: AssetKind) => {
         const names = assets.filter((asset) => asset.kind === kind).map((asset) => JSON.stringify(asset.name))
         return names.length ? names.join(' | ') : 'never'
     }
@@ -678,6 +694,9 @@ type ImageFile = ${union('image')}
 
 /** The name of an audio file in this project. */
 type AudioFile = ${union('audio')}
+
+/** The name of a text file in this project. */
+type TextFile = ${union('text')}
 }
 export {}`
 }
@@ -695,8 +714,8 @@ export const apiLib = buildApiLib({
     vLinePropsFields, vLineMembers,
     soundPropsFields, soundMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc,
+    randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,

@@ -3,7 +3,7 @@
 // word a missing file exactly the same way. Keep it import-free: the host
 // bundle imports this directly, and anything it pulled in would come along.
 
-export type AssetKind = 'image' | 'audio'
+export type AssetKind = 'image' | 'audio' | 'text'
 
 export interface NamedAsset {
     name: string
@@ -20,8 +20,20 @@ export function isBareFileName(src: string): boolean {
     return !/[/\\:]/.test(src)
 }
 
+const KIND_LABELS: Record<AssetKind, { noun: string, article: string }> = {
+    image: { noun: 'image', article: 'an' },
+    audio: { noun: 'sound', article: 'a' },
+    text: { noun: 'text file', article: 'a' },
+}
+
 function kindLabel(kind: AssetKind): string {
-    return kind === 'image' ? 'image' : 'sound'
+    return KIND_LABELS[kind].noun
+}
+
+/** 'an image', 'a sound', 'a text file'. */
+function kindWithArticle(kind: AssetKind): string {
+    const { noun, article } = KIND_LABELS[kind]
+    return `${article} ${noun}`
 }
 
 /**
@@ -32,7 +44,7 @@ function kindLabel(kind: AssetKind): string {
  */
 export function describeMissingFile(name: string, kind: AssetKind, assets: readonly NamedAsset[]): string {
     const otherKind = assets.find((asset) => asset.name === name && asset.kind !== kind)
-    if (otherKind) return `'${name}' is ${otherKind.kind === 'audio' ? 'a sound' : 'an image'}, not ${kind === 'audio' ? 'a sound' : 'an image'}.`
+    if (otherKind) return `'${name}' is ${kindWithArticle(otherKind.kind)}, not ${kindWithArticle(kind)}.`
 
     const missing = `No ${kindLabel(kind)} named '${name}' in this project.`
     const candidates = assets.filter((asset) => asset.kind === kind).map((asset) => asset.name)

@@ -79,12 +79,13 @@ export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
 
 /**
  * Plain `const <exportName> = {...}` object literals (not classes) that are
- * part of the real api-object surface — currently just Random. Extracted via
+ * part of the real api-object surface — Random and Files. Extracted via
  * extractObjectLiteral into the same propsFields/members shape a concrete
  * class produces, so it shares render.ts's existing output path.
  */
 export const OBJECT_LITERALS = [
     { file: apiPath('Random.ts'), exportName: 'Random', className: 'Random' },
+    { file: apiPath('Files.ts'), exportName: 'Files', className: 'Files' },
 ] as const
 
 /**

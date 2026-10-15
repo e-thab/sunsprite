@@ -3,7 +3,7 @@ import Phaser from 'phaser'
 
 import type { Repeatable, Delayable, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
 import type { ThemePalette } from '@/assets/theme/themes'
-import type { ProjectAsset } from '@/sandbox/protocol'
+import type { ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
 import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@api/assets'
 import { Vector2, type Vector2Like } from '@api/Vector2'
 import { Mouse } from '@api/types'
@@ -14,6 +14,7 @@ import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 import Output from '@/sandbox/output'
 import Warning from '@api/Warning'
 import Random from '@api/Random'
+import Files from '@api/Files'
 import Colors from '@api/Colors'
 import Timer from '@api/Timer'
 import Clock from '@api/Clock'
@@ -978,7 +979,7 @@ class UserScene extends Scene {
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			print: Output.print, watch, unwatch, play, pause, /* setBackgroundColor, setBackgroundImage, clearBackgroundImage, */
-			Random, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
+			Random, Files, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
 			sqrt: Math.sqrt,
 			min: Math.min,
 			max: Math.max,
@@ -1032,9 +1033,9 @@ class UserScene extends Scene {
 	}
 }
 
-export async function runUserCode(code: string, entryName: string, theme?: ThemePalette, assets: readonly ProjectAsset[] = []): Promise<void> {
+export async function runUserCode(code: string, entryName: string, theme?: ThemePalette, assets: readonly ProjectAsset[] = [], textFiles: readonly ProjectTextFile[] = []): Promise<void> {
 	Output.clear()
-	_setProjectAssets(assets, theme)
+	_setProjectAssets(assets, theme, textFiles)
 
 	if (_sessionCount > 0) console.groupEnd()
 	// Be cool to print the group header in the theme primary color, but can't use the theme store here
