@@ -93,6 +93,8 @@ function reportUserError(e: unknown) {
  * is safest for its caller rather than propagating further.
  */
 function runUserCallback<T>(fn: () => T, fallback: T): T {
+	if (_crash) return fallback
+
 	try {
 		return fn()
 	} catch (e) {
@@ -180,6 +182,7 @@ export let resizeReactors: { _onResize(): void }[] = []
 /** Internal. All timer objects that need updating each frame */
 export let allTimers: Timer[] = []
 export let _engineLive: boolean = false
+let _crash: boolean = false
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0
@@ -995,6 +998,7 @@ class UserScene extends Scene {
 			await runEntryModule(this.JScode, api, this.entryName)
 		} catch (e) {
 			reportUserError(e)
+			_crash = true
 		}
 	}
 	
@@ -1043,6 +1047,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	// console.group(`%cSunsprite session ${++_sessionCount}`, `color: ${theme?.primary ?? 'white'}; font-weight: bold;`)
 	console.group(`%cSunsprite v${VERSION} session ${++_sessionCount}`, `color: ${Colors.HotPink}; font-weight: bold;`)
 
+	_crash = false
 	_forevers = []
 	_repeats = []
 	_afters = []
