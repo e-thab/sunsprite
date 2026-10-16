@@ -72,6 +72,7 @@ export const CONCRETE_CLASSES = [
     { file: apiPath('Screen.ts'), typeName: undefined, className: 'Screen', constructorParams: undefined },
     { file: apiPath('types.ts'), typeName: undefined, className: 'Mouse', constructorParams: undefined },
     { file: apiPath('Background.ts'), typeName: undefined, className: 'Background', constructorParams: undefined },
+    { file: apiPath('Mixer.ts'), typeName: undefined, className: 'Mixer', constructorParams: undefined },
 ] as const
 
 /**
@@ -82,8 +83,8 @@ export const CONCRETE_CLASSES = [
  * editor accept `new Bus(...)` or `Bus.x`, which throw at runtime.
  */
 export const TYPE_ONLY_CLASSES = [
-    // Reached through Sound.Bus(name) / Sound.addBus(...) / Sound.buses.
-    { file: apiPath('Sound.ts'), className: 'Bus' },
+    // Reached through Mixer.bus(name) / Mixer.addBus(...) / Mixer.buses.
+    { file: apiPath('Bus.ts'), className: 'Bus' },
 ] as const
 
 export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
@@ -119,8 +120,8 @@ export const OBJECT_LITERALS = [
 export const TYPE_ALIASES = [
     { file: apiPath('Background.ts'), name: 'BackgroundStyle' },
     { file: apiPath('Background.ts'), name: 'BackgroundProps' },
-    // Sound.addBus's options object.
-    { file: apiPath('Sound.ts'), name: 'BusProps' },
+    // Mixer.addBus's options object.
+    { file: apiPath('Bus.ts'), name: 'BusProps' },
 ] as const
 
 /**
@@ -225,6 +226,8 @@ export function runtimeCopySet(): string[] {
         // reach the copy set via SUPPORTING_API_FILES; now it's only reached
         // through extraction, so it has to be added back explicitly here).
         ...OBJECT_LITERALS.map((o) => o.file),
+        // Same for TYPE_ONLY_CLASSES (Bus.ts, imported by Sound.ts and Mixer.ts).
+        ...TYPE_ONLY_CLASSES.map((c) => c.file),
     ]
 }
 

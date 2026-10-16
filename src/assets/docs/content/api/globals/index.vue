@@ -2,8 +2,8 @@
 export const meta = {
 	title: 'Globals',
 	icon: 'tabler:world',
-	summary: 'Live references available everywhere: Mouse, Screen, Camera, Clock, Background, keysPressed.',
-	order: ['mouse', 'screen', 'camera', 'clock', 'background', 'keys-pressed'],
+	summary: 'Live references available everywhere: Mouse, Screen, Camera, Clock, Background, Mixer, keysPressed.',
+	order: ['mouse', 'screen', 'camera', 'clock', 'background', 'mixer', 'keys-pressed'],
 }
 
 export default {}

@@ -28,7 +28,8 @@ import Label from '@api/Label'
 import Line from '@api/Line'
 import HLine from '@api/HLine'
 import VLine from '@api/VLine'
-import Sound, { setClientVolume, setClientMute } from '@api/Sound'
+import Sound from '@api/Sound'
+import { mixer, setClientVolume, setClientMute } from '@api/Mixer'
 
 export const VERSION = '1.0'
 
@@ -151,8 +152,8 @@ export function play() {
  * Internal. The host's own volume/mute control (the canvas toolbar's Volume
  * dropdown), applied to the client bus. Host-driven like pause()/play(), so
  * it lives here with the rest of the sandbox's message entry points rather
- * than on Sound itself, where user scripts could reach it. Survives a restart
- * untouched: Sound._reset() rebuilds the script-facing buses only.
+ * than on the Mixer itself, where user scripts could reach it. Survives a restart
+ * untouched: mixer._reset() rebuilds the script-facing buses only.
  */
 export function setClientAudio(volume: number, muted: boolean) {
 	setClientVolume(volume)
@@ -974,7 +975,7 @@ class UserScene extends Scene {
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
 			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
-			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Colors,
+			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Mixer: mixer, Colors,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
@@ -1059,7 +1060,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_mouseHoldActions.clear()
 	_propUpdaters.clear()
 	clearWatchCards()
-	Sound._reset()
+	mixer._reset()
 
 	keysPressed = []
 	keysJustPressed.clear()

@@ -36,10 +36,10 @@ import {
     linePropsFields, lineMembers,
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
-    soundPropsFields, soundMembers, busMembers, busPropsDeclaration,
+    soundPropsFields, soundMembers, busMembers, busPropsDeclaration, mixerMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
     randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
@@ -83,10 +83,11 @@ export interface VersionedApiConstants {
     vLineMembers: string
     soundPropsFields: string
     soundMembers: string
-    // Optional: snapshots cut before buses existed don't export these, and
-    // buildApiLib leaves Bus/BusProps out for them.
+    // Optional: snapshots cut before buses/the Mixer existed don't export
+    // these, and buildApiLib leaves Bus/BusProps/Mixer out for them.
     busMembers?: string
     busPropsDeclaration?: string
+    mixerMembers?: string
     cameraMembers: string
     vector2Members: string
     timerMembers: string
@@ -119,6 +120,7 @@ export interface VersionedApiConstants {
     circleDoc: string
     soundDoc: string
     busDoc?: string
+    mixerDoc?: string
     foreverDeclaration: string
     repeatDeclaration: string
     repeatUntilDeclaration: string
@@ -683,6 +685,10 @@ ${v.busPropsDeclaration ?? ''}
 ${v.busDoc ?? ''}interface Bus {
 ${v.busMembers}
 }
+`}${v.mixerMembers === undefined ? '' : `
+${v.mixerDoc ?? ''}declare const Mixer: {
+${v.mixerMembers}
+}
 `}`,
     ].join('\n') + '\n}\nexport {}'
 }
@@ -724,10 +730,10 @@ export const apiLib = buildApiLib({
     linePropsFields, lineMembers,
     hLinePropsFields, hLineMembers,
     vLinePropsFields, vLineMembers,
-    soundPropsFields, soundMembers, busMembers, busPropsDeclaration,
+    soundPropsFields, soundMembers, busMembers, busPropsDeclaration, mixerMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
     randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,

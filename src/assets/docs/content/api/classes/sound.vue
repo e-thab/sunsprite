@@ -15,16 +15,19 @@ export default {}
 		<p>A single audio file — a sound effect, a music track, anything you want the game to play. Create one with the file you want, then call <code>play()</code> whenever it should be heard. The same Sound can be played as many times as you like.</p>
 
 		<p>Volume and pitch can be changed at any time, including while the sound is playing.</p>
+
+		<p>To adjust a whole category of sounds together, like all the music or all the sound effects, put them on the same bus and adjust it through the <DocLink to="api/globals/mixer" />.</p>
 	</DocSection>
 
 	<DocParams>
-		<DocParam name="options" type="SoundProps" optional>Initial properties: src, volume, pitch, and muted.</DocParam>
+		<DocParam name="options" type="SoundProps" optional>Initial properties: src, bus, volume, pitch, and muted.</DocParam>
 	</DocParams>
 
 	<DocProperties>
 		<DocProperty name="volume" type="number" default="1">How loud the sound is, from 0 (silent) to 1 (full volume).</DocProperty>
 		<DocProperty name="pitch" type="number" default="0">How far the sound is shifted in pitch, in cents. 0 leaves it alone, every 100 is one semitone up, and negative values pitch it down — so -1200 is an octave lower and 1200 an octave higher.</DocProperty>
 		<DocProperty name="muted" type="boolean" default="false">Whether the sound is silenced. Muting keeps the volume you set, so unmuting returns to it.</DocProperty>
+		<DocProperty name="bus" type="string | undefined" default="undefined">Name of the bus this sound is on, if any. Set it to a bus's name like 'Music', or to a Bus from the Mixer, to move the sound onto that bus. Set it to undefined to take the sound off its bus.</DocProperty>
 	</DocProperties>
 
 	<DocMethods>
@@ -47,5 +50,5 @@ onKeyPress({
 })</pre>
 	</DocSnippet>
 
-	<DocRelated :paths="['tutorials/playing-sounds']" />
+	<DocRelated :paths="['api/globals/mixer', 'tutorials/playing-sounds']" />
 </template>

@@ -11,20 +11,20 @@ const Files = {
      * a warning and returns an empty string.
      * @param name The text file's name exactly as it appears in the file tree (case-senstiive).
      */
-    read(name: TextSource): string | undefined {
-        return _projectTextFile(name)
+    read(name: TextSource): string {
+        const content = _projectTextFile(name)
+        if (!content) throw new Error(`No text file found with the name ${name}`)
+        return content
     },
 
     /**
      * Returns lines in a text file as an array of strings. Each line is an entry in the array.
      * @param name The text file's name exactly as it appears in the file tree (case-sensitive).
      */
-    readLines(name: TextSource): string[] | undefined {
-        const content = this.read(name)
-        if (content) {
-            return content.split('\n')
-        }
-        return undefined
+    readLines(name: TextSource): string[] {
+        const content = _projectTextFile(name)
+        if (!content) throw new Error(`No text file found with the name ${name}`)
+        return content.split('\n')
     }
 }
 
