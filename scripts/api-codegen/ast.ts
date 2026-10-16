@@ -5,40 +5,55 @@ export interface ParamDoc {
     doc: string
 }
 
+export interface TagDoc {
+    tag: string
+    doc: string
+}
+
 export interface ExtractedDoc {
     summary: string
     params: ParamDoc[]
+    /** Every JSDoc tag that isn't @param — @returns, @throws, @example — in source order. */
+    tags: TagDoc[]
 }
 
-/** Pulls the summary comment and any @param tags off a node's leading JSDoc. */
+/** Pulls the summary comment and every JSDoc tag off a node's leading JSDoc. */
 export function extractDoc(node: ts.Node): ExtractedDoc {
     const jsDocs = ts.getJSDocCommentsAndTags(node).filter(ts.isJSDoc)
     const doc = jsDocs[0]
     const summary = doc ? (ts.getTextOfJSDocComment(doc.comment) ?? '').trim() : ''
 
+    // @param needs its own shape because the name is a node rather than part of the
+    // comment text. Everything else is read generically off tagName, so a tag nobody
+    // has written yet still reaches the declarations without another edit here.
     const params: ParamDoc[] = []
+    const tags: TagDoc[] = []
     if (doc?.tags) {
         for (const tag of doc.tags) {
+            const text = (ts.getTextOfJSDocComment(tag.comment) ?? '').trim()
             if (ts.isJSDocParameterTag(tag)) {
-                params.push({
-                    name: tag.name.getText(),
-                    doc: (ts.getTextOfJSDocComment(tag.comment) ?? '').trim(),
-                })
+                params.push({ name: tag.name.getText(), doc: text })
+            } else {
+                tags.push({ tag: tag.tagName.text, doc: text })
             }
         }
     }
-    return { summary, params }
+    return { summary, params, tags }
 }
 
-/** Formats a doc comment block: single-line when there's just a summary, multi-line with @param tags otherwise. */
+/** Formats a doc comment block: single-line when there's just a summary, multi-line once there are tags. */
 export function formatDocBlock(doc: ExtractedDoc, indent: string): string {
-    if (!doc.summary && doc.params.length === 0) return ''
-    if (doc.params.length === 0) return `${indent}/** ${doc.summary} */\n`
+    const hasTags = doc.params.length > 0 || doc.tags.length > 0
+    if (!doc.summary && !hasTags) return ''
+    if (!hasTags) return `${indent}/** ${doc.summary} */\n`
 
     const lines = [`${indent}/**`]
     if (doc.summary) lines.push(`${indent} * ${doc.summary}`)
     for (const p of doc.params) {
         lines.push(`${indent} * @param ${p.name} ${p.doc}`)
+    }
+    for (const t of doc.tags) {
+        lines.push(`${indent} * @${t.tag} ${t.doc}`)
     }
     lines.push(`${indent} */`)
     return lines.join('\n') + '\n'

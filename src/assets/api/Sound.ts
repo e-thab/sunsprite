@@ -141,6 +141,7 @@ export class Bus {
      * An array of all the sounds that belong to this bus. Setting this removes any sounds
      * not in the new array. If you want to add sounds without removing any current ones, instead
      * use bus.addSounds()
+     * @returns A copy of the bus's sounds array.
      */
     get sounds(): Sound[] {
         // A copy, so pushing to/splicing the returned array can't add or remove a sound without
@@ -455,10 +456,14 @@ export default class Sound {
     }
 
     /**
-     * Returns the Bus object matching a given name.
+     * Get a bus by providing its name.
+     * @returns The sound bus matching the provided name.
+     * @throws Error when no bus is found with that name. Use Sound.hasBus() to check for existence of a bus matching the name.
      */
-    static Bus(name: string): Bus | undefined {
-        return _getBus(name)
+    static Bus(name: string): Bus {
+        const bus = _getBus(name)
+        if (bus) return bus
+        throw new Error(`No sound bus found with the name '${name}'`)
     }
 
     /**
@@ -468,16 +473,16 @@ export default class Sound {
         if (typeof nameOrProps !== 'string' && !isBusProps(nameOrProps)) {
             throw new Error(`Sound.addBus() needs a bus name or a bus options object with at least a 'name' property, like Sound.addBus({ name: 'footsteps' })`)
         }
-        const busName = typeof nameOrProps === 'string' ? nameOrProps : nameOrProps.name
-        const existingBus = Sound.Bus(busName)
+        const name = typeof nameOrProps === 'string' ? nameOrProps : nameOrProps.name
+        const existingBus = _getBus(name)
         
         // Ensure name uniqueness
         if (existingBus) {
-            let warnMsg = `A sound bus with name '${busName}' already exists. `
+            let warnMsg = `A sound bus with name '${name}' already exists. `
             try {
                 if (typeof nameOrProps === 'string') {
                     // If a duplicate bus name was provided only, don't do anything
-                    warnMsg += `Ignoring Sound.addBus('${busName}')`
+                    warnMsg += `Ignoring Sound.addBus('${name}')`
                 } else {
                     // If a BusProps object was provided with a duplicate name, just
                     // set properties of the extant bus
@@ -493,6 +498,14 @@ export default class Sound {
         const bus = new Bus(nameOrProps)
         Sound.buses.push(bus)
         return bus
+    }
+
+    /**
+     * Check if a bus with a given name exists in the Sound manager.
+     * @param name The bus's name to check.
+     */
+    static hasBus(name: string): boolean {
+        return _getBus(name) !== undefined
     }
 
     /**
