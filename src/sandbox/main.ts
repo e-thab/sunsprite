@@ -38,6 +38,11 @@ const pendingScripts = new Map<number, (content: string | undefined) => void>()
 /** seq of the last 'set-paused' command applied — echoed in status reports; see protocol.ts. */
 let appliedPauseSeq = 0
 
+/** Only ever moves forward, so a held command settling late can't undo a newer one. */
+function applyPauseSeq(seq: number | undefined) {
+    if (seq !== undefined && seq > appliedPauseSeq) appliedPauseSeq = seq
+}
+
 setScriptResolver((name) => {
     return new Promise<string | undefined>((resolve) => {
         const id = nextScriptRequestId++
@@ -50,16 +55,29 @@ setScriptResolver((name) => {
  * Whatever's waiting on audioGate.ts for permission to make sound: an unpaused
  * run, or Play on a paused game. Only the newest counts, so a Restart pressed
  * while the overlay is up replaces the run it was holding.
+ *
+ * A held Play carries the `seq` of the 'set-paused' that asked for it, and
+ * that seq isn't applied until the hold settles one way or the other. Applied
+ * up front, the status reports sent during the silent probe (a few dozen ms,
+ * when the host's permission is delegated in) would say "paused" with a seq
+ * the host accepts, and its button would bounce back to Play and forward
+ * again. So it's applied when the Play starts, when the overlay is shown (the
+ * game really is waiting on a click then, and the button saying Play is
+ * accurate), or when the hold is dropped or replaced, so no seq is left behind.
  */
-let held: { start: () => void, isRun: boolean } | null = null
+let held: { start: () => void, isRun: boolean, pauseSeq?: number } | null = null
 
-function startWhenAudible(start: () => void, isRun: boolean) {
-    const entry = { start, isRun }
+function startWhenAudible(start: () => void, isRun: boolean, pauseSeq?: number) {
+    applyPauseSeq(held?.pauseSeq)
+    const entry = { start, isRun, pauseSeq }
     held = entry
-    whenAudioUnlocked().then(() => {
+    whenAudioUnlocked(() => {
+        if (held === entry) applyPauseSeq(pauseSeq)
+    }).then(() => {
         if (held !== entry) return
         held = null
         start()
+        applyPauseSeq(pauseSeq)
     })
 }
 
@@ -68,6 +86,7 @@ function releaseHeld() {
     const released = held
     held = null
     cancelAudioUnlock()
+    applyPauseSeq(released?.pauseSeq)
     return released
 }
 
@@ -84,7 +103,7 @@ function handleMessage(message: HostMessage) {
                 releaseHeld()
                 run()
                 core.pause()
-                if (message.pauseSeq !== undefined) appliedPauseSeq = message.pauseSeq
+                applyPauseSeq(message.pauseSeq)
             } else {
                 startWhenAudible(run, true)
             }
@@ -106,13 +125,15 @@ function handleMessage(message: HostMessage) {
                 const released = releaseHeld()
                 if (released?.isRun) released.start()
                 core.pause()
+                applyPauseSeq(message.seq)
             } else if (!held) {
-                startWhenAudible(() => core.play(), false)
+                // seq applied once the hold settles; see `held` above
+                startWhenAudible(() => core.play(), false, message.seq)
+            } else {
+                // A run is already held, which this Play joins rather than
+                // replaces; it starts unpaused whenever that run does.
+                applyPauseSeq(message.seq)
             }
-            // Applied now even if Play is held: the game really is still
-            // paused, and status reporting that sends the host's button back
-            // to Play, which is accurate until the overlay is clicked.
-            appliedPauseSeq = message.seq
             break
 
         case 'set-client-audio':

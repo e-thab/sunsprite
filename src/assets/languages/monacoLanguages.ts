@@ -75,6 +75,9 @@ const SUPPORTS: EditorLanguageSupport[] = [
 	},
 ]
 
+/** Every script language's setup, for features registered once per language. */
+export const LANGUAGE_SUPPORTS: readonly EditorLanguageSupport[] = SUPPORTS
+
 /** Which language's setup serves a given file, keyed off its extension. */
 export function languageSupportFor(fileName: string): EditorLanguageSupport {
 	const type = scriptTypeForFile(fileName)

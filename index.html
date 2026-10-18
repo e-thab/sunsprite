@@ -12,11 +12,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sunsprite</title>
 
-    <!-- Matches base.css's dark --theme-bg fallback. Vite's dev server injects
-         app CSS via JS instead of a blocking <link>, so without this the browser
-         paints a blank white frame before main.ts's stylesheet import lands. -->
+    <!-- Re-applies the theme this device last showed, from the snapshot
+         themeStore.ts's applyToDocument saves, before anything paints.
+         Everything else that knows the theme waits on main.ts, which on the
+         dev server can take a while to load, and a theme other than the
+         default would flash the default until then. -->
+    <script>
+      try {
+        var saved = JSON.parse(localStorage.getItem('sunsprite-theme-paint') || 'null');
+        if (saved && saved.variables) {
+          var html = document.documentElement;
+          html.classList.toggle('dark', !saved.isLight);
+          html.classList.toggle('light', !!saved.isLight);
+          for (var name in saved.variables) html.style.setProperty(name, saved.variables[name]);
+        }
+      } catch (e) {}
+    </script>
+
+    <!-- The saved theme's background, else base.css's --theme-bg fallback.
+         Vite's dev server injects app CSS via JS instead of a blocking <link>,
+         so without this the browser paints a blank white frame before
+         main.ts's stylesheet import lands. -->
     <style>
-      html, body { background: #23252b; }
+      html, body { background: var(--theme-bg, #1d1f23); }
     </style>
 
     <!-- ! Remove this script when switching hosts -->

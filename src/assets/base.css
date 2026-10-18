@@ -7,42 +7,44 @@
   --nav-height: 2.75em;
 }
 
-/* Default theme values (Nord) — the theme store overrides these at runtime;
-   these are just the first-paint fallback before it initializes. */
+/* Default theme values (Dark Modern, see darkModern.ts) — the theme store
+   overrides these at runtime, and index.html's inline script with the
+   device's last theme before that; these are only the first-paint fallback
+   for a device that has never shown one. */
 :root {
-  --theme-bg: #23252b;
-  --theme-bg-muted: #252a33;
-  --theme-bg-elevated: #2e3440;
-  --theme-bg-accented: #353b48;
-  --theme-bg-inverted: #eceff4;
-  --theme-border: #434c5e;
+  --theme-bg: #1d1f23;
+  --theme-bg-muted: #232529;
+  --theme-bg-elevated: #292c30;
+  --theme-bg-accented: #35383c;
+  --theme-bg-inverted: #afb2b7;
+  --theme-border: #414448;
 
-  --theme-text-dimmed: #434c5e;
-  --theme-text-muted: #4c566a;
-  --theme-text-toned: #4a546a;
-  --theme-text: #d8dee9;
-  --theme-text-highlighted: #eceff4;
-  --theme-text-inverted: #23252b;
+  --theme-text-dimmed: #4e5156;
+  --theme-text-muted: #606368;
+  --theme-text-toned: #86898e;
+  --theme-text: #afb2b7;
+  --theme-text-highlighted: #d7dadf;
+  --theme-text-inverted: #292c30;
 
-  --theme-primary: #88c0d0;
-  --theme-secondary: #5e81ac;
-  --theme-success: #a3be8c;
-  --theme-warning: #ebcb8b;
-  --theme-error: #bf616a;
-  --theme-info: #81a1c1;
+  --theme-primary: #52dfbb;
+  --theme-secondary: #0078d4;
+  --theme-success: #43c55b;
+  --theme-warning: #ffca58;
+  --theme-error: #ff746d;
+  --theme-info: #3794ff;
 
-  --theme-token-default: #d8dee9;
-  --theme-token-identifier: #d8dee9;
-  --theme-token-keyword: #81a1c1;
-  --theme-token-delimiter: #d8dee9;
-  --theme-token-type: #8fbcbb;
-  --theme-token-number: #b48ead;
-  --theme-token-number-hex: #d08770;
-  --theme-token-string: #a3be8c;
-  --theme-token-string-escape: #d08770;
-  --theme-token-comment: #818a9b;
-  --theme-token-comment-doc: #ebcb8b;
-  --theme-token-regexp: #d08770;
+  --theme-token-default: #cccccc;
+  --theme-token-identifier: #9cdcfe;
+  --theme-token-keyword: #569cd6;
+  --theme-token-delimiter: #cccccc;
+  --theme-token-type: #4ec9b0;
+  --theme-token-number: #b5cea8;
+  --theme-token-number-hex: #b5cea8;
+  --theme-token-string: #ce9178;
+  --theme-token-string-escape: #d7ba7d;
+  --theme-token-comment: #6a9955;
+  --theme-token-comment-doc: #6a9955;
+  --theme-token-regexp: #d16969;
 }
 
 /* Nuxt vars */

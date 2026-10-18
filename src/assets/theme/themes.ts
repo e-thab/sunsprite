@@ -1,10 +1,13 @@
 import type * as monaco from 'monaco-editor'
+import type { SyntaxSlot } from '@/assets/languages/textmateHighlighting'
 import nord from './nord'
 import dracula from './dracula'
 import monokai from './monokai'
 import gruvbox from './gruvbox'
 import oneDark from './oneDark'
 import tokyoNight from './tokyoNight'
+import darkModern from './darkModern'
+import quietLight from './quietLight'
 import gitHubLight from './gitHubLight'
 import alucard from './alucard'
 import random from './random'
@@ -17,6 +20,8 @@ export type ThemeId =
     | 'gruvbox'
     | 'onedark'
     | 'tokyo-night'
+    | 'dark-modern'
+    | 'quiet-light'
     | 'alucard'
     | 'random'
 
@@ -87,6 +92,23 @@ export interface TokenPalette {
     comment: TokenColorDefinition,
     commentDoc: TokenColorDefinition,
     regexp: TokenColorDefinition,
+    // Distinctions only the editor's TextMate grammar can make (see
+    // textmateHighlighting.ts). Optional: a palette that leaves one out gets
+    // the fallback noted beside it, which is what Monarch used to show.
+    /** `import`, `export`, `if`, `return`, `await`... as opposed to `const`, `function`, `async`. Falls back to `keyword`. */
+    keywordControl?: TokenColorDefinition,
+    /** `true`, `false`, `null`, `undefined`, `NaN`, `Infinity`. Falls back to `keyword`. */
+    literal?: TokenColorDefinition,
+    /** Symbol operators: `=`, `+`, `===`, `&&`, `??`... Falls back to `delimiter`. */
+    operator?: TokenColorDefinition,
+    /** Function and method names, at declaration and call. Falls back to `identifier`. */
+    function?: TokenColorDefinition,
+    /** Object properties and object-literal keys. Falls back to `identifier`. */
+    property?: TokenColorDefinition,
+    /** Function parameters. Falls back to `identifier`. */
+    parameter?: TokenColorDefinition,
+    /** `const`-declared names, enum members, built-ins like `Math.PI`. Falls back to `identifier`. */
+    constant?: TokenColorDefinition,
     bracketColor1: string,
     bracketColor2: string,
     bracketColor3: string,
@@ -102,14 +124,14 @@ export interface TokenPalette {
 
 export const themes: ThemePalette[] = [
     // Dark
-    dracula, /*gruvbox,*/ /*monokai,*/ nord, oneDark, tokyoNight,
+    darkModern, dracula, /*gruvbox,*/ /*monokai,*/ nord, oneDark, tokyoNight,
     // Light
-    alucard, gitHubLight,
+    alucard, gitHubLight, quietLight,
     // Other
     random
 ]
 
-export const defaultThemeId: ThemeId = 'nord'
+export const defaultThemeId: ThemeId = 'dark-modern'
 
 export function findTheme(id: string | null | undefined): ThemePalette {
     return themes.find((t) => t.id === id) ?? themes.find((t) => t.id === defaultThemeId)!
@@ -124,7 +146,8 @@ export function monacoThemeName(id: ThemeId): string {
 // https://code.visualstudio.com/api/references/theme-color
 // https://code.visualstudio.com/docs/configure/themes#_customize-a-color-theme:~:text=Editor%20syntax%20highlighting
 export function buildMonacoThemeData(palette: ThemePalette): monaco.editor.IStandaloneThemeData {
-    const tokenMap: Map<string, TokenColorDefinition> = new Map([
+    // Keyed by the slot names textmateHighlighting.ts tokenizes into.
+    const tokenMap: Map<SyntaxSlot | '', TokenColorDefinition> = new Map([
         ['', palette.tokens.default],
         ['identifier', palette.tokens.identifier],
         ['keyword', palette.tokens.keyword],
@@ -137,6 +160,13 @@ export function buildMonacoThemeData(palette: ThemePalette): monaco.editor.IStan
         ['comment', palette.tokens.comment],
         ['comment.doc', palette.tokens.commentDoc],
         ['regexp', palette.tokens.regexp],
+        ['keyword.control', palette.tokens.keywordControl ?? palette.tokens.keyword],
+        ['literal', palette.tokens.literal ?? palette.tokens.keyword],
+        ['operator', palette.tokens.operator ?? palette.tokens.delimiter],
+        ['function', palette.tokens.function ?? palette.tokens.identifier],
+        ['property', palette.tokens.property ?? palette.tokens.identifier],
+        ['parameter', palette.tokens.parameter ?? palette.tokens.identifier],
+        ['constant', palette.tokens.constant ?? palette.tokens.identifier],
     ])
     
     const rules: monaco.editor.ITokenThemeRule[] = []

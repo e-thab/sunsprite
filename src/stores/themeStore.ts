@@ -2,38 +2,42 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { supabase } from "@/assets/utils/supabase";
 import { useAuthStore } from "./authStore";
-import { themes, findTheme, defaultThemeId, type ThemeId, type ThemePalette } from "@/assets/theme/themes";
+import { themes, findTheme, type ThemeId, type ThemePalette } from "@/assets/theme/themes";
 
 const STORAGE_KEY = 'sunsprite-theme'
+// Snapshot of what applyToDocument last set, for index.html's inline script
+// to re-apply before anything paints. Read there by this exact name.
+const PAINT_KEY = 'sunsprite-theme-paint'
 
-export const useThemeStore = defineStore('theme', () => {
-    const currentId = ref<ThemeId>(defaultThemeId)
-    const current = computed<ThemePalette>(() => findTheme(currentId.value))
+function storedThemeId(): string | null {
+    try {
+        return localStorage.getItem(STORAGE_KEY)
+    } catch {
+        return null
+    }
+}
 
-    function applyToDocument(palette: ThemePalette) {
-        const html = document.documentElement
-        html.classList.toggle('dark', !palette.isLight)
-        html.classList.toggle('light', palette.isLight)
-
-        const root = html.style
-        root.setProperty('--theme-bg', palette.bg)
-        root.setProperty('--theme-bg-muted', palette.bgMuted)
-        root.setProperty('--theme-bg-elevated', palette.bgElevated)
-        root.setProperty('--theme-bg-accented', palette.bgAccented)
-        root.setProperty('--theme-bg-inverted', palette.bgInverted)
-        root.setProperty('--theme-border', palette.border)
-        root.setProperty('--theme-text-dimmed', palette.textDimmed)
-        root.setProperty('--theme-text-muted', palette.textMuted)
-        root.setProperty('--theme-text-toned', palette.textToned)
-        root.setProperty('--theme-text', palette.text)
-        root.setProperty('--theme-text-highlighted', palette.textHighlighted)
-        root.setProperty('--theme-text-inverted', palette.textInverted)
-        root.setProperty('--theme-primary', palette.primary)
-        root.setProperty('--theme-secondary', palette.secondary)
-        root.setProperty('--theme-success', palette.success)
-        root.setProperty('--theme-warning', palette.warning)
-        root.setProperty('--theme-error', palette.error)
-        root.setProperty('--theme-info', palette.info)
+// The CSS variables a palette is applied to the document as.
+function themeVariables(palette: ThemePalette): Record<string, string> {
+    return {
+        '--theme-bg': palette.bg,
+        '--theme-bg-muted': palette.bgMuted,
+        '--theme-bg-elevated': palette.bgElevated,
+        '--theme-bg-accented': palette.bgAccented,
+        '--theme-bg-inverted': palette.bgInverted,
+        '--theme-border': palette.border,
+        '--theme-text-dimmed': palette.textDimmed,
+        '--theme-text-muted': palette.textMuted,
+        '--theme-text-toned': palette.textToned,
+        '--theme-text': palette.text,
+        '--theme-text-highlighted': palette.textHighlighted,
+        '--theme-text-inverted': palette.textInverted,
+        '--theme-primary': palette.primary,
+        '--theme-secondary': palette.secondary,
+        '--theme-success': palette.success,
+        '--theme-warning': palette.warning,
+        '--theme-error': palette.error,
+        '--theme-info': palette.info,
 
         // Same syntax-token colors Monaco gets via buildMonacoThemeData
         // (themes.ts), exposed as CSS vars too so DocSnippet's manual
@@ -41,18 +45,46 @@ export const useThemeStore = defineStore('theme', () => {
         // editor theme is active instead of a fixed palette. Only `.color` —
         // the `style` (bold/italic) Monaco also reads isn't a CSS property
         // and has no CSS use yet.
-        root.setProperty('--theme-token-default', palette.tokens.default.color)
-        root.setProperty('--theme-token-identifier', palette.tokens.identifier.color)
-        root.setProperty('--theme-token-keyword', palette.tokens.keyword.color)
-        root.setProperty('--theme-token-delimiter', palette.tokens.delimiter.color)
-        root.setProperty('--theme-token-type', palette.tokens.type.color)
-        root.setProperty('--theme-token-number', palette.tokens.number.color)
-        root.setProperty('--theme-token-number-hex', palette.tokens.numberHex.color)
-        root.setProperty('--theme-token-string', palette.tokens.string.color)
-        root.setProperty('--theme-token-string-escape', palette.tokens.stringEscape.color)
-        root.setProperty('--theme-token-comment', palette.tokens.comment.color)
-        root.setProperty('--theme-token-comment-doc', palette.tokens.commentDoc.color)
-        root.setProperty('--theme-token-regexp', palette.tokens.regexp.color)
+        '--theme-token-default': palette.tokens.default.color,
+        '--theme-token-identifier': palette.tokens.identifier.color,
+        '--theme-token-keyword': palette.tokens.keyword.color,
+        '--theme-token-delimiter': palette.tokens.delimiter.color,
+        '--theme-token-type': palette.tokens.type.color,
+        '--theme-token-number': palette.tokens.number.color,
+        '--theme-token-number-hex': palette.tokens.numberHex.color,
+        '--theme-token-string': palette.tokens.string.color,
+        '--theme-token-string-escape': palette.tokens.stringEscape.color,
+        '--theme-token-comment': palette.tokens.comment.color,
+        '--theme-token-comment-doc': palette.tokens.commentDoc.color,
+        '--theme-token-regexp': palette.tokens.regexp.color,
+    }
+}
+
+export const useThemeStore = defineStore('theme', () => {
+    // Starts as this device's last theme rather than the default: init() has
+    // to wait on auth and then a profile fetch before it knows the account's
+    // theme, which can take seconds, and anything reading this in the
+    // meantime (Monaco's theme, App.vue's dark/light class) would otherwise
+    // show the default for all of it.
+    const currentId = ref<ThemeId>(findTheme(storedThemeId()).id)
+    const current = computed<ThemePalette>(() => findTheme(currentId.value))
+
+    function applyToDocument(palette: ThemePalette) {
+        const html = document.documentElement
+        html.classList.toggle('dark', !palette.isLight)
+        html.classList.toggle('light', palette.isLight)
+
+        const variables = themeVariables(palette)
+        for (const [name, value] of Object.entries(variables)) {
+            html.style.setProperty(name, value)
+        }
+
+        try {
+            localStorage.setItem(PAINT_KEY, JSON.stringify({ isLight: palette.isLight, variables }))
+        } catch {
+            // Only costs the next load its pre-paint theme; it still gets the
+            // right one as soon as this store initializes.
+        }
     }
 
     // Sets the active theme, persists it (localStorage always, plus the
@@ -75,22 +107,39 @@ export const useThemeStore = defineStore('theme', () => {
     // Re-runnable (unlike authStore.init): call again after sign-in/sign-out
     // so the active theme reflects whichever preference source applies now.
     async function init() {
+        // Applied before waiting on anything. setTheme saves every choice
+        // here as well as to the profile, so this device's last theme is
+        // almost always the account's too; the profile only overrides it
+        // below when it was changed somewhere else.
+        currentId.value = findTheme(storedThemeId()).id
+        applyToDocument(current.value)
+
         const authStore = useAuthStore()
         await authStore.ready
+        if (!authStore.user) return
 
-        let id: string | null = null
-        if (authStore.user) {
-            const { data } = await supabase
-                .from('profiles')
-                .select('theme')
-                .eq('id', authStore.user.id)
-                .maybeSingle()
-            id = data?.theme ?? null
-        }
-        if (!id) id = localStorage.getItem(STORAGE_KEY)
+        const shownBeforeFetch = currentId.value
+        const { data } = await supabase
+            .from('profiles')
+            .select('theme')
+            .eq('id', authStore.user.id)
+            .maybeSingle()
+        if (!data?.theme) return
 
-        currentId.value = findTheme(id).id
+        // A theme picked while the profile was loading is newer than what the
+        // profile holds, so it stands.
+        if (currentId.value !== shownBeforeFetch) return
+
+        const profileId = findTheme(data.theme).id
+        if (profileId === currentId.value) return
+        currentId.value = profileId
         applyToDocument(current.value)
+        // So the next load on this device starts on it, not the stale one.
+        try {
+            localStorage.setItem(STORAGE_KEY, profileId)
+        } catch {
+            // Next load just repeats this correction.
+        }
     }
 
     return { themes, currentId, current, setTheme, init }

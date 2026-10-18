@@ -70,8 +70,12 @@ function audioContext(): AudioContext | undefined {
  * Otherwise tries a silent resume() first, which succeeds when the host's
  * permission has been delegated in, and shows the overlay only if that
  * hasn't worked within PROBE_MS.
+ *
+ * `onBlocked` runs at the moment the overlay is shown, i.e. once it's settled
+ * that this will wait on a click rather than resolve on its own. Only the
+ * newest call's fires: each call restarts the probe.
  */
-export function whenAudioUnlocked(): Promise<void> {
+export function whenAudioUnlocked(onBlocked?: () => void): Promise<void> {
     const context = audioContext()
     if (!context || unlocked) return Promise.resolve()
 
@@ -81,7 +85,10 @@ export function whenAudioUnlocked(): Promise<void> {
     context.resume().catch(() => {})
     clearTimeout(probeTimer)
     probeTimer = setTimeout(() => {
-        if (!unlocked && waiters.length > 0) setOverlay(true)
+        if (!unlocked && waiters.length > 0) {
+            setOverlay(true)
+            onBlocked?.()
+        }
     }, PROBE_MS)
     return result
 }

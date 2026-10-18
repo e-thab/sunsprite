@@ -11,6 +11,8 @@ import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/th
 import { resolveSpecifierCandidates, listImportSpecifiers } from '@/assets/api/scriptResolution'
 import { FILE_TREE_DRAG_MIME, scriptTypeForFile, TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
 import { configureLanguageServices, installExtraLib, languageSupportFor, type EditorLanguageSupport } from '@/assets/languages/monacoLanguages'
+import { installTextMateHighlighting } from '@/assets/languages/textmateHighlighting'
+import { installSemanticHighlighting } from '@/assets/languages/semanticHighlighting'
 import CollapsiblePane from './CollapsiblePane.vue'
 import '@/assets/code-completion/monaco-colors'
 import { setKnownAssets } from '@/assets/code-completion/monaco-assets'
@@ -41,7 +43,8 @@ import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
 import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
+// Monaco's ts.worker plus semantic classifications (see tsSemantic.worker.ts)
+import tsWorker from '@/assets/languages/tsSemantic.worker?worker'
 
 // Instantiated up here rather than beside the other stores below, because
 // editorOptions (immediately after) reads from this one and is itself needed
@@ -74,7 +77,10 @@ const editorOptions = computed<EditorOptions>(() => ({
   // internal .overflow-guard div never actually shrinks below a few px even
   // when the pane is dragged fully closed, and overflow:visible let that
   // sliver bleed out over the splitter, blocking it.
-  fixedOverflowWidgets: true
+  fixedOverflowWidgets: true,
+  // Monaco's default leaves this to the theme, and standalone themes can't
+  // turn it on. See semanticHighlighting.ts.
+  'semanticHighlighting.enabled': true,
 }))
 
 // Define a Monaco theme for every app palette, sourced from the same
@@ -82,6 +88,11 @@ const editorOptions = computed<EditorOptions>(() => ({
 for (const palette of themes) {
 	monaco.editor.defineTheme(monacoThemeName(palette.id), buildMonacoThemeData(palette))
 }
+// Swaps Monaco's Monarch tokenizer for VSCode's TextMate grammars, which emit
+// the token names the themes above color, then layers the TS language
+// service's own classifications over them, under the same names.
+installTextMateHighlighting()
+installSemanticHighlighting()
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()

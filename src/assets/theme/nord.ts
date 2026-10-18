@@ -36,6 +36,8 @@ const nord: ThemePalette = {
         comment: { color: '#818a9b', style: 'italic' }, // Not a true nord color, but mimics comments in nordtheme.com examples
         commentDoc: { color: '#ebcb8b' },
         regexp: { color: '#d08770' },
+        keywordControl: { color: '#b48ead' },
+        function: { color: '#88c0d0' },
         bracketColor1: '#5e81ac',
         bracketColor2: '#ebcb8b',
         bracketColor3: '#b48ead',

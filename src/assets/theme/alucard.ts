@@ -36,6 +36,8 @@ const alucard: ThemePalette = {
         comment: { color: '#6c664b', style: 'italic' },
         commentDoc: { color: '#a3144d' },
         regexp: { color: '#a34d14' },
+        keywordControl: { color: '#644ac9' },
+        function: { color: '#846e15' },
         bracketColor1: '#644ac9',
         bracketColor2: '#a34d14',
         bracketColor3: '#14710a',
