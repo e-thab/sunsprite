@@ -19,6 +19,8 @@ const randomColorStyle = {
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>Random.color(): string</pre></DocSnippet>
 
 	<DocSection id="content-1">

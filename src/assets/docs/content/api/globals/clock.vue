@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>A live reference to elapsed time and frame count since the game started. Pausing the Clock pauses the game, and it can't be reset — for timing something of your own, create a <DocLink to="api/classes/timer" /> instead.</p>
 

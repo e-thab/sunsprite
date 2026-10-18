@@ -10,6 +10,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Free functions available everywhere in a script, grouped by what they do — scheduling code over time, reading input, writing to the output panel, random values, reading text files, and math helpers.</p>
 	</DocSection>

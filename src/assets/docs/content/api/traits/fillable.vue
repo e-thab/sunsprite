@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Adds a fill to a shape. Setting color to undefined or null clears the fill, the same as calling clearFill() — an outline, if the shape has one, stays visible either way.</p>
 	</DocSection>

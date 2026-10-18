@@ -10,6 +10,6 @@ withDefaults(defineProps<{ type?: string; id?: string; title?: string }>(), {
 
 <template>
 	<DocSection :id="id" :title="title">
-		<p><code v-if="type">{{ type }}</code><template v-if="type"> — </template><slot /></p>
+		<p><code v-if="type" class="doc-returns-type">{{ type }}</code><template v-if="type"> — </template><slot /></p>
 	</DocSection>
 </template>

@@ -11,6 +11,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>Random.roll(sides: number): number</pre></DocSnippet>
 
 	<DocSection id="content-1">

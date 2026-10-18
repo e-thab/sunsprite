@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>tan(angle: number, unit?: string): number</pre></DocSnippet>
 
 	<DocSection id="content-1">

@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>A live reference to the camera — the window your game is viewed through. Moving it scrolls the world past the screen; zooming it changes how much of the world fits on screen.</p>
 

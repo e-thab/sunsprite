@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>Random.y(): number</pre></DocSnippet>
 
 	<DocSection id="content-1">

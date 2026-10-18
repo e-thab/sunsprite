@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>
 			TODO: Add content, plus move to a category called Concepts that covers general game

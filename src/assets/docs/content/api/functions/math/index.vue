@@ -10,6 +10,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Free functions for common math operations — angle conversion, trigonometry, and constraining values to a range.</p>
 	</DocSection>

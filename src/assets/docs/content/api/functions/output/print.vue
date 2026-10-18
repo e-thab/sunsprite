@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>print(...msg: Printable[]): void</pre></DocSnippet>
 
 	<DocSection id="content-1">

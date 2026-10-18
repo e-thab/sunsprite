@@ -27,6 +27,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>A collection of functions useful for generating random values, all available on the global Random object.</p>
 	</DocSection>

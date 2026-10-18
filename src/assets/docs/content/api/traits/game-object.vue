@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>GameObject is not a trait a user constructs directly — it is the composition of every trait below, and is what Sprite, Rectangle, Circle, and Label are all built from. Rectangle and Circle go through Shape, which adds Fillable and Outlinable on top of this set. Line, VLine, and HLine compose a smaller, direct subset of these traits instead of GameObject as a whole — see each class’s own "Composed From" section.</p>
 	</DocSection>

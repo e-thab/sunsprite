@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Moving objects and triggering actions with the keyboard.</p>
 	</DocSection>

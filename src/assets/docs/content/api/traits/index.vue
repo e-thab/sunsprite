@@ -21,6 +21,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Every drawable class (Sprite, Rectangle, Circle, Line, VLine, HLine, Label) is built by composing a subset of these shared traits, rather than each redeclaring the same properties. A class page lists every member it ends up with, inherited ones included, each marked with the trait that declares it — these pages are where a trait's members are defined once, and where that marker links to.</p>
 

@@ -13,6 +13,7 @@ import DocRelated from './DocRelated.vue'
 import DocReturns from './DocReturns.vue'
 import DocSection from './DocSection.vue'
 import DocSnippet from './DocSnippet.vue'
+import DocUnderConstruction from './DocUnderConstruction.vue'
 
 /**
  * The building blocks a docs page writes its body out of. They're registered
@@ -38,6 +39,7 @@ export const docComponents = {
 	DocReturns,
 	DocSection,
 	DocSnippet,
+	DocUnderConstruction,
 }
 
 export function installDocComponents(app: App) {

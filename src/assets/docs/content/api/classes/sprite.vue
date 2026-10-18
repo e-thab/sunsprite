@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>new Sprite(options?: SpriteProps)</pre></DocSnippet>
 	
 	<DocSection id="content-1">

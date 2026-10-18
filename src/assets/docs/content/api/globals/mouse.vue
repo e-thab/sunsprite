@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>A live reference to the user's mouse — cursor position and which buttons are currently held.</p>
 	</DocSection>

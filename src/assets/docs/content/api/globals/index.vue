@@ -10,6 +10,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>A handful of always-available globals that reflect live engine state, rather than functions you call.</p>
 

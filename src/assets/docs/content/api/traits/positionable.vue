@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Adds position to an object: world x/y coordinates, the same point as a Vector2, the matching screen-relative coordinates, and helpers to measure distance and move.</p>
 	</DocSection>

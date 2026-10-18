@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>A live reference to the game's background — a flat color, optionally with an image drawn over it. The background sits behind every other object regardless of their layer, so nothing you create can end up underneath it.</p>
 

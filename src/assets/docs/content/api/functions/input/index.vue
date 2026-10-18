@@ -18,6 +18,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Functions for reading keyboard state directly, or registering handlers that react to key and mouse events as they happen.</p>
 	</DocSection>

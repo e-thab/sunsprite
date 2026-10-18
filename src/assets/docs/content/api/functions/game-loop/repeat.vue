@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>repeat(times: number, func: (i: number) =&gt; void): { then(afterFunc: (i: number) =&gt; void): void }</pre></DocSnippet>
 
 	<DocSection id="content-1">

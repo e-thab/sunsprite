@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Adds display control to an object: transparency, render order, and whether it is drawn at all.</p>
 	</DocSection>

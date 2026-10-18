@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>clamp(num: number, min: number, max: number): number</pre></DocSnippet>
 
 	<DocSection id="content-1">

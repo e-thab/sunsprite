@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Adds an outline to a shape. A shape starts with no outline; setting any one of the three properties draws one, filling the other two in with defaults (black, 5 pixels wide, fully opaque). Setting outlineColor to undefined or null clears the outline again, the same as calling clearOutline().</p>
 	</DocSection>

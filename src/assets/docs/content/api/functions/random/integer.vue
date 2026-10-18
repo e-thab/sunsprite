@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>Random.integer(min: number, max: number): number</pre></DocSnippet>
 
 	<DocSection id="content-1">

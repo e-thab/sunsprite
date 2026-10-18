@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>A live reference to the game's audio as a whole. Its <code>volume</code>, <code>pitch</code>, <code>speed</code>, and <code>muted</code> apply on top of every <DocLink to="api/classes/sound" /> in the game, so <code>Mixer.volume = 0.5</code> halves the volume of everything at once.</p>
 

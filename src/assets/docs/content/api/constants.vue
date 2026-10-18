@@ -14,6 +14,8 @@ import { CustomColors } from '@/assets/api/Colors';
 </script> -->
 
 <template>
+	<DocUnderConstruction />
+
 	<!-- <DocSnippet><pre>enum Colors</pre></DocSnippet> -->
 
 	<DocSection id="content-1">

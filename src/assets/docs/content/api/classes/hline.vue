@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>new HLine(options?: HLineProps)</pre></DocSnippet>
 
 	<DocSection id="content-1">

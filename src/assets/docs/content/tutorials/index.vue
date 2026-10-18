@@ -10,6 +10,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Guided walkthroughs for common game-building tasks, from moving things with the keyboard to detecting collisions.</p>
 	</DocSection>

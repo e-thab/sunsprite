@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Fundamental math and programming concepts that will help you make better games.</p>
 	</DocSection>

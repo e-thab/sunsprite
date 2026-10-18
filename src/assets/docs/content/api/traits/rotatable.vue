@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Adds rotation to an object, readable and settable in either degrees or radians. The two stay in sync — setting one updates the other.</p>
 	</DocSection>

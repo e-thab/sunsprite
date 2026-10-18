@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>new VLine(options?: VLineProps)</pre></DocSnippet>
 
 	<DocSection id="content-1">

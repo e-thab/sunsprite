@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>sin(angle: number, unit?: string): number</pre></DocSnippet>
 
 	<DocSection id="content-1">

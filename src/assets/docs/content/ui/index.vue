@@ -10,6 +10,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Documentation for the editor’s own interface — panels, toolbars, and workflows — as distinct from the scripting API.</p>
 	</DocSection>

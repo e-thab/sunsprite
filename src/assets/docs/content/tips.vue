@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Shortcuts and patterns for getting the most out of the editor.</p>
 	</DocSection>

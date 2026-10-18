@@ -10,6 +10,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Everything you make with <code>new</code>. Most of these are objects you place in a game, and compose the full GameObject trait set (position, alignment, size, rotation, mouse interaction, visibility, age); Rectangle and Circle add a fill and an outline on top of it, while Line, VLine, and HLine compose a smaller, direct subset instead. Each class page lists every member it ends up with, inherited ones included, marked with the trait it comes from.</p>
 

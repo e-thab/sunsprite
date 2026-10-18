@@ -10,6 +10,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Functions for writing to the output panel — normal messages, warnings, and errors — plus clearing it.</p>
 	</DocSection>

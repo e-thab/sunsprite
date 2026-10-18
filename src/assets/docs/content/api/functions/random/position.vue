@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>Random.position(): Vector2</pre></DocSnippet>
 
 	<DocSection id="content-1">

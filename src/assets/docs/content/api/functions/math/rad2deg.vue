@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>rad2deg(rad: number): number</pre></DocSnippet>
 
 	<DocSection id="content-1">

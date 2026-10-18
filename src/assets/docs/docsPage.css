@@ -83,6 +83,26 @@
 	color: var(--theme-text-highlighted);
 }
 
+/* Inline code: a `<code>` written into running text, anywhere a page has
+   prose (paragraphs, lists, a property's or parameter's description), gets a
+   small chip of the same ground DocSnippet's blocks use, so a name or a short
+   expression reads as code at a glance.
+
+   Left out are the `<code>` elements the doc components render themselves,
+   which have their own look: a snippet's code (inside its `<pre>`), a method
+   signature (already a snippet box), and the types and defaults in the
+   parameter/property tables and under Returns, which read as a column of
+   code on their own and would only get noisier boxed. */
+.docs-page code:not(pre code, .doc-signature, .doc-type code, .doc-default code, .doc-returns-type) {
+	padding: 0.1em 0.35em;
+	background-color: var(--theme-bg);
+	border-radius: 0.3em;
+	/* A chip that wraps onto a second line keeps its padding and corners on
+	   both halves instead of being sliced open at the break. */
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+
 /* --- Doc blocks --------------------------------------------------------- */
 
 .doc-section {
@@ -542,6 +562,45 @@
 
 .doc-related-label {
 	font-size: 0.85em;
+	color: var(--theme-text-toned);
+}
+
+/* DocUnderConstruction. Hazard stripes down the left edge, in the theme's
+   warning color so it reads as a caution in every theme without being an
+   error. */
+.doc-under-construction {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.75em;
+	margin: 1em 0;
+	padding: 0.75em 1em 0.75em 1.5em;
+	border: 1px solid color-mix(in srgb, var(--theme-warning) 40%, transparent);
+	border-radius: 0.5em;
+	background:
+		repeating-linear-gradient(
+			-45deg,
+			var(--theme-warning) 0 0.4em,
+			transparent 0.4em 0.8em
+		) left / 0.5em 100% no-repeat,
+		color-mix(in srgb, var(--theme-warning) 8%, transparent);
+}
+
+.doc-under-construction-icon {
+	flex-shrink: 0;
+	font-size: 1.5em;
+	color: var(--theme-warning);
+}
+
+.doc-under-construction-title {
+	margin: 0;
+	font-weight: 600;
+	color: var(--theme-text-highlighted);
+}
+
+/* Doubled up to outrank `.docs-page p`'s margin reset. */
+.doc-under-construction .doc-under-construction-note {
+	margin: 0.15em 0 0;
+	font-size: 0.9em;
 	color: var(--theme-text-toned);
 }
 

@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>A quick tour of the editor, the file tree, and running your first script.</p>
 	</DocSection>

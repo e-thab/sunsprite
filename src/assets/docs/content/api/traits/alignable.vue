@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Adds edge and corner handles to an object: each of its four edges as a single coordinate, and each of its corner and edge-center points as a Vector2. All of them are settable as well as readable, so moving an object by its right edge or its top left corner takes one assignment. Alignable also replaces the goTo() Positionable declares, adding an anchor argument that picks which of those points lands on the given position.</p>
 	</DocSection>

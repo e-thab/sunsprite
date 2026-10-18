@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>keyPressed(key: string): boolean</pre></DocSnippet>
 
 	<DocSection id="content-1">

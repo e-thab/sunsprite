@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Adds size to an object: explicit width and height in pixels, plus a uniform scale multiplier.</p>
 	</DocSection>

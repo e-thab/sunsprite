@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>new Circle(options?: CircleProps)</pre></DocSnippet>
 
 	<DocSection id="content-1">

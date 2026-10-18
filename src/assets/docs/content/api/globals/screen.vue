@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>A live reference to the game screen's current size and edges, in real display pixels. These values change when the game panel is resized, and never when the <DocLink to="api/globals/camera" /> moves or zooms — for the edges of what the camera can currently see in world coordinates, use the camera's own size and edges instead.</p>
 

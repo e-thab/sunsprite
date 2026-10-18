@@ -29,8 +29,8 @@ const darkModern: ThemePalette = {
     text: '#afb2b7', // One Dark #abb2bf; was #cccccc (foreground)
     textHighlighted: '#d7dadf', // One Dark #d7dae0; was #ffffff (tab.activeForeground)
     textInverted: '#292c30', // bgElevated
-    primary: '#52dfbb', // 52dfbb 
-    secondary: '#0078d4', // focusBorder / button.background
+    primary: '#4ec9b0', // Mint primary
+    secondary: '#bb60b6', // focusBorder / button.background
     success: '#43c55b', // editorGutter.addedBackground
     warning: '#ffca58', // editorWarning.foreground (VSCode's dark default; Dark Modern doesn't override it)
     error: '#ff746d', // errorForeground

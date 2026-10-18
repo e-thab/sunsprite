@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>when(condition: () =&gt; boolean, func: () =&gt; void): void</pre></DocSnippet>
 
 	<DocSection id="content-1">

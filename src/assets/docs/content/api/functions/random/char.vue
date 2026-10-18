@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>Random.char(str: string): string</pre></DocSnippet>
 
 	<DocSection id="content-1">

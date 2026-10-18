@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>throw new Warning(message?: string)
 throw new Error(message?: string)</pre></DocSnippet>
 

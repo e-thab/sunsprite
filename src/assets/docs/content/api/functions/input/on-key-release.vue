@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>onKeyRelease(actions: KeyAction): void</pre></DocSnippet>
 
 	<DocSection id="content-1">

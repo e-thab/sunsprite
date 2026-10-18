@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>after(seconds: number, func: () =&gt; void): void</pre></DocSnippet>
 
 	<DocSection id="content-1">

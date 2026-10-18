@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Adds age to an object, tracking how long it has existed. Paused time is not counted.</p>
 	</DocSection>

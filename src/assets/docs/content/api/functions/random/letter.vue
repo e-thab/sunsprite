@@ -11,6 +11,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>Random.letter(uppercase: boolean = false): string</pre></DocSnippet>
 
 	<DocSection id="content-1">

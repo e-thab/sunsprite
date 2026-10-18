@@ -15,6 +15,8 @@ export default {}
      here — DocSection, DocParams, DocSnippet, DocLink and the rest — live in
      src/components/docs/content. -->
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>TODO: describe what this panel/feature is and where to find it in the UI.</p>
 

@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>const keysPressed: string[]</pre></DocSnippet>
 
 	<DocSection id="content-1">

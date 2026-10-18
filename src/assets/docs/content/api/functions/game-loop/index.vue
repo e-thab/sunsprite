@@ -10,6 +10,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>The core scheduling functions almost every script is built on — from the primary forever() loop to one-shot delays and conditional triggers.</p>
 	</DocSection>

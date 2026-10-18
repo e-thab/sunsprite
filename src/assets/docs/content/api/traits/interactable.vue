@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSection id="content-1">
 		<p>Adds mouse interaction to an object: whether it can be dragged, the cursor shown while hovering it, and a handler for each mouse event. A handler is registered by calling its method with a function; onMouse() registers several at once.</p>
 	</DocSection>

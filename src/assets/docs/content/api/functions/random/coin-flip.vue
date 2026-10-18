@@ -9,6 +9,8 @@ export default {}
 </script>
 
 <template>
+	<DocUnderConstruction />
+
 	<DocSnippet><pre>Random.coinFlip(): boolean</pre></DocSnippet>
 
 	<DocSection id="content-1">
