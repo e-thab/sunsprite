@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { supabase } from "@/assets/utils/supabase";
+import { supabase } from "@/utils/supabase";
 import { useAuthStore } from "./authStore";
-import { themes, findTheme, type ThemeId, type ThemePalette } from "@/assets/theme/themes";
+import { themes, findTheme, type ThemeId, type ThemePalette } from "@/theme/themes";
 
 const STORAGE_KEY = 'sunsprite-theme'
 // Snapshot of what applyToDocument last set, for index.html's inline script

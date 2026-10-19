@@ -3,12 +3,12 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
 import { useDocsSearchStore } from '@/stores/docsSearchStore'
-import { searchDocs, type SnippetPart } from '@/assets/docs/docsSearch'
+import { searchDocs, type SnippetPart } from '@/docs/docsSearch'
 // This modal is mounted globally (reachable from anywhere, not nested under
 // DocsPanel.vue or DocsView.vue's own provide tree), so unlike those two it
 // has no version context to follow — it searches the live/current docs,
 // same as before this pass.
-import { searchEntries } from '@/assets/docs/docsIndex'
+import { searchEntries } from '@/docs/docsIndex'
 
 const searchStore = useDocsSearchStore()
 const router = useRouter()

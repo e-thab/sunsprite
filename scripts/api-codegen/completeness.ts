@@ -104,7 +104,7 @@ function findDeclaredGlobalNames(apiLibText: string, apiModelText: string): Set<
 export async function checkApiCompleteness(): Promise<void> {
     const apiKeys = findApiObjectKeys()
 
-    const apiLibUrl = pathToFileURL(path.join(REPO_ROOT, 'src', 'assets', 'api', 'apiLib.ts')).href
+    const apiLibUrl = pathToFileURL(path.join(REPO_ROOT, 'src', 'api', 'apiLib.ts')).href
     const { apiLib, apiModel } = await import(apiLibUrl)
     const declaredNames = findDeclaredGlobalNames(apiLib, apiModel)
 

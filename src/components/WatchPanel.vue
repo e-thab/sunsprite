@@ -3,7 +3,7 @@ import { computed, nextTick, watch } from 'vue'
 import { clockRef } from '@/sandbox/hostBridge'
 import { useWatchPanelStore, type WatchCard } from '@/stores/watchPanelStore'
 import { PANEL_PADDING, useCardPacking } from '@/composables/useCardPacking'
-import Output from '@/assets/api/output'
+import Output from '@/api/output'
 
 interface WatchSubItem {
     /** Empty for a card registered with a single getter (no sub-items). */

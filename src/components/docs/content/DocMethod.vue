@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
-import type { DocRef } from '@/assets/docs/docsTypes'
-import { methodAnchor } from '@/assets/docs/docsAnchors'
-import { tokenizeSignature } from '@/assets/docs/docsSignature'
+import type { DocRef } from '@/docs/docsTypes'
+import { methodAnchor } from '@/docs/docsAnchors'
+import { tokenizeSignature } from '@/docs/docsSignature'
 import DocFrom from './DocFrom.vue'
 import { useDocFromColumn } from './useDocFromColumn'
 import { useDocRefs } from './useDocRefs'

@@ -43,6 +43,6 @@ auto-imports.d.ts
 components.d.ts
 
 # Regenerated on demand by `pnpm run generate-api` — ephemeral, unlike
-# src/assets/api/versions/, which holds permanent, committed snapshots
+# src/api/versions/, which holds permanent, committed snapshots
 # from `pnpm run snapshot-api` and must NOT be ignored.
-src/assets/api/generated/
+src/api/generated/

@@ -84,7 +84,7 @@ end-to-end.
 | `src/components/FileTree.vue` | `MAIN_SCRIPT_NAME` constant, "Run script" added to `itemMenuItems`, "Delete" omitted for `main.js`, `runScript` emit, defensive guard in `deleteScript` |
 | `src/views/EditorView.vue` | `runActiveUserCode` → `runMainScript` (bound to Restart + initial run), new `runNamedScript` handler wired to FileTree's `@run-script` |
 | `src/sandbox/output.ts` | `printStartMsg(scriptName)` — builds `Running ${scriptName} @ ...` |
-| `src/assets/api/core.ts` | `Output.printStartMsg(entryName)` call site |
+| `src/api/core.ts` | `Output.printStartMsg(entryName)` call site |
 
 **Not touched, already correct**: `fileStore.ts`'s `loadProject()` already
 auto-creates a `scripts/main.js` for any brand-new (empty) project — the

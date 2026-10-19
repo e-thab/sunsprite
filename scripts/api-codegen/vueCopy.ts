@@ -51,7 +51,7 @@ function rewriteScriptBlock(block: SFCScriptBlock, realFile: string, copySet: Se
 /**
  * Rewrites one .vue file's script block(s) and copies the result. copySet is
  * the union of the runtime copy set and the docs copy set (see sources.ts's
- * docsCopySet) — a doc page importing e.g. `@/assets/api/Colors` for a live
+ * docsCopySet) — a doc page importing e.g. `@/api/Colors` for a live
  * example resolves to *this version's own* already-copied Colors.ts, not the
  * live original, the same way a copy-set-internal runtime import already does.
  */

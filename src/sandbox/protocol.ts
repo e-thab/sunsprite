@@ -1,4 +1,4 @@
-import type { ThemePalette } from '@/assets/theme/themes'
+import type { ThemePalette } from '@/theme/themes'
 
 // The complete contract between the editor app (host) and the sandbox iframe
 // that runs user code. These two sides share no memory and no globals — an
@@ -181,12 +181,12 @@ export const HOST_ORIGIN_PARAM = 'hostOrigin'
 
 /**
  * Query-string key carrying which permanent API version the sandbox should
- * load (see src/assets/api/versions/runtime.ts) — read once, synchronously,
+ * load (see src/api/versions/runtime.ts) — read once, synchronously,
  * at main.ts's own module top level, before setup() runs and before the
  * ready handshake. A HostMessage field can't do this job: it would need a
  * full postMessage round trip, arriving too late to influence which module
  * graph gets imported in the first place. Omitted (or 'dev') for the live
- * engine — see src/assets/api/versions/constants.ts.
+ * engine — see src/api/versions/constants.ts.
  */
 export const API_VERSION_PARAM = 'apiVersion'
 

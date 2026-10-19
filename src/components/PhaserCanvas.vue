@@ -6,7 +6,7 @@ import { useFileStore } from '@/stores/fileStore'
 import GameFrame from '@/components/GameFrame.vue'
 import CollapsiblePane from './CollapsiblePane.vue'
 import VolumeControl from './VolumeControl.vue'
-import Output from '@/assets/api/output'
+import Output from '@/api/output'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
 const fpsColor = ref()

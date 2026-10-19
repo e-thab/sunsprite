@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
-import { useDocsToc } from '@/assets/docs/docsToc'
+import { useDocsToc } from '@/docs/docsToc'
 
 /**
  * A titled, anchored block of page content — and the unit the table of

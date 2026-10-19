@@ -4,7 +4,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useWatchPanelStore } from '@/stores/watchPanelStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
 import { DEV_VERSION } from '@api/versions/constants'
-import type { ThemePalette } from '@/assets/theme/themes'
+import type { ThemePalette } from '@/theme/themes'
 import { HOST_ORIGIN_PARAM, API_VERSION_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
 
 // Host side of the sandbox. User code no longer runs in the editor app at all:
@@ -89,7 +89,7 @@ let queuedRun: Omit<RunMessage, 'type'> | null = null
 /**
  * URL for the sandbox document, carrying our origin so it can address replies,
  * plus which permanent API version it should load (omitted for 'dev' — the
- * live engine, main.ts's own default). See src/assets/api/versions/runtime.ts.
+ * live engine, main.ts's own default). See src/api/versions/runtime.ts.
  * The file itself is named runner.html, not sandbox.html — see the comment on
  * vite.config.ts's build.rollupOptions.input for why the two are kept apart.
  */

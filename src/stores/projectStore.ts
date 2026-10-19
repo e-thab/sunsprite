@@ -1,9 +1,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { supabase } from "@/assets/utils/supabase";
+import { supabase } from "@/utils/supabase";
 import { useAuthStore } from "./authStore";
-import { generateSlug } from "@/assets/utils/slugWords";
-import { latestApiVersion } from "@/assets/api/versions";
+import { generateSlug } from "@/utils/slugWords";
+import { latestApiVersion } from "@/api/versions";
 export type ProjectRecord = {
     id: string
     name: string

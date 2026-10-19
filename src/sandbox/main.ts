@@ -1,10 +1,10 @@
-import { setScriptResolver } from '@/assets/api/moduleRunner'
-import { loadVersionedRuntime, loadDevRuntime } from '@/assets/api/versions/runtime'
-import { DEV_VERSION } from '@/assets/api/versions/constants'
+import { setScriptResolver } from '@/api/moduleRunner'
+import { loadVersionedRuntime, loadDevRuntime } from '@/api/versions/runtime'
+import { DEV_VERSION } from '@/api/versions/constants'
 import { onHostMessage, postToHost } from './channel'
 import { API_VERSION_PARAM, type HostMessage } from './protocol'
 import { whenAudioUnlocked, cancelAudioUnlock } from './audioGate'
-import { _engineLive } from '@/assets/api/core'
+import { _engineLive } from '@/api/core'
 
 // Entry point for runner.html — the document inside
 // `<iframe sandbox="allow-scripts">`. Phaser, the Sunsprite API, and every line

@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { Comment, Fragment, Text, computed, isVNode, ref, useSlots, useTemplateRef, type VNode } from 'vue'
 import { useToast } from '@nuxt/ui/composables'
-import type { TokenPalette } from '@/assets/theme/themes'
-import { tokenizeCode } from '@/assets/docs/docsCode'
+import type { TokenPalette } from '@/theme/themes'
+import { tokenizeCode } from '@/docs/docsCode'
 import DocSection from './DocSection.vue'
 
 /**
  * A snippet's manual-highlight colors — the same syntax-token categories
  * (keyword, type, string, comment, ...) each editor theme in
- * `@/assets/theme` already defines for Monaco, so a highlighted snippet
+ * `@/theme` already defines for Monaco, so a highlighted snippet
  * tracks whatever theme the user has picked instead of a fixed palette.
  * Bracket-pair colors are a theme-internal detail of that editor, not
  * something meaningful to hand-assign here, so they're excluded.

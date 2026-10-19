@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import { supabase } from "@/assets/utils/supabase";
-import { getExampleCode } from "@/assets/api/examples";
-import { type AssetKind, DEFAULT_SCRIPT_FILE_TYPE, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, splitFileName, type ScriptFileType, uploadDisplayName, uploadFileTypeFor } from "@/assets/utils/fileTypes";
+import { supabase } from "@/utils/supabase";
+import { getExampleCode } from "@/api/examples";
+import { type AssetKind, DEFAULT_SCRIPT_FILE_TYPE, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, splitFileName, type ScriptFileType, uploadDisplayName, uploadFileTypeFor } from "@/utils/fileTypes";
 import { useProjectSettingsStore } from "./projectSettingsStore";
 import { MAX_PROJECT_SIZE as PROJECT_STORAGE_QUOTA_BYTES } from "../../supabase/functions/_shared/uploadLimits.ts";
 import type { ProjectAsset } from "@/sandbox/protocol";

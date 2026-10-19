@@ -1,5 +1,5 @@
 // Canonical types only — the client maps browser/OS aliases (audio/x-wav,
-// audio/x-m4a, ...) onto these before signing (see src/assets/utils/fileTypes.ts),
+// audio/x-m4a, ...) onto these before signing (see src/utils/fileTypes.ts),
 // so what R2 stores and what images.content_type's check allows (see
 // 20261012120000_allow_audio_uploads.sql) are always one of these exact strings.
 export const ALLOWED_CONTENT_TYPES = new Set([

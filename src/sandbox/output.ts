@@ -1,11 +1,11 @@
-import Colors from '@/assets/api/Colors'
-import { clock } from '@/assets/api/core'
-import type { Printable } from '@/assets/api/types'
+import Colors from '@/api/Colors'
+import { clock } from '@/api/core'
+import type { Printable } from '@/api/types'
 import { postToHost } from './channel'
 import type { OutputKind, OutputLocation } from './protocol'
 
 // Sandbox-side stand-in for the output panel. Shares the shape of the host's
-// Output (src/assets/api/output.ts) so core.ts and the user-facing print/warn/
+// Output (src/api/output.ts) so core.ts and the user-facing print/warn/
 // error API call it exactly as before, but there is no DOM here — each message
 // is stringified and posted to the host, which does the rendering.
 

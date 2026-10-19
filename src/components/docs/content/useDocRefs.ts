@@ -1,7 +1,7 @@
 import { inject } from 'vue'
-import type { DocRef } from '@/assets/docs/docsTypes'
-import { docsNavigationKey } from '@/assets/docs/docsNavigation'
-import { docsDataKey } from '@/assets/docs/docsData'
+import type { DocRef } from '@/docs/docsTypes'
+import { docsNavigationKey } from '@/docs/docsNavigation'
+import { docsDataKey } from '@/docs/docsData'
 
 /**
  * Links from a page's body to another page. Titles and icons come from the

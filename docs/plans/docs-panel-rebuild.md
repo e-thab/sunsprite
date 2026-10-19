@@ -16,11 +16,11 @@ The goal is to rebuild this into something closer to a real docs site (Godot's d
 
 **First implementation step**: copy this plan document into the repo at `docs/plans/docs-panel-rebuild.md` (no existing `docs/`-at-root or `plans/` convention was found in this repo, so this is a new, sensibly-named location — adjust if a different spot is preferred) so it's kept for reference alongside the code it describes.
 
-> **Superseded in part (docs content is now SFCs).** §1's `DocBody`/`ProseBody`/`ApiMemberBody` shapes are gone: a docs page is a Vue SFC under `src/assets/docs/content/`, its place in the tree comes from where the file sits, and its `meta` export supplies title/icon/summary (sibling order is one list in the parent folder's `index.vue`). Pages compose the blocks in `src/components/docs/content/` (DocSnippet, DocParams, DocMethods, DocRelated, …). Everything else here — routing, breadcrumb, tree behaviour, search, the panel/full-page split — still describes the code as built.
+> **Superseded in part (docs content is now SFCs).** §1's `DocBody`/`ProseBody`/`ApiMemberBody` shapes are gone: a docs page is a Vue SFC under `src/docs/content/`, its place in the tree comes from where the file sits, and its `meta` export supplies title/icon/summary (sibling order is one list in the parent folder's `index.vue`). Pages compose the blocks in `src/components/docs/content/` (DocSnippet, DocParams, DocMethods, DocRelated, …). Everything else here — routing, breadcrumb, tree behaviour, search, the panel/full-page split — still describes the code as built.
 
 ## 1. Content data model
 
-New file `src/assets/docs/docsTypes.ts`, replacing the single flat `DocSection` interface in `docsContent.ts`:
+New file `src/docs/docsTypes.ts`, replacing the single flat `DocSection` interface in `docsContent.ts`:
 
 ```ts
 export type DocRef = { path: string; label?: string }
@@ -85,7 +85,7 @@ Mechanism (Godot's inheritance-chain click-through, adapted for composition): ea
 
 ### Derived index (new, computed once)
 
-`src/assets/docs/docsIndex.ts` walks `docsTree` once at module load: `nodesByPath: Map<string, DocNode>` (path = slugs joined with `/`), `ancestorsOf(path): DocNode[]`, and flattened `searchEntries: { node, path, breadcrumbLabel }[]`. This is the single resolution point routing, breadcrumb, and search all consume. Cheap to compute eagerly — content is static and small (~150 nodes at full scope).
+`src/docs/docsIndex.ts` walks `docsTree` once at module load: `nodesByPath: Map<string, DocNode>` (path = slugs joined with `/`), `ancestorsOf(path): DocNode[]`, and flattened `searchEntries: { node, path, breadcrumbLabel }[]`. This is the single resolution point routing, breadcrumb, and search all consume. Cheap to compute eagerly — content is static and small (~150 nodes at full scope).
 
 ## 2. Routing
 
@@ -115,7 +115,7 @@ New folder `src/components/docs/` (matches the existing `src/components/icons/` 
 **Shared navigation contract** — the mechanism that lets one set of rendering components serve both the panel and the standalone page, replacing `docsExpandState.ts`:
 
 ```ts
-// src/assets/docs/docsNavigation.ts
+// src/docs/docsNavigation.ts
 export interface DocsNavigationContext {
   currentPath: Ref<string>
   navigate: (path: string) => void
@@ -205,13 +205,13 @@ That's ~17 newly-authored full entries, plus the 8 already-existing leaves (Gett
 
 | File | Responsibility |
 |---|---|
-| `src/assets/docs/docsTypes.ts` | `DocNode`/`DocCategoryNode`/`DocEntryNode`/`DocBody` union (§1) |
-| `src/assets/docs/docsIndex.ts` | `nodesByPath`, `ancestorsOf()`, flattened `searchEntries` (§1) |
-| `src/assets/docs/docsNavigation.ts` | `docsNavigationKey` injection contract (§3), replaces `docsExpandState.ts` |
-| `src/assets/docs/docsSearch.ts` | Rewritten in place: same matching core, adapted shape + `filterTree()`/`searchDocs()` (§4) |
-| `src/assets/docs/content/gettingStarted.ts`, `tutorials.ts`, `challenges.ts`, `tips.ts` | Migrated verbatim from today's `docsSections` |
-| `src/assets/docs/content/api/traits.ts`, `classes.ts`, `functions/gameLoop.ts`, `functions/random.ts`, `functions/input.ts`, `functions/output.ts`, `functions/math.ts`, `globals.ts`, `colors.ts`, `index.ts` | API category content (§6). **Pattern, not enumerated**: each member is one object literal in the relevant array; every additional member later follows the identical shape — scales by copy-and-fill |
-| `src/assets/docs/content/ui/index.ts` | New UI Features category: the category node + one placeholder example entry (§6) |
+| `src/docs/docsTypes.ts` | `DocNode`/`DocCategoryNode`/`DocEntryNode`/`DocBody` union (§1) |
+| `src/docs/docsIndex.ts` | `nodesByPath`, `ancestorsOf()`, flattened `searchEntries` (§1) |
+| `src/docs/docsNavigation.ts` | `docsNavigationKey` injection contract (§3), replaces `docsExpandState.ts` |
+| `src/docs/docsSearch.ts` | Rewritten in place: same matching core, adapted shape + `filterTree()`/`searchDocs()` (§4) |
+| `src/docs/content/gettingStarted.ts`, `tutorials.ts`, `challenges.ts`, `tips.ts` | Migrated verbatim from today's `docsSections` |
+| `src/docs/content/api/traits.ts`, `classes.ts`, `functions/gameLoop.ts`, `functions/random.ts`, `functions/input.ts`, `functions/output.ts`, `functions/math.ts`, `globals.ts`, `colors.ts`, `index.ts` | API category content (§6). **Pattern, not enumerated**: each member is one object literal in the relevant array; every additional member later follows the identical shape — scales by copy-and-fill |
+| `src/docs/content/ui/index.ts` | New UI Features category: the category node + one placeholder example entry (§6) |
 | `src/components/docs/DocsBreadcrumb.vue`, `DocsTree.vue`, `DocsBody.vue`, `DocsCategoryLanding.vue`, `DocsToc.vue`, `DocsSearchModal.vue`, `DocsSearchResultsList.vue` | §3, §4 |
 | `src/views/DocsView.vue` | Standalone routed full-page shell (§2, §3) |
 | `src/views/DocsSearchResultsView.vue` | `/docs/search` fallback page (§4) |
@@ -221,13 +221,13 @@ That's ~17 newly-authored full entries, plus the 8 already-existing leaves (Gett
 
 | File | Change |
 |---|---|
-| `src/assets/docs/docsContent.ts` | Rewritten as a thin barrel composing the `content/` modules into `docsTree: DocNode[]` — import path preserved |
+| `src/docs/docsContent.ts` | Rewritten as a thin barrel composing the `content/` modules into `docsTree: DocNode[]` — import path preserved |
 | `src/router/index.ts` | Add `docs-search` and `docs` routes (§2), above the 404 catch-all |
 | `src/components/DocsPanel.vue` | Reworked to breadcrumb + tree/content split + "open full page" (§3) |
 | `src/components/NavBar.vue` | Add a search-docs trigger button, register `Cmd/Ctrl+K` |
 | `src/App.vue` | Mount `<DocsSearchModal />` at root, alongside existing `<SignInModal />`/`<SignUpModal />` |
 
-**Deleted:** `src/components/DocsSectionItem.vue`, `src/assets/docs/docsExpandState.ts`.
+**Deleted:** `src/components/DocsSectionItem.vue`, `src/docs/docsExpandState.ts`.
 
 ## 8. Visual/styling — stay consistent with existing conventions
 

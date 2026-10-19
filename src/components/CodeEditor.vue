@@ -6,17 +6,17 @@ import { useThemeStore } from '@/stores/themeStore'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
 import { runUserCode, type RunOptions } from '@/sandbox/hostBridge'
-import { getExampleCode } from '@/assets/api/examples'
-import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
-import { resolveSpecifierCandidates, listImportSpecifiers } from '@/assets/api/scriptResolution'
-import { FILE_TREE_DRAG_MIME, scriptTypeForFile, TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
-import { configureLanguageServices, installExtraLib, languageSupportFor, type EditorLanguageSupport } from '@/assets/languages/monacoLanguages'
-import { installTextMateHighlighting } from '@/assets/languages/textmateHighlighting'
-import { installSemanticHighlighting } from '@/assets/languages/semanticHighlighting'
+import { getExampleCode } from '@/api/examples'
+import { themes, buildMonacoThemeData, monacoThemeName } from '@/theme/themes'
+import { resolveSpecifierCandidates, listImportSpecifiers } from '@/api/scriptResolution'
+import { FILE_TREE_DRAG_MIME, scriptTypeForFile, TEXT_MONACO_LANGUAGE } from '@/utils/fileTypes'
+import { configureLanguageServices, installExtraLib, languageSupportFor, type EditorLanguageSupport } from '@/languages/monacoLanguages'
+import { installTextMateHighlighting } from '@/languages/textmateHighlighting'
+import { installSemanticHighlighting } from '@/languages/semanticHighlighting'
 import CollapsiblePane from './CollapsiblePane.vue'
 import '@/assets/code-completion/monaco-colors'
 import { setKnownAssets } from '@/assets/code-completion/monaco-assets'
-import type { NamedAsset } from '@/assets/api/fileNames'
+import type { NamedAsset } from '@/api/fileNames'
 
 // CodeMirror
 // import { Codemirror } from 'vue-codemirror'
@@ -44,7 +44,7 @@ import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
 import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
 // Monaco's ts.worker plus semantic classifications (see tsSemantic.worker.ts)
-import tsWorker from '@/assets/languages/tsSemantic.worker?worker'
+import tsWorker from '@/languages/tsSemantic.worker?worker'
 
 // Instantiated up here rather than beside the other stores below, because
 // editorOptions (immediately after) reads from this one and is itself needed
@@ -84,7 +84,7 @@ const editorOptions = computed<EditorOptions>(() => ({
 }))
 
 // Define a Monaco theme for every app palette, sourced from the same
-// data that drives the app's CSS variables (src/assets/theme/themes.ts).
+// data that drives the app's CSS variables (src/theme/themes.ts).
 for (const palette of themes) {
 	monaco.editor.defineTheme(monacoThemeName(palette.id), buildMonacoThemeData(palette))
 }
@@ -210,8 +210,8 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 	// console.log(editor)
 }
 
-import { apiLib, apiModel, buildProjectAssetsLib } from '@/assets/api/apiLib'
-import { apiVersionDropdownItems, loadVersionedApiLib } from '@/assets/api/versions'
+import { apiLib, apiModel, buildProjectAssetsLib } from '@/api/apiLib'
+import { apiVersionDropdownItems, loadVersionedApiLib } from '@/api/versions'
 import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
 const libUri = 'file:///lib.ts'
@@ -1024,7 +1024,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
 
 // 'dev' is the live, unversioned apiLib (current source, not a snapshot);
-// anything else names a permanent folder under src/assets/api/versions/.
+// anything else names a permanent folder under src/api/versions/.
 // Session-local, shared with hostBridge.ts (via the store) so the sandboxed
 // game's next run uses the same version this dropdown selects — not just
 // Monaco's declarations. Persisting a pick is the store's own job now (see

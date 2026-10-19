@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DocRef } from '@/assets/docs/docsTypes'
+import type { DocRef } from '@/docs/docsTypes'
 import DocSection from './DocSection.vue'
 import { useDocRefs } from './useDocRefs'
 

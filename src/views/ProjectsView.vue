@@ -4,8 +4,8 @@ import { useRouter } from 'vue-router'
 import { useToast } from '@nuxt/ui/composables'
 import { useProjectStore, MAX_PROJECT_NAME_LENGTH, PROJECT_STORAGE_QUOTA_BYTES, ACCOUNT_STORAGE_QUOTA_BYTES, type StorageUsage } from '@/stores/projectStore'
 import { useNamePromptStore } from '@/stores/namePromptStore'
-import { formatDate } from '@/assets/utils/timeAgo'
-import { formatBytes } from '@/assets/utils/formatBytes'
+import { formatDate } from '@/utils/timeAgo'
+import { formatBytes } from '@/utils/formatBytes'
 
 const projectStore = useProjectStore()
 const namePromptStore = useNamePromptStore()

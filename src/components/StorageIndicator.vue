@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import type { ProgressGroupItem } from '@nuxt/ui'
 import { useFileStore } from '@/stores/fileStore'
 import { PROJECT_STORAGE_QUOTA_BYTES } from '@/stores/projectStore'
-import { formatBytes } from '@/assets/utils/formatBytes'
+import { formatBytes } from '@/utils/formatBytes'
 
 const fileStore = useFileStore()
 const expanded = ref(false)

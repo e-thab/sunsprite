@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { BreadcrumbItem } from '@nuxt/ui'
-import { docsNavigationKey } from '@/assets/docs/docsNavigation'
-import { docsDataKey } from '@/assets/docs/docsData'
+import { docsNavigationKey } from '@/docs/docsNavigation'
+import { docsDataKey } from '@/docs/docsData'
 
 const nav = inject(docsNavigationKey)!
 const docsData = inject(docsDataKey)!

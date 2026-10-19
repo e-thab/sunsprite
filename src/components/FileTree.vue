@@ -23,8 +23,8 @@ import {
 	MAX_FILE_NAME_LENGTH,
 	scriptFileType,
 	splitFileName,
-} from '@/assets/utils/fileTypes'
-import { formatBytes } from '@/assets/utils/formatBytes'
+} from '@/utils/fileTypes'
+import { formatBytes } from '@/utils/formatBytes'
 import CollapsiblePane from './CollapsiblePane.vue'
 import StorageIndicator from './StorageIndicator.vue'
 

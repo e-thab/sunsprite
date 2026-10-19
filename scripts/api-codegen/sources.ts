@@ -4,9 +4,9 @@ import { REPO_ROOT } from '../aliases'
 
 export { REPO_ROOT }
 
-const API_DIR = path.join(REPO_ROOT, 'src', 'assets', 'api')
+const API_DIR = path.join(REPO_ROOT, 'src', 'api')
 const SANDBOX_DIR = path.join(REPO_ROOT, 'src', 'sandbox')
-const DOCS_API_DIR = path.join(REPO_ROOT, 'src', 'assets', 'docs', 'content', 'api')
+const DOCS_API_DIR = path.join(REPO_ROOT, 'src', 'docs', 'content', 'api')
 
 export function apiPath(...segments: string[]): string {
     return path.join(API_DIR, ...segments)
@@ -177,7 +177,7 @@ export const SET_TYPE_OVERRIDES: Record<string, string> = {
 }
 
 /**
- * Files under src/assets/api/ that are part of the real, runnable API surface
+ * Files under src/api/ that are part of the real, runnable API surface
  * but aren't already named by MIXINS/CONCRETE_CLASSES/GAME_OBJECT_FILE above —
  * core.ts included, since it's not a clean "engine" layer underneath the API,
  * it's mutually circular with it (Camera/Random/Timer/types/the mixins all
@@ -185,7 +185,7 @@ export const SET_TYPE_OVERRIDES: Record<string, string> = {
  * Deliberately excluded, confirmed safe: moduleRunner.ts/scriptResolution.ts
  * (generic script-compilation engine, version-agnostic), examples.ts/gameAssets.ts
  * (zero imports, host-only), api.d.ts/apiLib.ts (the declaration system itself,
- * not runtime code), and src/assets/api/output.ts (the *host-side* DOM output
+ * not runtime code), and src/api/output.ts (the *host-side* DOM output
  * renderer — a different file from src/sandbox/output.ts below, which is the
  * one core.ts actually imports).
  */
@@ -205,7 +205,7 @@ export const SUPPORTING_API_FILES = [
 ]
 
 /**
- * Two files outside src/assets/api/ that core.ts circularly imports live
+ * Two files outside src/api/ that core.ts circularly imports live
  * (watch/unwatch/clearWatchCards, and the Output/print machinery) — confirmed
  * in scope with the user despite being diagnostic tooling rather than
  * game-behavior API, since core.ts can't run without them.

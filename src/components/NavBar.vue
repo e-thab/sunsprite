@@ -12,11 +12,11 @@ import { useNamePromptStore } from '@/stores/namePromptStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useDocsSearchStore } from '@/stores/docsSearchStore';
 import { usePageTitle } from '@/composables/usePageTitle';
-import { timeAgo } from '@/assets/utils/timeAgo';
+import { timeAgo } from '@/utils/timeAgo';
 import SignInModal from './SignInModal.vue';
 import SignUpModal from './SignUpModal.vue';
 import DocsSearchModal from './docs/DocsSearchModal.vue';
-import Random from '@/assets/api/Random.ts';
+import Random from '@/api/Random.ts';
 
 // This template has multiple root nodes (.bar plus the modals below), so
 // Vue can't auto-target passthrough attrs (App.vue's `class="navbar-header"`)

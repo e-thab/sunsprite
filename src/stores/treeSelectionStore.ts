@@ -1,4 +1,4 @@
-import { DEFAULT_SCRIPT_FILE_TYPE, joinFileName, MAIN_SCRIPT_BASE } from '@/assets/utils/fileTypes'
+import { DEFAULT_SCRIPT_FILE_TYPE, joinFileName, MAIN_SCRIPT_BASE } from '@/utils/fileTypes'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { TreeItem } from '@nuxt/ui'

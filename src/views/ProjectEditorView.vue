@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '@/assets/utils/supabase'
+import { supabase } from '@/utils/supabase'
 import { useFileStore } from '@/stores/fileStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'

@@ -21,7 +21,7 @@ import SettingsPanel from '@/components/SettingsPanel.vue';
 import OutputPane from '@/components/OutputPane.vue';
 import DocsPanel from '@/components/DocsPanel.vue';
 import ImagePreviewModal from '@/components/ImagePreviewModal.vue';
-import Output from '@/assets/api/output'
+import Output from '@/api/output'
 
 const props = defineProps<{
   projectId?: string

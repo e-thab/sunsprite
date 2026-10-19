@@ -1,7 +1,7 @@
 import * as monaco from 'monaco-editor'
-import { SCRIPT_MONACO_LANGUAGES } from '@/assets/languages/monacoLanguages'
-import { assetKindForName, DEFAULT_TEXT_FILE_TYPE, splitFileName } from '@/assets/utils/fileTypes'
-import { describeMissingFile, type AssetKind, type NamedAsset } from '@/assets/api/fileNames'
+import { SCRIPT_MONACO_LANGUAGES } from '@/languages/monacoLanguages'
+import { assetKindForName, DEFAULT_TEXT_FILE_TYPE, splitFileName } from '@/utils/fileTypes'
+import { describeMissingFile, type AssetKind, type NamedAsset } from '@/api/fileNames'
 
 // Flags string literals that name a project file which doesn't exist —
 // `new Sprite({ src: 'playr.png' })` — before the script ever runs. The

@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
-import { supabase } from '@/assets/utils/supabase'
-import type { Json } from '@/assets/utils/database.types'
-import { familyScriptTypes, SCRIPT_FAMILIES, type ScriptFileType } from '@/assets/utils/fileTypes'
+import { supabase } from '@/utils/supabase'
+import type { Json } from '@/utils/database.types'
+import { familyScriptTypes, SCRIPT_FAMILIES, type ScriptFileType } from '@/utils/fileTypes'
 
 // The object half of Json (see database.types.ts) — what a jsonb column
 // actually round-trips. Deliberately this rather than Record<string, unknown>:

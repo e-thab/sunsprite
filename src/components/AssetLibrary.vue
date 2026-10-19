@@ -3,8 +3,8 @@ import type { TreeItem } from '@nuxt/ui'
 import { useToast } from '@nuxt/ui/composables'
 import { useFileStore } from '@/stores/fileStore'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
-import { exampleScriptNames } from '@/assets/api/examples'
-import { imagePath, animalFiles, cardFiles } from '@/assets/api/gameAssets'
+import { exampleScriptNames } from '@/api/examples'
+import { imagePath, animalFiles, cardFiles } from '@/api/gameAssets'
 import CollapsiblePane from './CollapsiblePane.vue'
 
 const fileStore = useFileStore()

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Database } from '../src/assets/utils/database.types'
+import type { Database } from '../src/utils/database.types'
 import { GLOBAL_DB_SIZE, GLOBAL_R2_SIZE } from '../supabase/functions/_shared/uploadLimits'
 
 process.loadEnvFile('.env.local')

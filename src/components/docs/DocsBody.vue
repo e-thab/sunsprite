@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { DocEntryNode } from '@/assets/docs/docsTypes'
+import type { DocEntryNode } from '@/docs/docsTypes'
 
 /**
  * The chrome around a page: its header, and then the page's own SFC. Anything
- * below the title is the page's business — see `@/assets/docs/content` for the
+ * below the title is the page's business — see `@/docs/content` for the
  * pages themselves and `./content` for the blocks they're built from.
  */
 defineProps<{

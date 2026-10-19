@@ -37,20 +37,20 @@ user code throws
   → Output.runtimeError(message, location)      [src/sandbox/output.ts]
   → postMessage({ type: 'output', kind: 'error', text, location })
   → hostBridge.ts receives it, calls Output.render(...)
-  → src/assets/api/output.ts renders the message + clickable location tag
+  → src/api/output.ts renders the message + clickable location tag
   → src/views/EditorView.vue's onErrorLocation/onJumpToError handlers
       → CodeEditor.vue: highlight + scroll to the line
       → fileStore.erroredScriptName: highlight the file in FileTree
 ```
 
 Everything to the left of `postMessage` runs inside the sandboxed iframe
-(`src/sandbox/`, `src/assets/api/core.ts`, `src/assets/api/moduleRunner.ts`);
+(`src/sandbox/`, `src/api/core.ts`, `src/api/moduleRunner.ts`);
 everything to the right runs in the host app. The two sides share no memory —
 see the comment block at the top of `src/sandbox/protocol.ts`.
 
 ## Key mechanisms, file by file
 
-### `src/assets/api/moduleRunner.ts` — where a location comes from
+### `src/api/moduleRunner.ts` — where a location comes from
 
 - **`compileScript()`** appends `//# sourceURL=<name>` to every compiled
   script. This is what makes a thrown error's stack trace say `main.js:12`
@@ -88,7 +88,7 @@ see the comment block at the top of `src/sandbox/protocol.ts`.
   care about the label. `entryName` is `fileStore.activeFileName`, threaded
   all the way from `CodeEditor.vue` through the postMessage protocol.
 
-### `src/assets/api/core.ts` — catching errors that happen later
+### `src/api/core.ts` — catching errors that happen later
 
 The only error handling that existed before was one `try`/`catch` around the
 script's initial synchronous execution in `UserScene.create()`. Everything
@@ -135,7 +135,7 @@ wrapping it at all.
   parameter on the public varargs function would silently break any user
   script passing a second string argument.
 
-### `src/assets/api/output.ts` (host) — rendering
+### `src/api/output.ts` (host) — rendering
 
 - `errorMsg()` renders the message as `el.textContent`, then (if a location
   came through) appends a separate `<span class="output-error-location">`
@@ -223,9 +223,9 @@ wrapping it at all.
 
 | File | What changed |
 |---|---|
-| `src/assets/api/moduleRunner.ts` | `//# sourceURL=`, `locateError`, `checkSyntax`, `checkGrammarRestrictions`, `entryName` param |
-| `src/assets/api/core.ts` | `runUserCallback`/`wrapUserCallback`/`toDisplayError`/`reportUserError`, wrapped every `_run*` callback site + mouse registration, global `error`/`unhandledrejection` listeners, `entryName` threaded into `UserScene`/`runUserCode` |
-| `src/assets/api/output.ts` (host) | `errorMsg`/`render` take a location, clickable inline tag, `onJumpToError`/`onErrorLocation` |
+| `src/api/moduleRunner.ts` | `//# sourceURL=`, `locateError`, `checkSyntax`, `checkGrammarRestrictions`, `entryName` param |
+| `src/api/core.ts` | `runUserCallback`/`wrapUserCallback`/`toDisplayError`/`reportUserError`, wrapped every `_run*` callback site + mouse registration, global `error`/`unhandledrejection` listeners, `entryName` threaded into `UserScene`/`runUserCode` |
+| `src/api/output.ts` (host) | `errorMsg`/`render` take a location, clickable inline tag, `onJumpToError`/`onErrorLocation` |
 | `src/sandbox/protocol.ts` | `OutputLocation` type, `location` on `'output'`, `entryName` on `'run'` |
 | `src/sandbox/output.ts` (sandbox) | `runtimeError()`, `send()` takes a location |
 | `src/sandbox/hostBridge.ts` | threads `location`/`entryName` through `runUserCode()`/`queuedRun` |

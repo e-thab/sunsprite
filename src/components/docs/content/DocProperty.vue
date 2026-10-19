@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { DocRef } from '@/assets/docs/docsTypes'
-import { propertyAnchor } from '@/assets/docs/docsAnchors'
+import type { DocRef } from '@/docs/docsTypes'
+import { propertyAnchor } from '@/docs/docsAnchors'
 import DocFrom from './DocFrom.vue'
 import { useDocFromColumn } from './useDocFromColumn'
 import { useDocRefs } from './useDocRefs'
