@@ -1,5 +1,9 @@
 import { getOurPoint, mouse, repeatUntil } from "@api/core"
 import { Vector2, type Vector2Like } from "@api/Vector2"
+import type Sprite from "@api/Sprite"
+import type Rectangle from "@api/Rectangle"
+import type Circle from "@api/Circle"
+import type Label from "@api/Label"
 
 /** User camera reference. */
 export default class Camera {
@@ -9,7 +13,7 @@ export default class Camera {
     _x: number = 0
     _y: number = 0
     // panning: boolean = false
-    following?: { _refObj: any }
+    following?: Sprite | Rectangle | Circle | Label
 
     constructor(cam: Phaser.Cameras.Scene2D.Camera) {
         this._cam = cam
@@ -118,7 +122,7 @@ export default class Camera {
         })
     }
 
-    follow(gameObject: { _refObj: any }) {
+    follow(gameObject: Sprite | Rectangle | Circle | Label) {
         this.following = gameObject
         this._cam.startFollow(gameObject._refObj, false, 0.05, 0.05)
         repeatUntil(() => !this.following, () => {
@@ -129,6 +133,9 @@ export default class Camera {
 
     stopFollow() {
         this._cam.stopFollow()
+        // Ends follow()'s position sync, which would otherwise keep running
+        // and stack another copy on top with every later follow() call.
+        this.following = undefined
     }
 
     reset() {

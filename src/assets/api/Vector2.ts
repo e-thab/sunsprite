@@ -66,7 +66,7 @@ export class Vector2 {
         const x = this.x
         const y = this.y
         this.x = x * cosT - y * sinT
-        this.y = x * sinT - y * cosT
+        this.y = x * sinT + y * cosT
     }
 
     /**
@@ -81,7 +81,7 @@ export class Vector2 {
         const y = this.y
         return Vector2.from(
             x * cosT - y * sinT,
-            x * sinT - y * cosT
+            x * sinT + y * cosT
         )
     }
 

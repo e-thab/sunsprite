@@ -360,6 +360,7 @@ export const useFileStore = defineStore('files', () => {
     // deliberately excluded: uploads always require a real project (see
     // uploadImage), so the sandbox never has any.
     function persistGuestProject() {
+        if (guestResetPending) return
         const data = { folders: folders.value, scripts: scripts.value, textFiles: textFiles.value, libraryImages: libraryImages.value }
         localStorage.setItem(GUEST_PROJECT_STORAGE_KEY, JSON.stringify(data))
     }
@@ -779,6 +780,27 @@ export const useFileStore = defineStore('files', () => {
         persistGuestProject()
     }
 
+    // Set by resetGuestProject for the moment between clearing the sandbox and
+    // the page reload that follows it, so nothing still scheduled (an autosave
+    // pass, say) can write the old files straight back.
+    let guestResetPending = false
+
+    /**
+     * Guest sandbox only — throws away every file, so the next load reseeds
+     * the sandbox exactly as a first-ever visit would. The caller reloads the
+     * page right after: reseeding in place would leave Monaco's models, and
+     * the editor keyed on the active file's name, pointing at records that no
+     * longer exist.
+     */
+    function resetGuestProject() {
+        if (projectId.value) return
+        guestResetPending = true
+        localStorage.removeItem(GUEST_PROJECT_STORAGE_KEY)
+        // Nothing unsaved is worth keeping now, and leaving these would have
+        // EditorView's beforeunload prompt interrupt the reload.
+        dirtyFiles.value = new Set()
+    }
+
     // ---- Scripts ----
 
     async function createScript(name: string, content: string = '', folderId: string | null = null) {
@@ -1166,6 +1188,7 @@ export const useFileStore = defineStore('files', () => {
         setProjectName,
         exitProject,
         loadGuestProject,
+        resetGuestProject,
         createScript,
         renameScript,
         deleteScript,

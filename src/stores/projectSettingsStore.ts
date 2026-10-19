@@ -153,6 +153,18 @@ export const useProjectSettingsStore = defineStore('projectSettings', () => {
         Object.assign(settings, PROJECT_SETTINGS_DEFAULTS)
     }
 
+    /**
+     * Guest sandbox only — forgets the sandbox's stored settings, so its next
+     * load starts from the defaults. Used by the sandbox reset, which reloads
+     * the page right after; a pending debounced write is dropped so it can't
+     * put them back first.
+     */
+    function clearGuestStored() {
+        if (projectId.value) return
+        cancelPendingWrite()
+        localStorage.removeItem(GUEST_STORAGE_KEY)
+    }
+
     function schedulePersist() {
         cancelPendingWrite()
         const target = projectId.value
@@ -214,5 +226,5 @@ export const useProjectSettingsStore = defineStore('projectSettings', () => {
      */
     const scriptType = computed<ScriptFileType>(() => availableScriptTypes.value[0]!)
 
-    return { settings, projectId, scriptType, availableScriptTypes, hydrate, set, reset }
+    return { settings, projectId, scriptType, availableScriptTypes, hydrate, set, reset, clearGuestStored }
 })

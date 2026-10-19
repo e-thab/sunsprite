@@ -836,6 +836,16 @@ async function deleteImage(id: string, name: string) {
 	await fileStore.deleteImage(id)
 }
 
+// Guest sandbox only: back to exactly what a first-ever visit gets, files and
+// sandbox settings both. A reload rather than reseeding in place — see
+// fileStore.resetGuestProject for why.
+function resetSandbox() {
+	if (!window.confirm('Reset the sandbox? All files and settings go back to how they started. This can\'t be undone.')) return
+	fileStore.resetGuestProject()
+	projectSettingsStore.clearGuestStored()
+	window.location.reload()
+}
+
 async function deleteTextFile(id: string, name: string) {
 	if (!window.confirm(`Delete "${name}"? This can't be undone.`)) return
 
@@ -1062,7 +1072,12 @@ async function onDropOnTree(event: DragEvent) {
 	<CollapsiblePane label="Files" icon="tabler:folder-filled">
 	<div class="panel-wrapper">
 		<div class="panel-bar">
-			<div class="spacer"></div>
+			<!-- The sandbox's reset button takes the spacer's place: both are
+			     there to balance the add button, keeping "Files" centered. -->
+			<UTooltip v-if="!fileStore.projectId" text="Reset sandbox">
+				<UButton icon="tabler:restore" variant="ghost" color="neutral" size="xs" @click="resetSandbox" />
+			</UTooltip>
+			<div v-else class="spacer"></div>
 
 			<div>Files</div>
 
