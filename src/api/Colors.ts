@@ -1,4 +1,10 @@
+import Phaser from 'phaser'
+
 // type ColorString = `#${string}`
+
+export function _hexStringToColor(hexString: string): number {
+    return Phaser.Display.Color.HexStringToColor(hexString).color
+}
 
 export const WebColors = {
     AliceBlue: "#f0f8ff",

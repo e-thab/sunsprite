@@ -29,7 +29,7 @@ import {
     positionableApi,
     positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
     fillablePropsTypeDef, outlinablePropsTypeDef,
-    spritePropsFields, spriteMembers,
+    spritePropsFields, spriteMembers, tintModeNameDeclaration,
     rectanglePropsFields, rectangleMembers,
     circlePropsFields, circleMembers,
     labelPropsFields, labelMembers,
@@ -69,6 +69,8 @@ export interface VersionedApiConstants {
     outlinablePropsTypeDef: string
     spritePropsFields: string
     spriteMembers: string
+    // Optional: snapshots cut before sprite tinting existed don't export it.
+    tintModeNameDeclaration?: string
     rectanglePropsFields: string
     rectangleMembers: string
     circlePropsFields: string
@@ -560,6 +562,8 @@ type SpriteProps = GameObjectProps & {
 ${v.spritePropsFields}
 }
 
+${v.tintModeNameDeclaration ?? ''}
+
 ${v.spriteDoc}class Sprite {
     /**
      * The Sprite class. TODO: describe
@@ -723,7 +727,7 @@ export const apiLib = buildApiLib({
     positionableApi,
     positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
     fillablePropsTypeDef, outlinablePropsTypeDef,
-    spritePropsFields, spriteMembers,
+    spritePropsFields, spriteMembers, tintModeNameDeclaration,
     rectanglePropsFields, rectangleMembers,
     circlePropsFields, circleMembers,
     labelPropsFields, labelMembers,

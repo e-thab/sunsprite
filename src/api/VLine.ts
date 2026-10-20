@@ -1,5 +1,5 @@
 import { resizeReactors, camera, forever } from "@api/core"
-import { Timeable, Viewable, type ViewableProps } from "./mixins"
+import { Destructible, Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "@api/Line"
 
 type VLineProps = ViewableProps & {
@@ -13,9 +13,10 @@ type VLineProps = ViewableProps & {
 
 export default class VLine extends 
     Viewable(
+    Destructible(
     Timeable(class {
         constructor() {}
-    })) {
+    }))) {
 
     readonly _line: Line
     private _thickness: number = 1

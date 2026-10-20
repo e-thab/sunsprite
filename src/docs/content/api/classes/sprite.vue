@@ -39,6 +39,13 @@ export default {}
 
 	<DocProperties>
 		<DocProperty name="src" type="string">The sprite's image: the name of an image file in your project, like <code>'player.png'</code>, or a URL. Names are case-sensitive.</DocProperty>
+		<DocProperty name="tint" type="string" default="'#ffffff'">Color to tint the sprite with, as a hex string. Setting it tints the whole sprite one color; reading it gives the most recent tint color set.</DocProperty>
+		<DocProperty name="tintMode" type="TintModeName" default="'multiply'">How the tint color is combined with the sprite's image. Either casing is accepted when setting it. See Tint Modes below.</DocProperty>
+		<DocProperty name="tintTopLeft" type="string" default="'#ffffff'">Tint color at the top left corner. Corner colors blend into each other across the sprite.</DocProperty>
+		<DocProperty name="tintTopRight" type="string" default="'#ffffff'">Tint color at the top right corner.</DocProperty>
+		<DocProperty name="tintBottomLeft" type="string" default="'#ffffff'">Tint color at the bottom left corner.</DocProperty>
+		<DocProperty name="tintBottomRight" type="string" default="'#ffffff'">Tint color at the bottom right corner.</DocProperty>
+		<DocProperty name="isTinted" type="boolean" readonly>Whether this sprite is currently tinted with some color.</DocProperty>
 		<DocProperty name="x" type="number" from="api/traits/positionable">Horizontal position in the world.</DocProperty>
 		<DocProperty name="y" type="number" from="api/traits/positionable">Vertical position in the world.</DocProperty>
 		<DocProperty name="position" type="Vector2" from="api/traits/positionable">Position in the world.</DocProperty>
@@ -71,9 +78,15 @@ export default {}
 		<DocProperty name="cursor" type="Cursor" from="api/traits/interactable">The cursor shown when the mouse is over this object.</DocProperty>
 		<DocProperty name="age" type="number" from="api/traits/timeable" readonly>How long this object has existed, in seconds (not including paused time).</DocProperty>
 		<DocProperty name="ageMs" type="number" from="api/traits/timeable" readonly>How long this object has existed, in milliseconds (not including paused time).</DocProperty>
+		<DocProperty name="isDestroyed" type="boolean" from="api/traits/destructible">Whether this object has been destroyed.</DocProperty>
 	</DocProperties>
 
 	<DocMethods>
+		<DocMethod signature="setTint(color: string): void">Tint the whole sprite one color.</DocMethod>
+		<DocMethod signature="setTint(topLeft: string, topRight?: string, bottomLeft?: string, bottomRight?: string): void">Tint each corner a different color, blending between them across the sprite. Any corner left out uses the top left color.</DocMethod>
+		<DocMethod signature="clearTint(): void">Remove the tint, resetting every tint color to white and tintMode to 'multiply'.</DocMethod>
+		<DocMethod signature="hideTint(): void">Stop drawing the tint without forgetting it. Use showTint() to bring it back.</DocMethod>
+		<DocMethod signature="showTint(): void">Draw the tint again after hideTint().</DocMethod>
 		<DocMethod signature="distanceTo(x: number, y: number): number" from="api/traits/positionable">The distance from this object to a point given as separate x and y values.</DocMethod>
 		<DocMethod signature="distanceTo(other: Vector2Like): number" from="api/traits/positionable">The distance from this object to another position.</DocMethod>
 		<DocMethod signature="goToRandom(): void" from="api/traits/positionable">Set position to a random point within the current visible screen area.</DocMethod>
@@ -99,7 +112,17 @@ export default {}
 		<DocMethod signature="onDragEnd(action?: PointerAction): void" from="api/traits/interactable">Captures the end of the drag event.</DocMethod>
 		<DocMethod signature="onScroll(action?: ScrollAction): void" from="api/traits/interactable">Captures scroll events while hovering over this object.</DocMethod>
 		<DocMethod signature="resetCursor(): void" from="api/traits/interactable">Set this object's hover cursor back to the default pointer.</DocMethod>
+		<DocMethod signature="destroy(): void" from="api/traits/destructible">Remove this object from the game. Does not clear any variables it is assigned to or remove it from any arrays it belongs to.</DocMethod>
 	</DocMethods>
+
+	<DocProperties id="tint-modes" title="Tint Modes">
+		<DocProperty name="'multiply'" type="TintModeName">The tint color is multiplied with the image's color, darkening it. This is the default.</DocProperty>
+		<DocProperty name="'add'" type="TintModeName">The tint color is added to the image's color, brightening it.</DocProperty>
+		<DocProperty name="'fill'" type="TintModeName">The image is filled with the solid tint color, keeping only its shape.</DocProperty>
+		<DocProperty name="'screen'" type="TintModeName">Brightens the image's dark areas.</DocProperty>
+		<DocProperty name="'overlay'" type="TintModeName">Brightens the image's light areas and darkens its dark areas.</DocProperty>
+		<DocProperty name="'hard_light'" type="TintModeName">Like 'overlay', but with the tint and image colors swapped.</DocProperty>
+	</DocProperties>
 
 	<DocSnippet title="Example">
 <pre>const bunny = new Sprite({
@@ -110,5 +133,18 @@ export default {}
 forever(delta =&gt; {
     bunny.rotation += 2
 })</pre>
+	</DocSnippet>
+
+	<DocSnippet title="Tinting">
+<pre>const ghost = new Sprite({ src: 'ghost.png' })
+
+// Flash red when clicked
+ghost.onClick(() =&gt; {
+    ghost.tint = Colors.Red
+    after(0.2, () =&gt; ghost.clearTint())
+})
+
+// A gradient from top to bottom
+ghost.setTint('#ffffff', '#ffffff', '#3399ff', '#3399ff')</pre>
 	</DocSnippet>
 </template>

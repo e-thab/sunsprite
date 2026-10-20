@@ -1,4 +1,4 @@
-import { Timeable, Viewable, type ViewableProps } from "./mixins"
+import { Destructible, Timeable, Viewable, type ViewableProps } from "./mixins"
 import { resizeReactors, camera, forever } from "@api/core"
 import Line from "@api/Line"
 
@@ -13,9 +13,10 @@ type HLineProps = ViewableProps & {
 
 export default class HLine extends 
     Viewable(
+    Destructible(
     Timeable(class {
         constructor() {}
-    })) {
+    }))) {
 
     readonly _line: Line
     private _lastZoom: number = 1

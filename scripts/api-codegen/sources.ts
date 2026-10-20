@@ -28,6 +28,7 @@ export const MIXINS = [
     { file: apiPath('mixins', 'Viewable.ts'), typeName: 'ViewableProps', functionName: 'Viewable' },
     { file: apiPath('mixins', 'Interactable.ts'), typeName: 'InteractableProps', functionName: 'Interactable' },
     { file: apiPath('mixins', 'Timeable.ts'), typeName: undefined, functionName: 'Timeable' },
+    { file: apiPath('mixins', 'Destructible.ts'), typeName: undefined, functionName: 'Destructible' },
     // Shape-only, composed by Shape.ts rather than GameObject.ts — so they
     // reach Rectangle/Circle through `extends Shape`, not a mixin chain the
     // class itself writes out. Still listed here like any other mixin:
@@ -122,6 +123,9 @@ export const TYPE_ALIASES = [
     { file: apiPath('Background.ts'), name: 'BackgroundProps' },
     // Mixer.addBus's options object.
     { file: apiPath('Bus.ts'), name: 'BusProps' },
+    // Sprite.tintMode's getter type. The TintMode enum itself isn't on the api
+    // object, so this alias expands it to its plain string values.
+    { file: apiPath('Sprite.ts'), name: 'TintModeName' },
 ] as const
 
 /**

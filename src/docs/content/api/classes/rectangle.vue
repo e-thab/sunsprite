@@ -57,6 +57,7 @@ export default {}
 		<DocProperty name="cursor" type="Cursor" from="api/traits/interactable">The cursor shown when the mouse is over this object.</DocProperty>
 		<DocProperty name="age" type="number" from="api/traits/timeable" readonly>How long this object has existed, in seconds (not including paused time).</DocProperty>
 		<DocProperty name="ageMs" type="number" from="api/traits/timeable" readonly>How long this object has existed, in milliseconds (not including paused time).</DocProperty>
+		<DocProperty name="isDestroyed" type="boolean" from="api/traits/destructible">Whether this object has been destroyed.</DocProperty>
 	</DocProperties>
 
 	<DocMethods>
@@ -88,6 +89,7 @@ export default {}
 		<DocMethod signature="onDragEnd(action?: PointerAction): void" from="api/traits/interactable">Captures the end of the drag event.</DocMethod>
 		<DocMethod signature="onScroll(action?: ScrollAction): void" from="api/traits/interactable">Captures scroll events while hovering over this object.</DocMethod>
 		<DocMethod signature="resetCursor(): void" from="api/traits/interactable">Set this object's hover cursor back to the default pointer.</DocMethod>
+		<DocMethod signature="destroy(): void" from="api/traits/destructible">Remove this object from the game. Does not clear any variables it is assigned to or remove it from any arrays it belongs to.</DocMethod>
 	</DocMethods>
 
 </template>
