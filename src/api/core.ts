@@ -270,12 +270,15 @@ function _runRepeats() {
 }
 
 function _runRepeatUntils() {
+	const finished = new Set<RepeatableUntil>()
+
 	for (const repeatUntil of _repeatUntils) {
-		// A throwing condition() is treated as "yes, done" (see runUserCallback's
-		// fallback below) so a broken repeatUntil finishes and gets cleaned up by
-		// the filter() at the bottom, rather than re-throwing every frame forever.
+		// A throwing condition() is treated as "yes, done" so a broken repeatUntil
+		// finishes and gets cleaned up by the filter() at the bottom, rather than
+		// re-throwing every frame forever.
 		if (runUserCallback(() => repeatUntil.condition(), true)) {
-			// Once condition first becomes true, run then() and remove repeatUntil()
+			// Once condition first becomes true, run then() exactly once and remove repeatUntil()
+			finished.add(repeatUntil)
 			if (repeatUntil.then) {
 				const then = repeatUntil.then
 				runUserCallback(() => then(repeatUntil.i), undefined)
@@ -286,7 +289,7 @@ function _runRepeatUntils() {
 			repeatUntil.i += 1
 		}
 	}
-	_repeatUntils = _repeatUntils.filter(repeatUntil => !runUserCallback(() => repeatUntil.condition(), true))
+	_repeatUntils = _repeatUntils.filter(repeatUntil => !finished.has(repeatUntil))
 }
 
 function _runRepeatWhiles() {

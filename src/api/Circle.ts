@@ -49,5 +49,22 @@ export default class Circle extends Shape {
     set radius(radius: number) {
         this._radius = radius
         this._circle.setRadius(radius)
+
+        // Resize hit circle
+        const hitArea = this._circle.input?.hitArea as Phaser.Geom.Circle | undefined
+        hitArea?.setTo(radius, radius, radius)
+    }
+
+    // Override to set interactive with a circular hit area
+    _setInteractive() {
+        // Set's phaser object's interactive state if it isn't already
+        if (!this._refObj) return
+
+        const r = this.radius
+        if (!this._isInteractive) {
+            this._refObj.setInteractive(new Phaser.Geom.Circle(r, r, r), Phaser.Geom.Circle.Contains)
+            this._isInteractive = true
+        }
+        scene.input.setDraggable(this._refObj, this._draggable)
     }
 }
