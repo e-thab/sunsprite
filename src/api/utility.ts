@@ -223,7 +223,6 @@ forever(delta => {
 })
 
 const refSquare = new Sprite({
-	src: 'src/assets/images/square.png',
 	y: 300,
 	cursor: 'handPoint'
 })

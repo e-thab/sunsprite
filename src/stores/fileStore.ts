@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { supabase } from "@/utils/supabase";
 import { getExampleCode } from "@/api/examples";
-import { type AssetKind, DEFAULT_SCRIPT_FILE_TYPE, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, splitFileName, type ScriptFileType, uploadDisplayName, uploadFileTypeFor } from "@/utils/fileTypes";
+import { assetKindForName, type AssetKind, DEFAULT_SCRIPT_FILE_TYPE, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, splitFileName, type ScriptFileType, uploadDisplayName, uploadFileTypeFor } from "@/utils/fileTypes";
 import { useProjectSettingsStore } from "./projectSettingsStore";
 import { MAX_PROJECT_SIZE as PROJECT_STORAGE_QUOTA_BYTES } from "../../supabase/functions/_shared/uploadLimits.ts";
 import type { ProjectAsset } from "@/sandbox/protocol";
@@ -77,11 +77,13 @@ type ImageRecord = {
     position: number
 }
 
-// A link to one of the built-in Library assets (public/images/*, see
-// gameAssets.ts) rather than an uploaded object — no file data, no size, no
-// R2 key. Its own table (library_images) for the reasons given in that
-// migration; in the tree it behaves like any other image, except that
-// deleting one only removes the link.
+// A link to one of the built-in Library assets (src/library, served at
+// /library/* — see api/library.ts) rather than an uploaded object — no file
+// data, no size, no R2 key. Images and sounds alike, despite the name (the
+// same as ImageRecord); libraryKind tells them apart. Its own table
+// (library_images) for the reasons given in that migration; in the tree it
+// behaves like any other image or sound, except that deleting one only
+// removes the link.
 type LibraryImageRecord = {
     id: string
     name: string
@@ -134,6 +136,12 @@ function compareTreeNodes(a: TreeNode, b: TreeNode): number {
 // one, and the images table's own check rules out anything else.
 function uploadKind(record: ImageRecord): AssetKind {
     return record.contentType.startsWith('audio/') ? 'audio' : 'image'
+}
+
+// Read off the Library path rather than the link's name: the path is fixed,
+// and older links (public/images/*) are all images.
+export function libraryKind(libraryPath: string): AssetKind {
+    return assetKindForName(libraryPath) === 'audio' ? 'audio' : 'image'
 }
 
 export const useFileStore = defineStore('files', () => {
@@ -989,11 +997,11 @@ export const useFileStore = defineStore('files', () => {
     // same names as completions and flags literals that match none of them.
     //
     // Library links resolve to an absolute URL here because the game runs in
-    // a document of its own (runner.html) — a root-relative /images/... path
+    // a document of its own (runner.html) — a root-relative /library/... path
     // means the same thing there today, but nothing should have to know that.
     const projectAssets = computed<ProjectAsset[]>(() => [
         ...images.value.map((img) => ({ name: img.name, kind: uploadKind(img), url: img.publicUrl })),
-        ...libraryImages.value.map((img) => ({ name: img.name, kind: 'image' as const, url: new URL(img.libraryPath, window.location.href).href })),
+        ...libraryImages.value.map((img) => ({ name: img.name, kind: libraryKind(img.libraryPath), url: new URL(img.libraryPath, window.location.href).href })),
     ])
 
     // ---- Library images ----

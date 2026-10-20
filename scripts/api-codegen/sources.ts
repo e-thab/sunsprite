@@ -183,8 +183,8 @@ export const SET_TYPE_OVERRIDES: Record<string, string> = {
  * it's mutually circular with it (Camera/Random/Timer/types/the mixins all
  * import live bindings back from it, and it imports the concrete classes).
  * Deliberately excluded, confirmed safe: moduleRunner.ts/scriptResolution.ts
- * (generic script-compilation engine, version-agnostic), examples.ts/gameAssets.ts
- * (zero imports, host-only), api.d.ts/apiLib.ts (the declaration system itself,
+ * (generic script-compilation engine, version-agnostic), examples.ts/library.ts
+ * (host-only; library.ts is the editor's view of virtual:library), api.d.ts/apiLib.ts (the declaration system itself,
  * not runtime code), and src/api/output.ts (the *host-side* DOM output
  * renderer — a different file from src/sandbox/output.ts below, which is the
  * one core.ts actually imports).

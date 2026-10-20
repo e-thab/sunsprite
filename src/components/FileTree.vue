@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import type { DropdownMenuItem, TreeItem } from '@nuxt/ui'
 import { useToast } from '@nuxt/ui/composables'
-import { useFileStore, type TreeNode } from '@/stores/fileStore'
+import { libraryKind, useFileStore, type TreeNode } from '@/stores/fileStore'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
 import { useNamePromptStore } from '@/stores/namePromptStore'
 import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
@@ -155,18 +155,22 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 		}
 	}
 	if (node.kind === 'libraryImage') {
-		// Same shape as an uploaded image — thumbnail/path are what EditorView's
-		// preview and the "Copy image URL" action read — just pointed at the
-		// Library asset instead of an R2 object. No size: a link stores nothing,
-		// so the trailing slot shows the library chip in its place.
+		// Same shape as an uploaded image or sound — thumbnail/path are what
+		// EditorView's preview and the "Copy URL" actions read — just pointed
+		// at the Library asset instead of an R2 object. No size: a link stores
+		// nothing, so the trailing slot shows the library chip in its place.
+		const fileType = uploadFileTypeForExtension(splitFileName(node.libraryPath).extension)
+		const sound = libraryKind(node.libraryPath) === 'audio'
 		return {
 			label: node.name,
 			kind: 'libraryImage',
 			id: node.id,
 			parentId,
-			thumbnail: node.libraryPath,
+			sound,
+			thumbnail: sound ? undefined : node.libraryPath,
+			icon: sound ? fileType?.icon : undefined,
 			path: node.libraryPath,
-			typeLabel: uploadFileTypeForExtension(splitFileName(node.name).extension)?.label,
+			typeLabel: fileType?.label,
 		}
 	}
 	if (node.kind === 'text') {
@@ -219,12 +223,17 @@ function itemStateClass(item: TreeItem): string | undefined {
 	return undefined
 }
 
+// An uploaded sound, or a link to one of the Library's.
+function isSoundItem(item: TreeItem): boolean {
+	return item.kind === 'audio' || (item.kind === 'libraryImage' && item.sound)
+}
+
 // Human label for the rename/delete tooltips below — a plain if-chain reads
 // better here than a 4-way ternary once 'text' joins 'folder'/'image'/'script'.
 function kindLabel(item: TreeItem): string {
 	if (item.kind === 'folder') return 'folder'
+	if (isSoundItem(item)) return 'sound'
 	if (item.kind === 'image' || item.kind === 'libraryImage') return 'image'
-	if (item.kind === 'audio') return 'sound'
 	if (item.kind === 'text') return 'text file'
 	return 'script'
 }
@@ -495,14 +504,13 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 		primary.push({ label: 'Run script', icon: 'tabler:player-play-filled', onSelect: () => emit('runScript', scriptName(item)) })
 	}
 	if (item.kind === 'folder') primary.push(...folderMenuItems(item.id))
-	if ((item.kind === 'image' || item.kind === 'libraryImage') && item.path) {
-		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyFileUrl(item.path) })
-	}
-	if (item.kind === 'audio' && item.path) {
+	if (isSoundItem(item) && item.path) {
 		primary.push(previewingAudioId.value === item.id
 			? { label: 'Stop', icon: 'tabler:player-stop-filled', onSelect: () => toggleAudioPreview(item) }
 			: { label: 'Play', icon: 'tabler:player-play-filled', onSelect: () => toggleAudioPreview(item) })
 		primary.push({ label: 'Copy sound URL', icon: 'tabler:copy-filled', onSelect: () => copyFileUrl(item.path) })
+	} else if ((item.kind === 'image' || item.kind === 'libraryImage') && item.path) {
+		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyFileUrl(item.path) })
 	}
 	if (item.kind === 'script') {
 		const typeItem = scriptTypeItem(item)
@@ -864,7 +872,7 @@ async function removeLibraryImage(id: string) {
 	try {
 		await fileStore.removeLibraryImage(id)
 	} catch (err) {
-		window.alert(err instanceof Error ? err.message : 'Failed to remove image')
+		window.alert(err instanceof Error ? err.message : 'Failed to remove file')
 	}
 }
 
@@ -874,7 +882,10 @@ function deleteItem(item: TreeItem) {
 		if (previewingAudioId.value === item.id) stopAudioPreview()
 		return deleteImage(item.id, scriptName(item))
 	}
-	if (item.kind === 'libraryImage') return removeLibraryImage(item.id)
+	if (item.kind === 'libraryImage') {
+		if (previewingAudioId.value === item.id) stopAudioPreview()
+		return removeLibraryImage(item.id)
+	}
 	if (item.kind === 'text') return deleteTextFile(item.id, scriptName(item))
 	return deleteScript(scriptName(item))
 }

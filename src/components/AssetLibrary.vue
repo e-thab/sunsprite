@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { onBeforeUnmount, ref } from 'vue'
 import type { TreeItem } from '@nuxt/ui'
 import { useToast } from '@nuxt/ui/composables'
 import { useFileStore } from '@/stores/fileStore'
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
 import { exampleScriptNames } from '@/api/examples'
-import { imagePath, animalFiles, cardFiles } from '@/api/gameAssets'
+import { attributionLabel, libraryRoot, type LibraryEntry, type LibraryFolder } from '@/api/library'
+import { splitFileName, uploadFileTypeForExtension } from '@/utils/fileTypes'
 import CollapsiblePane from './CollapsiblePane.vue'
 
 const fileStore = useFileStore()
@@ -24,7 +26,7 @@ async function addToProject(path: string, fileName: string) {
 			icon: 'tabler:books',
 		})
 	} catch (err) {
-		window.alert(err instanceof Error ? err.message : 'Failed to add image to project')
+		window.alert(err instanceof Error ? err.message : 'Failed to add file to project')
 	}
 }
 
@@ -36,6 +38,32 @@ async function copyPath(path: string) {
 		icon: 'tabler:copy-filled',
 	})
 }
+
+// ---- Sound preview ----
+// One shared element, so starting a second sound stops the first — same as
+// FileTree.vue's audio preview.
+const playingPath = ref<string | null>(null)
+let previewAudio: HTMLAudioElement | null = null
+
+function togglePlay(path: string) {
+	if (playingPath.value === path) {
+		stopPlaying()
+		return
+	}
+	stopPlaying()
+	previewAudio = new Audio(path)
+	previewAudio.addEventListener('ended', stopPlaying)
+	playingPath.value = path
+	previewAudio.play().catch(stopPlaying)
+}
+
+function stopPlaying() {
+	previewAudio?.pause()
+	previewAudio = null
+	playingPath.value = null
+}
+
+onBeforeUnmount(stopPlaying)
 
 // No onSelect needed here — EditorView watches the shared selection store
 // (bound below as this tree's own v-model) and opens/closes the preview
@@ -50,52 +78,58 @@ function preventFolderSelect(event: Event) {
 	event.preventDefault()
 }
 
-function imageLeaf(category: string, fileName: string): TreeItem {
-	const path = imagePath(category, fileName)
+// Files the editor can't use (no upload type for the extension) are left out
+// rather than listed as dead rows.
+function entryItem(entry: LibraryEntry): TreeItem | undefined {
+	if (entry.kind === 'folder') return folderItem(entry)
+
+	const fileType = uploadFileTypeForExtension(splitFileName(entry.name).extension)
+	if (fileType?.kind === 'image') {
+		return {
+			key: entry.path,
+			label: entry.name,
+			// Rendered as a real thumbnail in #item-leading below rather than
+			// an icon — the path doubles as both the copy-button value and a
+			// working <img> src.
+			thumbnail: entry.path,
+			path: entry.path,
+		}
+	}
+	if (fileType?.kind === 'audio') {
+		return {
+			key: entry.path,
+			label: entry.name,
+			icon: fileType.icon,
+			sound: true,
+			path: entry.path,
+		}
+	}
+	return undefined
+}
+
+function folderItem(folder: LibraryFolder): TreeItem {
 	return {
-		label: fileName,
-		// Rendered as a real thumbnail in #item-leading below rather than an
-		// icon — these are the actual game assets, so the path doubles as
-		// both the copy-button value and a working <img> src (public/ is
-		// served as-is at the site root in both dev and prod).
-		thumbnail: path,
-		path,
+		// Keyed by path, not label: names repeat across the Library
+		// (planets/planets, ui-cursors/large/arrow_e.png and .../small/...),
+		// and UTree's expanded/selected state is matched by key.
+		key: folder.path,
+		label: folder.name,
+		defaultExpanded: false,
+		onSelect: preventFolderSelect,
+		attribution: folder.attribution,
+		children: folder.children.map(entryItem).filter((item) => item !== undefined),
 	}
 }
 
 const items: TreeItem[] = [
+	...libraryRoot.children.map(entryItem).filter((item) => item !== undefined),
 	{
-		label: 'images',
-		defaultExpanded: false,
-		onSelect: preventFolderSelect,
-		children: [
-			{
-				label: 'animals',
-				defaultExpanded: false,
-				onSelect: preventFolderSelect,
-				children: animalFiles.map((f) => imageLeaf('animals', f)),
-			},
-			{
-				label: 'cards',
-				defaultExpanded: false,
-				onSelect: preventFolderSelect,
-				children: cardFiles.map((f) => imageLeaf('cards', f)),
-			},
-		],
-	},
-	{
-		label: 'sounds',
-		defaultExpanded: false,
-		onSelect: preventFolderSelect,
-		children: [
-			{ label: 'No sounds yet', disabled: true },
-		],
-	},
-	{
+		key: 'scripts',
 		label: 'scripts',
 		defaultExpanded: false,
 		onSelect: preventFolderSelect,
 		children: exampleScriptNames.map((name) => ({
+			key: `scripts/${name}`,
 			label: name,
 			icon: 'fluent:javascript-24-filled',
 			path: name,
@@ -118,20 +152,58 @@ const items: TreeItem[] = [
 			FileTree.vue, which shares this same treeSelectionStore v-model —
 			without it, re-clicking the already-active item deselects it
 			instead of leaving it active. -->
-			<UTree v-model="treeSelectionStore.current" :items="items" selection-behavior="replace" class="asset-tree">
+			<UTree
+				v-model="treeSelectionStore.current"
+				:items="items"
+				:get-key="(item: TreeItem) => item.key ?? item.label"
+				selection-behavior="replace"
+				class="asset-tree"
+			>
 				<template #item-leading="{ item, expanded }">
-					<img v-if="item.thumbnail" :src="item.thumbnail" class="thumbnail-icon" alt="" />
+					<img v-if="item.thumbnail" :src="item.thumbnail" loading="lazy" class="thumbnail-icon" alt="" />
 					<UIcon v-else-if="item.icon" :name="item.icon" class="leading-icon" />
 					<UIcon v-else-if="item.children?.length" :name="expanded ? 'tabler:folder-open-filled' : 'tabler:folder-filled'" class="leading-icon" />
 				</template>
 
 				<template #item-trailing="{ item }">
+					<!-- Credits sit on the folder they cover (normally a whole
+					pack) and stay visible, unlike the per-file actions. -->
+					<UPopover v-if="item.attribution" :content="{ align: 'end' }">
+						<UButton
+							icon="tabler:info-circle"
+							variant="ghost"
+							color="neutral"
+							size="xs"
+							class="credit-button"
+							:aria-label="`Credits: ${attributionLabel(item.attribution)}`"
+							@click.stop
+						/>
+
+						<template #content>
+							<div class="credit-card">
+								<div class="credit-title">{{ item.attribution.title ?? item.label }}</div>
+								<div>by {{ item.attribution.author }}</div>
+								<div v-if="item.attribution.license" class="credit-license">
+									License:
+									<a v-if="item.attribution.licenseUrl" :href="item.attribution.licenseUrl" target="_blank" rel="noopener">{{ item.attribution.license }}</a>
+									<template v-else>{{ item.attribution.license }}</template>
+								</div>
+								<a v-if="item.attribution.url" :href="item.attribution.url" target="_blank" rel="noopener" class="credit-link">
+									<UIcon name="tabler:external-link" />{{ item.attribution.url.replace(/^https?:\/\//, '') }}
+								</a>
+							</div>
+						</template>
+					</UPopover>
+
 					<div v-if="!item.children && item.path" class="item-actions">
-						<UTooltip v-if="item.thumbnail" text="Add to project">
-							<UButton icon="tabler:arrow-bar-up" variant="soft" color="neutral" size="xs" @click.stop="addToProject(item.path, item.label ?? '')" />
+						<UTooltip v-if="item.sound" :text="playingPath === item.path ? 'Stop' : 'Play'">
+							<UButton :icon="playingPath === item.path ? 'tabler:player-stop-filled' : 'tabler:player-play-filled'" variant="soft" color="neutral" size="xs" @click.stop="togglePlay(item.path)" />
 						</UTooltip>
 						<UTooltip text="Copy path">
 							<UButton icon="tabler:copy-filled" variant="soft" color="neutral" size="xs" @click.stop="copyPath(item.path)" />
+						</UTooltip>
+						<UTooltip v-if="item.thumbnail || item.sound" text="Add to project">
+							<UButton icon="tabler:arrow-bar-up" variant="subtle" color="primary" size="xs" @click.stop="addToProject(item.path, item.label ?? '')" />
 						</UTooltip>
 					</div>
 				</template>
@@ -168,6 +240,46 @@ const items: TreeItem[] = [
 	width: 1.25rem;
 	height: 1.25rem;
 	flex-shrink: 0;
+}
+
+.credit-button {
+	margin-left: auto;
+	opacity: 0.5;
+}
+
+.credit-button:hover,
+.credit-button:focus-visible {
+	opacity: 1;
+}
+
+.credit-card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2em;
+	padding: 0.6em 0.75em;
+	max-width: 18rem;
+	font-size: 0.85em;
+}
+
+.credit-title {
+	font-weight: 600;
+}
+
+.credit-license,
+.credit-link {
+	color: var(--theme-text-toned);
+}
+
+.credit-card a {
+	text-decoration: underline;
+}
+
+.credit-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3em;
+	margin-top: 0.2em;
+	overflow-wrap: anywhere;
 }
 
 /* Same reveal-on-hover pattern as FileTree.vue's rename/delete actions. */
