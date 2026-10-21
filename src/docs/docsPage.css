@@ -159,12 +159,18 @@
 	font-family: monospace;
 }
 
+/* A property's name takes the same primary color as a method's name in its
+   signature (.doc-signature-name below), so a member's name reads the same in
+   either table. Parameter names share .doc-name but keep the highlighted text
+   color — they aren't members of the page's subject. */
+.doc-property-name {
+	color: var(--theme-primary);
+}
+
 /* An inherited property's name doubles as the link to the trait that declares
    it (see DocProperty) — the properties-table counterpart of
-   .doc-signature-link below. No box to lift here, just a name in a cell, so
-   the hover cue is the color shift the "From" cell on the same row already
-   uses. Underlining is left off for the same reason it is on a signature: this
-   is a member name, and an underline running through one reads as part of it. */
+   .doc-signature-link below. No box to lift here, just a name in a cell, and
+   the name is already primary-colored, so the hover cue is the underline. */
 .doc-name-link {
 	color: inherit;
 	text-decoration: none;
@@ -354,12 +360,12 @@
 	color: var(--theme-text-muted);
 }
 
-/* Sits under the type, in the properties table. */
+/* The note after a read-only property's type (see DocProperty). Smaller and
+   muted so it reads as a note on the type rather than part of it. */
 .doc-readonly {
-	display: block;
-	margin-top: 0.15em;
+	margin-left: 0.4em;
 	font-size: 0.8em;
-	color: var(--theme-text-toned);
+	color: var(--theme-text-muted);
 }
 
 .doc-type code {

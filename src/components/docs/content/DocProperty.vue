@@ -61,7 +61,7 @@ const declaredOn = computed(() => (props.from ? normalize([props.from])[0]! : un
 
 <template>
 	<tr :data-doc-anchor="anchor">
-		<td class="doc-name">
+		<td class="doc-name doc-property-name">
 			<!-- An inherited name doubles as the link to where it's declared,
 			     landing on the same property's row on the trait's page rather
 			     than the top of it — the same treatment DocMethod gives a
@@ -74,7 +74,9 @@ const declaredOn = computed(() => (props.from ? normalize([props.from])[0]! : un
 		</td>
 		<td class="doc-type">
 			<code v-if="type">{{ type }}</code>
-			<span v-if="readonly" class="doc-readonly">read-only</span>
+			<!-- Beside the type rather than under it, where it cost every read-only
+			     row a second line. -->
+			<span v-if="readonly" class="doc-readonly">readonly</span>
 		</td>
 		<td class="doc-default">
 			<code v-if="default">{{ default }}</code>
