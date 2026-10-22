@@ -5,6 +5,7 @@ import { propertyAnchor } from '@/docs/docsAnchors'
 import DocFrom from './DocFrom.vue'
 import { useDocFromColumn } from './useDocFromColumn'
 import { useDocRefs } from './useDocRefs'
+import { useDocDefault } from './useDocDefault'
 
 /**
  * One entry in a DocProperties table: a row of name/type/default/from, and the
@@ -23,9 +24,10 @@ const props = defineProps<{
 	type?: string
 	/**
 	 * The value the property has when nothing sets it, written as it would be
-	 * in code (`0`, `'#fff'`, `true`). Left off a property that has no value of
-	 * its own to report — one derived from others, like an edge or a corner —
-	 * where the column shows a dash rather than inventing one.
+	 * in code (`0`, `'#fff'`, `true`). Usually left off: the `@default` tag on
+	 * the property's source fills the cell instead (see useDocDefault). Where
+	 * neither gives one — a property derived from others, like an edge or a
+	 * corner — the column shows a dash rather than inventing one.
 	 */
 	default?: string
 	from?: string | DocRef
@@ -33,6 +35,11 @@ const props = defineProps<{
 }>()
 
 const fromColumn = useDocFromColumn(props.from)
+
+const defaultSegments = useDocDefault(props.name, props.default, props.from)
+
+/** A default given in words rather than as a single literal, which needs room to wrap. */
+const defaultIsProse = computed(() => defaultSegments.value?.some((segment) => !segment.code) ?? false)
 
 const { nav, normalize, labelOf, href, go } = useDocRefs()
 
@@ -78,8 +85,10 @@ const declaredOn = computed(() => (props.from ? normalize([props.from])[0]! : un
 			     row a second line. -->
 			<span v-if="readonly" class="doc-readonly">readonly</span>
 		</td>
-		<td class="doc-default">
-			<code v-if="default">{{ default }}</code>
+		<td class="doc-default" :class="{ 'doc-default-prose': defaultIsProse }">
+			<!-- Kept on one line: whitespace between the runs would show up as
+			     stray spaces around the code in prose like "(`32` with no src)". -->
+			<template v-if="defaultSegments"><template v-for="(segment, i) in defaultSegments" :key="i"><code v-if="segment.code">{{ segment.text }}</code><template v-else>{{ segment.text }}</template></template></template>
 			<span v-else class="doc-default-none" title="Derived from other properties">&mdash;</span>
 		</td>
 		<td v-if="fromColumn" class="doc-from-cell">

@@ -56,10 +56,19 @@ function isTintMode(value: unknown): value is TintMode {
 }
 
 type SpriteProps = GameObjectProps & {
-    /** The sprite's image: the name of an image file in your project, like 'player.png', or a URL. */
+    /**
+     * The sprite's image: the name of an image file in your project, like 'player.png', or a URL.
+     * @default `undefined`
+     */
     src?: ImageSource
 }
 
+/**
+ * An image-based game object.
+ *
+ * @default width the image's width (`32` with no src)
+ * @default height the image's height (`32` with no src)
+ */
 export default class Sprite extends GameObject {
     readonly _sprite: Phaser.GameObjects.Sprite
     _src?: string
@@ -86,7 +95,10 @@ export default class Sprite extends GameObject {
         resizeReactors.push(this)
     }
     
-    /** The sprite's image: the name of an image file in your project, like 'player.png', or a URL. */
+    /**
+     * The sprite's image: the name of an image file in your project, like 'player.png', or a URL.
+     * @default `undefined`
+     */
     get src(): string | undefined {
         return this._src
     }
@@ -129,7 +141,10 @@ export default class Sprite extends GameObject {
         scene.load.start()
     }
 
-    /** Whether this sprite is tinted with some color. */
+    /**
+     * Whether this sprite is tinted with some color.
+     * @readonly
+     */
     get isTinted(): boolean {
         return this._sprite.isTinted
     }
@@ -139,12 +154,14 @@ export default class Sprite extends GameObject {
      * 
      * | Mode | Effect |
      * | ---- | ------ |
-     * | 'Add' | Tint color is added to texture color. |
-     * | 'Fill' | Tint color is used to fill the sprite with a solid color. |
-     * | 'Hard_Light' | Tint color brightens light areas and darkens dark areas. Like overlay, but with tint colors swapped. |
-     * | 'Multiply' (default) | Tint color is multiplied with texture color. |
-     * | 'Overlay' | Tint color brightens light areas and darkens dark areas. |
-     * | 'Screen' | Tint color brightens dark areas. |
+     * | add | Tint color is added to texture color. |
+     * | fill | Tint color is used to fill the sprite with a solid color. |
+     * | hard_light | Tint color brightens light areas and darkens dark areas. Like overlay, but with tint colors swapped. |
+     * | multiply | Tint color is multiplied with texture color. |
+     * | overlay | Tint color brightens light areas and darkens dark areas. |
+     * | screen | Tint color brightens dark areas. |
+     * 
+     * @default `'multiply'`
      */
     get tintMode(): TintModeName {
         return this._tintMode
@@ -159,6 +176,10 @@ export default class Sprite extends GameObject {
         this._sprite.setTintMode(_phaserTintMode(mode))
     }
 
+    /**
+     * Color the sprite is tinted. If no tint has been applied, this will be white: #ffffff.
+     * @default `'#ffffff'`
+     */
     get tint(): string {
         return this._tint
     }
@@ -171,6 +192,59 @@ export default class Sprite extends GameObject {
         this._sprite.setTint(_hexStringToColor(color))
     }
 
+    /**
+     * Color the top left corner of the sprite is tinted. If no tint has been 
+     * applied to this corner specifically, this will be white: #ffffff.
+     * @default `'#ffffff'`
+     */
+    get tintTopLeft(): string {
+        return this._tintTopLeft
+    }
+    set tintTopLeft(color: string) {
+        this._tint = color
+        this._tintTopLeft = color
+        this._sprite.tintTopLeft = _hexStringToColor(color)
+    }
+
+    /**
+     * Color the top right corner of the sprite is tinted. If no tint has been 
+     * applied to this corner specifically, this will be white: #ffffff.
+     * @default `'#ffffff'`
+     */
+    get tintTopRight(): string {
+        return this._tintTopRight
+    }
+    set tintTopRight(color: string) {
+        this._tintTopRight = color
+        this._sprite.tintTopRight = _hexStringToColor(color)
+    }
+
+    /**
+     * Color the bottom left corner of the sprite is tinted. If no tint has been 
+     * applied to this corner specifically, this will be white: #ffffff.
+     * @default `'#ffffff'`
+     */
+    get tintBottomLeft(): string {
+        return this._tintBottomLeft
+    }
+    set tintBottomLeft(color: string) {
+        this._tintBottomLeft = color
+        this._sprite.tintBottomLeft = _hexStringToColor(color)
+    }
+
+    /**
+     * Color the bottom right corner of the sprite is tinted. If no tint has been 
+     * applied to this corner specifically, this will be white: #ffffff.
+     * @default `'#ffffff'`
+     */
+    get tintBottomRight(): string {
+        return this._tintBottomRight
+    }
+    set tintBottomRight(color: string) {
+        this._tintBottomRight = color
+        this._sprite.tintBottomRight = _hexStringToColor(color)
+    }
+
     get _tintHexColors() {
         return {
             tintTopLeft: _hexStringToColor(this._tintTopLeft),
@@ -180,16 +254,35 @@ export default class Sprite extends GameObject {
         }
     }
 
+    /**
+     * Set the sprite's tint. If one argument is provided, the entire sprite is tinted
+     * that color. If multiple are provided, they apply tints in order: top left, top right,
+     * bottom left, bottom right. Any undefined values apply white. For example:
+     * 
+     * `setTint(Colors.Red)` tints the whole sprite red
+     * 
+     * `setTint(Colors.Cyan, Colors.Magenta, Colors.Yello, Colors.Black)` tints the
+     * top left corner cyan, the top right magenta, the bottom left yellow, and
+     * the bottom right black.
+     * 
+     * `setTint(Colors.Green, undefined, Colors.Blue)` tints the top left corner green,
+     * the top right white, the bottom left blue, and the bottom right white.
+     */
     setTint(allOrTopLeft: string, topRight?: string, bottomLeft?: string, bottomRight?: string) {
         this._tint = allOrTopLeft
         this._tintTopLeft = allOrTopLeft
-        this._tintTopRight = topRight ?? allOrTopLeft
-        this._tintBottomLeft = bottomLeft ?? allOrTopLeft
-        this._tintBottomRight = bottomRight ?? allOrTopLeft
-        const { tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight } = this._tintHexColors
-        this._sprite.setTint(tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight)
+        if (topRight !== undefined || bottomLeft !== undefined || bottomRight !== undefined) {
+            this._tintTopRight = topRight ?? '#ffffff'
+            this._tintBottomLeft = bottomLeft ?? '#ffffff'
+            this._tintBottomRight = bottomRight ?? '#ffffff'
+            const { tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight } = this._tintHexColors
+            this._sprite.setTint(tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight)
+        } else {
+            this._sprite.setTint(_hexStringToColor(allOrTopLeft))
+        }
     }
 
+    /** Remove the sprite's tint, setting all tint values to white, and tint mode to multiply. */
     clearTint() {
         this._tint = '#ffffff'
         this._tintTopLeft = '#ffffff'
@@ -200,46 +293,15 @@ export default class Sprite extends GameObject {
         this._sprite.clearTint()
     }
 
+    /** Temporarily disable the tint without unsetting the values. Can be re-enabled with showTint(). */
     hideTint() {
         this._sprite.clearTint()
     }
 
+    /** Enable a tint temporarily hidden with hideTint(). */
     showTint() {
         const { tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight } = this._tintHexColors
         this._sprite.setTint(tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight)
-    }
-
-    get tintTopLeft(): string {
-        return this._tintTopLeft
-    }
-    set tintTopLeft(color: string) {
-        this._tint = color
-        this._tintTopLeft = color
-        this._sprite.tintTopLeft = _hexStringToColor(color)
-    }
-
-    get tintTopRight(): string {
-        return this._tintTopRight
-    }
-    set tintTopRight(color: string) {
-        this._tintTopRight = color
-        this._sprite.tintTopRight = _hexStringToColor(color)
-    }
-
-    get tintBottomLeft(): string {
-        return this._tintBottomLeft
-    }
-    set tintBottomLeft(color: string) {
-        this._tintBottomLeft = color
-        this._sprite.tintBottomLeft = _hexStringToColor(color)
-    }
-
-    get tintBottomRight(): string {
-        return this._tintBottomRight
-    }
-    set tintBottomRight(color: string) {
-        this._tintBottomRight = color
-        this._sprite.tintBottomRight = _hexStringToColor(color)
     }
 
     // Override

@@ -1,4 +1,4 @@
-import { getOurPoint, mouse, repeatUntil } from "@api/core"
+import { getGamePoint, getOurPoint, mouse, repeatUntil } from "@api/core"
 import { Vector2, type Vector2Like } from "@api/Vector2"
 import type Sprite from "@api/Sprite"
 import type Rectangle from "@api/Rectangle"
@@ -53,9 +53,11 @@ export default class Camera {
     get position(): Vector2 {
         return this._pos
     }
-    set position(pos: Vector2) {
-        this._pos = pos
-        // this._refObj.centerOn(pos.x, pos.y)
+    set position(pos: Vector2Like) {
+        const newPos = Vector2.from(pos)
+        this._pos = newPos
+        const { x, y } = getOurPoint(newPos)
+        this._cam.centerOn(x, y)
     }
 
     get pos(): Vector2 {
@@ -111,15 +113,23 @@ export default class Camera {
         this._cam.shake(duration ?? 1000, intensity ?? 0.01, false, callback)
     }
 
+    goTo(x: number, y: number) {
+        this.position = new Vector2(x, y)
+    }
+
     easeTo(pos: Vector2Like, duration?: number) {
         // const x = pos.x - this.zoom * (screen.right - this.x)
         // const y = -pos.y - this.zoom * (screen.right - this.x)
-        pos = Vector2.from(pos)
-        const targetPos = getOurPoint(pos)
+        const posv = Vector2.from(pos)
+        const targetPos = getOurPoint(posv)
         this._cam.pan(targetPos.x, targetPos.y, duration ?? 1000, 'Power3', true, (cam, progress, x, y) => {
             this._x = x
             this._y = -y
         })
+    }
+
+    moveToward(pos: Vector2Like, amount: number) {
+        // TODO !!
     }
 
     follow(gameObject: Sprite | Rectangle | Circle | Label) {

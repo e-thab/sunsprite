@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
 import { runUserCode, resizeStage } from '@/sandbox/hostBridge'
 import { formatDate } from '@/utils/timeAgo'
+import { releaseButtonFocus } from '@/utils/releaseButtonFocus'
 import GameFrame from '@/components/GameFrame.vue'
 import VolumeControl from '@/components/VolumeControl.vue'
 import ErrorView from './ErrorView.vue'
@@ -145,7 +146,9 @@ onUnmounted(() => {
 
       <div class="canvas-frame" :class="{ 'canvas-frame--fullscreen': fullscreenStore.fullscreen }">
         <div class="panel-wrapper">
-          <div class="panel-bar">
+          <!-- Buttons give focus back after a click, so Space reaches the game
+               instead of re-clicking them (see releaseButtonFocus). -->
+          <div class="panel-bar" @click="releaseButtonFocus">
             <UTooltip text="Restart" ignore-non-keyboard-focus>
               <UButton icon="tabler:refresh" variant="ghost" color="neutral" label="Restart" size="xs" @click="runGame" />
             </UTooltip>

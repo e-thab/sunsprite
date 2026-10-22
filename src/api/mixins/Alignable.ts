@@ -112,11 +112,15 @@ export type AlignableProps = {
  *  OtherMixin(
  *  ...
  */
+// width/height are declared as accessors, not properties, so a class further
+// down the chain can override them with accessors of its own
 export function Alignable<Base extends Class<{
     x: number
     y: number
-    width: number
-    height: number
+    get width(): number
+    set width(width: number)
+    get height(): number
+    set height(height: number)
 }>>(base: Base) {
     return class Alignable extends base {
         constructor(...args: any[]) {

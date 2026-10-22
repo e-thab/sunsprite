@@ -53,15 +53,18 @@ export default class Camera {
     get position(): Vector2 {
         return this._pos
     }
-    set position(pos: Vector2) {
-        this._pos = pos
-        // this._refObj.centerOn(pos.x, pos.y)
+    set position(pos: Vector2Like) {
+        const posv = Vector2.from(pos)
+        this._pos = posv
+        // this.x = posv.x
+        // this.y = posv.y
+        // this._cam.centerOn(newpos.x, newpos.y)
     }
 
     get pos(): Vector2 {
         return this.position
     }
-    set pos(pos: Vector2) {
+    set pos(pos: Vector2Like) {
         this.position = pos
     }
 
@@ -111,15 +114,25 @@ export default class Camera {
         this._cam.shake(duration ?? 1000, intensity ?? 0.01, false, callback)
     }
 
+    goTo(x: number, y: number) {
+        this.position = new Vector2(x, y)
+    }
+
     easeTo(pos: Vector2Like, duration?: number) {
         // const x = pos.x - this.zoom * (screen.right - this.x)
         // const y = -pos.y - this.zoom * (screen.right - this.x)
-        pos = Vector2.from(pos)
-        const targetPos = getOurPoint(pos)
+        const posv = Vector2.from(pos)
+        const targetPos = getOurPoint(posv)
         this._cam.pan(targetPos.x, targetPos.y, duration ?? 1000, 'Power3', true, (cam, progress, x, y) => {
             this._x = x
             this._y = -y
         })
+    }
+
+    moveToward(pos: Vector2Like, amount: number) {
+        const posv = Vector2.from(pos)
+        const diff = new Vector2(this.x - posv.x, this.y - posv.y)
+        this.position
     }
 
     follow(gameObject: Sprite | Rectangle | Circle | Label) {

@@ -50,13 +50,13 @@ export default {}
 	<DocMixins :paths="['api/traits/game-object']" />
 
 	<DocProperties>
-		<DocProperty name="src" type="string" default="undefined">The sprite's image: the name of an image file in your project, like <code>'player.png'</code>, or a URL. Names are case-sensitive.<br>If you don't set this, a placeholder wireframe square is shown.</DocProperty>
-		<DocProperty name="tint" type="string" default="'#ffffff'">Color to tint the sprite with, as a hex string. Setting it tints the whole sprite one color; reading it gives the most recent tint color set.</DocProperty>
-		<DocProperty name="tintMode" type="TintMode" default="'multiply'">How the tint color is combined with the sprite's image. Not case-sensitive.</DocProperty>
-		<DocProperty name="tintTopLeft" type="string" default="'#ffffff'">Tint color at the top left corner. Corner colors blend into each other across the sprite.</DocProperty>
-		<DocProperty name="tintTopRight" type="string" default="'#ffffff'">Tint color at the top right corner.</DocProperty>
-		<DocProperty name="tintBottomLeft" type="string" default="'#ffffff'">Tint color at the bottom left corner.</DocProperty>
-		<DocProperty name="tintBottomRight" type="string" default="'#ffffff'">Tint color at the bottom right corner.</DocProperty>
+		<DocProperty name="src" type="string">The sprite's image: the name of an image file in your project, like <code>'player.png'</code>, or a URL. Names are case-sensitive.<br>If you don't set this, a placeholder wireframe square is shown.</DocProperty>
+		<DocProperty name="tint" type="string">Color to tint the sprite with, as a hex string. Setting it tints the whole sprite one color; reading it gives the most recent tint color set.</DocProperty>
+		<DocProperty name="tintMode" type="TintMode">How the tint color is combined with the sprite's image. Not case-sensitive.</DocProperty>
+		<DocProperty name="tintTopLeft" type="string">Tint color at the top left corner. Corner colors blend into each other across the sprite.</DocProperty>
+		<DocProperty name="tintTopRight" type="string">Tint color at the top right corner.</DocProperty>
+		<DocProperty name="tintBottomLeft" type="string">Tint color at the bottom left corner.</DocProperty>
+		<DocProperty name="tintBottomRight" type="string">Tint color at the bottom right corner.</DocProperty>
 		<DocProperty name="isTinted" type="boolean" readonly>Whether this sprite is currently tinted with a color.</DocProperty>
 		<DocProperty name="x" type="number" from="api/traits/positionable">Horizontal position in the world.</DocProperty>
 		<DocProperty name="y" type="number" from="api/traits/positionable">Vertical position in the world.</DocProperty>

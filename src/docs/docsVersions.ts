@@ -1,14 +1,15 @@
 import { ref, watch, type Ref, type WatchSource } from 'vue'
 import { DEV_VERSION } from '@/api/versions/constants'
+import { docDefaults as liveDefaults } from '@/api/generated/docDefaults.generated'
 import type { DocPageModule } from './docsContent'
 import { buildDocsTree, docsTree } from './docsContent'
 import { buildDocsIndex, nodesByPath as liveNodesByPath, searchEntries as liveSearchEntries, ancestorsOf as liveAncestorsOf } from './docsIndex'
-import type { DocsDataContext } from './docsData'
+import type { DocDefaults, DocsDataContext } from './docsData'
 import type { DocNode } from './docsTypes'
 
 /** The live tree's already-built index, reused rather than rebuilt on every dev-version resolution. */
 function liveDocsData(): DocsDataContext {
-	return { tree: docsTree, nodesByPath: liveNodesByPath, searchEntries: liveSearchEntries, ancestorsOf: liveAncestorsOf }
+	return { tree: docsTree, nodesByPath: liveNodesByPath, searchEntries: liveSearchEntries, ancestorsOf: liveAncestorsOf, defaults: liveDefaults }
 }
 
 // Sandbox-side runtime versioning (src/api/versions/runtime.ts) keeps
@@ -47,8 +48,18 @@ function groupByVersion<T>(glob: Record<string, () => Promise<T>>): Map<string, 
 const moduleEntriesByVersion = groupByVersion(versionedPageModules)
 const sourceEntriesByVersion = groupByVersion(versionedPageSources)
 
-function buildDocsData(tree: DocNode[]): DocsDataContext {
-	return { tree, ...buildDocsIndex(tree) }
+// Each version's own Default-column data, cut alongside its pages by
+// snapshot-api. Missing for a version cut before @default tags existed (1.0),
+// whose pages write every default they show by hand.
+const versionedDefaults = import.meta.glob<DocDefaults>('../api/versions/*/docDefaults.ts', { import: 'docDefaults' })
+
+async function loadVersionedDefaults(version: string): Promise<DocDefaults> {
+	const loader = versionedDefaults[`../api/versions/${version}/docDefaults.ts`]
+	return loader ? await loader() : {}
+}
+
+function buildDocsData(tree: DocNode[], defaults: DocDefaults): DocsDataContext {
+	return { tree, ...buildDocsIndex(tree), defaults }
 }
 
 async function loadEntries<T>(entries: VersionEntry<T>[]): Promise<Record<string, T>> {
@@ -87,7 +98,7 @@ export function loadVersionedDocsData(version: string): Promise<DocsDataContext>
 
 	let cached = cache.get(version)
 	if (!cached) {
-		cached = loadVersionedApiNode(version).then((apiNode) => {
+		cached = Promise.all([loadVersionedApiNode(version), loadVersionedDefaults(version)]).then(([apiNode, defaults]) => {
 			// No frozen api/ files for this version — shouldn't happen for a
 			// real cut version (docs are always cut alongside the runtime),
 			// but stays defensive rather than throwing: falls back to the
@@ -96,7 +107,7 @@ export function loadVersionedDocsData(version: string): Promise<DocsDataContext>
 			const mergedTree = docsTree
 				.map((node) => (node.slug === 'api' ? resolvedApiNode : node))
 				.filter((node): node is DocNode => node !== undefined)
-			return buildDocsData(mergedTree)
+			return buildDocsData(mergedTree, defaults)
 		})
 		cache.set(version, cached)
 	}

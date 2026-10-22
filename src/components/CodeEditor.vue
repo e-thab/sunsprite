@@ -10,6 +10,7 @@ import { getExampleCode } from '@/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/theme/themes'
 import { resolveSpecifierCandidates, listImportSpecifiers } from '@/api/scriptResolution'
 import { FILE_TREE_DRAG_MIME, scriptTypeForFile, TEXT_MONACO_LANGUAGE } from '@/utils/fileTypes'
+import { releaseButtonFocus } from '@/utils/releaseButtonFocus'
 import { configureLanguageServices, installExtraLib, languageSupportFor, type EditorLanguageSupport } from '@/languages/monacoLanguages'
 import { installTextMateHighlighting } from '@/languages/textmateHighlighting'
 import { installSemanticHighlighting } from '@/languages/semanticHighlighting'
@@ -827,14 +828,6 @@ function runActiveUserCode() {
 	runNamedScript(fileStore.activeFileName)
 }
 
-// Blurs the play button once clicked: a button keeps focus after a mouse
-// press, and Space/Enter on a focused button re-clicks it — so without this,
-// pressing Space for the game (e.g. jump) would restart the script instead.
-function onRunActiveClick(event: MouseEvent) {
-	(event.currentTarget as HTMLElement | null)?.blur()
-	runActiveUserCode()
-}
-
 // The game header's Restart button always runs this — the project's main
 // script is its canonical entry point regardless of whichever script happens
 // to be open in the editor at the time. Its name comes from the store rather
@@ -1113,7 +1106,10 @@ onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 <template>
 	<CollapsiblePane label="Code" icon="tabler:code">
 	<div class="panel-wrapper">
-		<div id="editor-bar" class="panel-bar">
+		<!-- Buttons give focus back after a click, so Space reaches the game
+		     instead of re-clicking them — e.g. re-running the script from the
+		     play button below (see releaseButtonFocus). -->
+		<div id="editor-bar" class="panel-bar" @click="releaseButtonFocus">
 			<div class="save-group">
 				<!-- The tooltip carries the save time whenever there is one, so
 				     the timestamp is still reachable in the narrow-pane case
@@ -1137,7 +1133,7 @@ onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 				     main.js — see runMainScript). Text files aren't scripts. -->
 				<UTooltip v-if="!fileStore.isTextFile(fileStore.activeFileName)" text="Run this script">
 					<UChip inset color="warning" :show="runActiveHighlighted">
-						<UButton icon="tabler:player-play-filled" variant="subtle" :color="runActiveHighlighted ? 'warning' : 'primary'" size="xs" @click="onRunActiveClick" />
+						<UButton icon="tabler:player-play-filled" variant="subtle" :color="runActiveHighlighted ? 'warning' : 'primary'" size="xs" @click="runActiveUserCode" />
 					</UChip>
 				</UTooltip>
 			</div>

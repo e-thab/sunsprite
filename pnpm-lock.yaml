@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  phaser@4.1.0:
+    hash: 2aeb990f9da990a5b5eeb682dea2a62fce180e65a01c13268b8af6b0a0607a26
+    path: patches/phaser@4.1.0.patch
+
 importers:
 
   .:
@@ -55,7 +60,7 @@ importers:
         version: 7.1.1(monaco-editor@0.55.1)(webpack@5.105.4(esbuild@0.28.2)(lightningcss@1.33.0))
       phaser:
         specifier: 4.1.0
-        version: 4.1.0
+        version: 4.1.0(patch_hash=2aeb990f9da990a5b5eeb682dea2a62fce180e65a01c13268b8af6b0a0607a26)
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3))
@@ -6530,7 +6535,7 @@ snapshots:
 
   perfect-debounce@2.1.0: {}
 
-  phaser@4.1.0:
+  phaser@4.1.0(patch_hash=2aeb990f9da990a5b5eeb682dea2a62fce180e65a01c13268b8af6b0a0607a26):
     dependencies:
       eventemitter3: 5.0.4
 

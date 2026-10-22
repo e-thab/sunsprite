@@ -1,3 +1,5 @@
 allowBuilds:
   esbuild: true
   vue-demi: false
+patchedDependencies:
+  phaser@4.1.0: patches/phaser@4.1.0.patch

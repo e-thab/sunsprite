@@ -7,6 +7,7 @@ import GameFrame from '@/components/GameFrame.vue'
 import CollapsiblePane from './CollapsiblePane.vue'
 import VolumeControl from './VolumeControl.vue'
 import Output from '@/api/output'
+import { releaseButtonFocus } from '@/utils/releaseButtonFocus'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
 const fpsColor = ref()
@@ -57,7 +58,9 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 <template>
   <CollapsiblePane label="Game" icon="streamline-plump:controller-1-solid">
   <div class="panel-wrapper">
-    <div class="panel-bar">
+    <!-- Buttons give focus back after a click, so Space reaches the game
+         instead of re-clicking them (see releaseButtonFocus). -->
+    <div class="panel-bar" @click="releaseButtonFocus">
       <!-- Play / Pause -->
       <!-- <UTooltip :text="playPauseLabel"> -->
         <UButton :icon="playPauseIcon" :variant="playPauseVariant" :color="playPauseColor" :label="playPauseLabel" size="xs" @click="togglePlayPause" />

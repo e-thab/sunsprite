@@ -15,7 +15,7 @@ export function Sizable<Base extends Class>(base: Base) {
         _refObj?: ReferenceObject
         _width: number = 0
         _height: number = 0
-        _scale: number = 0
+        _scale: number = 1
         // scaleX / scaleY ?
 
         constructor(...args: any[]) {
@@ -47,7 +47,6 @@ export function Sizable<Base extends Class>(base: Base) {
             if (this._refObj) this._refObj.displayWidth = width
         }
 
-        // A way to reset sprite size to default? Just use scale = 1?
         /** Vertical size in pixels. */
         get height(): number {
             if (this._refObj) return this._refObj.displayHeight
@@ -67,6 +66,10 @@ export function Sizable<Base extends Class>(base: Base) {
             this._scale = scale
             this._updateScale()
         }
+
+        /** Factor to multiply width by. Setting scaleX to 2 will double its width; 0.5 will halve it. */
+        
+        /** Factor to multiply height by. Setting scaleY to 2 will double its height; 0.5 will halve it. */
 
         // TODO: fitInside(?): XI setSize logic, fit this shape within another shape, preserving aspect
 

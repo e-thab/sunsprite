@@ -9,7 +9,10 @@ function getPhaserColor(colorString: string) {
 
 
 type CircleProps = ShapeProps & {
-    /** The distance from the center of the circle to the edge. */
+    /**
+     * Distance in pixels from the center of the circle to the edge.
+     * @default 64
+     */
     radius?: number
 }
 
@@ -42,17 +45,45 @@ export default class Circle extends Shape {
         resizeReactors.push(this)
     }
 
-    /** The distance from the center of the circle to the edge. */
+    /** Distance in pixels from the center of the circle to the edge. */
     get radius() {
         return this._radius
     }
     set radius(radius: number) {
         this._radius = radius
-        this._circle.setRadius(radius)
+        this._redraw()
+    }
+
+    /**
+     * Horizontal size in pixels: the circle's diameter. Setting this changes height
+     * to match, and radius to width/2.
+     */
+    get width(): number {
+        return this._radius * 2 * this._scale
+    }
+    set width(width: number) {
+        this.radius = this._unscaled(width) / 2
+    }
+
+    /**
+     * Vertical size in pixels: the circle's diameter. Setting this changes width
+     * to match, and radius to height/2.
+     */
+    get height(): number {
+        return this.width
+    }
+    set height(height: number) {
+        this.width = height
+    }
+
+    /** Shape override, resizes hitArea and uses setRadius to consistently resize geometry. */
+    _redraw() {
+        const r = this._radius * this._scale
+        this._circle.setRadius(r)
 
         // Resize hit circle
         const hitArea = this._circle.input?.hitArea as Phaser.Geom.Circle | undefined
-        hitArea?.setTo(radius, radius, radius)
+        hitArea?.setTo(r, r, r)
     }
 
     // Override to set interactive with a circular hit area
@@ -60,7 +91,7 @@ export default class Circle extends Shape {
         // Set's phaser object's interactive state if it isn't already
         if (!this._refObj) return
 
-        const r = this.radius
+        const r = this._radius * this._scale
         if (!this._isInteractive) {
             this._refObj.setInteractive(new Phaser.Geom.Circle(r, r, r), Phaser.Geom.Circle.Contains)
             this._isInteractive = true

@@ -80,3 +80,28 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
 
     return lines.join('\n')
 }
+
+/**
+ * Renders every class's and mixin's `@default` text as one plain `.ts` module
+ * the docs read their Default column from, keyed by class or mixin name
+ * (Sprite, Positionable) and then property name. A class's entry is its full
+ * composed set, inherited defaults and class-level overrides included, so a
+ * class page never has to consult the trait a row came from.
+ *
+ * Self-contained like renderGeneratedModule's output — no imports — so a
+ * version's frozen copy (scripts/snapshot-api.ts) resolves on its own.
+ */
+export function renderDocDefaultsModule(generated: GeneratedDeclarations, header: string[]): string {
+    const defaults: Record<string, Record<string, string>> = {}
+    const bundles = [...Object.entries(generated.mixins), ...Object.entries(generated.concreteClasses)]
+    for (const [name, bundle] of bundles) {
+        if (Object.keys(bundle.defaults).length > 0) defaults[name] = bundle.defaults
+    }
+
+    return [
+        ...header,
+        '',
+        `export const docDefaults: Record<string, Record<string, string>> = ${JSON.stringify(defaults, null, 4)}`,
+        '',
+    ].join('\n')
+}

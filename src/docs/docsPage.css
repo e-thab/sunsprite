@@ -380,6 +380,14 @@
 	white-space: nowrap;
 }
 
+/* A default given in words ("the image's width") rather than a literal. Left
+   to wrap so a sentence doesn't stretch the column, with enough width that it
+   doesn't wrap after every word instead. */
+.doc-default-prose {
+	white-space: normal;
+	min-width: 10em;
+}
+
 .doc-default code {
 	color: var(--theme-text-toned);
 }

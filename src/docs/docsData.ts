@@ -21,7 +21,17 @@ export type DocsDataContext = {
 	nodesByPath: Map<string, DocNode>
 	searchEntries: DocIndexEntry[]
 	ancestorsOf: (path: string) => DocIndexEntry[]
+	/**
+	 * Each class's and trait's property defaults, from the `@default` tags in
+	 * this version's source (see scripts/api-codegen/render.ts's
+	 * renderDocDefaultsModule) — what fills a DocProperty's Default cell when
+	 * the page doesn't write one itself.
+	 */
+	defaults: DocDefaults
 }
+
+/** Class or trait name (Sprite, Positionable) -> property name -> `@default` text. */
+export type DocDefaults = Record<string, Record<string, string>>
 
 // A Ref, not the bundle directly: the whole point is that this changes over
 // time (a version switch swaps every field at once) — see docsVersions.ts's
