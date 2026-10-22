@@ -1210,7 +1210,14 @@ onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 
 #editor-bar {
 	display: grid;
-	grid-template-columns: 1fr 1fr 1fr;
+	/* The side columns split whatever the file name leaves them, which keeps
+	   it centered while there's room. Each track still floors at its own
+	   group's min-content (1fr is minmax(auto, 1fr)), so once there's no room
+	   left the groups don't shrink into one another: the file name truncates
+	   first, then the grid simply runs past the bar's right edge and
+	   .panel-bar's overflow: hidden clips it — the same thing PhaserCanvas's
+	   flex toolbar does at that width. */
+	grid-template-columns: 1fr auto 1fr;
 	/* Makes this bar's own width queryable by .save-time below. Named rather
 	   than anonymous so the query can't accidentally resolve against some
 	   other ancestor that later becomes a container. Safe to contain on the
@@ -1231,11 +1238,10 @@ onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 	gap: 0.25em;
 	color: var(--theme-text);
 	justify-self: center;
-	/* Lets this grid item actually shrink below its content's width instead
-	   of overflowing the column — grid items default to min-width: auto,
-	   same trap flex items have. max-width keeps it from claiming more than
-	   its column ever has to give. */
-	min-width: 0;
+	/* Left at min-width: auto, this item's minimum is the run button alone:
+	   .file-name-text can shrink to nothing, so the name ellipsizes before
+	   the auto column takes any room from the groups either side. max-width
+	   keeps it from claiming more than its column ever has to give. */
 	max-width: 100%;
 }
 
@@ -1252,10 +1258,6 @@ onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 	align-self: center;
 	gap: 0.5em;
 	justify-self: start;
-	/* Same grid-item escape hatch #file-name documents above: without it this
-	   column can't shrink past its own content and the three columns overflow
-	   the bar (now clipped, not wrapped) well before they need to. */
-	min-width: 0;
 }
 
 /* Below this the save button is the widest thing in the row — one third of
@@ -1273,7 +1275,6 @@ onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 	display: inline-flex;
 	justify-self: end;
 	align-self: center;
-	min-width: 0;
 	/* transform: translate(-1px, -1px) */
 }
 

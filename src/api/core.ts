@@ -65,7 +65,15 @@ function toDisplayError(e: unknown): Error {
 	}
 }
 
-/** Single place that turns "something a user script threw" into output panel content. */
+/**
+ * Single place that turns "something a user script threw" into output panel
+ * content. An error (not a warning) also pauses the game: whatever threw it
+ * is usually a forever() body or similar that would otherwise throw again on
+ * every frame, re-reporting and re-highlighting the same line in the editor
+ * 60 times a second, which pins its scroll position to it. Paused, the
+ * script can be read and fixed; Play retries it, and Restart runs the fix.
+ * The host's pause button follows along through the next status report.
+ */
 function reportUserError(e: unknown) {
 	const err = toDisplayError(e)
 	const location = locateError(err)
@@ -76,6 +84,7 @@ function reportUserError(e: unknown) {
 	} else {
 		Output.runtimeError(err.toString(), location)
 		console.error('User code error:', err)
+		if (!paused) pause()
 	}
 }
 

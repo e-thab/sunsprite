@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { supabase } from "@/utils/supabase";
-import { getExampleCode } from "@/api/examples";
+import { getExampleCode, newProjectMainCode } from "@/api/examples";
 import { assetKindForName, type AssetKind, DEFAULT_SCRIPT_FILE_TYPE, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, splitFileName, type ScriptFileType, uploadDisplayName, uploadFileTypeFor } from "@/utils/fileTypes";
 import { useProjectSettingsStore } from "./projectSettingsStore";
 import { MAX_PROJECT_SIZE as PROJECT_STORAGE_QUOTA_BYTES } from "../../supabase/functions/_shared/uploadLimits.ts";
@@ -674,7 +674,7 @@ export const useFileStore = defineStore('files', () => {
 
         if (folderRows.length === 0 && scriptRows.length === 0) {
             const scriptsFolderId = await createFolder('scripts')
-            await createScript(newScriptName(MAIN_SCRIPT_BASE), getExampleCode(), scriptsFolderId)
+            await createScript(newScriptName(MAIN_SCRIPT_BASE), newProjectMainCode, scriptsFolderId)
         } else {
             folders.value = folderRows.map((row) => ({
                 id: row.id,

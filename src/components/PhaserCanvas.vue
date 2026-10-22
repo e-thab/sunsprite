@@ -91,7 +91,7 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
       </UBadge> -->
 
       <!-- FPS indicator -->
-      <UBadge color="primary" variant="outline">FPS: <span class="fps-number">{{ fpsRef }}</span></UBadge>
+      <UBadge class="fps-badge" color="neutral" variant="subtle">FPS: {{ fpsRef }}</UBadge>
     </div>
 
     <GameFrame @ready="$emit('ready')" />
@@ -100,8 +100,14 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 </template>
 
 <style scoped>
-.fps-number {
-  color: v-bind(fpsColor)
+/* fpsColor is a CSS named color, not one of the theme's, so it can't go
+   through UBadge's color prop. This redoes what the subtle variant does with
+   a theme color (bg-{color}/10, ring-{color}/25) by hand, over the neutral
+   subtle badge's defaults; unlayered, so it outranks those utilities. The
+   text keeps the neutral badge's color. */
+.fps-badge {
+  background-color: color-mix(in srgb, v-bind(fpsColor) 10%, transparent);
+  --tw-ring-color: color-mix(in srgb, v-bind(fpsColor) 25%, transparent);
 }
 
 .coords-badge {

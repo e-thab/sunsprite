@@ -553,6 +553,15 @@ export function getExampleCode(fileName: string = 'main.js'): string {
 
 export const exampleScriptNames = Object.keys(exampleCode)
 
+// What a brand-new cloud project's main script starts with. The guest sandbox
+// still opens on the solar system example above, but a project you've made
+// yourself starts empty apart from this.
+export const newProjectMainCode =
+`// Welcome to your new project!
+// This is your main script: it runs from the top every time you press Restart.
+// Write your code below, and open the Docs any time for help along the way.
+`
+
 
 // from examples.js:
 /* Star Catcher
