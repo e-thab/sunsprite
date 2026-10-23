@@ -105,21 +105,21 @@ export class Vector2 {
     }
 
     /**
-     * Returns the result of subtracting this vector from a given vector.
-     * @param other The point, object, or vector endpoint to subtract.
-     */
-    subtract(other: Vector2Like): Vector2 {
-        const otherVec = Vector2.from(other)
-        return new Vector2(this.x - otherVec.x, this.y - otherVec.y)
-    }
-
-    /**
      * Returns the result of adding this vector to a given vector.
      * @param other The point, object, or vector endpoint to add.
      */
     add(other: Vector2Like): Vector2 {
         const otherVec = Vector2.from(other)
         return new Vector2(this.x + otherVec.x, this.y + otherVec.y)
+    }
+
+    /**
+     * Returns the result of subtracting a given vector from this vector (this - other).
+     * @param other The point, object, or vector endpoint to subtract from.
+     */
+    subtract(other: Vector2Like): Vector2 {
+        const otherVec = Vector2.from(other)
+        return new Vector2(this.x - otherVec.x, this.y - otherVec.y)
     }
 
     /**
@@ -132,6 +132,19 @@ export class Vector2 {
             return new Vector2(this.x * otherVec.x, this.y * otherVec.y)
         } else {
             return new Vector2(this.x * other, this.y * other)
+        }
+    }
+
+    /**
+     * Returns the result of dividing a given vector or scalar (number) by this vector (this / other).
+     * @param other The point, object, vector endpoint, or number to divide by.
+     */
+    divide(other: Vector2Like | number): Vector2 {
+        if (isVector2Like(other)) {
+            const otherVec = Vector2.from(other)
+            return new Vector2(this.x / otherVec.x, this.y / otherVec.y)
+        } else {
+            return new Vector2(this.x / other, this.y / other)
         }
     }
 

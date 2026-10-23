@@ -606,11 +606,13 @@ export function after(seconds: number, fn: Action) {
  * @param fn The function to run.
  */
 export function every(seconds: number, fn: Action) {
-	_everys.push({
+	const delayable: Delayable & { until?: (elapsed: number) => void } = {
 		elapsedMs: 0,
 		lifetimeMs: seconds * 1000,
-		fn
-	})
+		fn,
+	}
+	// TODO: every.until() which lets user define a condition that will stop/destroy the every
+	_everys.push(delayable)
 	fn()
 }
 

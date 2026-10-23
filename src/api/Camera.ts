@@ -1,5 +1,5 @@
 import { clock, forever, getGamePoint, getOurPoint, mouse, repeatUntil } from "@api/core"
-import { Vector2, type Vector2Like } from "@api/Vector2"
+import { isVector2Like, Vector2, type Vector2Like } from "@api/Vector2"
 import type Sprite from "@api/Sprite"
 import type Rectangle from "@api/Rectangle"
 import type Circle from "@api/Circle"
@@ -119,12 +119,24 @@ export default class Camera {
         this._cam.shake(duration ?? 1000, intensity ?? 0.01, false, callback)
     }
 
-    goTo(x: number, y: number) {
-        this.position = new Vector2(x, y)
+    goTo(x: number, y: number): void
+    goTo(other: Vector2Like): void
+    goTo(xOrVector: number | Vector2Like, y?: number): void {
+        if (isVector2Like(xOrVector)) {
+            this.position = xOrVector
+        } else if (typeof xOrVector === 'number' && typeof y === 'number') {
+            this.position = new Vector2(xOrVector, y)
+        }
     }
 
-    easeTo(pos: Vector2Like) {
-        this._target = Vector2.from(pos)
+    easeTo(x: number, y: number): void
+    easeTo(other: Vector2Like): void
+    easeTo(xOrVector: number | Vector2Like, y?: number): void {
+        if (isVector2Like(xOrVector)) {
+            this._target = Vector2.from(xOrVector)
+        } else if (typeof xOrVector === 'number' && typeof y === 'number') {
+            this._target = Vector2.from(xOrVector, y)
+        }
         this.following = undefined
     }
 
