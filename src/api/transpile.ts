@@ -3,8 +3,9 @@ import { scriptTypeForFile } from '@/utils/fileTypes'
 
 // Turns a user script into something the browser can actually run.
 //
-// JavaScript is already runnable and passes straight through — the sandbox has
-// always executed user source verbatim, and that stays true. TypeScript can't:
+// JavaScript is already runnable and passes straight through — beyond the
+// line-preserving rewrites moduleRunner.ts makes before and after this (loop
+// guards, imports), the sandbox executes user source as written. TypeScript can't:
 // it has to be transpiled, and transpiling moves lines around (an `enum` on one
 // line becomes five; a multi-line signature collapses to one), which would
 // quietly break every runtime error location that points back into the editor.

@@ -8,7 +8,7 @@ import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@
 import { Vector2, type Vector2Like } from '@api/Vector2'
 import { Mouse } from '@api/types'
 import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from '@api/utility'
-import { runEntryModule, locateError } from '@api/moduleRunner'
+import { runEntryModule, locateError, resetLoopGuard } from '@api/moduleRunner'
 import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 
 import Output from '@/sandbox/output'
@@ -107,6 +107,9 @@ function runUserCallback<T>(fn: () => T, fallback: T): T {
 	try {
 		return fn()
 	} catch (e) {
+		// Whatever loop may have tripped the guard has unwound by now; the
+		// next callback this frame starts with a clean slate.
+		resetLoopGuard()
 		reportUserError(e)
 		return fallback
 	}

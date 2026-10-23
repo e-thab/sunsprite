@@ -34,6 +34,12 @@ Error.stackTraceLimit = 50
 const API_GLOBAL = '__sunspriteApi'
 const IMPORT_HELPER = '__sunspriteImport'
 const BLOCK_HELPER = '__sunspriteBlocked'
+const LOOP_GUARD = '__sunspriteLoopGuard'
+
+// How long user code may loop without yielding before loopGuard stops it. Far
+// below the point where the browser offers to kill the page, and far above
+// anything a loop inside a game frame should legitimately take.
+const LOOP_TIME_LIMIT_MS = 1000
 
 /**
  * Names bound to a throwing stub in every user script's scope, so touching the
@@ -66,8 +72,8 @@ const BLOCKED_GLOBALS = [
 ]
 
 // Compiled-output line -> editor line, per script, for the run in progress.
-// Only TypeScript ever lands here: a .js script executes verbatim, so its
-// compiled lines already are the ones its editor shows. Cleared at the start
+// Only TypeScript ever lands here: a .js script executes line-for-line as
+// written, so its compiled lines already are the ones its editor shows. Cleared at the start
 // of every run — script contents are re-read each time, so a stale map would
 // be describing an edit that's already been superseded.
 const lineMaps = new Map<string, number[]>()
@@ -147,6 +153,98 @@ function rewriteImports(source: string, label: string): string {
     return result
 }
 
+// Plants a LOOP_GUARD call at the top of every loop body, so a loop that never
+// finishes throws (see loopGuard) instead of hanging the sandbox until the
+// browser offers to kill the page. Same text-splicing approach as
+// rewriteImports, and for the same reason: every insertion lands on a line that
+// already exists, so nothing below it moves and error locations stay exact.
+//
+// A body that isn't already a block is wrapped in one, so the guard runs on
+// every iteration rather than once after the loop.
+function guardLoops(source: string, label: string): string {
+    const sourceFile = ts.createSourceFile(label, source, ts.ScriptTarget.ES2020, true, scriptKindFor(label))
+    const call = `${LOOP_GUARD}();`
+    const edits: { at: number, text: string }[] = []
+
+    const visit = (node: ts.Node): void => {
+        if (ts.isIterationStatement(node, false)) {
+            const body = node.statement
+            if (ts.isBlock(body)) {
+                edits.push({ at: body.getStart(sourceFile) + 1, text: call })
+            } else {
+                edits.push({ at: body.getStart(sourceFile), text: `{${call}` })
+                edits.push({ at: body.getEnd(), text: '}' })
+            }
+        }
+        ts.forEachChild(node, visit)
+    }
+    visit(sourceFile)
+
+    // Back to front, so each edit's offset is still valid when it's applied.
+    // Two edits only ever share an offset when both are a closing '}' (an
+    // unbraced loop nested as the unbraced body of another), so their
+    // relative order doesn't matter.
+    let result = source
+    for (const edit of edits.sort((a, b) => b.at - a.at)) {
+        result = result.slice(0, edit.at) + edit.text + result.slice(edit.at)
+    }
+    return result
+}
+
+// loopGuard's state for the current synchronous slice: everything that runs
+// between two points where the sandbox yields (a frame ending, an `await`).
+let sliceArmed = false
+let sliceStart = 0
+let sliceTripped = false
+
+/**
+ * Called at the top of every loop iteration in user code (see guardLoops).
+ * Times how long the sandbox has gone without yielding, and throws once that
+ * passes LOOP_TIME_LIMIT_MS.
+ *
+ * The clock starts at the first iteration in a slice and is stopped by a
+ * queued microtask, which can only run once the current synchronous stretch of
+ * code has ended. A loop that `await`s, or finishes and lets the frame end,
+ * lets it run and the next slice starts fresh; a loop that never yields never
+ * does, so its time keeps adding up. That keeps a long-lived async loop, or a
+ * forever() body that loops a little every frame, from ever tripping it.
+ *
+ * Once tripped, every guard throws until the slice ends (or resetLoopGuard is
+ * called) — otherwise an outer loop with a try/catch inside it would swallow
+ * the inner loop's error and carry on hanging the page anyway.
+ */
+function loopGuard(): void {
+    if (sliceTripped) throw loopTimeoutError()
+
+    if (!sliceArmed) {
+        sliceArmed = true
+        sliceStart = performance.now()
+        queueMicrotask(resetLoopGuard)
+        return
+    }
+
+    if (performance.now() - sliceStart > LOOP_TIME_LIMIT_MS) {
+        sliceTripped = true
+        throw loopTimeoutError()
+    }
+}
+
+function loopTimeoutError(): Error {
+    const seconds = LOOP_TIME_LIMIT_MS / 1000
+    return new Error(`This loop ran for over ${seconds} second${seconds === 1 ? '' : 's'} without finishing, so it was stopped. Is it an infinite loop?`)
+}
+
+/**
+ * Starts loopGuard's clock over. Called by the runtime once a user callback's
+ * error has been caught: by then the stack has unwound out of whatever loop
+ * tripped the guard, so the hang is over, and the next callback in the same
+ * frame shouldn't inherit the blame for it.
+ */
+export function resetLoopGuard(): void {
+    sliceArmed = false
+    sliceTripped = false
+}
+
 /**
  * Builds the per-run module every user script imports its API from.
  *
@@ -167,6 +265,7 @@ function buildApiModuleSource(apiKeys: string[]): string {
 
     lines.push(`export const ${IMPORT_HELPER} = globalThis.${IMPORT_HELPER};`)
     lines.push(`export const ${BLOCK_HELPER} = globalThis.${BLOCK_HELPER};`)
+    lines.push(`export const ${LOOP_GUARD} = globalThis.${LOOP_GUARD};`)
 
     return lines.join('\n')
 }
@@ -186,15 +285,20 @@ function buildApiModuleSource(apiKeys: string[]): string {
 function compileScript(source: string, label: string, apiKeys: string[], apiUrl: string): string {
     checkSyntax(source, label)
 
+    // Guarded before transpiling, so it covers .js and .ts alike, and so a
+    // TypeScript source map points the guard's own throw back at the loop
+    // it was planted in.
+    const guarded = guardLoops(source, label)
+
     // Transpiled first, so the rewriting below only ever sees JavaScript:
     // TypeScript elides its own `import type` statements here and emits every
     // surviving import on a single line, which is what lets the (line-
     // preserving) rewrite leave the source map underneath it intact.
-    const { code, lineMap } = compileToRunnable(source, label)
+    const { code, lineMap } = compileToRunnable(guarded, label)
     if (lineMap) lineMaps.set(label, lineMap)
     else lineMaps.delete(label)
 
-    const imported = [...apiKeys, IMPORT_HELPER, BLOCK_HELPER]
+    const imported = [...apiKeys, IMPORT_HELPER, BLOCK_HELPER, LOOP_GUARD]
     const parts = [`import { ${imported.join(', ')} } from ${JSON.stringify(apiUrl)};`]
 
     // An API name always wins over a blocked one: `print` is Sunsprite's, not
@@ -493,6 +597,8 @@ export async function runEntryModule(entryCode: string, api: Record<string, unkn
     ;(globalThis as any)[API_GLOBAL] = api
     ;(globalThis as any)[IMPORT_HELPER] = importScript
     ;(globalThis as any)[BLOCK_HELPER] = blockedGlobal
+    ;(globalThis as any)[LOOP_GUARD] = loopGuard
+    resetLoopGuard()
 
     try {
         await runAsModule(compileScript(entryCode, entryName, apiKeys, apiUrl))
