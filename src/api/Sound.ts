@@ -376,8 +376,11 @@ export default class Sound {
 
     /** Play the sound until finished or stopped manually. */
     play() {
-        if (this._loading) this._playWhenLoaded = true
-        else this._ref.play()
+        if (this._loading) {
+            this._playWhenLoaded = true
+        } else {
+            this._ref.play()
+        }
     }
 
     /**

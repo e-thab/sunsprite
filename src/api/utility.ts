@@ -1,3 +1,33 @@
+import { Vector2 } from "./Vector2"
+
+
+/**
+ * Moves `current` toward `target` like a critically damped spring. Returns an object
+ * with the new position and velocity.
+ * @param smoothTime Lower = snappier
+ * @returns { position: Vector2, velocity: Vector2 }
+ */
+export function smoothDamp(
+    current: Vector2,
+    target: Vector2,
+    velocity: Vector2,
+    smoothTime: number,
+    dt: number
+): { position: Vector2, velocity: Vector2 } {
+    const omega = 2 / Math.max(smoothTime, 0.0001)
+    const decay = Math.exp(-omega * dt) // e^(-ω·dt)
+    const offset = current.subtract(target)
+    const temp = velocity.add(offset.multiply(omega)).multiply(dt)
+
+    return {
+        // x(dt) = (x0 + (v0 + ω·x0)·dt)·e^(-ω·dt)
+        position: target.add(offset.add(temp).multiply(decay)),
+
+        // v(dt) = (v0 - ω·(v0 + ω·x0)·dt)·e^(-ω·dt)
+        velocity: velocity.subtract(temp.multiply(omega)).multiply(decay)
+    }
+}
+
 function getColorBrightness(hex: string): number {
 	const r = parseInt(hex.slice(1, 3), 16)
 	const g = parseInt(hex.slice(3, 5), 16)

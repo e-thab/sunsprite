@@ -1,10 +1,10 @@
-import { forever, getGamePoint, getOurPoint, mouse, repeatUntil } from "@api/core"
+import { clock, forever, getGamePoint, getOurPoint, mouse, repeatUntil } from "@api/core"
 import { Vector2, type Vector2Like } from "@api/Vector2"
 import type Sprite from "@api/Sprite"
 import type Rectangle from "@api/Rectangle"
 import type Circle from "@api/Circle"
 import type Label from "@api/Label"
-import Output from "@/sandbox/output"
+import { smoothDamp } from "./utility"
 
 /** User camera reference. */
 export default class Camera {
@@ -15,7 +15,9 @@ export default class Camera {
     _y: number = 0
     // panning: boolean = false
     _target?: Vector2
+    _velocity: Vector2 = Vector2.ZERO
     following?: Sprite | Rectangle | Circle | Label
+    smoothTime: number = 0.15
 
     constructor(cam: Phaser.Cameras.Scene2D.Camera) {
         this._cam = cam
@@ -121,36 +123,19 @@ export default class Camera {
         this.position = new Vector2(x, y)
     }
 
-    easeTo(pos: Vector2Like, duration?: number) {
-        // const x = pos.x - this.zoom * (screen.right - this.x)
-        // const y = -pos.y - this.zoom * (screen.right - this.x)
-        const posv = Vector2.from(pos)
-        const targetPos = getOurPoint(posv)
-        this._cam.pan(targetPos.x, targetPos.y, duration ?? 1000, 'Power3', true, (cam, progress, x, y) => {
-            this._x = x
-            this._y = -y
-        })
-    }
-
-    moveToward(pos: Vector2Like, amount: number) {
-        // TODO !!
+    easeTo(pos: Vector2Like) {
+        this._target = Vector2.from(pos)
+        this.following = undefined
     }
 
     follow(gameObject: Sprite | Rectangle | Circle | Label) {
         this.following = gameObject
-        // this._cam.startFollow(gameObject._refObj, false, 0.05, 0.05)
-        // repeatUntil(() => !this.following, () => {
-        //     this._x = this._cam.scrollX
-        //     this._y = -this._cam.scrollY
-        // })
     }
 
     stopFollow() {
-        // this._cam.stopFollow()
-        // Ends follow()'s position sync, which would otherwise keep running
-        // and stack another copy on top with every later follow() call.
-        this._target = undefined
         this.following = undefined
+        this._target = undefined
+        this._velocity = Vector2.ZERO
     }
 
     reset() {
@@ -162,13 +147,23 @@ export default class Camera {
 
         // The loop handling camera ease and follow
         forever(delta => {
-            if (this.following) {
-                const target = Vector2.from(this.following)
-                if (!this.position.equals(target)) {
-                    const v = target.subtract(this.position)
-                    this.position = this.position.add(v.normal.multiply(v.length * 0.1))
-                }
+            if (this.following) this._target = Vector2.from(this.following)
+            if (!this._target) return
+
+            const step = smoothDamp(this.position, this._target, this._velocity, this.smoothTime, clock.deltaMs / 1000)
+            this.position = step.position
+            this._velocity = step.velocity
+
+            if (!this.following && this.position.distanceTo(this._target) < 0.01 && this._velocity.length < 0.01) {
+                this.position = this._target
+                this._velocity = Vector2.ZERO
+                this._target = undefined
             }
+
+            // if (!this.position.equals(this._target)) {
+            //     const v = this._target.subtract(this.position)
+            //     this.position = this.position.add(v.multiply(1 - Math.exp(-k * delta)))
+            // }
         })
     }
 

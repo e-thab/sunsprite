@@ -35,10 +35,20 @@ export class Vector2 {
         this.y = y
 	}
 
-    /** Sets the given x and y values. */
-    set(x: number, y: number) {
-        this.x = x
-        this.y = y
+    /** Sets this vector's x and y to a given x and y, or to the same values as another vector. */
+    set(x: number, y: number): void
+    set(other: Vector2Like): void
+    set(xOrOther: number | Vector2Like, y?: number): void {
+        if (isVector2Like(xOrOther) && y === undefined) {
+            const otherVec = Vector2.from(xOrOther)
+            this.x = otherVec.x
+            this.y = otherVec.y
+        } else if (typeof xOrOther === 'number' && typeof y === 'number') {
+            this.x = xOrOther
+            this.y = y
+        } else {
+            Output.runtimeError(`Bad arguments for Vector2.set()`)
+        }
     }
     
     /** Sets both x and y to the same value. */
