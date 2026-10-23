@@ -1,9 +1,10 @@
-import { getGamePoint, getOurPoint, mouse, repeatUntil } from "@api/core"
+import { forever, getGamePoint, getOurPoint, mouse, repeatUntil } from "@api/core"
 import { Vector2, type Vector2Like } from "@api/Vector2"
 import type Sprite from "@api/Sprite"
 import type Rectangle from "@api/Rectangle"
 import type Circle from "@api/Circle"
 import type Label from "@api/Label"
+import Output from "@/sandbox/output"
 
 /** User camera reference. */
 export default class Camera {
@@ -13,6 +14,7 @@ export default class Camera {
     _x: number = 0
     _y: number = 0
     // panning: boolean = false
+    _target?: Vector2
     following?: Sprite | Rectangle | Circle | Label
 
     constructor(cam: Phaser.Cameras.Scene2D.Camera) {
@@ -56,8 +58,10 @@ export default class Camera {
     set position(pos: Vector2Like) {
         const newPos = Vector2.from(pos)
         this._pos = newPos
-        const { x, y } = getOurPoint(newPos)
-        this._cam.centerOn(x, y)
+        // const { x, y } = getOurPoint(newPos)
+        // this._cam.centerOn(x, y)
+        this.x = newPos.x
+        this.y = newPos.y
     }
 
     get pos(): Vector2 {
@@ -134,24 +138,38 @@ export default class Camera {
 
     follow(gameObject: Sprite | Rectangle | Circle | Label) {
         this.following = gameObject
-        this._cam.startFollow(gameObject._refObj, false, 0.05, 0.05)
-        repeatUntil(() => !this.following, () => {
-            this._x = this._cam.scrollX
-            this._y = -this._cam.scrollY
-        })
+        // this._cam.startFollow(gameObject._refObj, false, 0.05, 0.05)
+        // repeatUntil(() => !this.following, () => {
+        //     this._x = this._cam.scrollX
+        //     this._y = -this._cam.scrollY
+        // })
     }
 
     stopFollow() {
-        this._cam.stopFollow()
+        // this._cam.stopFollow()
         // Ends follow()'s position sync, which would otherwise keep running
         // and stack another copy on top with every later follow() call.
+        this._target = undefined
         this.following = undefined
     }
 
     reset() {
-        this.x = 0
-        this.y = 0
+        this.goTo(0, 0)
+        this._pos = Vector2.ZERO
         this.zoom = 1
+        this.following = undefined
+        this._target = undefined
+
+        // The loop handling camera ease and follow
+        forever(delta => {
+            if (this.following) {
+                const target = Vector2.from(this.following)
+                if (!this.position.equals(target)) {
+                    const v = target.subtract(this.position)
+                    this.position = this.position.add(v.normal.multiply(v.length * 0.1))
+                }
+            }
+        })
     }
 
     _setCam(cam: Phaser.Cameras.Scene2D.Camera) {

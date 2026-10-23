@@ -94,6 +94,46 @@ export class Vector2 {
         this.rotation = Vector2.from(other.x - this.x, other.y - this.y).rotation
     }
 
+    /**
+     * Returns the result of subtracting this vector from a given vector.
+     * @param other The point, object, or vector endpoint to subtract.
+     */
+    subtract(other: Vector2Like): Vector2 {
+        const otherVec = Vector2.from(other)
+        return new Vector2(this.x - otherVec.x, this.y - otherVec.y)
+    }
+
+    /**
+     * Returns the result of adding this vector to a given vector.
+     * @param other The point, object, or vector endpoint to add.
+     */
+    add(other: Vector2Like): Vector2 {
+        const otherVec = Vector2.from(other)
+        return new Vector2(this.x + otherVec.x, this.y + otherVec.y)
+    }
+
+    /**
+     * Returns the result of multiplying this vector by a given vector or scalar (number).
+     * @param other The point, object, vector endpoint, or number to multiply.
+     */
+    multiply(other: Vector2Like | number): Vector2 {
+        if (isVector2Like(other)) {
+            const otherVec = Vector2.from(other)
+            return new Vector2(this.x * otherVec.x, this.y * otherVec.y)
+        } else {
+            return new Vector2(this.x * other, this.y * other)
+        }
+    }
+
+    /**
+     * Whether this vector's x and y are both equal to a given vector's.
+     * @param other 
+     */
+    equals(other: Vector2Like): boolean {
+        const otherVec = Vector2.from(other)
+        return this.x === otherVec.x && this.y === otherVec.y
+    }
+
     get rotation(): number {
         return atan2(this.y, this.x, 'degrees')
     }
@@ -111,17 +151,17 @@ export class Vector2 {
         this.x = length * cos(radians, 'radians')
         this.y = length * sin(radians, 'radians')
     }
-    
-    // /** Points this vector toward the position of another object or end point of another vector. */
-    // lookAt(other: Vector2Like) {
-    //     other = Vector2.from(other)
-    //     const newDir = Vector2.from(other.x - this.x, other.y - this.y)
-    // }
 
     /** Magnitude of this vector. */
     get length(): number {
         return Math.sqrt(this.x ** 2 + this.y ** 2)
     }
+
+    // /** A normalized vector with the same rotation as this vector. */
+    // get direction(): Vector2 {
+    //     const v = this.normalized
+    //     return new Vector2
+    // }
 
     /**
      * Angle of this vector in the given unit, defaults to degrees.
