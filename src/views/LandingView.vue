@@ -89,7 +89,7 @@ class LandingScene extends Scene {
 
 <template>
   <div class="landing-view">
-    <div id="game" class="foreground-canvas"></div>
+    <!-- <div id="game" class="foreground-canvas"></div> -->
 
     <UPageHero
       description="A super simple, browser-based game engine for JavaScript beginners, built on top of the Phaser engine. Sign up and create a project or jump into the sandbox to get started!"

@@ -134,6 +134,37 @@ function onEditorDrop(event: DragEvent) {
 	editor.focus()
 }
 
+// The parts of Monaco's find controller (an editor contribution with no public
+// type) that trackFindWidgetOnBody reads.
+interface FindControllerContribution extends monaco.editor.IEditorContribution {
+	getState(): { readonly isRevealed: boolean, onFindReplaceStateChange: monaco.IEvent<{ isRevealed: boolean }> }
+}
+
+const FIND_OPEN_BODY_CLASS = 'monaco-find-open'
+
+// Mirrors whether the find widget is open onto a class on <body>, for
+// main.css's hover-flicker fix, which has to reach the hover container Monaco
+// reparents onto <body>. That rule used to find the widget with
+// `body:has(.monaco-editor .find-widget.visible)` instead, but Chrome
+// re-evaluates a <body>-level :has() on every change to the classes it
+// names, and Monaco's scrollbars toggle `visible` on every scroll. Once the
+// find widget existed and any workbench hover had shown (its buttons'
+// tooltips are enough), each scroll tick paid for a style recalc over the
+// whole page: about 38ms a tick measured, against under 1ms with a class.
+function trackFindWidgetOnBody(editor: monaco.editor.IStandaloneCodeEditor) {
+	const state = editor.getContribution<FindControllerContribution>('editor.contrib.findController')?.getState()
+	if (!state) return
+
+	const sync = () => document.body.classList.toggle(FIND_OPEN_BODY_CLASS, state.isRevealed)
+	sync()
+	state.onFindReplaceStateChange((event) => {
+		if (event.isRevealed) sync()
+	})
+	// Switching files remounts the editor (see the :key on <CodeEditor>), and
+	// one disposed with its find widget open would otherwise leave the class on.
+	editor.onDidDispose(() => document.body.classList.remove(FIND_OPEN_BODY_CLASS))
+}
+
 function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	editorInstance.value = editor
 	monaco.editor.setTheme(monacoThemeName(themeStore.currentId))
@@ -147,6 +178,8 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
 		saveCurrentCode()
 	})
+
+	trackFindWidgetOnBody(editor)
 
 	// TODO: Look into setting up CodeLens, maybe for running specific sections of the code..?
 

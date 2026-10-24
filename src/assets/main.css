@@ -17,11 +17,15 @@
   background-color: #252a33;
 } */
 
-/* 
+/*
   Fix monaco hover tooltips flickering on ctrl+f menu
   via https://github.com/PostHog/posthog/pull/56025
+
+  Keyed on a class CodeEditor.vue sets (trackFindWidgetOnBody) rather than
+  that PR's body:has(.monaco-editor .find-widget.visible), which made every
+  editor scroll recalculate the whole page's styles once ctrl+f had been used.
 */
-body:has(.monaco-editor .find-widget.visible) .workbench-hover-container {
+body.monaco-find-open .workbench-hover-container {
   pointer-events: none !important;
 
   &,
