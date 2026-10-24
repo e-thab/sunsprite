@@ -16,8 +16,11 @@ export default class Camera {
     // panning: boolean = false
     _target?: Vector2
     _velocity: Vector2 = Vector2.ZERO
+    _zoomTarget?: number
+    _zoomVelocity: number = 0
     following?: Sprite | Rectangle | Circle | Label
     smoothTime: number = 0.15
+    zoomSmoothTime: number = 0.15
 
     constructor(cam: Phaser.Cameras.Scene2D.Camera) {
         this._cam = cam
@@ -140,6 +143,10 @@ export default class Camera {
         this.following = undefined
     }
 
+    easeZoom(zoom: number) {
+        this._zoomTarget = zoom
+    }
+
     follow(gameObject: Sprite | Rectangle | Circle | Label) {
         this.following = gameObject
     }
@@ -152,26 +159,50 @@ export default class Camera {
 
     reset() {
         this.goTo(0, 0)
-        this._pos = Vector2.ZERO
         this.zoom = 1
         this.following = undefined
+        this._pos = Vector2.ZERO
+        this._velocity = Vector2.ZERO
         this._target = undefined
+        this._zoomTarget = undefined
+        this._zoomVelocity = 0
 
         // The loop handling camera ease and follow
         forever(delta => {
             if (this.following) this._target = Vector2.from(this.following)
-            if (!this._target) return
 
-            const step = smoothDamp(this.position, this._target, this._velocity, this.smoothTime, clock.deltaMs / 1000)
-            this.position = step.position
-            this._velocity = step.velocity
-
-            if (!this.following && this.position.distanceTo(this._target) < 0.01 && this._velocity.length < 0.01) {
-                this.position = this._target
-                this._velocity = Vector2.ZERO
-                this._target = undefined
+            const dt = clock.deltaMs / 1000
+            if (this._target !== undefined) {
+                // Smooth damp position
+                const step = smoothDamp(
+                    this.position, this._target, 
+                    this._velocity, this.smoothTime, dt
+                )
+                this.position = step.position
+                this._velocity = step.velocity
+    
+                if (!this.following && this.position.distanceTo(this._target) < 0.01 && this._velocity.length < 0.01) {
+                    this.position = this._target
+                    this._velocity = Vector2.ZERO
+                    this._target = undefined
+                }
             }
 
+            // Smooth damp zoom
+            if (this._zoomTarget !== undefined) {
+                const step = smoothDamp(
+                    Math.log(this.zoom), Math.log(this._zoomTarget), 
+                    this._zoomVelocity, this.zoomSmoothTime, dt
+                )
+                this.zoom = Math.exp(step.value)
+                this._zoomVelocity = step.velocity
+
+                if (Math.abs(this.zoom - this._zoomTarget) < 0.0001 && Math.abs(this._zoomVelocity) < 0.0001) {
+                    this.zoom = this._zoomTarget
+                    this._zoomVelocity = 0
+                    this._zoomTarget = undefined
+                }
+            }
             // if (!this.position.equals(this._target)) {
             //     const v = this._target.subtract(this.position)
             //     this.position = this.position.add(v.multiply(1 - Math.exp(-k * delta)))
