@@ -7,7 +7,7 @@ import type { ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
 import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@api/assets'
 import { Vector2, type Vector2Like } from '@api/Vector2'
 import { Mouse } from '@api/types'
-import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from '@api/utility'
+import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp, smoothDamp } from '@api/utility'
 import { runEntryModule, locateError, resetLoopGuard } from '@api/moduleRunner'
 import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 
@@ -1007,6 +1007,7 @@ class UserScene extends Scene {
 			floor: Math.floor,
 			ceil: Math.ceil,
 			round: Math.round,
+			smoothDamp,
 			PI: Math.PI,
 		}
 

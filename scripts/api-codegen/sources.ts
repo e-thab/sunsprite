@@ -164,6 +164,7 @@ export const FREE_FUNCTIONS = [
     { file: apiPath('utility.ts'), name: 'tan' },
     { file: apiPath('utility.ts'), name: 'atan2' },
     { file: apiPath('utility.ts'), name: 'clamp' },
+    { file: apiPath('utility.ts'), name: 'smoothDamp' },
 ] as const
 
 /**

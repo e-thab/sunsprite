@@ -1,18 +1,23 @@
 import Output from "@/sandbox/output"
 import Warning from "./Warning"
 import { currentLocation } from "@api/moduleRunner"
-import { atan2, cos, deg2rad, rad2deg, sin } from "./utility"
+import { atan2, cos, sin } from "./utility"
 
 /** Vector2-interpretable array of the form [x, y]. */
 type XYArray = [number, number]
 /** Any object with numeric { x, y } */
 type XYObject = { x: number, y: number }
+type PosObject = { position: XYObject }
 
 /** 
  * Type to be used when providing vector2 as arguments/setter values,
  * either an { x, y } object or an [x, y] array.
  */
-export type Vector2Like = XYObject | XYArray
+export type Vector2Like = XYObject | PosObject | XYArray
+
+export function isPosObject(obj: any): obj is PosObject {
+    return obj && obj.position && typeof obj.position.x === 'number' && typeof obj.position.y === 'number'
+}
 
 export function isXYObject(obj: any): obj is XYObject {
     return obj && typeof obj.x === 'number' && typeof obj.y === 'number'
@@ -22,7 +27,7 @@ export function isXYArray(obj: any): obj is XYArray {
 }
 
 export function isVector2Like(obj: any): obj is Vector2Like {
-    return isXYObject(obj) || isXYArray(obj)
+    return isXYObject(obj) || isPosObject(obj) || isXYArray(obj)
 }
 
 export function isVector2(obj: any): obj is Vector2 {
@@ -261,8 +266,10 @@ export class Vector2 {
     /** Create a Vector2 from a pair of x/y values. */
     static from(x: number, y: number): Vector2
     /** 
-     * Create a Vector2 from a Vector2Like; either an { x, y } obj or a
-     * [number, number] array.
+     * Create a Vector2 from a Vector2Like: any one of these shapes:
+     * - An object with { x: number, y: number }
+     * - An object with { position: { x: number, y: number } }
+     * - An array matching [number, number] (maps to [x, y])
      */
     static from(xy: Vector2Like): Vector2
     /** 
@@ -278,6 +285,10 @@ export class Vector2 {
     static from(xOrXy: number | number[] | Vector2Like, y?: number): Vector2 {
         if (isXYObject(xOrXy)) {
             return new Vector2(xOrXy.x, xOrXy.y)
+        }
+
+        if (isPosObject(xOrXy)) {
+            return new Vector2(xOrXy.position.x, xOrXy.position.y)
         }
     
         if (isXYArray(xOrXy)) {

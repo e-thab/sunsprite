@@ -28,7 +28,16 @@ export enum TintMode {
     FILL = 'fill',
     HARD_LIGHT = 'hard_light',
     OVERLAY = 'overlay',
-    SCREEN = 'screen'
+    SCREEN = 'screen',
+}
+
+// TODO: Blend Modes
+enum BlendMode {
+    ADD = 'add',
+    NORMAL = 'normal',
+    MULTIPLY = 'multiply',
+    SCREEN = 'screen',
+    ERASE = 'erase',
 }
 
 /** How a sprite's tint color is combined with its image. See Sprite.tintMode. */

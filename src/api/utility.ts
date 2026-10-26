@@ -4,8 +4,11 @@ import { isVector2, isVector2Like, Vector2 } from "./Vector2"
 /**
  * Moves `current` value toward `target` value like a critically damped spring.
  * Returns an object with the new value and velocity.
- * @param smoothTime Lower = snappier
- * @returns { value: number, velocity: number }
+ * @param current Current value
+ * @param target Target value
+ * @param velocity How fast the value is moving right now, should be 0 or a variable assigned by a previous smoothDamp call
+ * @param smoothTime How fast the value changes in seconds, **lower** values mean **faster** movement
+ * @param dt Delta time in seconds
  */
 export function smoothDamp(
     current: number,
@@ -18,8 +21,11 @@ export function smoothDamp(
 /**
  * Moves `current` vector toward `target` vector like a critically damped spring.
  * Returns an object with the new position and velocity.
- * @param smoothTime Lower = snappier
- * @returns { position: Vector2, velocity: Vector2 }
+ * @param current Current vector
+ * @param target Target vector
+ * @param velocity How fast the vector is moving right now, should be 0 or a variable assigned by a previous smoothDamp call
+ * @param smoothTime How fast the vector changes in seconds, **lower** values mean **faster** movement
+ * @param dt Delta time in seconds
  */
 export function smoothDamp(
     current: Vector2,

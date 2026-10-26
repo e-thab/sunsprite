@@ -38,53 +38,53 @@ const links = computed<ButtonProps[]>(() => [
       },
 ])
 
-onMounted(() => {
-  scene.value = new LandingScene()
+// onMounted(() => {
+//   scene.value = new LandingScene()
 
-  let config: PhaserTypes.Core.GameConfig = {
-    type: AUTO,
-    scale: {
-      // mode: Phaser.Scale.RESIZE
-      // mode: Scale.NONE
-      autoCenter: Scale.Center.CENTER_BOTH,
-      mode: Scale.EXPAND
-    },
-    parent: 'game',
-    autoFocus: false,
-    transparent: true,
-    scene: scene.value
-  }
+//   let config: PhaserTypes.Core.GameConfig = {
+//     type: AUTO,
+//     scale: {
+//       // mode: Phaser.Scale.RESIZE
+//       // mode: Scale.NONE
+//       autoCenter: Scale.Center.CENTER_BOTH,
+//       mode: Scale.EXPAND
+//     },
+//     parent: 'game',
+//     autoFocus: false,
+//     transparent: true,
+//     scene: scene.value
+//   }
 
-  game.value = new Game(config)
-})
-const scene = ref<LandingScene>()
-const game = ref<Game>()
+//   game.value = new Game(config)
+// })
+// const scene = ref<LandingScene>()
+// const game = ref<Game>()
 
-class LandingScene extends Scene {
-  sprite?: GameObjects.Sprite
+// class LandingScene extends Scene {
+//   sprite?: GameObjects.Sprite
 
-  constructor() {
-		super('main')
-    // this.sprite = this.add.sprite(0, 0, '__MISSING')
-	}
+//   constructor() {
+// 		super('main')
+//     // this.sprite = this.add.sprite(0, 0, '__MISSING')
+// 	}
 
-  preload() {
-    // this.load.image('guy', 'assets/guy.png')
-    this.load.image('gator', 'https://sunsprite.dev/sun.svg')
-  }
+//   preload() {
+//     // this.load.image('guy', 'assets/guy.png')
+//     this.load.image('gator', 'https://sunsprite.dev/sun.svg')
+//   }
 
-  create() {
-    this.sprite = this.add
-      .sprite(0, 0, 'gator')
-      .setScale(0.25, 0.25)
-    ;
-  }
+//   create() {
+//     this.sprite = this.add
+//       .sprite(0, 0, 'gator')
+//       .setScale(0.25, 0.25)
+//     ;
+//   }
 
-  update() {
-    const mousePos = this.input.activePointer.position
-    this.sprite?.setPosition(mousePos.x, mousePos.y)
-  }
-}
+//   update() {
+//     const mousePos = this.input.activePointer.position
+//     this.sprite?.setPosition(mousePos.x, mousePos.y)
+//   }
+// }
 </script>
 
 <template>

@@ -46,7 +46,7 @@ import {
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
-    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
+    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothDampDeclaration,
 } from "./generated/apiDeclarations.generated"
 import type { AssetKind, NamedAsset } from "./fileNames"
 
@@ -149,6 +149,8 @@ export interface VersionedApiConstants {
     tanDeclaration: string
     atan2Declaration: string
     clampDeclaration: string
+    // Optional: snapshots cut before smoothDamp existed don't export it.
+    smoothDampDeclaration?: string
 }
 
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
@@ -265,8 +267,11 @@ type ArrayPoint = [number, number]
 /** PointArg def */
 type PointArg = Point | ArrayPoint
 
-/** A Vector2-interpretable value: either an { x, y } object or a [x, y] array. */
-type Vector2Like = { x: number, y: number } | [number, number]
+/**
+ * A Vector2-interpretable value: an { x, y } object, an object with a
+ * { position: { x, y } }, or a [x, y] array.
+ */
+type Vector2Like = { x: number, y: number } | { position: { x: number, y: number } } | [number, number]
 
 /**
  * Any of the nine anchor points on an object, in either the canonical
@@ -514,6 +519,8 @@ ${v.atan2Declaration}
 
 ${v.clampDeclaration}
 
+${v.smoothDampDeclaration ?? ''}
+
 /**
  * Returns the square root of a number.
  * @param num A number.
@@ -744,5 +751,5 @@ export const apiLib = buildApiLib({
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
-    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration,
+    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothDampDeclaration,
 })
