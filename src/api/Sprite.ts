@@ -32,13 +32,13 @@ export enum TintMode {
 }
 
 // TODO: Blend Modes
-enum BlendMode {
-    ADD = 'add',
-    NORMAL = 'normal',
-    MULTIPLY = 'multiply',
-    SCREEN = 'screen',
-    ERASE = 'erase',
-}
+// enum BlendMode {
+//     ADD = 'add',
+//     NORMAL = 'normal',
+//     MULTIPLY = 'multiply',
+//     SCREEN = 'screen',
+//     ERASE = 'erase',
+// }
 
 /** How a sprite's tint color is combined with its image. See Sprite.tintMode. */
 export type TintModeName = `${TintMode}`

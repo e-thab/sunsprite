@@ -1,9 +1,5 @@
-import { clock, forever, getGamePoint, getOurPoint, mouse, repeatUntil } from "@api/core"
-import { isVector2Like, Vector2, type Vector2Like } from "@api/Vector2"
-import type Sprite from "@api/Sprite"
-import type Rectangle from "@api/Rectangle"
-import type Circle from "@api/Circle"
-import type Label from "@api/Label"
+import { clock, forever, mouse } from "@api/core"
+import { isVector2Like, Vector2, type Vector2Like, type HasPosition } from "@api/Vector2"
 import { smoothDamp } from "./utility"
 
 /** User camera reference. */
@@ -18,7 +14,7 @@ export default class Camera {
     _velocity: Vector2 = Vector2.ZERO
     _zoomTarget?: number
     _zoomVelocity: number = 0
-    following?: Sprite | Rectangle | Circle | Label
+    following?: HasPosition
     smoothTime: number = 0.15
     zoomSmoothTime: number = 0.15
 
@@ -147,7 +143,7 @@ export default class Camera {
         this._zoomTarget = zoom
     }
 
-    follow(gameObject: Sprite | Rectangle | Circle | Label) {
+    follow(gameObject: HasPosition) {
         this.following = gameObject
     }
 

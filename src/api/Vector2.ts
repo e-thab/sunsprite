@@ -14,6 +14,11 @@ type PosObject = { position: XYObject }
  * either an { x, y } object or an [x, y] array.
  */
 export type Vector2Like = XYObject | PosObject | XYArray
+export type HasPosition = XYObject | PosObject
+
+export function isHasPosition(obj: any): obj is HasPosition {
+    return obj && (isXYObject(obj) || isPosObject(obj))
+}
 
 export function isPosObject(obj: any): obj is PosObject {
     return obj && obj.position && typeof obj.position.x === 'number' && typeof obj.position.y === 'number'
