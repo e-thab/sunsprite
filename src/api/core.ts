@@ -1115,6 +1115,8 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 			mode: Phaser.Scale.NONE
 		},
 		parent: 'game-container',
+		antialias: true,
+		antialiasGL: true,
 		// Phaser defaults this to true, which calls window.focus() from inside
 		// this iframe the moment a game boots (see its VisibilityHandler) —
 		// pulling focus out of whatever the user was doing in the host app.

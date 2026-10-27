@@ -1,9 +1,9 @@
-import { atan2, deg2rad, rad2deg } from "@api/utility"
+import { deg2rad, rad2deg } from "@api/utility"
 import type { ReferenceObject } from "@api/types"
 import type { Class } from "@mixins/shared"
 import { isVector2Like, Vector2, type Vector2Like } from "@api/Vector2"
-import Warning from "../Warning"
 import Output from "@/sandbox/output"
+import { anchorOffsets, isAlignable, type AnchorPoint } from "./Alignable"
 
 export type RotatableProps = {
     /** Rotation angle in degrees. */
@@ -199,8 +199,39 @@ export function Rotatable<Base extends Class>(base: Base) {
          * Rotates this object by a given amount.
          * @param amount How much to rotate by.
          * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
+         * @param anchor The point on this object to rotate around, defaults to 'center'. e.g., if
+         * using 'bottomLeft', this object swings around its bottom left corner, which stays in place.
          */
-        rotate(amount: number, unit: 'radians' | 'degrees' = 'degrees') {
+        rotate(amount: number, unit?: 'radians' | 'degrees', anchor?: AnchorPoint): void
+        /**
+         * Rotates this object by a given amount in degrees.
+         * @param amount How much to rotate by, in degrees.
+         * @param anchor The point on this object to rotate around. e.g., if using 'bottomLeft',
+         * this object swings around its bottom left corner, which stays in place.
+         */
+        rotate(amount: number, anchor: AnchorPoint): void
+        rotate(amount: number, unitOrAnchor: 'radians' | 'degrees' | AnchorPoint = 'degrees', anchor: AnchorPoint = 'center') {
+            let unit: 'radians' | 'degrees' = 'degrees'
+            if (unitOrAnchor === 'radians' || unitOrAnchor === 'degrees') {
+                unit = unitOrAnchor
+            } else {
+                anchor = unitOrAnchor
+            }
+
+            const [ xFact, yFact ] = anchorOffsets(anchor)
+            if (xFact !== 0 || yFact !== 0) {
+                if (!isAlignable(this)) throw new Error(`rotate anchor '${anchor}' needs an object with a position and size`)
+
+                // The anchor turns with the object, so find it at the current on-screen angle,
+                // then move the center so the anchor ends up where it started
+                const before = deg2rad(this._rotation - this._rotationOffset)
+                const after = before + (unit === 'radians' ? amount : deg2rad(amount))
+                const ax = this.width * xFact
+                const ay = this.height * yFact
+                this.x += (ax * Math.cos(before) - ay * Math.sin(before)) - (ax * Math.cos(after) - ay * Math.sin(after))
+                this.y += (ax * Math.sin(before) + ay * Math.cos(before)) - (ax * Math.sin(after) + ay * Math.cos(after))
+            }
+
             if (unit === 'radians') {
                 this.radians += amount
             } else {

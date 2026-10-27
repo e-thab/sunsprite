@@ -264,8 +264,15 @@ export const DEFAULT_TEXT_FILE_TYPE: TextFileType = { extension: 'txt', label: '
 // no diagnostics, no completions, same as opening a .txt in VS Code.
 export const TEXT_MONACO_LANGUAGE = 'plaintext'
 
-// What a row dragged out of the file tree carries its name under — set in
+// What a row dragged out of the file tree carries its name under (one per
+// line, when several selected rows are dragged together) — set in
 // FileTree.vue, read by CodeEditor.vue's drop handler. Deliberately not
 // text/plain: Monaco's own text drop would claim that and insert it with a
 // literal "$0" appended (see CodeEditor.vue's onEditorDrop for why).
 export const FILE_TREE_DRAG_MIME = 'application/x-sunsprite-file-name'
+
+// What a Library asset dragged out of AssetLibrary.vue carries its path
+// under (one per line, when several selected assets are dragged together),
+// for FileTree.vue to add a link to each wherever they're dropped. Also not
+// text/plain, for the same reason as above.
+export const LIBRARY_DRAG_MIME = 'application/x-sunsprite-library-path'

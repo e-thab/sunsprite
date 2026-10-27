@@ -118,17 +118,20 @@ const editorInstance = shallowRef<monaco.editor.IStandaloneCodeEditor>()
 // Monaco's built-in drop providers accept, so Monaco still draws the drop
 // caret, focuses and clears it, but inserts nothing, and this (bound on the
 // editor's container, so it runs after Monaco's own handler) inserts the name.
+//
+// Several rows dragged at once arrive one name per line, and go in as a
+// comma-separated list of literals.
 function onEditorDrop(event: DragEvent) {
-	const name = event.dataTransfer?.getData(FILE_TREE_DRAG_MIME)
+	const names = event.dataTransfer?.getData(FILE_TREE_DRAG_MIME)
 	const editor = editorInstance.value
-	if (!name || !editor || editor.getOption(monaco.editor.EditorOption.readOnly)) return
+	if (!names || !editor || editor.getOption(monaco.editor.EditorOption.readOnly)) return
 	event.preventDefault()
 
 	const position = editor.getTargetAtClientPoint(event.clientX, event.clientY)?.position
 	if (!position) return
 
 	// Escaped so a name holding a quote or backslash still makes a valid literal.
-	const text = `'${name.replace(/[\\']/g, '\\$&')}'`
+	const text = names.split('\n').map((name) => `'${name.replace(/[\\']/g, '\\$&')}'`).join(', ')
 	editor.executeEdits('file-tree-drop', [{ range: monaco.Range.fromPositions(position), text, forceMoveMarkers: true }])
 	editor.setPosition({ lineNumber: position.lineNumber, column: position.column + text.length })
 	editor.focus()

@@ -53,7 +53,7 @@ const ANCHOR_OFFSETS: Record<CanonicalAnchor, readonly [number, number]> = {
     [Anchor.BOTTOM_RIGHT]:  [ 1/2, -1/2],
 }
 
-function isAlignable(obj: any): obj is AlignableLike {
+export function isAlignable(obj: any): obj is AlignableLike {
     return typeof (obj).x === 'number'
         && typeof (obj).y === 'number'
         && typeof (obj as AlignableLike).width === "number"
@@ -61,9 +61,9 @@ function isAlignable(obj: any): obj is AlignableLike {
 }
 
 /** Resolve an anchor name to its width/height factors, tolerating any casing. */
-function anchorOffsets(anchor: AnchorPoint): readonly [number, number] {
+export function anchorOffsets(anchor: AnchorPoint): readonly [number, number] {
     const offsets = ANCHOR_OFFSETS[anchor.toLowerCase() as CanonicalAnchor]
-    if (offsets === undefined) throw new Error(`Bad goTo anchor: ${anchor}`)
+    if (offsets === undefined) throw new Error(`Bad anchor: ${anchor}`)
     return offsets
 }
 

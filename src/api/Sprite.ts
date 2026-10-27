@@ -32,16 +32,19 @@ export enum TintMode {
 }
 
 // TODO: Blend Modes
-// enum BlendMode {
-//     ADD = 'add',
-//     NORMAL = 'normal',
-//     MULTIPLY = 'multiply',
-//     SCREEN = 'screen',
-//     ERASE = 'erase',
-// }
+export enum BlendMode {
+    ADD = 'add',
+    NORMAL = 'normal',
+    MULTIPLY = 'multiply',
+    SCREEN = 'screen',
+    ERASE = 'erase',
+}
 
 /** How a sprite's tint color is combined with its image. See Sprite.tintMode. */
 export type TintModeName = `${TintMode}`
+
+/** How a sprite's image is blended with what's rendered behind it. See Sprite.blendMode. */
+export type BlendModeName = `${BlendMode}`
 
 function _phaserTintMode(mode: TintMode): Phaser.TintModes {
     switch (mode) {
@@ -60,8 +63,27 @@ function _phaserTintMode(mode: TintMode): Phaser.TintModes {
     }
 }
 
+function _phaserBlendMode(mode: BlendMode): Phaser.BlendModes {
+    switch (mode) {
+        case BlendMode.ADD:
+            return Phaser.BlendModes.ADD
+        case BlendMode.NORMAL:
+            return Phaser.BlendModes.HARD_LIGHT
+        case BlendMode.MULTIPLY:
+            return Phaser.BlendModes.OVERLAY
+        case BlendMode.SCREEN:
+            return Phaser.BlendModes.SCREEN
+        case BlendMode.ERASE:
+            return Phaser.BlendModes.ERASE
+    }
+}
+
 function isTintMode(value: unknown): value is TintMode {
     return Object.values(TintMode).includes(value as any)
+}
+
+function isBlendMode(value: unknown): value is BlendMode {
+    return Object.values(BlendMode).includes(value as any)
 }
 
 type SpriteProps = GameObjectProps & {
@@ -81,6 +103,7 @@ type SpriteProps = GameObjectProps & {
 export default class Sprite extends GameObject {
     readonly _sprite: Phaser.GameObjects.Sprite
     _src?: string
+    _blendMode: string = 'normal'
     _tint: string = '#ffffff'
     _tintTopLeft: string = '#ffffff'
     _tintTopRight: string = '#ffffff'
@@ -176,13 +199,13 @@ export default class Sprite extends GameObject {
         return this._tintMode
     }
     set tintMode(mode: string) {
-        mode = mode.toLowerCase()
-        if (!isTintMode(mode)) {
+        const modeName = mode.toLowerCase()
+        if (!isTintMode(modeName)) {
             Output.runtimeWarning(`Invalid tint mode, must be one of: ['add', 'fill', 'hard_light', 'multiply', 'overlay', 'screen']. Ignoring this command.`, currentLocation())
             return
         }
-        this._tintMode = mode
-        this._sprite.setTintMode(_phaserTintMode(mode))
+        this._tintMode = modeName
+        this._sprite.setTintMode(_phaserTintMode(modeName))
     }
 
     /**
@@ -313,6 +336,31 @@ export default class Sprite extends GameObject {
         this._sprite.setTint(tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight)
     }
 
+    /**
+     * Blend mode applied when drawing this sprite.
+     * 
+     * | Mode | Effect |
+     * | ---- | ------ |
+     * | add | Where both shapes overlap the color is determined by adding color values. |
+     * | erase | ? |
+     * | normal | Default mode, draws new shapes on top of existing content. |
+     * | multiply | The pixels are of the top layer are multiplied with the corresponding pixel of the bottom layer. A darker picture is the result. |
+     * | screen | The pixels are inverted, multiplied, and inverted again. A lighter picture is the result (opposite of multiply) |
+     * 
+     * @default `'normal'`
+     */
+    get blendMode(): string {
+        return this._blendMode
+    }
+    set blendMode(mode: BlendMode) {
+        const modeName = mode.toLowerCase()
+        if (!isBlendMode(modeName)) {
+            Output.runtimeWarning(`Invalid blend mode, must be one of: ['add', 'erase'(?), 'normal', 'multiply', 'screen']. Ignoring this command.`, currentLocation())
+            return
+        }
+        this._blendMode = modeName
+        this._sprite.setBlendMode(_phaserBlendMode(modeName))
+    }
     // Override
     // _updateScale() {
     //     this.setAnchorCenter()
