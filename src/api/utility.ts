@@ -1,5 +1,4 @@
-import { isVector2, isVector2Like, Vector2 } from "./Vector2"
-
+import { isVector2, Vector2 } from "./Vector2"
 
 /**
  * Moves `current` value toward `target` value like a critically damped spring.

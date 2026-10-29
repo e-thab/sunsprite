@@ -1341,7 +1341,7 @@ async function addLibraryDrop(paths: string, folderId: string | null) {
 							     made the asset. -->
 							<UPopover v-if="item.kind === 'libraryImage'" :content="{ align: 'end' }">
 								<button type="button" class="library-chip" :title="libraryChipTitle(item)" @click.stop>
-									<UIcon name="tabler:link" class="library-chip-icon" /><div class="library-label">Library</div>
+									<UIcon name="tabler:link" class="library-chip-icon" />
 								</button>
 
 								<template #content>
@@ -1630,8 +1630,11 @@ async function addLibraryDrop(paths: string, folderId: string | null) {
 	display: block;
 }
 
+/* Fixed width so durations line up down the list; 4ch fits "0:00"–"9:59". */
 .item-duration {
 	flex-shrink: 0;
+	min-width: 4ch;
+	text-align: right;
 	font-size: 0.75em;
 	font-variant-numeric: tabular-nums;
 	color: var(--theme-text-toned);
@@ -1665,7 +1668,7 @@ async function addLibraryDrop(paths: string, folderId: string | null) {
 }
 
 .library-chip-icon {
-	width: 1.15em;
+	width: 1em;
 	height: 1.15em;
 	color: var(--theme-primary);
 }

@@ -5,7 +5,7 @@ import type { Repeatable, Delayable, Predicate, Action, KeyAction, MouseInputAct
 import type { ThemePalette } from '@/theme/themes'
 import type { ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
 import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@api/assets'
-import { Vector2, type Vector2Like } from '@api/Vector2'
+import { isVector2, Vector2, type Vector2Like } from '@api/Vector2'
 import { Mouse } from '@api/types'
 import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp, smoothDamp } from '@api/utility'
 import { runEntryModule, locateError, resetLoopGuard } from '@api/moduleRunner'
@@ -147,6 +147,65 @@ function suspendAudio() {
 function resumeAudio() {
 	const context = audioContext()
 	if (context?.state === 'suspended') context.resume()
+}
+
+/** Internal. How long a restart spends fading out the previous game's audio before tearing it down, in seconds. */
+const RETIRE_FADE = 0.015
+
+/**
+ * Internal. Takes down the previous run's Game without a pop.
+ *
+ * Phaser's own teardown is abrupt twice over: its sound manager's destroy()
+ * disconnects the master output mid-waveform, then, because the context was
+ * handed in through the config, suspends it — the shared context the game
+ * replacing this one already plays through (see assets.ts's
+ * _sharedAudioContext). Suspending a context that's making sound stops the
+ * output stream mid-sample, and the new game's onFocus() starts it again a
+ * frame later: two hard edges, heard as a crack whenever anything was playing
+ * as Restart was pressed.
+ *
+ * So the old game's output is ramped to silence first, and only once that has
+ * played out are its sounds stopped and its graph disconnected — by us, with
+ * Phaser's sound manager teardown (the part that suspends) taken off its
+ * DESTROY event.
+ */
+function retireGame(old: Game) {
+	const manager = old.sound as Phaser.Sound.WebAudioSoundManager
+	const context = manager.context
+	// No Web Audio, or no scene has run yet, so there's nothing to fade.
+	if (!context || !old.isRunning) {
+		old.destroy(true)
+		return
+	}
+
+	// Its scene's update() runs the module-level loop lists, which already
+	// belong to the run replacing it, so it can't take another step while the
+	// fade plays out. Its canvas makes way for the new one now too.
+	old.loop.sleep()
+	old.canvas.remove()
+
+	const gain = manager.masterVolumeNode.gain
+	const now = context.currentTime
+	gain.cancelScheduledValues(now)
+	if (context.state === 'running') {
+		gain.setValueAtTime(gain.value, now)
+		gain.linearRampToValueAtTime(0, now + RETIRE_FADE)
+	} else {
+		// Paused, so nothing's audible and the clock isn't moving: a ramp would
+		// only begin once the next run resumes the context, playing the old
+		// game's audio back for its length.
+		gain.setValueAtTime(0, now)
+	}
+
+	window.setTimeout(() => {
+		old.events.off(Phaser.Core.Events.DESTROY, manager.destroy, manager)
+		manager.removeAll()
+		manager.masterMuteNode.disconnect()
+		manager.masterVolumeNode.disconnect()
+		old.destroy(true)
+		// Phaser only acts on destroy() from inside a step.
+		old.loop.wake()
+	}, RETIRE_FADE * 2000)
 }
 
 /** Pause engine processing. Must be manually un-paused using the UI button for now. */
@@ -774,6 +833,117 @@ function mouseOverCanvas() {
 	return game.canvas.matches(':hover')
 }
 
+type SmoothFunction = 
+	| ((value: number, stop: Action) => void)
+	| ((value: Vector2, stop: Action) => void)
+
+type AutoSmoothBase = {
+	smoothTime: number,
+	threshold: number,
+	stopped: boolean,
+	/** Settles the promise smoothTo returned */
+	resolve: () => void
+}
+
+type AutoSmooth = AutoSmoothBase & (
+	| { kind: 'number', value: number, target: number, velocity: number, fn: (value: number, stop: Action) => void }
+	| { kind: 'vector', value: Vector2, target: Vector2, velocity: Vector2, fn: (value: Vector2, stop: Action) => void }
+)
+	
+let autoSmooths: AutoSmooth[] = []
+
+/**
+ * Generates a function you can use to move a value toward a target smoothly over time. Value and target
+ * can be either numbers or Vector2s, but must match each other.
+ * @param value 
+ * @param target 
+ * @param smoothTime 
+ * @param fn
+ * @returns A promise that resolves once value reaches target or stop() is called
+ */
+function smoothTo(value: Vector2, target: Vector2, smoothTime: number, threshold: number, fn: (value: Vector2, stop: Action) => void): Promise<void>
+function smoothTo(value: number, target: number, smoothTime: number, threshold: number, fn: (value: number, stop: Action) => void): Promise<void>
+function smoothTo(value: number | Vector2, target: number | Vector2, smoothTime: number, threshold: number, fn: SmoothFunction): Promise<void> {
+	let resolve!: () => void
+	const done = new Promise<void>(r => resolve = r)
+	const base = { smoothTime, threshold, stopped: false, resolve }
+	let autoSmooth: AutoSmooth
+
+	if (typeof value === 'number' && typeof target === 'number') {
+		autoSmooth = {
+			...base,
+			kind: 'number',
+			value,
+			target,
+			velocity: 0,
+			fn: fn as (value: number, stop: Action) => void
+		}
+	} else if (isVector2(value) && isVector2(target)) {
+		autoSmooth = {
+			...base,
+			kind: 'vector',
+			value,
+			target,
+			velocity: Vector2.ZERO,
+			fn: fn as (value: Vector2, stop: Action) => void
+		}
+	} else {
+		throw new Error('smoothTo: value and target must both be numbers or both be Vector2s')
+	}
+
+	autoSmooths.push(autoSmooth)
+	return done
+}
+
+function _runSmooths(deltaMs: number) {
+	for (const autoSmooth of autoSmooths) {
+		// The function that stops this autoSmooth, resolving the promise and allowing garbage collect
+		function stop() {
+			autoSmooth.stopped = true
+			autoSmooth.resolve()
+		}
+		const dt = deltaMs / 1000
+
+		// First, check if value is already within threshold of target
+		if (autoSmooth.kind === 'number') {
+			if (Math.abs(autoSmooth.value - autoSmooth.target) < autoSmooth.threshold) {
+				// Run the function one last time so that value fully reaches target
+				autoSmooth.fn(autoSmooth.target, stop)
+				stop()
+				continue
+			}
+
+			const step = smoothDamp(
+				autoSmooth.value,
+				autoSmooth.target,
+				autoSmooth.velocity,
+				autoSmooth.smoothTime,
+				dt
+			)
+			autoSmooth.value = step.value
+			autoSmooth.velocity = step.velocity
+			autoSmooth.fn(step.value, stop)
+		} else if (autoSmooth.kind === 'vector') {
+			if (autoSmooth.value.distanceTo(autoSmooth.target) < autoSmooth.threshold) {
+				autoSmooth.fn(autoSmooth.target, stop)
+				stop()
+				continue
+			}
+			const step = smoothDamp(
+				autoSmooth.value,
+				autoSmooth.target,
+				autoSmooth.velocity,
+				autoSmooth.smoothTime,
+				dt
+			)
+			autoSmooth.value = step.position
+			autoSmooth.velocity = step.velocity
+			autoSmooth.fn(step.position, stop)
+		}
+	}
+	autoSmooths = autoSmooths.filter((item) => !item.stopped)
+}
+
 /**
  * API utility
  */
@@ -817,8 +987,8 @@ class UserScene extends Scene {
 		// this.load.image('guy', 'assets/guy.png')
 		// this.load.image('boot', 'assets/boot.png')
 		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
-		this.load.audio('confirm', 'assets/confirmation_001.ogg')
-		this.load.audio('win', 'assets/you_win.ogg')
+		// this.load.audio('confirm', 'assets/confirmation_001.ogg')
+		// this.load.audio('win', 'assets/you_win.ogg')
 	}
 	
 	async create() {
@@ -1007,7 +1177,7 @@ class UserScene extends Scene {
 			floor: Math.floor,
 			ceil: Math.ceil,
 			round: Math.round,
-			smoothDamp,
+			smoothDamp, smoothTo,
 			PI: Math.PI,
 		}
 
@@ -1042,6 +1212,7 @@ class UserScene extends Scene {
 			_runRepeatWhiles()
 			_runAfters(clock.deltaMs)
 			_runEverys(clock.deltaMs)
+			_runSmooths(clock.deltaMs)
 
 			_runPropUpdaters()
 			if (background.image) background._update()
@@ -1075,6 +1246,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_repeatWhiles = []
 	resizeReactors = []
 	allTimers = []
+	autoSmooths = []
 
 	_keyPressActions.clear()
 	_keyHoldActions.clear()
@@ -1104,7 +1276,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
 	
 	_engineLive = false
-	if (game) game.destroy(true)
+	if (game) retireGame(game)
 
 	scene = new UserScene(code, entryName)
 
@@ -1116,7 +1288,6 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 		},
 		parent: 'game-container',
 		antialias: true,
-		antialiasGL: true,
 		// Phaser defaults this to true, which calls window.focus() from inside
 		// this iframe the moment a game boots (see its VisibilityHandler) —
 		// pulling focus out of whatever the user was doing in the host app.

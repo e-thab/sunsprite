@@ -58,10 +58,8 @@ export function audioDuration(url: string): number | undefined {
 	return durations.get(url) ?? undefined
 }
 
-/** "1:05" — or "0:03.2" under ten seconds, where whole seconds would round most sound effects to 0:00. */
+/** "1:05", "0:03". A non-empty sound shorter than half a second reads "0:01" rather than "0:00". */
 export function formatDuration(seconds: number): string {
-	// Compared after rounding, so 9.96 becomes "0:10" rather than "0:010.0".
-	if (Math.round(seconds * 10) < 100) return `0:0${seconds.toFixed(1)}`
-	const whole = Math.round(seconds)
+	const whole = seconds > 0 ? Math.max(1, Math.round(seconds)) : 0
 	return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
 }

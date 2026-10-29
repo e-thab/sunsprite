@@ -375,8 +375,11 @@ const items: TreeItem[] = [
 	color: var(--ui-text-highlighted);
 }
 
+/* Fixed width so durations line up down the list; 4ch fits "0:00"–"9:59". */
 .item-duration {
 	flex-shrink: 0;
+	min-width: 4ch;
+	text-align: right;
 	font-size: 0.75em;
 	font-variant-numeric: tabular-nums;
 	color: var(--theme-text-toned);
