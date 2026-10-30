@@ -1,4 +1,5 @@
-import { clock, forever, mouse } from "@api/core"
+import { clock, mouse } from "@api/core"
+import { forever } from "@api/loops"
 import { isVector2Like, Vector2, type Vector2Like, type HasPosition } from "@api/Vector2"
 import { smoothDamp } from "./utility"
 

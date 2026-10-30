@@ -46,6 +46,11 @@ const SHARED_COMPILER_OPTIONS: monaco.typescript.CompilerOptions = {
 	// resolution (see scriptResolution.ts).
 	allowImportingTsExtensions: true,
 	target: monaco.typescript.ScriptTarget.ES2020,
+	// Matches what transpile.ts and moduleRunner.ts compile with. Left unset,
+	// this defaults to ES2015 off the target, and TypeScript then rejects
+	// top-level `await` — which the runtime, loading each script as a real ES
+	// module, supports just fine.
+	module: monaco.typescript.ModuleKind.ESNext,
 	strictNullChecks: true,
 	// Without this, a script with no top-level import/export is treated as a
 	// "global script" rather than a module, so its declarations silently leak
