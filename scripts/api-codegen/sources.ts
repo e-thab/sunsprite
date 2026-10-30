@@ -138,13 +138,14 @@ export const TYPE_ALIASES = [
  * but are just as real a part of the runtime surface.
  */
 export const FREE_FUNCTIONS = [
-    { file: apiPath('loops.ts'), name: 'forever' },
-    { file: apiPath('loops.ts'), name: 'repeat' },
-    { file: apiPath('loops.ts'), name: 'repeatUntil' },
-    { file: apiPath('loops.ts'), name: 'repeatWhile' },
-    { file: apiPath('loops.ts'), name: 'after' },
-    { file: apiPath('loops.ts'), name: 'every' },
-    { file: apiPath('loops.ts'), name: 'when' },
+    { file: apiPath('control.ts'), name: 'forever' },
+    { file: apiPath('control.ts'), name: 'repeat' },
+    { file: apiPath('control.ts'), name: 'repeatUntil' },
+    { file: apiPath('control.ts'), name: 'repeatWhile' },
+    { file: apiPath('control.ts'), name: 'after' },
+    { file: apiPath('control.ts'), name: 'every' },
+    { file: apiPath('control.ts'), name: 'when' },
+    { file: apiPath('control.ts'), name: 'wait' },
     { file: apiPath('core.ts'), name: 'keyPressed' },
     { file: apiPath('core.ts'), name: 'keyJustPressed' },
     { file: apiPath('core.ts'), name: 'keyJustReleased' },
@@ -199,7 +200,7 @@ export const SUPPORTING_API_FILES = [
     apiPath('utility.ts'),
     apiPath('Colors.ts'),
     apiPath('core.ts'),
-    apiPath('loops.ts'),
+    apiPath('control.ts'),
     apiPath('types.ts'),
     apiPath('mixins', 'index.ts'),
     apiPath('mixins', 'shared.ts'),
@@ -228,7 +229,7 @@ export function runtimeCopySet(): string[] {
         ...SUPPORTING_API_FILES,
         ...SANDBOX_RUNTIME_FILES,
         // FREE_FUNCTIONS isn't included here — every file it points at
-        // (core.ts, loops.ts, utility.ts, sandbox/watch.ts) is already covered above.
+        // (core.ts, control.ts, utility.ts, sandbox/watch.ts) is already covered above.
         // OBJECT_LITERALS' files aren't otherwise covered (Random.ts used to
         // reach the copy set via SUPPORTING_API_FILES; now it's only reached
         // through extraction, so it has to be added back explicitly here).

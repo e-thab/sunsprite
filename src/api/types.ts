@@ -43,18 +43,32 @@ export type ReferenceObject =
 	| Phaser.GameObjects.Arc
 	| any
 
-export interface Touchable {
-	left: number
-	right: number
-	top: number
-	bottom: number
-	// scale: number
-	// rotation?: number
-	// radians?: number
+// export interface Touchable {
+// 	left: number
+// 	right: number
+// 	top: number
+// 	bottom: number
+// 	// scale: number
+// 	// rotation?: number
+// 	// radians?: number
+// }
+
+/**
+ * A loop entry whose callback may be async. While a Promise it returned is
+ * still pending, the loop skips that entry instead of starting an overlapping
+ * iteration.
+ */
+export interface Awaitable {
+	busy?: boolean
+}
+
+/* Used for forever() */
+export interface Forever extends Awaitable {
+	fn: (delta: number) => void
 }
 
 /* used for repeat() */
-export interface Repeatable {
+export interface Repeatable extends Awaitable {
 	count: number
 	i: number
 	fn: Action
@@ -72,7 +86,7 @@ export interface RepeatableWhile extends RepeatableUntil {
 }
 
 /* Used for after() & every() */
-export interface Delayable {
+export interface Delayable extends Awaitable {
 	elapsedMs: number
 	lifetimeMs: number
 	fn: Action

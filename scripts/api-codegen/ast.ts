@@ -41,20 +41,23 @@ export function extractDoc(node: ts.Node): ExtractedDoc {
     return { summary, params, tags }
 }
 
-/** Formats a doc comment block: single-line when there's just a summary, multi-line once there are tags. */
+/**
+ * Formats a doc comment block: single-line when there's just a one-line summary,
+ * multi-line otherwise. Comment text keeps its line breaks (blank lines included,
+ * which hovers render as paragraph breaks), so every line gets its own ` * `.
+ */
 export function formatDocBlock(doc: ExtractedDoc, indent: string): string {
     const hasTags = doc.params.length > 0 || doc.tags.length > 0
     if (!doc.summary && !hasTags) return ''
-    if (!hasTags) return `${indent}/** ${doc.summary} */\n`
+    if (!hasTags && !doc.summary.includes('\n')) return `${indent}/** ${doc.summary} */\n`
 
     const lines = [`${indent}/**`]
-    if (doc.summary) lines.push(`${indent} * ${doc.summary}`)
-    for (const p of doc.params) {
-        lines.push(`${indent} * @param ${p.name} ${p.doc}`)
+    const push = (text: string) => {
+        for (const line of text.split('\n')) lines.push(line ? `${indent} * ${line}` : `${indent} *`)
     }
-    for (const t of doc.tags) {
-        lines.push(`${indent} * @${t.tag} ${t.doc}`)
-    }
+    if (doc.summary) push(doc.summary)
+    for (const p of doc.params) push(`@param ${p.name} ${p.doc}`)
+    for (const t of doc.tags) push(`@${t.tag} ${t.doc}`)
     lines.push(`${indent} */`)
     return lines.join('\n') + '\n'
 }

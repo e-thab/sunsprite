@@ -41,7 +41,7 @@ import {
     randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
     mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
-    afterDeclaration, everyDeclaration, whenDeclaration,
+    afterDeclaration, everyDeclaration, whenDeclaration, waitDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
@@ -130,6 +130,8 @@ export interface VersionedApiConstants {
     afterDeclaration: string
     everyDeclaration: string
     whenDeclaration: string
+    // Optional: snapshots cut before wait existed don't export it.
+    waitDeclaration?: string
     keyPressedDeclaration: string
     keyJustPressedDeclaration: string
     keyJustReleasedDeclaration: string
@@ -410,6 +412,8 @@ ${v.afterDeclaration}
 ${v.everyDeclaration}
 
 ${v.whenDeclaration}
+
+${v.waitDeclaration ?? ''}
 
 ${v.keyPressedDeclaration}
 
@@ -750,7 +754,7 @@ export const apiLib = buildApiLib({
     randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
     mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
-    afterDeclaration, everyDeclaration, whenDeclaration,
+    afterDeclaration, everyDeclaration, whenDeclaration, waitDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,

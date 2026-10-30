@@ -30,7 +30,7 @@ import HLine from '@api/HLine'
 import VLine from '@api/VLine'
 import Sound from '@api/Sound'
 import { mixer, setClientVolume, setClientMute } from '@api/Mixer'
-import { after, clearLoops, every, forever, repeat, repeatUntil, repeatWhile, runLoops, when } from '@api/loops'
+import { after, clearControls, every, forever, repeat, repeatUntil, repeatWhile, runControls, wait, when } from '@api/control'
 
 export const VERSION = '1.0'
 
@@ -949,7 +949,7 @@ class UserScene extends Scene {
 			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Mixer: mixer, Colors,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
-			forever, repeat, repeatUntil, repeatWhile, after, every, when,
+			forever, repeat, repeatUntil, repeatWhile, after, every, when, wait,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			print: Output.print, watch, unwatch, play, pause, /* setBackgroundColor, setBackgroundImage, clearBackgroundImage, */
 			Random, Files, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
@@ -987,7 +987,7 @@ class UserScene extends Scene {
 
 		if (!paused) {
 			_runOnKeyActions()
-			runLoops()
+			runControls()
 			_runSmooths(clock.deltaMs)
 			_runPropUpdaters()
 			if (background.image) background._update()
@@ -1012,7 +1012,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	console.group(`%cSunsprite v${VERSION} session ${++_sessionCount}`, `color: ${Colors.HotPink}; font-weight: bold;`)
 
 	_crash = false
-	clearLoops()
+	clearControls()
 	resizeReactors = []
 	allTimers = []
 	autoSmooths = []

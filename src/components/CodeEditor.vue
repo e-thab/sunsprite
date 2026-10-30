@@ -14,6 +14,8 @@ import { releaseButtonFocus } from '@/utils/releaseButtonFocus'
 import { configureLanguageServices, installExtraLib, languageSupportFor, type EditorLanguageSupport } from '@/languages/monacoLanguages'
 import { installTextMateHighlighting } from '@/languages/textmateHighlighting'
 import { installSemanticHighlighting } from '@/languages/semanticHighlighting'
+import { installQuickInfoHover } from '@/languages/quickInfoHover'
+import { installFloatingWaitMarkers } from '@/languages/floatingWaitMarkers'
 import CollapsiblePane from './CollapsiblePane.vue'
 import '@/assets/code-completion/monaco-colors'
 import { setKnownAssets } from '@/assets/code-completion/monaco-assets'
@@ -94,6 +96,11 @@ for (const palette of themes) {
 // service's own classifications over them, under the same names.
 installTextMateHighlighting()
 installSemanticHighlighting()
+// Hover docs with the comment text and its tags in separate blocks, so
+// main.css can space them (see quickInfoHover.ts).
+installQuickInfoHover()
+// Warns where a bare `wait(2)` drops its promise (see floatingWaitMarkers.ts).
+installFloatingWaitMarkers()
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()

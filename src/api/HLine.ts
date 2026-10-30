@@ -1,6 +1,6 @@
 import { Destructible, Timeable, Viewable, type ViewableProps } from "./mixins"
 import { resizeReactors, camera } from "@api/core"
-import { forever } from "@api/loops"
+import { forever } from "@api/control"
 import Line from "@api/Line"
 
 type HLineProps = ViewableProps & {

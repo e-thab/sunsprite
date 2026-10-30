@@ -1,5 +1,5 @@
 import { resizeReactors, camera } from "@api/core"
-import { forever } from "@api/loops"
+import { forever } from "@api/control"
 import { Destructible, Timeable, Viewable, type ViewableProps } from "./mixins"
 import Line from "@api/Line"
 

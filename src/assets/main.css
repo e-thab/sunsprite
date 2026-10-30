@@ -80,6 +80,39 @@ body.monaco-find-open .workbench-hover-container {
   text-align: left;
 }
 
+/*
+  Script hover docs come in up to three .markdown-hover blocks, in order: the
+  signature, the comment text, then its @param/@returns tags (see
+  quickInfoHover.ts, which splits them apart so these rules can tell them
+  apart). Monaco's 8px between paragraphs leaves a comment's paragraph breaks
+  hard to see, so the comment text gets more; the tag lines keep Monaco's
+  spacing and get a gap above them instead.
+
+  A comment with tags but no text has no second block, so its tags land in
+  the second slot and are spaced like comment text.
+*/
+.monaco-hover .markdown-hover:nth-child(2) p:not(:last-child) {
+  margin-bottom: 8px;
+}
+
+.monaco-hover .markdown-hover:nth-child(3) {
+  margin-top: 0;
+}
+
+/*
+  Fenced code blocks in a comment (```js examples) get the same backdrop
+  Monaco gives inline `code`. A fenced block renders as
+  <div class="code" data-code>, but Monaco's sanitizer strips that class
+  (it only keeps classes on codicon spans), so data-code is the hook. The
+  signature at the top is one too, but it's the hover's heading rather than an
+  example, so the first block is left alone.
+*/
+.monaco-hover .markdown-hover:not(:first-child) div[data-code] {
+  background-color: var(--vscode-textCodeBlock-background);
+  border-radius: 3px;
+  padding: 4px 8px;
+}
+
 .panel-wrapper {
   display: flex;
   flex-direction: column;

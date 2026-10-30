@@ -1,7 +1,7 @@
 import { clock, runUserCallback } from "@api/core"
-import type { Action, Repeatable, RepeatableUntil, RepeatableWhile, Delayable, Conditional, Predicate } from "./types"
+import type { Action, Awaitable, Forever, Repeatable, RepeatableUntil, RepeatableWhile, Delayable, Conditional, Predicate } from "./types"
 
-let _forevers: Action[] = []
+let _forevers: Forever[] = []
 let _repeats: Repeatable[] = []
 let _repeatUntils: RepeatableUntil[] = []
 let _repeatWhiles: RepeatableWhile[] = []
@@ -11,23 +11,28 @@ let _whens: Conditional[] = []
 
 /**
  * Primary game loop; runs every frame.
+ *
+ * If `func` is async, each run waits for the previous one to finish, so
+ * `await` inside it pauses this loop without overlapping itself.
  * @param func The function to run each frame.
  */
-export function forever(func: 
+export function forever(func:
     /** @param delta Time since the previous frame. */
     (delta: number) => void
 ) {
-    _forevers.push((delta: number) => {
-        func(delta)
-    })
+    _forevers.push({ fn: func })
 }
 
 /**
  * Runs a specified number of times alongside the game loop (1 iteration per frame).
+ *
+ * **NOTE:** If `func` is async, each iteration waits for the previous one to finish, so
+ * iterations that `await` run one after another instead of all at once.
+ * 
  * @param times The number of times to repeat.
  * @param func The function to be repeated.
  */
-export function repeat(times: number, func: 
+export function repeat(times: number, func:
     /** @param i The current iteration (times repeated so far). */
     (i: number) => void
 ) {
@@ -41,10 +46,10 @@ export function repeat(times: number, func:
 
     return {
         /**
-         * Register a function to run when the repeat ends.
+         * Register a function to run when the repeat ends (after the last iteration finishes, if it's async).
          * @param thenFunc The function.
          */
-        then(thenFunc: 
+        then(thenFunc:
             /** @param i The current iteration (times repeated so far). */
             (i: number) => void
         ) {
@@ -55,6 +60,9 @@ export function repeat(times: number, func:
 
 /**
  * Runs until the specified condition is true. Runs alongside the game loop (1 iteration per frame).
+ *
+ * If `fn` is async, each iteration waits for the previous one to finish, and
+ * the condition is only checked between iterations.
  * @param condition The predicate condition to check.
  * @param fn The function to be repeated.
  */
@@ -79,6 +87,9 @@ export function repeatUntil(condition: Predicate, fn: Action) {
 
 /**
  * Runs repeatedly while the specified condition is true. Runs alongside the game loop (1 iteration per frame).
+ *
+ * If `fn` is async, each iteration waits for the previous one to finish, and
+ * the condition is only checked between iterations.
  * @param condition The predicate condition to check.
  * @param fn The function to be repeated.
  */
@@ -117,6 +128,9 @@ export function after(seconds: number, fn: Action) {
 
 /**
  * Runs once immediately, then repeatedly at a specified time interval.
+ *
+ * If `fn` is async and a run takes longer than the interval, the next run
+ * waits for it to finish instead of overlapping it.
  * @param seconds The number of seconds to wait before running each time.
  * @param fn The function to run.
  */
@@ -128,7 +142,7 @@ export function every(seconds: number, fn: Action) {
     }
     // TODO: every.until() which lets user define a condition that will stop/destroy the every
     _everys.push(delayable)
-    fn()
+    _track(delayable, fn())
 }
 
 /**
@@ -146,11 +160,29 @@ export function when(condition: Predicate, fn: Action) {
 }
 
 /**
+ * Waits for a specified number of seconds. Use with `await` to delay execution
+ * of the following lines, e.g.
+ * 
+ * ```js
+ * const rect = new Rectangle() // Creates a new rectangle
+ * await wait(1)                // Waits for 1 second
+ * rect.goTo(100, 100)          // Moves rect to (100, 100)
+ * ```
+ * 
+ * @param seconds The number of seconds to wait.
+ * @returns A promise that resolves once the time has passed.
+ */
+export function wait(seconds: number): Promise<void> {
+    // Rides on after() rather than setTimeout so it follows the game clock
+    return new Promise(resolve => after(seconds, resolve))
+}
+
+/**
  * Internal. Steps every loop once; called each unpaused frame by core.ts's scene update.
  * forever() gets the frame-normalized clock.delta (~1 at 60fps) its docs promise,
  * while after()/every() count real milliseconds against their lifetimes.
  */
-export function runLoops() {
+export function runControls() {
     _runWhens()
     _runForevers(clock.delta)
     _runRepeats()
@@ -160,40 +192,69 @@ export function runLoops() {
     _runEverys(clock.deltaMs)
 }
 
-export function clearLoops() {
+/** Reset all  */
+export function clearControls() {
     _forevers = []
-	_repeats = []
-	_repeatUntils = []
-	_repeatWhiles = []
-	_afters = []
-	_everys = []
-	_whens = []
+    _repeats = []
+    _repeatUntils = []
+    _repeatWhiles = []
+    _afters = []
+    _everys = []
+    _whens = []
+}
+
+/**
+ * If a loop callback returned a Promise (it's async), marks its entry busy
+ * until that settles, so the loop waits for it instead of starting the next
+ * iteration on top of it. finally() rather than then(ok, fail): a rejection
+ * carries through to the derived promise unhandled, so core.ts's global
+ * unhandledrejection handler still reports it exactly as it would without
+ * this wrapper.
+ */
+function _track(entry: Awaitable, result: unknown) {
+    if (result instanceof Promise) {
+        entry.busy = true
+        result.finally(() => { entry.busy = false })
+    }
 }
 
 function _runForevers(delta: number) {
     for (const forever of _forevers) {
-        runUserCallback(() => forever(delta), undefined)
+        if (forever.busy) continue
+        _track(forever, runUserCallback(() => forever.fn(delta), undefined))
     }
 }
 
 function _runRepeats() {
-    for (const repeat of _repeats) {
-        runUserCallback(() => repeat.fn(repeat.i), undefined)
-        repeat.count -= 1
-        repeat.i += 1
+    const finished = new Set<Repeatable>()
 
-        if (repeat.count <= 0 && repeat.then) {
-            const then = repeat.then
-            runUserCallback(() => then(), undefined)
+    for (const repeat of _repeats) {
+        if (repeat.busy) continue
+
+        if (repeat.i < repeat.count) {
+            _track(repeat, runUserCallback(() => repeat.fn(repeat.i), undefined))
+            repeat.i += 1
+        }
+
+        // Checked after the step, so a synchronous last iteration still runs
+        // then() the same frame, while an async one holds it until it settles.
+        if (!repeat.busy && repeat.i >= repeat.count) {
+            finished.add(repeat)
+            if (repeat.then) {
+                const then = repeat.then
+                runUserCallback(() => then(repeat.i), undefined)
+            }
         }
     }
-    _repeats = _repeats.filter(repeat => repeat.count > 0)
+    _repeats = _repeats.filter(repeat => !finished.has(repeat))
 }
 
 function _runRepeatUntils() {
     const finished = new Set<RepeatableUntil>()
 
     for (const repeatUntil of _repeatUntils) {
+        if (repeatUntil.busy) continue
+
         // A throwing condition() is treated as "yes, done" so a broken repeatUntil
         // finishes and gets cleaned up by the filter() at the bottom, rather than
         // re-throwing every frame forever.
@@ -206,7 +267,7 @@ function _runRepeatUntils() {
             }
         } else {
             // Run as long as condition is false
-            runUserCallback(() => repeatUntil.fn(repeatUntil.i), undefined)
+            _track(repeatUntil, runUserCallback(() => repeatUntil.fn(repeatUntil.i), undefined))
             repeatUntil.i += 1
         }
     }
@@ -215,12 +276,14 @@ function _runRepeatUntils() {
 
 function _runRepeatWhiles() {
     for (const repeatWhile of _repeatWhiles) {
+        if (repeatWhile.busy) continue
+
         // A throwing condition() is treated as "no, stop" (see runUserCallback's
         // fallback below), same reasoning as repeatUntil above but inverted.
         const thisCheck = runUserCallback(() => repeatWhile.condition(), false)
         if (thisCheck) {
             // Run as long as the condition is true
-            runUserCallback(() => repeatWhile.fn(repeatWhile.i), undefined)
+            _track(repeatWhile, runUserCallback(() => repeatWhile.fn(repeatWhile.i), undefined))
             repeatWhile.i += 1
         } else if (repeatWhile.lastCheck && repeatWhile.then) {
             // Once the condition first becomes false, run then() and reset
@@ -244,9 +307,11 @@ function _runAfters(delta: number) {
 
 function _runEverys(delta: number) {
     for (const every of _everys) {
+        // Time keeps accruing while a run is still pending, so the next one
+        // starts as soon as both the interval has passed and that run is done.
         every.elapsedMs += delta
-        if (every.elapsedMs >= every.lifetimeMs) {
-            runUserCallback(() => every.fn(), undefined)
+        if (!every.busy && every.elapsedMs >= every.lifetimeMs) {
+            _track(every, runUserCallback(() => every.fn(), undefined))
             every.elapsedMs = 0
         }
     }

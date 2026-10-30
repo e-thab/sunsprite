@@ -39,7 +39,7 @@ export function isVector2(obj: any): obj is Vector2 {
     return isXYObject(obj)
 }
 
-/** A 2-dimensional vector. [Click here to read the docs.](http://localhost:5173/docs/api/classes/vector2) */
+/** A 2-dimensional vector. [Click here to read the docs.](/docs/api/classes/vector2) */
 export class Vector2 {
 	x: number = 0
 	y: number = 0
