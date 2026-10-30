@@ -1,7 +1,7 @@
 import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
-import type { Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Returnable } from './types'
+import type { Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Returnable, SmoothableKey } from './types'
 import type { ThemePalette } from '@/theme/themes'
 import type { ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
 import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@api/assets'
@@ -610,39 +610,66 @@ type AutoSmoothBase = {
 	resolve: () => void
 }
 
+/** read, when present, re-reads value each frame so outside changes to a smoothed property are kept */
 type AutoSmooth = AutoSmoothBase & (
-	| { kind: 'number', value: number, target: Returnable<number>, velocity: number, fn: (value: number, stop: Action) => void }
-	| { kind: 'vector', value: Vector2, target: Returnable<Vector2>, velocity: Vector2, fn: (value: Vector2, stop: Action) => void }
+	| { kind: 'number', value: number, target: Returnable<number>, velocity: number, fn: (value: number, stop: Action) => void, read?: () => number }
+	| { kind: 'vector', value: Vector2, target: Returnable<Vector2>, velocity: Vector2, fn: (value: Vector2, stop: Action) => void, read?: () => Vector2 }
 )
 
 let autoSmooths: AutoSmooth[] = []
 
 /**
+ * Smoothly moves an object's property toward a target over time. The property must hold a number or a Vector2,
+ * and target must match it.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to move toward
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the values should be before smoothing is considered done. Default 0.01 for numbers, 0.1 for Vector2s.
+ * @returns A promise that resolves once the property reaches target
+ */
+function smoothTo<T extends object, K extends SmoothableKey<T>>(object: T, key: K, target: Returnable<T[K]>, smoothTime?: number, threshold?: number): Promise<void>
+/**
  * Generates a function you can use to move a value toward a target smoothly over time. Value and target
  * can be either numbers or Vector2s, but must match each other.
  * @param value The starting vector
  * @param target The target vector to move toward
- * @param smoothTime How fast the vector changes, **lower** values mean **faster** movement
- * @param threshold How close the vectors should be before smoothing is considered done
  * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the vector changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the vectors should be before smoothing is considered done. Default 0.1.
  * @returns A promise that resolves once vector reaches target or stop() is called
  */
-function smoothTo(value: Vector2, target: Returnable<Vector2>, smoothTime: number, threshold: number, fn: (value: Vector2, stop: Action) => void): Promise<void>
+function smoothTo(value: Vector2, target: Returnable<Vector2>, fn: (value: Vector2, stop: Action) => void, smoothTime?: number, threshold?: number): Promise<void>
 /**
  * Generates a function you can use to move a vector toward a target smoothly over time. Value and target
  * can be either numbers or Vector2s, but must match each other.
  * @param value The start value
  * @param target The target (end) value to move toward
- * @param smoothTime How fast the value changes, **lower** values mean **faster** movement
- * @param threshold How close the values should be before smoothing is considered done
  * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the values should be before smoothing is considered done. Default 0.01.
  * @returns A promise that resolves once value reaches target or stop() is called
 */
-function smoothTo(value: number, target: Returnable<number>, smoothTime: number, threshold: number, fn: (value: number, stop: Action) => void): Promise<void>
-function smoothTo(value: number | Vector2, target: Returnable<number | Vector2>, smoothTime: number, threshold: number, fn: SmoothFunction): Promise<void> {
+function smoothTo(value: number, target: Returnable<number>, fn: (value: number, stop: Action) => void, smoothTime?: number, threshold?: number,): Promise<void>
+function smoothTo(...args: any[]): Promise<void> {
+	// Only the property form has a string second argument; the value form's is a number, Vector2 or function
+	if (typeof args[1] === 'string') {
+		const [object, key, target, smoothTime, threshold] = args
+		const value = object[key]
+		if (typeof value !== 'number' && !isVector2(value)) {
+			throw new Error(`smoothTo: '${key}' must be a number or Vector2 property`)
+		}
+		return _startSmooth(value, target, (value: number | Vector2) => object[key] = value, smoothTime, threshold, () => object[key])
+	}
+
+	const [value, target, fn, smoothTime, threshold] = args
+	return _startSmooth(value, target, fn, smoothTime, threshold)
+}
+
+function _startSmooth(value: number | Vector2, target: Returnable<number | Vector2>, fn: SmoothFunction, smoothTime = 0.25, threshold?: number, read?: () => number | Vector2): Promise<void> {
 	let resolve!: () => void
 	const done = new Promise<void>(r => resolve = r)
-	const base = { smoothTime, threshold, stopped: false, resolve }
+	const base = { smoothTime, stopped: false, resolve }
 	let autoSmooth: AutoSmooth
 
 	const initialTarget = unwrap(target)
@@ -651,19 +678,23 @@ function smoothTo(value: number | Vector2, target: Returnable<number | Vector2>,
 		autoSmooth = {
 			...base,
 			kind: 'number',
+			threshold: threshold ?? 0.01,
 			value,
-			target: initialTarget as Returnable<number>,
+			target: target as Returnable<number>,
 			velocity: 0,
-			fn: fn as (value: number, stop: Action) => void
+			fn: fn as (value: number, stop: Action) => void,
+			read: read as (() => number) | undefined
 		}
 	} else if (isVector2(value) && isVector2(initialTarget)) {
 		autoSmooth = {
 			...base,
 			kind: 'vector',
+			threshold: threshold ?? 0.1,
 			value,
-			target: initialTarget  as Returnable<Vector2>,
+			target: target as Returnable<Vector2>,
 			velocity: Vector2.ZERO,
-			fn: fn as (value: Vector2, stop: Action) => void
+			fn: fn as (value: Vector2, stop: Action) => void,
+			read: read as (() => Vector2) | undefined
 		}
 	} else {
 		throw new Error('smoothTo: value and target must both be numbers or both be Vector2s')
@@ -684,8 +715,9 @@ function _runSmooths(deltaMs: number) {
 
 		// First, check if value is already within threshold of target
 		if (autoSmooth.kind === 'number') {
+			if (autoSmooth.read) autoSmooth.value = autoSmooth.read()
 			const target = unwrap(autoSmooth.target)
-			
+
 			if (Math.abs(autoSmooth.value - target) < autoSmooth.threshold) {
 				// Run the function one last time so that value fully reaches target
 				autoSmooth.fn(target, stop)
@@ -704,6 +736,7 @@ function _runSmooths(deltaMs: number) {
 			autoSmooth.velocity = step.velocity
 			autoSmooth.fn(step.value, stop)
 		} else if (autoSmooth.kind === 'vector') {
+			if (autoSmooth.read) autoSmooth.value = autoSmooth.read()
 			const target = unwrap(autoSmooth.target)
 
 			if (autoSmooth.value.distanceTo(target) < autoSmooth.threshold) {

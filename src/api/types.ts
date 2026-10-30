@@ -10,6 +10,9 @@ export type Returnable<T> = T | (() => T)
 export type Optional<T> = T | undefined | null
 export type Printable = { toString(): string | undefined }
 
+/** Names of T's properties that hold a number or Vector2, used by smoothTo */
+export type SmoothableKey<T> = { [K in keyof T]: T[K] extends number | Vector2 ? K : never }[keyof T]
+
 /** Resolve a Returnable generic */
 export function unwrap<T>(value: Returnable<T>): T {
 	return typeof value === 'function' ? (value as () => T)() : value

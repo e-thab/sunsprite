@@ -640,9 +640,10 @@ export function extractFreeFunction(
     return toRender
         .map((sig) => {
             const doc = extractDoc(sig)
+            const typeParams = sig.typeParameters ? `<${sig.typeParameters.map((t) => t.getText(sourceFile)).join(', ')}>` : ''
             const params = renderParams(sig.parameters, checker, sourceFile)
             const returnType = functionReturnTypeText(checker, sig, sourceFile)
-            return `${formatDocBlock(doc, '')}declare function ${entry.name}(${params}): ${returnType}`
+            return `${formatDocBlock(doc, '')}declare function ${entry.name}${typeParams}(${params}): ${returnType}`
         })
         .join('\n\n')
 }

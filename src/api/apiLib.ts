@@ -326,6 +326,9 @@ type Predicate = (...args: any[]) => boolean
 /** Returnable def */
 type Returnable<T> = T | (() => T)
 
+/** Names of T's properties that hold a number or Vector2, used by smoothTo */
+type SmoothableKey<T> = { [K in keyof T]: T[K] extends number | Vector2 ? K : never }[keyof T]
+
 type Printable = { toString(): string }
 
 type Optional<T> = T | undefined | null
