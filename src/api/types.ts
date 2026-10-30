@@ -10,6 +10,11 @@ export type Returnable<T> = T | (() => T)
 export type Optional<T> = T | undefined | null
 export type Printable = { toString(): string | undefined }
 
+/** Resolve a Returnable generic */
+export function unwrap<T>(value: Returnable<T>): T {
+	return typeof value === 'function' ? (value as () => T)() : value
+}
+
 // TODO: verify jsdoc descriptions... are they pointer coords
 // or offset coords?
 export type PointerAction = (

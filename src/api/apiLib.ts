@@ -46,7 +46,7 @@ import {
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
-    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothDampDeclaration,
+    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothDampDeclaration, smoothToDeclaration,
 } from "./generated/apiDeclarations.generated"
 import type { AssetKind, NamedAsset } from "./fileNames"
 
@@ -151,6 +151,8 @@ export interface VersionedApiConstants {
     clampDeclaration: string
     // Optional: snapshots cut before smoothDamp existed don't export it.
     smoothDampDeclaration?: string
+    // Optional: snapshots cut before smoothTo existed don't export it.
+    smoothToDeclaration?: string
 }
 
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
@@ -521,6 +523,8 @@ ${v.clampDeclaration}
 
 ${v.smoothDampDeclaration ?? ''}
 
+${v.smoothToDeclaration ?? ''}
+
 /**
  * Returns the square root of a number.
  * @param num A number.
@@ -751,5 +755,5 @@ export const apiLib = buildApiLib({
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
-    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothDampDeclaration,
+    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothDampDeclaration, smoothToDeclaration,
 })
