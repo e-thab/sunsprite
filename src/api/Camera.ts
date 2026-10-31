@@ -1,7 +1,7 @@
 import { clock, mouse } from "@api/core"
 import { forever } from "@api/control"
 import { isVector2Like, Vector2, type Vector2Like, type HasPosition } from "@api/Vector2"
-import { smoothDamp } from "./utility"
+import { smoothStep } from "./utility"
 
 /** User camera reference. */
 export default class Camera {
@@ -171,7 +171,7 @@ export default class Camera {
             const dt = clock.deltaMs / 1000
             if (this._target !== undefined) {
                 // Smooth damp position
-                const step = smoothDamp(
+                const step = smoothStep(
                     this.position, this._target, 
                     this._velocity, this.smoothTime, dt
                 )
@@ -187,7 +187,7 @@ export default class Camera {
 
             // Smooth damp zoom
             if (this._zoomTarget !== undefined) {
-                const step = smoothDamp(
+                const step = smoothStep(
                     Math.log(this.zoom), Math.log(this._zoomTarget), 
                     this._zoomVelocity, this.zoomSmoothTime, dt
                 )

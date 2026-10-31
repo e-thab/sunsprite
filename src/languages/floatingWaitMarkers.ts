@@ -10,7 +10,7 @@ import { LANGUAGE_SUPPORTS } from '@/languages/monacoLanguages'
 // tell the API's wait from a user function of the same name, and skip
 // comments and strings for free.
 //
-// Only wait, not every promise-returning API call: a bare `smoothTo(...)` is
+// Only wait, not every promise-returning API call: a bare `smoothDamp(...)` is
 // a perfectly good "start this and carry on", while a bare wait can't do
 // anything at all.
 

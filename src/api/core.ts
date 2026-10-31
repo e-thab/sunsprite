@@ -7,7 +7,7 @@ import type { ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
 import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@api/assets'
 import { isVector2, Vector2, type Vector2Like } from '@api/Vector2'
 import { Mouse, unwrap } from '@api/types'
-import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp, smoothDamp } from '@api/utility'
+import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp, smoothStep } from '@api/utility'
 import { runEntryModule, locateError, resetLoopGuard } from '@api/moduleRunner'
 import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
 
@@ -606,7 +606,7 @@ type AutoSmoothBase = {
 	smoothTime: number,
 	threshold: number,
 	stopped: boolean,
-	/** Settles the promise smoothTo returned */
+	/** Settles the promise smoothDamp returned */
 	resolve: () => void
 }
 
@@ -628,7 +628,7 @@ let autoSmooths: AutoSmooth[] = []
  * @param threshold How close the values should be before smoothing is considered done. Default 0.01 for numbers, 0.1 for Vector2s.
  * @returns A promise that resolves once the property reaches target
  */
-function smoothTo<T extends object, K extends SmoothableKey<T>>(object: T, key: K, target: Returnable<T[K]>, smoothTime?: number, threshold?: number): Promise<void>
+function smoothDamp<T extends object, K extends SmoothableKey<T>>(object: T, key: K, target: Returnable<T[K]>, smoothTime?: number, threshold?: number): Promise<void>
 /**
  * Generates a function you can use to move a value toward a target smoothly over time. Value and target
  * can be either numbers or Vector2s, but must match each other.
@@ -639,7 +639,7 @@ function smoothTo<T extends object, K extends SmoothableKey<T>>(object: T, key: 
  * @param threshold How close the vectors should be before smoothing is considered done. Default 0.1.
  * @returns A promise that resolves once vector reaches target or stop() is called
  */
-function smoothTo(value: Vector2, target: Returnable<Vector2>, fn: (value: Vector2, stop: Action) => void, smoothTime?: number, threshold?: number): Promise<void>
+function smoothDamp(value: Vector2, target: Returnable<Vector2>, fn: (value: Vector2, stop: Action) => void, smoothTime?: number, threshold?: number): Promise<void>
 /**
  * Generates a function you can use to move a vector toward a target smoothly over time. Value and target
  * can be either numbers or Vector2s, but must match each other.
@@ -650,14 +650,14 @@ function smoothTo(value: Vector2, target: Returnable<Vector2>, fn: (value: Vecto
  * @param threshold How close the values should be before smoothing is considered done. Default 0.01.
  * @returns A promise that resolves once value reaches target or stop() is called
 */
-function smoothTo(value: number, target: Returnable<number>, fn: (value: number, stop: Action) => void, smoothTime?: number, threshold?: number,): Promise<void>
-function smoothTo(...args: any[]): Promise<void> {
+function smoothDamp(value: number, target: Returnable<number>, fn: (value: number, stop: Action) => void, smoothTime?: number, threshold?: number,): Promise<void>
+function smoothDamp(...args: any[]): Promise<void> {
 	// Only the property form has a string second argument; the value form's is a number, Vector2 or function
 	if (typeof args[1] === 'string') {
 		const [object, key, target, smoothTime, threshold] = args
 		const value = object[key]
 		if (typeof value !== 'number' && !isVector2(value)) {
-			throw new Error(`smoothTo: '${key}' must be a number or Vector2 property`)
+			throw new Error(`smoothDamp: '${key}' must be a number or Vector2 property`)
 		}
 		return _startSmooth(value, target, (value: number | Vector2) => object[key] = value, smoothTime, threshold, () => object[key])
 	}
@@ -697,7 +697,7 @@ function _startSmooth(value: number | Vector2, target: Returnable<number | Vecto
 			read: read as (() => Vector2) | undefined
 		}
 	} else {
-		throw new Error('smoothTo: value and target must both be numbers or both be Vector2s')
+		throw new Error('smoothDamp: value and target must both be numbers or both be Vector2s')
 	}
 
 	autoSmooths.push(autoSmooth)
@@ -725,7 +725,7 @@ function _runSmooths(deltaMs: number) {
 				continue
 			}
 
-			const step = smoothDamp(
+			const step = smoothStep(
 				autoSmooth.value,
 				target,
 				autoSmooth.velocity,
@@ -744,7 +744,7 @@ function _runSmooths(deltaMs: number) {
 				stop()
 				continue
 			}
-			const step = smoothDamp(
+			const step = smoothStep(
 				autoSmooth.value,
 				target,
 				autoSmooth.velocity,
@@ -992,7 +992,7 @@ class UserScene extends Scene {
 			floor: Math.floor,
 			ceil: Math.ceil,
 			round: Math.round,
-			smoothDamp, smoothTo,
+			smoothStep, smoothDamp,
 			PI: Math.PI,
 		}
 

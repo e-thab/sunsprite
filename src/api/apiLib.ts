@@ -46,7 +46,7 @@ import {
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
-    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothDampDeclaration, smoothToDeclaration,
+    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothStepDeclaration, smoothDampDeclaration,
 } from "./generated/apiDeclarations.generated"
 import type { AssetKind, NamedAsset } from "./fileNames"
 
@@ -151,10 +151,10 @@ export interface VersionedApiConstants {
     tanDeclaration: string
     atan2Declaration: string
     clampDeclaration: string
+    // Optional: snapshots cut before smoothStep existed don't export it.
+    smoothStepDeclaration?: string
     // Optional: snapshots cut before smoothDamp existed don't export it.
     smoothDampDeclaration?: string
-    // Optional: snapshots cut before smoothTo existed don't export it.
-    smoothToDeclaration?: string
 }
 
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
@@ -326,7 +326,7 @@ type Predicate = (...args: any[]) => boolean
 /** Returnable def */
 type Returnable<T> = T | (() => T)
 
-/** Names of T's properties that hold a number or Vector2, used by smoothTo */
+/** Names of T's properties that hold a number or Vector2, used by smoothDamp */
 type SmoothableKey<T> = { [K in keyof T]: T[K] extends number | Vector2 ? K : never }[keyof T]
 
 type Printable = { toString(): string }
@@ -528,9 +528,9 @@ ${v.atan2Declaration}
 
 ${v.clampDeclaration}
 
-${v.smoothDampDeclaration ?? ''}
+${v.smoothStepDeclaration ?? ''}
 
-${v.smoothToDeclaration ?? ''}
+${v.smoothDampDeclaration ?? ''}
 
 /**
  * Returns the square root of a number.
@@ -762,5 +762,5 @@ export const apiLib = buildApiLib({
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
-    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothDampDeclaration, smoothToDeclaration,
+    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothStepDeclaration, smoothDampDeclaration,
 })

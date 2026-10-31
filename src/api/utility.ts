@@ -5,11 +5,11 @@ import { isVector2, Vector2 } from "./Vector2"
  * Returns an object with the new value and velocity.
  * @param current Current value
  * @param target Target value
- * @param velocity How fast the value is moving right now, should be 0 or a variable assigned by a previous smoothDamp call
+ * @param velocity How fast the value is moving right now, should be 0 or a variable assigned by a previous smoothStep call
  * @param smoothTime How fast the value changes in seconds, **lower** values mean **faster** movement
  * @param dt Delta time in seconds
  */
-export function smoothDamp(
+export function smoothStep(
     current: number,
     target: number,
     velocity: number,
@@ -22,11 +22,11 @@ export function smoothDamp(
  * Returns an object with the new position and velocity.
  * @param current Current vector
  * @param target Target vector
- * @param velocity How fast the vector is moving right now, should be 0 or a variable assigned by a previous smoothDamp call
+ * @param velocity How fast the vector is moving right now, should be 0 or a variable assigned by a previous smoothStep call
  * @param smoothTime How fast the vector changes in seconds, **lower** values mean **faster** movement
  * @param dt Delta time in seconds
  */
-export function smoothDamp(
+export function smoothStep(
     current: Vector2,
     target: Vector2,
     velocity: Vector2,
@@ -34,7 +34,7 @@ export function smoothDamp(
     dt: number
 ): { position: Vector2, velocity: Vector2 }
 
-export function smoothDamp(
+export function smoothStep(
     current: number | Vector2,
     target: number | Vector2,
     velocity: number | Vector2,
@@ -69,7 +69,7 @@ export function smoothDamp(
             velocity: velocity.subtract(temp.multiply(omega)).multiply(decay)
         }
     } else {
-        throw new Error(`Bad smoothDamp args`)
+        throw new Error(`Bad smoothStep args`)
     }
 }
 
