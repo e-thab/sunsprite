@@ -32,7 +32,7 @@ export interface EditorLanguageSupport {
 // used to set on javascriptDefaults alone, so JavaScript's behavior is
 // unchanged by TypeScript's arrival.
 const SHARED_COMPILER_OPTIONS: monaco.typescript.CompilerOptions = {
-	lib: ['es2020'],
+	lib: ['es2023'],
 	allowJs: true,
 	checkJs: true,
 	// Sunsprite scripts are imported by their real stored name — './helper.ts'

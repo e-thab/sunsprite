@@ -10,7 +10,17 @@ export type Returnable<T> = T | (() => T)
 export type Optional<T> = T | undefined | null
 export type Printable = { toString(): string | undefined }
 
-/** Names of T's properties that hold a number or Vector2, used by smoothDamp */
+/**
+ * A running smoothDamp or smoothFollow. `await` it to wait until it finishes, or call `stop()` to end it early.
+ */
+export interface Smoothing extends Promise<void> {
+	/** Stops smoothing, leaving the value where it is, and settles the promise */
+	stop(): void
+	/** Whether smoothing has finished or been stopped */
+	readonly stopped: boolean
+}
+
+/** Names of T's properties that hold a number or Vector2, used by smoothDamp and smoothFollow */
 export type SmoothableKey<T> = { [K in keyof T]: T[K] extends number | Vector2 ? K : never }[keyof T]
 
 /** Resolve a Returnable generic */

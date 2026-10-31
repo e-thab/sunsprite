@@ -1,7 +1,7 @@
 import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
-import type { Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Returnable, SmoothableKey } from './types'
+import type { Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Returnable, SmoothableKey, Smoothing } from './types'
 import type { ThemePalette } from '@/theme/themes'
 import type { ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
 import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@api/assets'
@@ -603,11 +603,16 @@ type SmoothFunction =
 	| ((value: Vector2, stop: Action) => void)
 
 type AutoSmoothBase = {
-	smoothTime: number,
+	smoothTime: Returnable<number>,
 	threshold: number,
+	/** smoothFollow's smooths ignore threshold and keep chasing target until stopped */
+	follow: boolean,
 	stopped: boolean,
-	/** Settles the promise smoothDamp returned */
-	resolve: () => void
+	/** Marks this smooth stopped and settles the promise its Smoothing handle is */
+	stop: () => void,
+	/** The property form's object and key, so a newer smooth on the same property can replace this one */
+	object?: object,
+	key?: PropertyKey
 }
 
 /** read, when present, re-reads value each frame so outside changes to a smoothed property are kept */
@@ -616,60 +621,152 @@ type AutoSmooth = AutoSmoothBase & (
 	| { kind: 'vector', value: Vector2, target: Returnable<Vector2>, velocity: Vector2, fn: (value: Vector2, stop: Action) => void, read?: () => Vector2 }
 )
 
+type SmoothOptions = {
+	/** The public function's name, for error messages */
+	name: string,
+	smoothTime?: Returnable<number>,
+	threshold?: number,
+	follow?: boolean,
+	object?: object,
+	key?: PropertyKey,
+	read?: () => number | Vector2
+}
+
 let autoSmooths: AutoSmooth[] = []
 
+// smoothDamp and smoothFollow's property forms come in pairs. The SmoothableKey one completes key names but
+// can't resolve SmoothableKey<this>, so a class passing `this` falls through to the PropertyKey one, which
+// still checks key and target through T's { [P in K]: ... } constraint.
 /**
- * Smoothly moves an object's property toward a target over time. The property must hold a number or a Vector2,
- * and target must match it.
+ * Smoothly moves an object's property toward a target over time, stopping once it gets there. The property must
+ * hold a number or a Vector2, and target must match it. Starting another smooth on the same property stops this one.
  * @param object The object whose property to smooth, like a Rectangle
  * @param key The name of the property to smooth, like 'position' or 'rotation'
  * @param target The target value to move toward
  * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
  * @param threshold How close the values should be before smoothing is considered done. Default 0.01 for numbers, 0.1 for Vector2s.
- * @returns A promise that resolves once the property reaches target
+ * @returns A Smoothing you can `await` to wait until the property reaches target, or `stop()` to end early
  */
-function smoothDamp<T extends object, K extends SmoothableKey<T>>(object: T, key: K, target: Returnable<T[K]>, smoothTime?: number, threshold?: number): Promise<void>
+function smoothDamp<K extends SmoothableKey<T>, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>, threshold?: number): Smoothing
 /**
- * Generates a function you can use to move a value toward a target smoothly over time. Value and target
- * can be either numbers or Vector2s, but must match each other.
+ * Smoothly moves an object's property toward a target over time, stopping once it gets there. The property must
+ * hold a number or a Vector2, and target must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to move toward
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the values should be before smoothing is considered done. Default 0.01 for numbers, 0.1 for Vector2s.
+ * @returns A Smoothing you can `await` to wait until the property reaches target, or `stop()` to end early
+ */
+function smoothDamp<K extends PropertyKey, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>, threshold?: number): Smoothing
+/**
+ * Moves a vector toward a target smoothly over time, stopping once it gets there.
  * @param value The starting vector
  * @param target The target vector to move toward
  * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
  * @param smoothTime How fast the vector changes, **lower** values mean **faster** movement. Default 0.25.
  * @param threshold How close the vectors should be before smoothing is considered done. Default 0.1.
- * @returns A promise that resolves once vector reaches target or stop() is called
+ * @returns A Smoothing you can `await` to wait until vector reaches target, or `stop()` to end early
  */
-function smoothDamp(value: Vector2, target: Returnable<Vector2>, fn: (value: Vector2, stop: Action) => void, smoothTime?: number, threshold?: number): Promise<void>
+function smoothDamp(value: Vector2, target: Returnable<Vector2>, fn: (value: Vector2, stop: Action) => void, smoothTime?: Returnable<number>, threshold?: number): Smoothing
 /**
- * Generates a function you can use to move a vector toward a target smoothly over time. Value and target
- * can be either numbers or Vector2s, but must match each other.
+ * Moves a number toward a target smoothly over time, stopping once it gets there.
  * @param value The start value
  * @param target The target (end) value to move toward
  * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
  * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
  * @param threshold How close the values should be before smoothing is considered done. Default 0.01.
- * @returns A promise that resolves once value reaches target or stop() is called
+ * @returns A Smoothing you can `await` to wait until value reaches target, or `stop()` to end early
 */
-function smoothDamp(value: number, target: Returnable<number>, fn: (value: number, stop: Action) => void, smoothTime?: number, threshold?: number,): Promise<void>
-function smoothDamp(...args: any[]): Promise<void> {
+function smoothDamp(value: number, target: Returnable<number>, fn: (value: number, stop: Action) => void, smoothTime?: Returnable<number>, threshold?: number): Smoothing
+function smoothDamp(...args: any[]): Smoothing {
 	// Only the property form has a string second argument; the value form's is a number, Vector2 or function
 	if (typeof args[1] === 'string') {
 		const [object, key, target, smoothTime, threshold] = args
-		const value = object[key]
-		if (typeof value !== 'number' && !isVector2(value)) {
-			throw new Error(`smoothDamp: '${key}' must be a number or Vector2 property`)
-		}
-		return _startSmooth(value, target, (value: number | Vector2) => object[key] = value, smoothTime, threshold, () => object[key])
+		return _startPropertySmooth(object, key, target, { name: 'smoothDamp', smoothTime, threshold })
 	}
 
 	const [value, target, fn, smoothTime, threshold] = args
-	return _startSmooth(value, target, fn, smoothTime, threshold)
+	return _startSmooth(value, target, fn, { name: 'smoothDamp', smoothTime, threshold })
 }
 
-function _startSmooth(value: number | Vector2, target: Returnable<number | Vector2>, fn: SmoothFunction, smoothTime = 0.25, threshold?: number, read?: () => number | Vector2): Promise<void> {
+/**
+ * Smoothly moves an object's property toward a target over time, and keeps following it until stopped. Pass a
+ * function as target to follow something that moves. The property must hold a number or a Vector2, and target
+ * must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to follow, like `() => player.position`
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow<K extends SmoothableKey<T>, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>): Smoothing
+/**
+ * Smoothly moves an object's property toward a target over time, and keeps following it until stopped. Pass a
+ * function as target to follow something that moves. The property must hold a number or a Vector2, and target
+ * must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to follow, like `() => player.position`
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow<K extends PropertyKey, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>): Smoothing
+/**
+ * Moves a vector toward a target smoothly over time, and keeps following it until stopped. Pass a function as
+ * target to follow something that moves.
+ * @param value The starting vector
+ * @param target The target vector to follow, like `() => player.position`
+ * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the vector changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow(value: Vector2, target: Returnable<Vector2>, fn: (value: Vector2, stop: Action) => void, smoothTime?: Returnable<number>): Smoothing
+/**
+ * Moves a number toward a target smoothly over time, and keeps following it until stopped. Pass a function as
+ * target to follow something that changes.
+ * @param value The start value
+ * @param target The target value to follow, like `() => player.rotation`
+ * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow(value: number, target: Returnable<number>, fn: (value: number, stop: Action) => void, smoothTime?: Returnable<number>): Smoothing
+function smoothFollow(...args: any[]): Smoothing {
+	if (typeof args[1] === 'string') {
+		const [object, key, target, smoothTime] = args
+		return _startPropertySmooth(object, key, target, { name: 'smoothFollow', smoothTime, follow: true })
+	}
+
+	const [value, target, fn, smoothTime] = args
+	return _startSmooth(value, target, fn, { name: 'smoothFollow', smoothTime, follow: true })
+}
+
+function _startPropertySmooth(object: any, key: string, target: Returnable<number | Vector2>, options: SmoothOptions): Smoothing {
+	const value = object[key]
+	if (typeof value !== 'number' && !isVector2(value)) {
+		throw new Error(`${options.name}: '${key}' must be a number or Vector2 property`)
+	}
+	// One smooth per property, so a follow left running doesn't fight the newer smooth every frame
+	for (const other of autoSmooths) {
+		if (other.object === object && other.key === key) other.stop()
+	}
+	return _startSmooth(value, target, (value: number | Vector2) => object[key] = value, { ...options, object, key, read: () => object[key] })
+}
+
+function _startSmooth(value: number | Vector2, target: Returnable<number | Vector2>, fn: SmoothFunction, options: SmoothOptions): Smoothing {
+	const { name, smoothTime = 0.25, threshold, follow = false, object, key, read } = options
 	let resolve!: () => void
 	const done = new Promise<void>(r => resolve = r)
-	const base = { smoothTime, stopped: false, resolve }
+	const base = {
+		smoothTime, follow, object, key,
+		stopped: false,
+		stop() {
+			if (autoSmooth.stopped) return
+			autoSmooth.stopped = true
+			resolve()
+		}
+	}
 	let autoSmooth: AutoSmooth
 
 	const initialTarget = unwrap(target)
@@ -697,28 +794,31 @@ function _startSmooth(value: number | Vector2, target: Returnable<number | Vecto
 			read: read as (() => Vector2) | undefined
 		}
 	} else {
-		throw new Error('smoothDamp: value and target must both be numbers or both be Vector2s')
+		throw new Error(`${name}: value and target must both be numbers or both be Vector2s`)
 	}
 
 	autoSmooths.push(autoSmooth)
-	return done
+	// The handle is the promise itself, so then/catch/finally and Promise.all keep working
+	return Object.defineProperties(done, {
+		stop: { value: autoSmooth.stop },
+		stopped: { get: () => autoSmooth.stopped }
+	}) as Smoothing
 }
 
 function _runSmooths(deltaMs: number) {
+	const dt = deltaMs / 1000
 	for (const autoSmooth of autoSmooths) {
-		// The function that stops this autoSmooth, resolving the promise and allowing garbage collect
-		function stop() {
-			autoSmooth.stopped = true
-			autoSmooth.resolve()
-		}
-		const dt = deltaMs / 1000
+		// Already stopped this frame, by another smooth's fn or a newer smooth on the same property
+		if (autoSmooth.stopped) continue
+		const { stop } = autoSmooth
+		const smoothTime = unwrap(autoSmooth.smoothTime)
 
 		// First, check if value is already within threshold of target
 		if (autoSmooth.kind === 'number') {
 			if (autoSmooth.read) autoSmooth.value = autoSmooth.read()
 			const target = unwrap(autoSmooth.target)
 
-			if (Math.abs(autoSmooth.value - target) < autoSmooth.threshold) {
+			if (!autoSmooth.follow && Math.abs(autoSmooth.value - target) < autoSmooth.threshold) {
 				// Run the function one last time so that value fully reaches target
 				autoSmooth.fn(target, stop)
 				stop()
@@ -729,7 +829,7 @@ function _runSmooths(deltaMs: number) {
 				autoSmooth.value,
 				target,
 				autoSmooth.velocity,
-				autoSmooth.smoothTime,
+				smoothTime,
 				dt
 			)
 			autoSmooth.value = step.value
@@ -739,7 +839,7 @@ function _runSmooths(deltaMs: number) {
 			if (autoSmooth.read) autoSmooth.value = autoSmooth.read()
 			const target = unwrap(autoSmooth.target)
 
-			if (autoSmooth.value.distanceTo(target) < autoSmooth.threshold) {
+			if (!autoSmooth.follow && autoSmooth.value.distanceTo(target) < autoSmooth.threshold) {
 				autoSmooth.fn(target, stop)
 				stop()
 				continue
@@ -748,7 +848,7 @@ function _runSmooths(deltaMs: number) {
 				autoSmooth.value,
 				target,
 				autoSmooth.velocity,
-				autoSmooth.smoothTime,
+				smoothTime,
 				dt
 			)
 			autoSmooth.value = step.position
@@ -992,7 +1092,7 @@ class UserScene extends Scene {
 			floor: Math.floor,
 			ceil: Math.ceil,
 			round: Math.round,
-			smoothStep, smoothDamp,
+			smoothStep, smoothDamp, smoothFollow,
 			PI: Math.PI,
 		}
 

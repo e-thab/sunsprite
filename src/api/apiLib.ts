@@ -46,7 +46,7 @@ import {
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
-    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothStepDeclaration, smoothDampDeclaration,
+    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothStepDeclaration, smoothDampDeclaration, smoothFollowDeclaration,
 } from "./generated/apiDeclarations.generated"
 import type { AssetKind, NamedAsset } from "./fileNames"
 
@@ -155,6 +155,8 @@ export interface VersionedApiConstants {
     smoothStepDeclaration?: string
     // Optional: snapshots cut before smoothDamp existed don't export it.
     smoothDampDeclaration?: string
+    // Optional: snapshots cut before smoothFollow existed don't export it.
+    smoothFollowDeclaration?: string
 }
 
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
@@ -326,7 +328,17 @@ type Predicate = (...args: any[]) => boolean
 /** Returnable def */
 type Returnable<T> = T | (() => T)
 
-/** Names of T's properties that hold a number or Vector2, used by smoothDamp */
+/**
+ * A running smoothDamp or smoothFollow. \`await\` it to wait until it finishes, or call \`stop()\` to end it early.
+ */
+interface Smoothing extends Promise<void> {
+    /** Stops smoothing, leaving the value where it is, and settles the promise */
+    stop(): void
+    /** Whether smoothing has finished or been stopped */
+    readonly stopped: boolean
+}
+
+/** Names of T's properties that hold a number or Vector2, used by smoothDamp and smoothFollow */
 type SmoothableKey<T> = { [K in keyof T]: T[K] extends number | Vector2 ? K : never }[keyof T]
 
 type Printable = { toString(): string }
@@ -531,6 +543,8 @@ ${v.clampDeclaration}
 ${v.smoothStepDeclaration ?? ''}
 
 ${v.smoothDampDeclaration ?? ''}
+
+${v.smoothFollowDeclaration ?? ''}
 
 /**
  * Returns the square root of a number.
@@ -762,5 +776,5 @@ export const apiLib = buildApiLib({
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
     watchDeclaration, unwatchDeclaration,
-    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothStepDeclaration, smoothDampDeclaration,
+    deg2radDeclaration, rad2degDeclaration, sinDeclaration, cosDeclaration, tanDeclaration, atan2Declaration, clampDeclaration, smoothStepDeclaration, smoothDampDeclaration, smoothFollowDeclaration,
 })
