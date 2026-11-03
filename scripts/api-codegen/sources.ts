@@ -91,6 +91,13 @@ export const TYPE_ONLY_CLASSES = [
 export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
 
 /**
+ * Where the `Colors` object lives — its names and values are frozen into each
+ * snapshot's generated.ts (see snapshot-api.ts) so the editor's color
+ * completions and swatches match the version selected.
+ */
+export const COLORS_FILE = apiPath('Colors.ts')
+
+/**
  * Plain `const <exportName> = {...}` object literals (not classes) that are
  * part of the real api-object surface — Random and Files. Extracted via
  * extractObjectLiteral into the same propsFields/members shape a concrete

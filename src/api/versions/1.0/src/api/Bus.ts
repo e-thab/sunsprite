@@ -209,6 +209,27 @@ export default class Bus {
     }
 
     /**
+     * Stop all sounds on this bus.
+     */
+    stopAll() {
+        for (const sound of this._sounds) sound.stop()
+    }
+
+    /**
+     * Pause all sounds on this bus.
+     */
+    pauseAll() {
+        for (const sound of this._sounds) sound.pause()
+    }
+
+    /**
+     * Resume all sounds on this bus. (Play them if they're currently paused)
+     */
+    resumeAll() {
+        for (const sound of this._sounds) sound.resume()
+    }
+
+    /**
      * Add a sound to this bus.
      * @param sound The sound object to add to the bus.
      */

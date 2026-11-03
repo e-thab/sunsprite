@@ -26,6 +26,10 @@ export default class Rectangle extends Shape {
         this._refObj = rect // Reference to Phaser object used in mixins
         this._rect = rect   // Reference to Phaser object used within this class (for readability)
 
+        // Start from Phaser's default size, until width/height say otherwise
+        this._width = rect.width
+        this._height = rect.height
+
         if (props?.cornerRadius !== undefined) this.cornerRadius = props.cornerRadius
 
         // Set mixin props
@@ -43,5 +47,11 @@ export default class Rectangle extends Shape {
     }
     set cornerRadius(radius: number) {
         this._rect.setRounded(radius)
+    }
+
+    // setSize rebuilds the outline path at the new size, so the corner radius
+    // and outline width stay in real pixels; it also resizes the hit area.
+    _redraw() {
+        this._rect.setSize(this.width, this.height)
     }
 }

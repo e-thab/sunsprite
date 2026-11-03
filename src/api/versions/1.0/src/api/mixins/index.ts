@@ -10,6 +10,7 @@ export * from './Alignable'
 export * from './Fillable'
 export * from './Outlinable'
 export * from './Orientable'
+export * from './Destructible'
 
 import { type PositionableProps } from './Positionable'
 import { type SizableProps } from './Sizable'

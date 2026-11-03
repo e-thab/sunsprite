@@ -1,3 +1,78 @@
+import { isVector2, Vector2 } from "./Vector2"
+
+/**
+ * Moves `current` value toward `target` value like a critically damped spring.
+ * Returns an object with the new value and velocity.
+ * @param current Current value
+ * @param target Target value
+ * @param velocity How fast the value is moving right now, should be 0 or a variable assigned by a previous smoothStep call
+ * @param smoothTime How fast the value changes in seconds, **lower** values mean **faster** movement
+ * @param dt Delta time in seconds
+ */
+export function smoothStep(
+    current: number,
+    target: number,
+    velocity: number,
+    smoothTime: number,
+    dt: number
+): { value: number, velocity: number }
+
+/**
+ * Moves `current` vector toward `target` vector like a critically damped spring.
+ * Returns an object with the new position and velocity.
+ * @param current Current vector
+ * @param target Target vector
+ * @param velocity How fast the vector is moving right now, should be 0 or a variable assigned by a previous smoothStep call
+ * @param smoothTime How fast the vector changes in seconds, **lower** values mean **faster** movement
+ * @param dt Delta time in seconds
+ */
+export function smoothStep(
+    current: Vector2,
+    target: Vector2,
+    velocity: Vector2,
+    smoothTime: number,
+    dt: number
+): { position: Vector2, velocity: Vector2 }
+
+export function smoothStep(
+    current: number | Vector2,
+    target: number | Vector2,
+    velocity: number | Vector2,
+    smoothTime: number,
+    dt: number
+):
+    | { position: Vector2, velocity: Vector2 }
+    | { value: number, velocity: number }
+{
+    const omega = 2 / Math.max(smoothTime, 0.0001)
+    const decay = Math.exp(-omega * dt) // e^(-ω·dt)
+
+    if (typeof current === 'number' && typeof target === 'number' && typeof velocity === 'number') {
+        // Damping numbers
+        const offset = current - target
+        const temp = (velocity + omega * offset) * dt
+
+        return {
+            value: target + (offset + temp) * decay,
+            velocity: (velocity - omega * temp) * decay
+        }
+    } else if (isVector2(current) && isVector2(target) && isVector2(velocity)) {
+        // Damping vectors
+        const offset = current.subtract(target)
+        const temp = velocity.add(offset.multiply(omega)).multiply(dt)
+
+        return {
+            // x(dt) = (x0 + (v0 + ω·x0)·dt)·e^(-ω·dt)
+            position: target.add(offset.add(temp).multiply(decay)),
+    
+            // v(dt) = (v0 - ω·(v0 + ω·x0)·dt)·e^(-ω·dt)
+            velocity: velocity.subtract(temp.multiply(omega)).multiply(decay)
+        }
+    } else {
+        throw new Error(`Bad smoothStep args`)
+    }
+}
+
 function getColorBrightness(hex: string): number {
 	const r = parseInt(hex.slice(1, 3), 16)
 	const g = parseInt(hex.slice(3, 5), 16)
@@ -223,7 +298,6 @@ forever(delta => {
 })
 
 const refSquare = new Sprite({
-	src: 'src/assets/images/square.png',
 	y: 300,
 	cursor: 'handPoint'
 })

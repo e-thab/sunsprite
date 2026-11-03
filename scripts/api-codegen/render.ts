@@ -20,6 +20,16 @@ const MIXIN_EXPORT_NAME: Record<string, string> = {
 }
 
 /**
+ * What a snapshot freezes beyond the extracted declarations: the editor's
+ * hand-written supporting types (src/api/libTypes.ts) and the Colors table —
+ * see VersionedApiConstants in apiLib.ts.
+ */
+export interface FrozenSupport {
+    libTypesDeclaration: string
+    colorTable: Record<string, string>
+}
+
+/**
  * Renders generated declarations as a plain `.ts` module exporting bare string
  * constants (no `declare global`, no cross-file imports) — safe to import
  * from anywhere, including Vite's `import.meta.glob` in the browser, since
@@ -32,8 +42,19 @@ const MIXIN_EXPORT_NAME: Record<string, string> = {
  * version; versions/<version>/api.d.ts is a separate, human-readable form,
  * not meant to be loaded into the editor directly (see docs/plans/api-versioning.md).
  */
-export function renderGeneratedModule(generated: GeneratedDeclarations, header: string[]): string {
+export function renderGeneratedModule(generated: GeneratedDeclarations, header: string[], frozen?: FrozenSupport): string {
     const lines: string[] = [...header, '']
+
+    // Only a snapshot passes these. The live editor reads libTypes.ts and
+    // Colors.ts directly, so a copy in the "current" file would go unused.
+    if (frozen) {
+        lines.push(
+            `export const libTypesDeclaration = \`${esc(frozen.libTypesDeclaration)}\``,
+            '',
+            `export const colorTable: Record<string, string> = ${JSON.stringify(frozen.colorTable, null, 4)}`,
+            '',
+        )
+    }
 
     for (const [functionName, bundle] of Object.entries(generated.mixins)) {
         const prefix = MIXIN_EXPORT_NAME[functionName]

@@ -1,14 +1,14 @@
 import { AUTO, Game, Scene, type Types } from 'phaser'
 import Phaser from 'phaser'
 
-import type { Repeatable, Delayable, Predicate, Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Conditional, RepeatableUntil, RepeatableWhile } from './types'
+import type { Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Returnable, SmoothableKey, Smoothing } from './types'
 import type { ThemePalette } from "../../../../../theme/themes"
 import type { ProjectAsset, ProjectTextFile } from "../../../../../sandbox/protocol"
 import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from "./assets"
-import { Vector2, type Vector2Like } from "./Vector2"
-import { Mouse } from "./types"
-import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp } from "./utility"
-import { runEntryModule, locateError } from "../../../../moduleRunner"
+import { isVector2, Vector2, type Vector2Like } from "./Vector2"
+import { Mouse, unwrap } from "./types"
+import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp, smoothStep } from "./utility"
+import { runEntryModule, locateError, resetLoopGuard } from "../../../../moduleRunner"
 import { watch, unwatch, clearWatchCards } from "../sandbox/watch"
 
 import Output from "../sandbox/output"
@@ -30,6 +30,7 @@ import HLine from "./HLine"
 import VLine from "./VLine"
 import Sound from "./Sound"
 import { mixer, setClientVolume, setClientMute } from "./Mixer"
+import { after, clearControls, every, forever, repeat, repeatUntil, repeatWhile, runControls, wait, when } from "./control"
 
 export const VERSION = '1.0'
 
@@ -65,7 +66,15 @@ function toDisplayError(e: unknown): Error {
 	}
 }
 
-/** Single place that turns "something a user script threw" into output panel content. */
+/**
+ * Single place that turns "something a user script threw" into output panel
+ * content. An error (not a warning) also pauses the game: whatever threw it
+ * is usually a forever() body or similar that would otherwise throw again on
+ * every frame, re-reporting and re-highlighting the same line in the editor
+ * 60 times a second, which pins its scroll position to it. Paused, the
+ * script can be read and fixed; Play retries it, and Restart runs the fix.
+ * The host's pause button follows along through the next status report.
+ */
 function reportUserError(e: unknown) {
 	const err = toDisplayError(e)
 	const location = locateError(err)
@@ -76,6 +85,7 @@ function reportUserError(e: unknown) {
 	} else {
 		Output.runtimeError(err.toString(), location)
 		console.error('User code error:', err)
+		if (!paused) pause()
 	}
 }
 
@@ -92,12 +102,15 @@ function reportUserError(e: unknown) {
  * predicate (repeatUntil's condition, etc.) fails toward whatever behavior
  * is safest for its caller rather than propagating further.
  */
-function runUserCallback<T>(fn: () => T, fallback: T): T {
+export function runUserCallback<T>(fn: () => T, fallback: T): T {
 	if (_crash) return fallback
 
 	try {
 		return fn()
 	} catch (e) {
+		// Whatever loop may have tripped the guard has unwound by now; the
+		// next callback this frame starts with a clean slate.
+		resetLoopGuard()
 		reportUserError(e)
 		return fallback
 	}
@@ -137,6 +150,65 @@ function resumeAudio() {
 	if (context?.state === 'suspended') context.resume()
 }
 
+/** Internal. How long a restart spends fading out the previous game's audio before tearing it down, in seconds. */
+const RETIRE_FADE = 0.015
+
+/**
+ * Internal. Takes down the previous run's Game without a pop.
+ *
+ * Phaser's own teardown is abrupt twice over: its sound manager's destroy()
+ * disconnects the master output mid-waveform, then, because the context was
+ * handed in through the config, suspends it — the shared context the game
+ * replacing this one already plays through (see assets.ts's
+ * _sharedAudioContext). Suspending a context that's making sound stops the
+ * output stream mid-sample, and the new game's onFocus() starts it again a
+ * frame later: two hard edges, heard as a crack whenever anything was playing
+ * as Restart was pressed.
+ *
+ * So the old game's output is ramped to silence first, and only once that has
+ * played out are its sounds stopped and its graph disconnected — by us, with
+ * Phaser's sound manager teardown (the part that suspends) taken off its
+ * DESTROY event.
+ */
+function retireGame(old: Game) {
+	const manager = old.sound as Phaser.Sound.WebAudioSoundManager
+	const context = manager.context
+	// No Web Audio, or no scene has run yet, so there's nothing to fade.
+	if (!context || !old.isRunning) {
+		old.destroy(true)
+		return
+	}
+
+	// Its scene's update() runs the module-level loop lists, which already
+	// belong to the run replacing it, so it can't take another step while the
+	// fade plays out. Its canvas makes way for the new one now too.
+	old.loop.sleep()
+	old.canvas.remove()
+
+	const gain = manager.masterVolumeNode.gain
+	const now = context.currentTime
+	gain.cancelScheduledValues(now)
+	if (context.state === 'running') {
+		gain.setValueAtTime(gain.value, now)
+		gain.linearRampToValueAtTime(0, now + RETIRE_FADE)
+	} else {
+		// Paused, so nothing's audible and the clock isn't moving: a ramp would
+		// only begin once the next run resumes the context, playing the old
+		// game's audio back for its length.
+		gain.setValueAtTime(0, now)
+	}
+
+	window.setTimeout(() => {
+		old.events.off(Phaser.Core.Events.DESTROY, manager.destroy, manager)
+		manager.removeAll()
+		manager.masterMuteNode.disconnect()
+		manager.masterVolumeNode.disconnect()
+		old.destroy(true)
+		// Phaser only acts on destroy() from inside a step.
+		old.loop.wake()
+	}, RETIRE_FADE * 2000)
+}
+
 /** Pause engine processing. Must be manually un-paused using the UI button for now. */
 export function pause() {
 	clock.pause()
@@ -162,9 +234,35 @@ export function setClientAudio(volume: number, muted: boolean) {
 	setClientMute(muted)
 }
 
-/** Current renderer frame rate, or 0 before a game exists. */
+/**
+ * How far back currentFps() looks. Phaser's own loop.actualFps only updates
+ * once a second, and then only moves 25% of the way to the new count, so it
+ * takes ~8s to settle after a change.
+ */
+const FPS_WINDOW_MS = 2000
+/** Timestamps of the current game's steps within the last FPS_WINDOW_MS. */
+let frameTimes: number[] = []
+
+/** Internal. Start sampling `g`'s steps for currentFps(), dropping the previous game's. */
+function _trackFps(g: Game) {
+	frameTimes = []
+	g.events.on(Phaser.Core.Events.POST_STEP, (time: number) => {
+		// A retired game keeps stepping through its fade-out (see retireGame).
+		if (g !== game) return
+		frameTimes.push(time)
+		// Never empties: the time just pushed is always inside the window.
+		while (frameTimes[0]! < time - FPS_WINDOW_MS) frameTimes.shift()
+	})
+	// Phaser stops the loop while the tab is hidden; without this the gap
+	// would drag the average down until it aged out.
+	g.events.on(Phaser.Core.Events.VISIBLE, () => frameTimes = [])
+}
+
+/** Current renderer frame rate averaged over the last FPS_WINDOW_MS, or 0 before a game exists. */
 export function currentFps(): number {
-	return game ? Math.round(game.loop.actualFps) : 0
+	if (frameTimes.length < 2) return 0
+	const span = frameTimes[frameTimes.length - 1]! - frameTimes[0]!
+	return span > 0 ? Math.round((frameTimes.length - 1) * 1000 / span) : 0
 }
 
 /**
@@ -186,13 +284,6 @@ let _crash: boolean = false
 let _nextObjectId: number = 0
 let _lastLeftClickTime: number = 0
 let _sessionCount: number = 0
-let _forevers: Action[] = []
-let _repeats: Repeatable[] = []
-let _repeatUntils: RepeatableUntil[] = []
-let _repeatWhiles: RepeatableWhile[] = []
-let _afters: Delayable[] = []
-let _everys: Delayable[] = []
-let _whens: Conditional[] = []
 
 let _shiftRepeating: boolean = false
 let _ctrlRepeating: boolean = false
@@ -246,95 +337,6 @@ export function _updatePositions() {
 function _updateTimers() {
 	for (const timer of allTimers) {
 		timer._update()
-	}
-}
-
-function _runForevers() {
-	for (const forever of _forevers) {
-		runUserCallback(() => forever(clock.delta), undefined)
-	}
-}
-
-function _runRepeats() {
-	for (const repeat of _repeats) {
-		runUserCallback(() => repeat.fn(repeat.i), undefined)
-		repeat.count -= 1
-		repeat.i += 1
-
-		if (repeat.count <= 0 && repeat.then) {
-			const then = repeat.then
-			runUserCallback(() => then(), undefined)
-		}
-	}
-	_repeats = _repeats.filter(repeat => repeat.count > 0)
-}
-
-function _runRepeatUntils() {
-	for (const repeatUntil of _repeatUntils) {
-		// A throwing condition() is treated as "yes, done" (see runUserCallback's
-		// fallback below) so a broken repeatUntil finishes and gets cleaned up by
-		// the filter() at the bottom, rather than re-throwing every frame forever.
-		if (runUserCallback(() => repeatUntil.condition(), true)) {
-			// Once condition first becomes true, run then() and remove repeatUntil()
-			if (repeatUntil.then) {
-				const then = repeatUntil.then
-				runUserCallback(() => then(repeatUntil.i), undefined)
-			}
-		} else {
-			// Run as long as condition is false
-			runUserCallback(() => repeatUntil.fn(repeatUntil.i), undefined)
-			repeatUntil.i += 1
-		}
-	}
-	_repeatUntils = _repeatUntils.filter(repeatUntil => !runUserCallback(() => repeatUntil.condition(), true))
-}
-
-function _runRepeatWhiles() {
-	for (const repeatWhile of _repeatWhiles) {
-		// A throwing condition() is treated as "no, stop" (see runUserCallback's
-		// fallback below), same reasoning as repeatUntil above but inverted.
-		const thisCheck = runUserCallback(() => repeatWhile.condition(), false)
-		if (thisCheck) {
-			// Run as long as the condition is true
-			runUserCallback(() => repeatWhile.fn(repeatWhile.i), undefined)
-			repeatWhile.i += 1
-		} else if (repeatWhile.lastCheck && repeatWhile.then) {
-			// Once the condition first becomes false, run then() and reset
-			const then = repeatWhile.then
-			runUserCallback(() => then(repeatWhile.i), undefined)
-			repeatWhile.i = 0
-		}
-		repeatWhile.lastCheck = thisCheck
-	}
-}
-
-function _runAfters(delta: number) {
-	for (const after of _afters) {
-		after.elapsedMs += delta
-		if (after.elapsedMs >= after.lifetimeMs) {
-			runUserCallback(() => after.fn(), undefined)
-		}
-	}
-	_afters = _afters.filter(after => after.elapsedMs < after.lifetimeMs)
-}
-
-function _runEverys(delta: number) {
-	for (const every of _everys) {
-		every.elapsedMs += delta
-		if (every.elapsedMs >= every.lifetimeMs) {
-			runUserCallback(() => every.fn(), undefined)
-			every.elapsedMs = 0
-		}
-	}
-}
-
-function _runWhens() {
-	for (const when of _whens) {
-		const thisCheck = runUserCallback(() => when.condition(), false)
-		if (thisCheck && !when.lastCheck) {
-			runUserCallback(() => when.fn(), undefined)
-		}
-		when.lastCheck = thisCheck
 	}
 }
 
@@ -398,7 +400,8 @@ function _releaseAllKeys() {
 	for (const key of keysPressed) {
 		keysJustReleased.set(key, clock.frame)
 	}
-	keysPressed = []
+	// Emptied in place
+	keysPressed.length = 0
 }
 
 /**
@@ -476,141 +479,6 @@ async function setCursor(src: string) {
 	// app.renderer.events.cursorStyles.default = `url(${src}), auto`;
 	// const defaultIcon = `url(${src}),auto`;
 	// app.renderer.events.cursorStyles.hover = defaultIcon;
-}
-
-/**
- * Primary game loop; runs every frame.
- * @param func The function to run each frame.
- */
-export function forever(func: 
-	/** @param delta Time since the previous frame. */
-	(delta: number) => void
-) {
-	_forevers.push((delta: number) => {
-		if (paused) return
-		func(delta)
-	})
-}
-
-/**
- * Runs a specified number of times alongside the game loop (1 iteration per frame).
- * @param times The number of times to repeat.
- * @param func The function to be repeated.
- */
-export function repeat(times: number, func: 
-	/** @param i The current iteration (times repeated so far). */
-	(i: number) => void
-) {
-	const repeatable: Repeatable = {
-		count: times,
-		i: 0,
-		fn: func,
-		// then: undefined
-	}
-	_repeats.push(repeatable)
-
-	return {
-		/**
-		 * Register a function to run when the repeat ends.
-		 * @param thenFunc The function.
-		 */
-		then(thenFunc: 
-			/** @param i The current iteration (times repeated so far). */
-			(i: number) => void
-		) {
-			repeatable.then = thenFunc
-		}
-	}
-}
-
-/**
- * Runs until the specified condition is true. Runs alongside the game loop (1 iteration per frame).
- * @param condition The predicate condition to check.
- * @param fn The function to be repeated.
- */
-export function repeatUntil(condition: Predicate, fn: Action) {
-	const repeatableUntil: RepeatableUntil = {
-		condition,
-		fn,
-		i: 0,
-	}
-	_repeatUntils.push(repeatableUntil)
-
-	return {
-		/**
-		 * Register a function to run when the repeat ends.
-		 * @param thenFn The function.
-		 */
-		then(thenFn: Action) {
-			repeatableUntil.then = thenFn
-		}
-	}
-}
-
-/**
- * Runs repeatedly while the specified condition is true. Runs alongside the game loop (1 iteration per frame).
- * @param condition The predicate condition to check.
- * @param fn The function to be repeated.
- */
-export function repeatWhile(condition: Predicate, fn: Action) {
-	const repeatableWhile: RepeatableWhile = {
-		condition,
-		fn,
-		lastCheck: condition(),
-		i: 0,
-	}
-	_repeatWhiles.push(repeatableWhile)
-
-	return {
-		/**
-		 * Register another function to run once every time the condition switches from true to false.
-		 * @param thenFn The function.
-		 */
-		then(thenFn: Action) {
-			repeatableWhile.then = thenFn
-		}
-	}
-}
-
-/**
- * Runs once after a specified number of seconds have passed.
- * @param seconds The number of seconds to wait before running.
- * @param fn The function to run.
- */
-export function after(seconds: number, fn: Action) {
-	_afters.push({
-		elapsedMs: 0,
-		lifetimeMs: seconds * 1000,
-		fn
-	})
-}
-
-/**
- * Runs once immediately, then repeatedly at a specified time interval.
- * @param seconds The number of seconds to wait before running each time.
- * @param fn The function to run.
- */
-export function every(seconds: number, fn: Action) {
-	_everys.push({
-		elapsedMs: 0,
-		lifetimeMs: seconds * 1000,
-		fn
-	})
-	fn()
-}
-
-/**
- * Runs once each time the condition becomes true.
- * @param condition The condition to check.
- * @param fn The function to run.
- */
-export function when(condition: Predicate, fn: Action) {
-	// TODO: A way to signal that this entry should be removed after the first time it becomes true
-	_whens.push({
-		lastCheck: condition(),
-		condition,
-		fn
-	})
 }
 
 /**
@@ -757,6 +625,267 @@ function mouseOverCanvas() {
 	return game.canvas.matches(':hover')
 }
 
+type SmoothFunction = 
+	| ((value: number, stop: Action) => void)
+	| ((value: Vector2, stop: Action) => void)
+
+type AutoSmoothBase = {
+	smoothTime: Returnable<number>,
+	threshold: number,
+	/** smoothFollow's smooths ignore threshold and keep chasing target until stopped */
+	follow: boolean,
+	stopped: boolean,
+	/** Marks this smooth stopped and settles the promise its Smoothing handle is */
+	stop: () => void,
+	/** The property form's object and key, so a newer smooth on the same property can replace this one */
+	object?: object,
+	key?: PropertyKey
+}
+
+/** read, when present, re-reads value each frame so outside changes to a smoothed property are kept */
+type AutoSmooth = AutoSmoothBase & (
+	| { kind: 'number', value: number, target: Returnable<number>, velocity: number, fn: (value: number, stop: Action) => void, read?: () => number }
+	| { kind: 'vector', value: Vector2, target: Returnable<Vector2>, velocity: Vector2, fn: (value: Vector2, stop: Action) => void, read?: () => Vector2 }
+)
+
+type SmoothOptions = {
+	/** The public function's name, for error messages */
+	name: string,
+	smoothTime?: Returnable<number>,
+	threshold?: number,
+	follow?: boolean,
+	object?: object,
+	key?: PropertyKey,
+	read?: () => number | Vector2
+}
+
+let autoSmooths: AutoSmooth[] = []
+
+// smoothDamp and smoothFollow's property forms come in pairs. The SmoothableKey one completes key names but
+// can't resolve SmoothableKey<this>, so a class passing `this` falls through to the PropertyKey one, which
+// still checks key and target through T's { [P in K]: ... } constraint.
+/**
+ * Smoothly moves an object's property toward a target over time, stopping once it gets there. The property must
+ * hold a number or a Vector2, and target must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to move toward
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the values should be before smoothing is considered done. Default 0.01 for numbers, 0.1 for Vector2s.
+ * @returns A Smoothing you can `await` to wait until the property reaches target, or `stop()` to end early
+ */
+function smoothDamp<K extends SmoothableKey<T>, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>, threshold?: number): Smoothing
+/**
+ * Smoothly moves an object's property toward a target over time, stopping once it gets there. The property must
+ * hold a number or a Vector2, and target must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to move toward
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the values should be before smoothing is considered done. Default 0.01 for numbers, 0.1 for Vector2s.
+ * @returns A Smoothing you can `await` to wait until the property reaches target, or `stop()` to end early
+ */
+function smoothDamp<K extends PropertyKey, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>, threshold?: number): Smoothing
+/**
+ * Moves a vector toward a target smoothly over time, stopping once it gets there.
+ * @param value The starting vector
+ * @param target The target vector to move toward
+ * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the vector changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the vectors should be before smoothing is considered done. Default 0.1.
+ * @returns A Smoothing you can `await` to wait until vector reaches target, or `stop()` to end early
+ */
+function smoothDamp(value: Vector2, target: Returnable<Vector2>, fn: (value: Vector2, stop: Action) => void, smoothTime?: Returnable<number>, threshold?: number): Smoothing
+/**
+ * Moves a number toward a target smoothly over time, stopping once it gets there.
+ * @param value The start value
+ * @param target The target (end) value to move toward
+ * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the values should be before smoothing is considered done. Default 0.01.
+ * @returns A Smoothing you can `await` to wait until value reaches target, or `stop()` to end early
+*/
+function smoothDamp(value: number, target: Returnable<number>, fn: (value: number, stop: Action) => void, smoothTime?: Returnable<number>, threshold?: number): Smoothing
+function smoothDamp(...args: any[]): Smoothing {
+	// Only the property form has a string second argument; the value form's is a number, Vector2 or function
+	if (typeof args[1] === 'string') {
+		const [object, key, target, smoothTime, threshold] = args
+		return _startPropertySmooth(object, key, target, { name: 'smoothDamp', smoothTime, threshold })
+	}
+
+	const [value, target, fn, smoothTime, threshold] = args
+	return _startSmooth(value, target, fn, { name: 'smoothDamp', smoothTime, threshold })
+}
+
+/**
+ * Smoothly moves an object's property toward a target over time, and keeps following it until stopped. Pass a
+ * function as target to follow something that moves. The property must hold a number or a Vector2, and target
+ * must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to follow, like `() => player.position`
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow<K extends SmoothableKey<T>, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>): Smoothing
+/**
+ * Smoothly moves an object's property toward a target over time, and keeps following it until stopped. Pass a
+ * function as target to follow something that moves. The property must hold a number or a Vector2, and target
+ * must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to follow, like `() => player.position`
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow<K extends PropertyKey, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>): Smoothing
+/**
+ * Moves a vector toward a target smoothly over time, and keeps following it until stopped. Pass a function as
+ * target to follow something that moves.
+ * @param value The starting vector
+ * @param target The target vector to follow, like `() => player.position`
+ * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the vector changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow(value: Vector2, target: Returnable<Vector2>, fn: (value: Vector2, stop: Action) => void, smoothTime?: Returnable<number>): Smoothing
+/**
+ * Moves a number toward a target smoothly over time, and keeps following it until stopped. Pass a function as
+ * target to follow something that changes.
+ * @param value The start value
+ * @param target The target value to follow, like `() => player.rotation`
+ * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow(value: number, target: Returnable<number>, fn: (value: number, stop: Action) => void, smoothTime?: Returnable<number>): Smoothing
+function smoothFollow(...args: any[]): Smoothing {
+	if (typeof args[1] === 'string') {
+		const [object, key, target, smoothTime] = args
+		return _startPropertySmooth(object, key, target, { name: 'smoothFollow', smoothTime, follow: true })
+	}
+
+	const [value, target, fn, smoothTime] = args
+	return _startSmooth(value, target, fn, { name: 'smoothFollow', smoothTime, follow: true })
+}
+
+function _startPropertySmooth(object: any, key: string, target: Returnable<number | Vector2>, options: SmoothOptions): Smoothing {
+	const value = object[key]
+	if (typeof value !== 'number' && !isVector2(value)) {
+		throw new Error(`${options.name}: '${key}' must be a number or Vector2 property`)
+	}
+	// One smooth per property, so a follow left running doesn't fight the newer smooth every frame
+	for (const other of autoSmooths) {
+		if (other.object === object && other.key === key) other.stop()
+	}
+	return _startSmooth(value, target, (value: number | Vector2) => object[key] = value, { ...options, object, key, read: () => object[key] })
+}
+
+function _startSmooth(value: number | Vector2, target: Returnable<number | Vector2>, fn: SmoothFunction, options: SmoothOptions): Smoothing {
+	const { name, smoothTime = 0.25, threshold, follow = false, object, key, read } = options
+	let resolve!: () => void
+	const done = new Promise<void>(r => resolve = r)
+	const base = {
+		smoothTime, follow, object, key,
+		stopped: false,
+		stop() {
+			if (autoSmooth.stopped) return
+			autoSmooth.stopped = true
+			resolve()
+		}
+	}
+	let autoSmooth: AutoSmooth
+
+	const initialTarget = unwrap(target)
+
+	if (typeof value === 'number' && typeof initialTarget === 'number') {
+		autoSmooth = {
+			...base,
+			kind: 'number',
+			threshold: threshold ?? 0.01,
+			value,
+			target: target as Returnable<number>,
+			velocity: 0,
+			fn: fn as (value: number, stop: Action) => void,
+			read: read as (() => number) | undefined
+		}
+	} else if (isVector2(value) && isVector2(initialTarget)) {
+		autoSmooth = {
+			...base,
+			kind: 'vector',
+			threshold: threshold ?? 0.1,
+			value,
+			target: target as Returnable<Vector2>,
+			velocity: Vector2.ZERO,
+			fn: fn as (value: Vector2, stop: Action) => void,
+			read: read as (() => Vector2) | undefined
+		}
+	} else {
+		throw new Error(`${name}: value and target must both be numbers or both be Vector2s`)
+	}
+
+	autoSmooths.push(autoSmooth)
+	// The handle is the promise itself, so then/catch/finally and Promise.all keep working
+	return Object.defineProperties(done, {
+		stop: { value: autoSmooth.stop },
+		stopped: { get: () => autoSmooth.stopped }
+	}) as Smoothing
+}
+
+function _runSmooths(deltaMs: number) {
+	const dt = deltaMs / 1000
+	for (const autoSmooth of autoSmooths) {
+		// Already stopped this frame, by another smooth's fn or a newer smooth on the same property
+		if (autoSmooth.stopped) continue
+		const { stop } = autoSmooth
+		const smoothTime = unwrap(autoSmooth.smoothTime)
+
+		// First, check if value is already within threshold of target
+		if (autoSmooth.kind === 'number') {
+			if (autoSmooth.read) autoSmooth.value = autoSmooth.read()
+			const target = unwrap(autoSmooth.target)
+
+			if (!autoSmooth.follow && Math.abs(autoSmooth.value - target) < autoSmooth.threshold) {
+				// Run the function one last time so that value fully reaches target
+				autoSmooth.fn(target, stop)
+				stop()
+				continue
+			}
+
+			const step = smoothStep(
+				autoSmooth.value,
+				target,
+				autoSmooth.velocity,
+				smoothTime,
+				dt
+			)
+			autoSmooth.value = step.value
+			autoSmooth.velocity = step.velocity
+			autoSmooth.fn(step.value, stop)
+		} else if (autoSmooth.kind === 'vector') {
+			if (autoSmooth.read) autoSmooth.value = autoSmooth.read()
+			const target = unwrap(autoSmooth.target)
+
+			if (!autoSmooth.follow && autoSmooth.value.distanceTo(target) < autoSmooth.threshold) {
+				autoSmooth.fn(target, stop)
+				stop()
+				continue
+			}
+			const step = smoothStep(
+				autoSmooth.value,
+				target,
+				autoSmooth.velocity,
+				smoothTime,
+				dt
+			)
+			autoSmooth.value = step.position
+			autoSmooth.velocity = step.velocity
+			autoSmooth.fn(step.position, stop)
+		}
+	}
+	autoSmooths = autoSmooths.filter((item) => !item.stopped)
+}
+
 /**
  * API utility
  */
@@ -800,8 +929,8 @@ class UserScene extends Scene {
 		// this.load.image('guy', 'assets/guy.png')
 		// this.load.image('boot', 'assets/boot.png')
 		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
-		this.load.audio('confirm', 'assets/confirmation_001.ogg')
-		this.load.audio('win', 'assets/you_win.ogg')
+		// this.load.audio('confirm', 'assets/confirmation_001.ogg')
+		// this.load.audio('win', 'assets/you_win.ogg')
 	}
 	
 	async create() {
@@ -980,7 +1109,7 @@ class UserScene extends Scene {
 			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Mixer: mixer, Colors,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
-			forever, repeat, repeatUntil, repeatWhile, after, every, when,
+			forever, repeat, repeatUntil, repeatWhile, after, every, when, wait,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			print: Output.print, watch, unwatch, play, pause, /* setBackgroundColor, setBackgroundImage, clearBackgroundImage, */
 			Random, Files, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
@@ -990,6 +1119,7 @@ class UserScene extends Scene {
 			floor: Math.floor,
 			ceil: Math.ceil,
 			round: Math.round,
+			smoothStep, smoothDamp, smoothFollow,
 			PI: Math.PI,
 		}
 
@@ -1016,15 +1146,9 @@ class UserScene extends Scene {
 		// }
 
 		if (!paused) {
-			_runWhens()
 			_runOnKeyActions()
-			_runForevers()
-			_runRepeats()
-			_runRepeatUntils()
-			_runRepeatWhiles()
-			_runAfters(clock.deltaMs)
-			_runEverys(clock.deltaMs)
-
+			runControls()
+			_runSmooths(clock.deltaMs)
 			_runPropUpdaters()
 			if (background.image) background._update()
 		}
@@ -1048,15 +1172,10 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	console.group(`%cSunsprite v${VERSION} session ${++_sessionCount}`, `color: ${Colors.HotPink}; font-weight: bold;`)
 
 	_crash = false
-	_forevers = []
-	_repeats = []
-	_afters = []
-	_everys = []
-	_whens = []
-	_repeatUntils = []
-	_repeatWhiles = []
+	clearControls()
 	resizeReactors = []
 	allTimers = []
+	autoSmooths = []
 
 	_keyPressActions.clear()
 	_keyHoldActions.clear()
@@ -1086,7 +1205,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	// whilePaused loops? or a flag to be able to run standard loops through pause?
 	
 	_engineLive = false
-	if (game) game.destroy(true)
+	if (game) retireGame(game)
 
 	scene = new UserScene(code, entryName)
 
@@ -1097,6 +1216,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 			mode: Phaser.Scale.NONE
 		},
 		parent: 'game-container',
+		antialias: true,
 		// Phaser defaults this to true, which calls window.focus() from inside
 		// this iframe the moment a game boots (see its VisibilityHandler) —
 		// pulling focus out of whatever the user was doing in the host app.
@@ -1146,6 +1266,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	}
 
 	game = new Game(config)
+	_trackFps(game)
 	resizeStage()
 
 	// The old canvas-click handler that blurred Monaco is gone: clicking the

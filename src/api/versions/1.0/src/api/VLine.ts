@@ -1,5 +1,6 @@
-import { resizeReactors, camera, forever } from "./core"
-import { Timeable, Viewable, type ViewableProps } from "./mixins/index"
+import { resizeReactors, camera } from "./core"
+import { forever } from "./control"
+import { Destructible, Timeable, Viewable, type ViewableProps } from "./mixins/index"
 import Line from "./Line"
 
 type VLineProps = ViewableProps & {
@@ -13,9 +14,10 @@ type VLineProps = ViewableProps & {
 
 export default class VLine extends 
     Viewable(
+    Destructible(
     Timeable(class {
         constructor() {}
-    })) {
+    }))) {
 
     readonly _line: Line
     private _thickness: number = 1

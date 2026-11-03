@@ -14,21 +14,33 @@ export default {}
 	<DocSnippet><pre>new Sprite(options?: SpriteProps)</pre></DocSnippet>
 	
 	<DocSection id="content-1">
-		<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque quis finibus felis. Duis vestibulum aliquam suscipit. Curabitur elementum egestas lacinia. Nam rhoncus velit nisi. Nulla et augue tristique odio blandit convallis. Integer rutrum ornare malesuada. Sed vehicula rutrum consectetur.</p>
+		<p>A sprite is a game object that displays an image. The image can be set from a few different sources:</p>
+		<dl>
+			<dt>Adding an image from project files</dt>
+			<dd>
+				<p>
+					You can use any image you've uploaded to your project as a sprite's image source by using its filename and extension as the sprite's src property.
+					If no file is found with that name, the editor will show an error message.
+				</p>
+				<DocSnippet style="margin: 0.4em 0"><pre>new Sprite({ src: 'cool_pic.png' }) // Uploaded from the computer </pre></DocSnippet>
+			</dd>
 
-		<p>In mattis massa in accumsan consequat. Aenean pretium sapien tortor, quis hendrerit eros fringilla et. Ut in augue libero. Vivamus sit amet lobortis augue, sit amet auctor elit. Aliquam massa arcu, euismod at pharetra aliquet, congue aliquet eros. Pellentesque ut malesuada sapien, eget ultrices tortor. Morbi posuere elementum ligula eu ornare.</p>
-	
-		<p>Sed lobortis libero in nisi semper porttitor. Fusce vestibulum urna sem, sed mollis lorem finibus ultrices. Fusce in blandit lacus. Maecenas eu porta dui. Vivamus eu blandit odio, eu scelerisque neque. Fusce pellentesque semper ligula et convallis. Nunc fermentum nunc vitae nisi tristique, non imperdiet ligula viverra. Nulla facilisis erat dignissim est egestas, ut dapibus quam pretium.</p>
-	
-		<p>Donec tempus, magna sit amet fringilla accumsan, ante diam vestibulum libero, a fermentum tortor purus ac urna. Vivamus commodo mollis nibh eget maximus. Fusce viverra massa ut orci blandit, a ornare nulla varius. Aenean vehicula facilisis interdum. In quam massa, vestibulum vel finibus ac, lobortis non nisl. Maecenas imperdiet arcu purus, a consequat justo tempus quis. Morbi tincidunt lacinia justo eget fermentum. Pellentesque non aliquam libero.</p>
-	
-		<p>Sed elementum auctor efficitur. Cras pharetra, sem ultricies suscipit condimentum, ligula ligula egestas leo, vitae feugiat urna neque ac urna. Aenean sodales dolor arcu, non auctor libero posuere non. Curabitur auctor laoreet risus non cursus. Donec mi mi, vulputate quis felis a, pulvinar convallis tortor. Vivamus id porttitor lorem, a congue metus. Integer varius nisl id velit elementum, a placerat lacus condimentum. Sed quis mi velit. Vestibulum blandit mattis lectus vitae aliquet. Morbi tincidunt vehicula lacinia.</p>
-	
-		<p>Donec eleifend elit nec libero ultrices fermentum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla mollis diam quis nibh faucibus blandit. Nunc fringilla ullamcorper ultricies. Aliquam ornare sed urna imperdiet hendrerit. Duis sit amet nisi elementum, egestas quam a, lobortis libero. Pellentesque vestibulum pulvinar semper. Sed ac tincidunt felis. Nullam efficitur nibh a mattis hendrerit. Interdum et malesuada fames ac ante ipsum primis in faucibus. Morbi interdum interdum quam at imperdiet. Quisque a convallis nibh, eu varius ligula.</p>
-	
-		<p>Pellentesque gravida lorem sed tempor accumsan. In finibus mi non semper egestas. Aliquam cursus nibh vel purus pharetra pulvinar. Vestibulum at erat accumsan, pretium sapien vitae, imperdiet elit. Sed mollis turpis ut risus suscipit, vel mollis mauris lobortis. Suspendisse luctus at mauris a commodo. Ut tempus blandit orci. Donec ac ante ante.</p>
-	
-		<p>Cras vulputate risus at euismod ultricies. Fusce porta tincidunt feugiat. Nam condimentum ornare interdum. Aliquam id magna sit amet nisi bibendum convallis. Sed convallis, enim et ullamcorper posuere, diam quam semper nisl, at vestibulum tortor felis sed diam. Praesent interdum fringilla velit ut feugiat. Suspendisse velit nisl, placerat eu justo vel, volutpat porttitor tellus. Duis faucibus sapien nec posuere molestie. Morbi ut sapien arcu. Pellentesque ac libero velit. Vestibulum eget interdum arcu. Aenean eget lacus.</p>
+			<dt>Adding an image from the asset library</dt>
+			<dd>
+				<p>You can use images from the asset library by opening the library panel, finding the image you want, and pressing the 'Add to project' button on the right side.</p>
+				<p>
+					The file with will be added to your project file tree with a Library badge and can be renamed to whatever you want.
+					Library assets don't use project storage space because they're hosted on Sunsprite's server using our storage.
+				</p>
+				<DocSnippet style="margin: 0.4em 0"><pre>new Sprite({ src: 'noise01.png' }) // From images/planets/parts </pre></DocSnippet>
+			</dd>
+
+			<dt>Adding an image from a URL</dt>
+			<dd>
+				<p>...</p>
+				<p>...</p>
+			</dd>
+		</dl>
 	</DocSection>
 
 	<DocParams>
@@ -38,7 +50,14 @@ export default {}
 	<DocMixins :paths="['api/traits/game-object']" />
 
 	<DocProperties>
-		<DocProperty name="src" type="string">The sprite's image: the name of an image file in your project, like <code>'player.png'</code>, or a URL. Names are case-sensitive.</DocProperty>
+		<DocProperty name="src" type="string">The sprite's image: the name of an image file in your project, like <code>'player.png'</code>, or a URL. Names are case-sensitive.<br>If you don't set this, a placeholder wireframe square is shown.</DocProperty>
+		<DocProperty name="tint" type="string">Color to tint the sprite with, as a hex string. Setting it tints the whole sprite one color; reading it gives the most recent tint color set.</DocProperty>
+		<DocProperty name="tintMode" type="TintMode">How the tint color is combined with the sprite's image. Not case-sensitive.</DocProperty>
+		<DocProperty name="tintTopLeft" type="string">Tint color at the top left corner. Corner colors blend into each other across the sprite.</DocProperty>
+		<DocProperty name="tintTopRight" type="string">Tint color at the top right corner.</DocProperty>
+		<DocProperty name="tintBottomLeft" type="string">Tint color at the bottom left corner.</DocProperty>
+		<DocProperty name="tintBottomRight" type="string">Tint color at the bottom right corner.</DocProperty>
+		<DocProperty name="isTinted" type="boolean" readonly>Whether this sprite is currently tinted with a color.</DocProperty>
 		<DocProperty name="x" type="number" from="api/traits/positionable">Horizontal position in the world.</DocProperty>
 		<DocProperty name="y" type="number" from="api/traits/positionable">Vertical position in the world.</DocProperty>
 		<DocProperty name="position" type="Vector2" from="api/traits/positionable">Position in the world.</DocProperty>
@@ -71,9 +90,15 @@ export default {}
 		<DocProperty name="cursor" type="Cursor" from="api/traits/interactable">The cursor shown when the mouse is over this object.</DocProperty>
 		<DocProperty name="age" type="number" from="api/traits/timeable" readonly>How long this object has existed, in seconds (not including paused time).</DocProperty>
 		<DocProperty name="ageMs" type="number" from="api/traits/timeable" readonly>How long this object has existed, in milliseconds (not including paused time).</DocProperty>
+		<DocProperty name="isDestroyed" type="boolean" from="api/traits/destructible">Whether this object has been destroyed.</DocProperty>
 	</DocProperties>
 
 	<DocMethods>
+		<DocMethod signature="setTint(color: string): void">Tint the whole sprite one color.</DocMethod>
+		<DocMethod signature="setTint(topLeft: string, topRight?: string, bottomLeft?: string, bottomRight?: string): void">Tint each corner a different color, blending between them across the sprite. Any corner left out uses the top left color.</DocMethod>
+		<DocMethod signature="clearTint(): void">Remove the tint, resetting every tint color to white and tintMode to 'multiply'.</DocMethod>
+		<DocMethod signature="hideTint(): void">Stop drawing the tint without forgetting it. Use showTint() to bring it back.</DocMethod>
+		<DocMethod signature="showTint(): void">Draw the tint again after hideTint().</DocMethod>
 		<DocMethod signature="distanceTo(x: number, y: number): number" from="api/traits/positionable">The distance from this object to a point given as separate x and y values.</DocMethod>
 		<DocMethod signature="distanceTo(other: Vector2Like): number" from="api/traits/positionable">The distance from this object to another position.</DocMethod>
 		<DocMethod signature="goToRandom(): void" from="api/traits/positionable">Set position to a random point within the current visible screen area.</DocMethod>
@@ -99,7 +124,17 @@ export default {}
 		<DocMethod signature="onDragEnd(action?: PointerAction): void" from="api/traits/interactable">Captures the end of the drag event.</DocMethod>
 		<DocMethod signature="onScroll(action?: ScrollAction): void" from="api/traits/interactable">Captures scroll events while hovering over this object.</DocMethod>
 		<DocMethod signature="resetCursor(): void" from="api/traits/interactable">Set this object's hover cursor back to the default pointer.</DocMethod>
+		<DocMethod signature="destroy(): void" from="api/traits/destructible">Remove this object from the game. Does not clear any variables it is assigned to or remove it from any arrays it belongs to.</DocMethod>
 	</DocMethods>
+
+	<DocProperties id="tint-modes" title="Tint Modes">
+		<DocProperty name="'multiply'" type="TintModeName">The tint color is multiplied with the image's color, darkening it. This is the default.</DocProperty>
+		<DocProperty name="'add'" type="TintModeName">The tint color is added to the image's color, brightening it.</DocProperty>
+		<DocProperty name="'fill'" type="TintModeName">The image is filled with the solid tint color, keeping only its shape.</DocProperty>
+		<DocProperty name="'screen'" type="TintModeName">Brightens the image's dark areas.</DocProperty>
+		<DocProperty name="'overlay'" type="TintModeName">Brightens the image's light areas and darkens its dark areas.</DocProperty>
+		<DocProperty name="'hard_light'" type="TintModeName">Like 'overlay', but with the tint and image colors swapped.</DocProperty>
+	</DocProperties>
 
 	<DocSnippet title="Example">
 <pre>const bunny = new Sprite({
@@ -111,4 +146,40 @@ forever(delta =&gt; {
     bunny.rotation += 2
 })</pre>
 	</DocSnippet>
+
+	<DocSnippet title="Tinting">
+<pre>const ghost = new Sprite({ src: 'ghost.png' })
+
+// Flash red when clicked
+ghost.onClick(() =&gt; {
+    ghost.tint = Colors.Red
+    after(0.2, () =&gt; ghost.clearTint())
+})
+
+// A gradient from top to bottom
+ghost.setTint('#ffffff', '#ffffff', '#3399ff', '#3399ff')</pre>
+	</DocSnippet>
 </template>
+
+<style scoped>
+dd + dt {
+	margin-top: 0.6em;
+}
+dl dt {
+	font-weight: 600;
+	font-size: 1.25em;
+}
+dd p + p {
+	margin-top: 0.6em;
+	/* text-indent: 1em; */
+}
+dd {
+	margin-left: 1em;
+}
+dd p {
+	line-height: 2em;
+}
+/* dl {
+	margin-left: 1em;
+} */
+</style>

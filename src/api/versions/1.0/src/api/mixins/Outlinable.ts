@@ -21,8 +21,8 @@ export function Outlinable<Base extends Class>(base: Base) {
     return class Outlinable extends base {
         _refObj?: Phaser.GameObjects.Shape
         _outlineColor?: string
-        _outlineWidth?: number
-        _outlineAlpha?: number
+        _outlineAlpha?: number = 0
+        _outlineWidth?: number = 0
 
         constructor(...args: any[]) {
             super()
@@ -35,6 +35,11 @@ export function Outlinable<Base extends Class>(base: Base) {
                 this.outlineWidth = props.outlineWidth ?? _outlineDefaults.outlineWidth
                 this.outlineAlpha = props.outlineAlpha ?? _outlineDefaults.outlineAlpha
             }
+        }
+
+        /** Whether this object has an outline. */
+        get hasOutline(): boolean {
+            return this._outlineColor !== undefined
         }
 
         /** Outline color. Setting this to null or undefined will clear the outline. */
@@ -56,9 +61,9 @@ export function Outlinable<Base extends Class>(base: Base) {
             this.setOutline(color, width, alpha)
         }
 
-        /** Outline width/thickness. */
-        get outlineWidth(): number | undefined {
-            return this._outlineWidth
+        /** Outline width/thickness. 0 when the object has no outline. */
+        get outlineWidth(): number {
+            return this._outlineWidth ?? 0
         }
         set outlineWidth(width: number) {
             // Use color/alpha defaults if not already defined
@@ -68,9 +73,12 @@ export function Outlinable<Base extends Class>(base: Base) {
             this.setOutline(color, width, alpha)
         }
 
-        /** Outline's opacity. Range of 0-1 where 0 is transparent and 1 is opaque. */
-        get outlineAlpha(): number | undefined {
-            return this._outlineAlpha
+        /** 
+         * Outline's opacity. Range of 0-1 where 0 is transparent and 1 is opaque.
+         * 0 when the object has no outline.
+         */
+        get outlineAlpha(): number {
+            return this._outlineAlpha ?? 0
         }
         set outlineAlpha(alpha: number) {
             // Use color/width defaults if not already defined

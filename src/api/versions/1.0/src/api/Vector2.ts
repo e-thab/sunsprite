@@ -1,18 +1,28 @@
 import Output from "../sandbox/output"
 import Warning from "./Warning"
 import { currentLocation } from "../../../../moduleRunner"
-import { atan2, cos, deg2rad, rad2deg, sin } from "./utility"
+import { atan2, cos, sin } from "./utility"
 
 /** Vector2-interpretable array of the form [x, y]. */
 type XYArray = [number, number]
 /** Any object with numeric { x, y } */
 type XYObject = { x: number, y: number }
+type PosObject = { position: XYObject }
 
 /** 
  * Type to be used when providing vector2 as arguments/setter values,
  * either an { x, y } object or an [x, y] array.
  */
-export type Vector2Like = XYObject | XYArray
+export type Vector2Like = XYObject | PosObject | XYArray
+export type HasPosition = XYObject | PosObject
+
+export function isHasPosition(obj: any): obj is HasPosition {
+    return obj && (isXYObject(obj) || isPosObject(obj))
+}
+
+export function isPosObject(obj: any): obj is PosObject {
+    return obj && obj.position && typeof obj.position.x === 'number' && typeof obj.position.y === 'number'
+}
 
 export function isXYObject(obj: any): obj is XYObject {
     return obj && typeof obj.x === 'number' && typeof obj.y === 'number'
@@ -22,7 +32,11 @@ export function isXYArray(obj: any): obj is XYArray {
 }
 
 export function isVector2Like(obj: any): obj is Vector2Like {
-    return isXYObject(obj) || isXYArray(obj)
+    return isXYObject(obj) || isPosObject(obj) || isXYArray(obj)
+}
+
+export function isVector2(obj: any): obj is Vector2 {
+    return isXYObject(obj)
 }
 
 /** A 2-dimensional vector. [Click here to read the docs.](/docs/api/classes/vector2) */
@@ -35,10 +49,20 @@ export class Vector2 {
         this.y = y
 	}
 
-    /** Sets the given x and y values. */
-    set(x: number, y: number) {
-        this.x = x
-        this.y = y
+    /** Sets this vector's x and y to a given x and y, or to the same values as another vector. */
+    set(x: number, y: number): void
+    set(other: Vector2Like): void
+    set(xOrOther: number | Vector2Like, y?: number): void {
+        if (isVector2Like(xOrOther) && y === undefined) {
+            const otherVec = Vector2.from(xOrOther)
+            this.x = otherVec.x
+            this.y = otherVec.y
+        } else if (typeof xOrOther === 'number' && typeof y === 'number') {
+            this.x = xOrOther
+            this.y = y
+        } else {
+            Output.runtimeError(`Bad arguments for Vector2.set()`)
+        }
     }
     
     /** Sets both x and y to the same value. */
@@ -94,6 +118,59 @@ export class Vector2 {
         this.rotation = Vector2.from(other.x - this.x, other.y - this.y).rotation
     }
 
+    /**
+     * Returns the result of adding this vector to a given vector.
+     * @param other The point, object, or vector endpoint to add.
+     */
+    add(other: Vector2Like): Vector2 {
+        const otherVec = Vector2.from(other)
+        return new Vector2(this.x + otherVec.x, this.y + otherVec.y)
+    }
+
+    /**
+     * Returns the result of subtracting a given vector from this vector (this - other).
+     * @param other The point, object, or vector endpoint to subtract from.
+     */
+    subtract(other: Vector2Like): Vector2 {
+        const otherVec = Vector2.from(other)
+        return new Vector2(this.x - otherVec.x, this.y - otherVec.y)
+    }
+
+    /**
+     * Returns the result of multiplying this vector by a given vector or scalar (number).
+     * @param other The point, object, vector endpoint, or number to multiply.
+     */
+    multiply(other: Vector2Like | number): Vector2 {
+        if (isVector2Like(other)) {
+            const otherVec = Vector2.from(other)
+            return new Vector2(this.x * otherVec.x, this.y * otherVec.y)
+        } else {
+            return new Vector2(this.x * other, this.y * other)
+        }
+    }
+
+    /**
+     * Returns the result of dividing a given vector or scalar (number) by this vector (this / other).
+     * @param other The point, object, vector endpoint, or number to divide by.
+     */
+    divide(other: Vector2Like | number): Vector2 {
+        if (isVector2Like(other)) {
+            const otherVec = Vector2.from(other)
+            return new Vector2(this.x / otherVec.x, this.y / otherVec.y)
+        } else {
+            return new Vector2(this.x / other, this.y / other)
+        }
+    }
+
+    /**
+     * Whether this vector's x and y are both equal to a given vector's.
+     * @param other 
+     */
+    equals(other: Vector2Like): boolean {
+        const otherVec = Vector2.from(other)
+        return this.x === otherVec.x && this.y === otherVec.y
+    }
+
     get rotation(): number {
         return atan2(this.y, this.x, 'degrees')
     }
@@ -111,17 +188,17 @@ export class Vector2 {
         this.x = length * cos(radians, 'radians')
         this.y = length * sin(radians, 'radians')
     }
-    
-    // /** Points this vector toward the position of another object or end point of another vector. */
-    // lookAt(other: Vector2Like) {
-    //     other = Vector2.from(other)
-    //     const newDir = Vector2.from(other.x - this.x, other.y - this.y)
-    // }
 
     /** Magnitude of this vector. */
     get length(): number {
         return Math.sqrt(this.x ** 2 + this.y ** 2)
     }
+
+    // /** A normalized vector with the same rotation as this vector. */
+    // get direction(): Vector2 {
+    //     const v = this.normalized
+    //     return new Vector2
+    // }
 
     /**
      * Angle of this vector in the given unit, defaults to degrees.
@@ -194,8 +271,10 @@ export class Vector2 {
     /** Create a Vector2 from a pair of x/y values. */
     static from(x: number, y: number): Vector2
     /** 
-     * Create a Vector2 from a Vector2Like; either an { x, y } obj or a
-     * [number, number] array.
+     * Create a Vector2 from a Vector2Like: any one of these shapes:
+     * - An object with { x: number, y: number }
+     * - An object with { position: { x: number, y: number } }
+     * - An array matching [number, number] (maps to [x, y])
      */
     static from(xy: Vector2Like): Vector2
     /** 
@@ -211,6 +290,10 @@ export class Vector2 {
     static from(xOrXy: number | number[] | Vector2Like, y?: number): Vector2 {
         if (isXYObject(xOrXy)) {
             return new Vector2(xOrXy.x, xOrXy.y)
+        }
+
+        if (isPosObject(xOrXy)) {
+            return new Vector2(xOrXy.position.x, xOrXy.position.y)
         }
     
         if (isXYArray(xOrXy)) {

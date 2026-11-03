@@ -97,6 +97,18 @@ export async function loadVersionedApiLib(version: string): Promise<string | und
 }
 
 /**
+ * The Colors names and values a version froze, for monaco-colors.ts's
+ * setColorTable. Undefined means "use the live Colors" — for 'dev', a
+ * snapshot cut before colors were frozen, or a version that doesn't exist.
+ */
+export async function loadVersionedColorTable(version: string): Promise<Record<string, string> | undefined> {
+    if (version === DEV_VERSION) return undefined
+
+    const loader = versionModules[`./${version}/generated.ts`]
+    return loader ? (await loader()).colorTable : undefined
+}
+
+/**
  * The version dropdown's item list — shared by CodeEditor.vue and
  * DocsView.vue so the two look and behave identically rather than
  * maintaining two hand-written copies of the same grouping/labeling logic.
