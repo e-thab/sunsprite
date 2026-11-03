@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/utils/supabase'
 import { useFileStore } from '@/stores/fileStore'
@@ -79,7 +79,12 @@ async function load(slug: string) {
 
 onMounted(() => load(props.slug))
 watch(() => props.slug, (slug) => load(slug))
-onUnmounted(() => {
+// onBeforeUnmount, not onUnmounted: Vue defers unmounted hooks until after
+// the render flush, by which point the *next* route's setup has already run.
+// Leaving for /sandbox, that meant EditorView's loadGuestProject() filled the
+// store and this then wiped it straight back out — an empty sandbox until a
+// reload. beforeUnmount runs synchronously, ahead of the next view's setup.
+onBeforeUnmount(() => {
   fileStore.exitProject()
   // Settings loaded for this project must not leak into whatever opens
   // next — same reasoning as apiVersionStore's own reset on unmount.

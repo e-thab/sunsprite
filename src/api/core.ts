@@ -374,7 +374,8 @@ function _releaseAllKeys() {
 	for (const key of keysPressed) {
 		keysJustReleased.set(key, clock.frame)
 	}
-	keysPressed = []
+	// Emptied in place
+	keysPressed.length = 0
 }
 
 /**

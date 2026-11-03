@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/utils/supabase'
 import { useFileStore } from '@/stores/fileStore'
@@ -122,7 +122,10 @@ onMounted(() => {
 
 watch(() => props.slug, (slug) => load(slug))
 
-onUnmounted(() => {
+// onBeforeUnmount for the same reason as ProjectEditorView's: unmounted hooks
+// run after the next route's setup, so clearing the store here would wipe
+// whatever that view (the guest sandbox, say) had just loaded into it.
+onBeforeUnmount(() => {
   // Global singleton — leaving it true would hide NavBar on every other
   // route too, if the visitor toggled fullscreen before navigating away.
   fullscreenStore.fullscreen = false
