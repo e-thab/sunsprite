@@ -18,7 +18,7 @@ import { installSemanticHighlighting } from '@/languages/semanticHighlighting'
 import { installQuickInfoHover } from '@/languages/quickInfoHover'
 import { installFloatingWaitMarkers } from '@/languages/floatingWaitMarkers'
 import CollapsiblePane from './CollapsiblePane.vue'
-import '@/assets/code-completion/monaco-colors'
+import { setColorTable } from '@/assets/code-completion/monaco-colors'
 import { setKnownAssets } from '@/assets/code-completion/monaco-assets'
 import type { NamedAsset } from '@/api/fileNames'
 
@@ -284,7 +284,7 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 }
 
 import { apiLib, apiModel, buildProjectAssetsLib } from '@/api/apiLib'
-import { apiVersionDropdownItems, loadVersionedApiLib } from '@/api/versions'
+import { apiVersionDropdownItems, loadVersionedApiLib, loadVersionedColorTable } from '@/api/versions'
 import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
 const libUri = 'file:///lib.ts'
@@ -1112,6 +1112,7 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 
 	apiLibDisposable.dispose()
 	apiLibDisposable = installExtraLib(newLib, libUri)
+	setColorTable(await loadVersionedColorTable(version))
 	revalidateActiveModel()
 })
 

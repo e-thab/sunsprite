@@ -12,6 +12,7 @@ export const meta = {
 		'viewable',
 		'interactable',
 		'timeable',
+		'destructible',
 		'fillable',
 		'outlinable',
 	],

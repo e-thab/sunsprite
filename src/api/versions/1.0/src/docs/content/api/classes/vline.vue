@@ -17,7 +17,7 @@ export default {}
 		<p>A straight, infinitely long vertical line spanning the full height of the screen at a given x. Like HLine, it composes only Viewable and Timeable.</p>
 	</DocSection>
 
-	<DocMixins :paths="['api/traits/viewable', 'api/traits/timeable']" />
+	<DocMixins :paths="['api/traits/viewable', 'api/traits/timeable', 'api/traits/destructible']" />
 
 	<DocProperties>
 		<DocProperty name="x" type="number">The horizontal position of the line.</DocProperty>
@@ -28,11 +28,13 @@ export default {}
 		<DocProperty name="visible" type="boolean" from="api/traits/viewable">Whether this object is currently visible.</DocProperty>
 		<DocProperty name="age" type="number" from="api/traits/timeable" readonly>How long this object has existed, in seconds (not including paused time).</DocProperty>
 		<DocProperty name="ageMs" type="number" from="api/traits/timeable" readonly>How long this object has existed, in milliseconds (not including paused time).</DocProperty>
+		<DocProperty name="isDestroyed" type="boolean" from="api/traits/destructible">Whether this object has been destroyed.</DocProperty>
 	</DocProperties>
 
 	<DocMethods>
 		<DocMethod signature="show(): void" from="api/traits/viewable">Show this object.</DocMethod>
 		<DocMethod signature="hide(): void" from="api/traits/viewable">Hide this object.</DocMethod>
+		<DocMethod signature="destroy(): void" from="api/traits/destructible">Remove this object from the game. Does not clear any variables it is assigned to or remove it from any arrays it belongs to.</DocMethod>
 	</DocMethods>
 
 </template>

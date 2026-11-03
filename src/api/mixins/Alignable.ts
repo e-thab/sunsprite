@@ -23,7 +23,7 @@ type CanonicalAnchor = `${Anchor}`
  * property naming the same point ('topLeft'), since anchorOffsets lowercases
  * the name before looking it up. Only the lowercase half is a real key of
  * ANCHOR_OFFSETS; the camelCase half exists so the type matches what the
- * runtime has always accepted. apiLib.ts keeps a hand-written copy of this
+ * runtime has always accepted. libTypes.ts keeps a hand-written copy of this
  * union for the editor — widen both together.
  */
 export type AnchorPoint =

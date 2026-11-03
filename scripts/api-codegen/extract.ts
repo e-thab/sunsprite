@@ -1,6 +1,6 @@
 import ts from 'typescript'
 import { extractDoc, formatDocBlock, isExcluded, findTypeAlias, findMixinClassExpression, findExportedClass, findFunctionDeclarations, findObjectLiteralConst, unwrapExpression, type ExtractedDoc } from './ast'
-import { MIXINS, CONCRETE_CLASSES, TYPE_ONLY_CLASSES, GAME_OBJECT_FILE, SET_TYPE_OVERRIDES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES } from './sources'
+import { MIXINS, CONCRETE_CLASSES, TYPE_ONLY_CLASSES, GAME_OBJECT_FILE, SET_TYPE_OVERRIDES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES, COLORS_FILE } from './sources'
 import { REPO_ROOT, TS_PATHS } from '../aliases'
 
 const INDENT = '    '
@@ -12,6 +12,7 @@ export function createProgram(): { program: ts.Program; checker: ts.TypeChecker 
         ...OBJECT_LITERALS.map((o) => o.file),
         ...FREE_FUNCTIONS.map((f) => f.file),
         ...TYPE_ALIASES.map((t) => t.file),
+        COLORS_FILE,
     ]
     const program = ts.createProgram(rootFiles, {
         target: ts.ScriptTarget.ES2020,
@@ -690,4 +691,27 @@ export function extractFreeFunction(
             return `${formatDocBlock(doc, '')}declare function ${entry.name}${typeParams}(${params}): ${returnType}`
         })
         .join('\n\n')
+}
+
+/**
+ * Colors.ts's `Colors` object as a plain name -> hex table, read off its
+ * `as const` type rather than by importing the module — Colors.ts imports
+ * Phaser, which can't load under Node.
+ */
+export function extractColorTable(program: ts.Program, checker: ts.TypeChecker): Record<string, string> {
+    const sourceFile = getSourceFile(program, COLORS_FILE)
+    let declaration: ts.VariableDeclaration | undefined
+    for (const statement of sourceFile.statements) {
+        if (!ts.isVariableStatement(statement)) continue
+        declaration ??= statement.declarationList.declarations.find((d) => ts.isIdentifier(d.name) && d.name.text === 'Colors')
+    }
+    if (!declaration) throw new Error(`Could not find "const Colors" in ${COLORS_FILE}`)
+
+    const table: Record<string, string> = {}
+    for (const property of checker.getTypeAtLocation(declaration.name).getProperties()) {
+        const type = checker.getTypeOfSymbolAtLocation(property, declaration)
+        if (!type.isStringLiteral()) throw new Error(`Colors.${property.name} isn't a string literal — is Colors still \`as const\`?`)
+        table[property.name] = type.value
+    }
+    return table
 }

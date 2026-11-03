@@ -16,7 +16,7 @@ const Styles = {
     Fit: 'fit',
     /** Stretch image to match the screen's aspect ratio. */
     Stretch: 'stretch',
-    /** Repeat the image in a grid, each cell using the original image size and aspect ratio. */
+    /** Repeat the image in a grid, each cell using the original image size and aspect ratio. Switching to this turns on canZoom. */
     Tile: 'tile',
 } as const
 
@@ -57,16 +57,20 @@ export default class Background {
     _cam: Camera
     /** Internal color. */
     _color: string
-    _img?: Phaser.GameObjects.Image
+    /** A TileSprite while style is Tile, an Image otherwise. */
+    _img?: Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite
     _src?: string
     _style: BackgroundStyle
     _baseScale: Vector2 = new Vector2(1, 1)
+    /** World point the image is centered on. Tracks the view's center while followCamera is on. */
+    _anchor: Vector2 = new Vector2(0, 0)
 
     /**
      * Whether the background image honors camera zoom level. When this is true, the
      * background will get larger as you zoom in and smaller as you zoom out. When
      * it's false, the background stays the same size regardless of zoom.
-     * 
+     * Switching style to Tile turns this on.
+     *
      * _Default:_  false
      */
     canZoom: boolean = false
@@ -151,8 +155,8 @@ export default class Background {
 
         // Create the background image if it doesn't already exist
         if (!this._img) {
-            this._img = this._scene.add.image(this._cam.width / 2, this._cam.height / 2, '__DEFAULT')
-            this._img.setDepth(-Infinity)
+            this._anchor.set(this._cam.width / 2, this._cam.height / 2)
+            this._img = this._createImage('__DEFAULT')
         }
 
         // A project file (preloaded under its own name) or an already-loaded
@@ -171,7 +175,7 @@ export default class Background {
 
         // Otherwise, loading a new texture from path
         this._scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
-            if (!this._img) return
+            if (!this._img || this._src !== src) return
             this._img.setTexture(src)
             this._updateStyle()
         })
@@ -189,7 +193,13 @@ export default class Background {
     }
     set style(style: BackgroundStyle) {
         // if (style === this._style) return
+        // Tile defaults to zooming with the world; canZoom can still be turned off after
+        if (style === this.Styles.Tile && this._style !== style) this.canZoom = true
         this._style = style
+        // Tile draws through a TileSprite, every other style through a plain Image
+        if (this._img && (this._img instanceof Phaser.GameObjects.TileSprite) !== (style === this.Styles.Tile)) {
+            this._createImage(this._img.texture.key)
+        }
         this._updateStyle()
     }
 
@@ -212,6 +222,17 @@ export default class Background {
         this._cam._cam.setBackgroundColor(color)
     }
 
+    /** (Re)create _img as the kind of object the current style needs, showing the given texture. */
+    _createImage(texture: string) {
+        this._img?.destroy()
+        const cam = this._cam._cam
+        this._img = this._style === this.Styles.Tile
+            ? this._scene.add.tileSprite(0, 0, cam.width, cam.height, texture)
+            : this._scene.add.image(0, 0, texture)
+        this._img.setDepth(-Infinity)
+        return this._img
+    }
+
     /** Removes the background image if one exists. */
     clearImage() {
         if (!this._img) return
@@ -224,48 +245,71 @@ export default class Background {
         const cam = this._cam._cam
 
         if (this.followCamera) {
-            this._img.setPosition(
+            this._anchor.set(
                 cam.scrollX + cam.width / 2,
                 cam.scrollY + cam.height / 2
             )
         }
 
         this._updateStyle()
-        if (!this.canZoom) {
-            // this._img.scale = this._baseScale / cam.zoom
-            this._img.setScale(
-                this._baseScale.x / cam.zoom,
-                this._baseScale.y / cam.zoom
-            )
-        }
     }
 
     _updateStyle() {
         if (!this._img) return
-        this._img.scale = 1
-        this._baseScale.fill(1)
-        const style = this._style
+        const cam = this._cam._cam
+        // World units per image pixel: undoes camera zoom unless the image honors it
+        const unzoom = this.canZoom ? 1 : 1 / cam.zoom
 
-        if (style === this.Styles.Center) {
-
+        if (this._img instanceof Phaser.GameObjects.TileSprite) {
+            this._updateTile(this._img, unzoom)
+            return
         }
 
-        const cam = this._cam._cam
+        this._img.setPosition(this._anchor.x, this._anchor.y)
+        this._baseScale.fill(1)
+        const style = this._style
         const { width, height } = this._img
 
         if (style === this.Styles.Fit || style === this.Styles.Fill) {
             // Min for fit, max for fill
             const extremum = style === this.Styles.Fit ? Math.min : Math.max
-            const scale = extremum(cam.width / width, cam.height / height)
-
-            this._baseScale.fill(scale)
-            this._img.setScale(scale)
+            this._baseScale.fill(extremum(cam.width / width, cam.height / height))
         }
 
         if (style === this.Styles.Stretch) {
-            const [x, y] = [cam.width / width, cam.height / height]
-            this._baseScale.set(x, y)
-            this._img.setScale(x, y)
+            this._baseScale.set(cam.width / width, cam.height / height)
         }
+
+        this._img.setScale(this._baseScale.x * unzoom, this._baseScale.y * unzoom)
+    }
+
+    /**
+     * The TileSprite always covers exactly the camera's view, so the grid looks endless;
+     * tilePosition then slides the grid so one tile stays centered on the anchor.
+     */
+    _updateTile(tile: Phaser.GameObjects.TileSprite, unzoom: number) {
+        const cam = this._cam._cam
+        const viewWidth = cam.width / cam.zoom
+        const viewHeight = cam.height / cam.zoom
+        // Phaser zooms around the camera's center, so the view stays centered there
+        const viewLeft = cam.scrollX + (cam.width - viewWidth) / 2
+        const viewTop = cam.scrollY + (cam.height - viewHeight) / 2
+
+        // Size is in image pixels, scale turns those into world units
+        const width = Math.ceil(viewWidth / unzoom)
+        const height = Math.ceil(viewHeight / unzoom)
+        if (tile.width !== width || tile.height !== height) tile.setSize(width, height)
+        tile.setOrigin(0, 0)
+        tile.setPosition(viewLeft, viewTop)
+        tile.setScale(unzoom)
+
+        // Image pixel at the view's corner, chosen so the anchor lands mid-tile.
+        // Wrapped to one tile so it stays small no matter how far the camera roams.
+        const { width: tileWidth, height: tileHeight } = tile.frame
+        const wrap = (n: number, size: number) => ((n % size) + size) % size
+        tile.setTilePosition(
+            wrap(tileWidth / 2 - (this._anchor.x - viewLeft) / unzoom, tileWidth),
+            wrap(tileHeight / 2 - (this._anchor.y - viewTop) / unzoom, tileHeight)
+        )
     }
 }

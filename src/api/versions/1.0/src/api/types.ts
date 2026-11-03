@@ -10,6 +10,24 @@ export type Returnable<T> = T | (() => T)
 export type Optional<T> = T | undefined | null
 export type Printable = { toString(): string | undefined }
 
+/**
+ * A running smoothDamp or smoothFollow. `await` it to wait until it finishes, or call `stop()` to end it early.
+ */
+export interface Smoothing extends Promise<void> {
+	/** Stops smoothing, leaving the value where it is, and settles the promise */
+	stop(): void
+	/** Whether smoothing has finished or been stopped */
+	readonly stopped: boolean
+}
+
+/** Names of T's properties that hold a number or Vector2, used by smoothDamp and smoothFollow */
+export type SmoothableKey<T> = { [K in keyof T]: T[K] extends number | Vector2 ? K : never }[keyof T]
+
+/** Resolve a Returnable generic */
+export function unwrap<T>(value: Returnable<T>): T {
+	return typeof value === 'function' ? (value as () => T)() : value
+}
+
 // TODO: verify jsdoc descriptions... are they pointer coords
 // or offset coords?
 export type PointerAction = (
@@ -38,18 +56,32 @@ export type ReferenceObject =
 	| Phaser.GameObjects.Arc
 	| any
 
-export interface Touchable {
-	left: number
-	right: number
-	top: number
-	bottom: number
-	// scale: number
-	// rotation?: number
-	// radians?: number
+// export interface Touchable {
+// 	left: number
+// 	right: number
+// 	top: number
+// 	bottom: number
+// 	// scale: number
+// 	// rotation?: number
+// 	// radians?: number
+// }
+
+/**
+ * A loop entry whose callback may be async. While a Promise it returned is
+ * still pending, the loop skips that entry instead of starting an overlapping
+ * iteration.
+ */
+export interface Awaitable {
+	busy?: boolean
+}
+
+/* Used for forever() */
+export interface Forever extends Awaitable {
+	fn: (delta: number) => void
 }
 
 /* used for repeat() */
-export interface Repeatable {
+export interface Repeatable extends Awaitable {
 	count: number
 	i: number
 	fn: Action
@@ -67,7 +99,7 @@ export interface RepeatableWhile extends RepeatableUntil {
 }
 
 /* Used for after() & every() */
-export interface Delayable {
+export interface Delayable extends Awaitable {
 	elapsedMs: number
 	lifetimeMs: number
 	fn: Action

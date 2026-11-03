@@ -3,9 +3,12 @@ import { scene, resizeReactors } from "./core"
 import GameObject from "./GameObject"
 import { _imageSourceStatus, type ImageSource } from "./assets"
 import Phaser from "phaser"
+import Output from "../sandbox/output"
+import { currentLocation } from "../../../../moduleRunner"
+import { _hexStringToColor } from "./Colors"
 // import type { Sprite } from 'phaser'
 
-/**
+/*
  * Simplified sprite class, mimics WoofJS style
  * 
  * TODO:
@@ -19,23 +22,148 @@ import Phaser from "phaser"
  * 	- animation
 */
 
-type SpriteProps = GameObjectProps & {
-    /** The sprite's image: the name of an image file in your project, like 'player.png', or a URL. */
-    src?: ImageSource
+export enum TintMode {
+    ADD = 'add',
+    MULTIPLY = 'multiply',
+    FILL = 'fill',
+    HARD_LIGHT = 'hard_light',
+    OVERLAY = 'overlay',
+    SCREEN = 'screen',
 }
 
+// TODO: Blend Modes
+export enum BlendMode {
+    ADD = 'add',
+    NORMAL = 'normal',
+    MULTIPLY = 'multiply',
+    SCREEN = 'screen',
+    ERASE = 'erase',
+}
+
+/** How a sprite's tint color is combined with its image. See Sprite.tintMode. */
+export type TintModeName = `${TintMode}`
+
+/** How a sprite's image is blended with what's rendered behind it. See Sprite.blendMode. */
+export type BlendModeName = `${BlendMode}`
+
+function _phaserTintMode(mode: TintMode): Phaser.TintModes {
+    switch (mode) {
+        case TintMode.ADD:
+            return Phaser.TintModes.ADD
+        case TintMode.FILL:
+            return Phaser.TintModes.FILL
+        case TintMode.HARD_LIGHT:
+            return Phaser.TintModes.HARD_LIGHT
+        case TintMode.MULTIPLY:
+            return Phaser.TintModes.MULTIPLY
+        case TintMode.OVERLAY:
+            return Phaser.TintModes.OVERLAY
+        case TintMode.SCREEN:
+            return Phaser.TintModes.SCREEN
+    }
+}
+
+function _phaserBlendMode(mode: BlendMode): Phaser.BlendModes {
+    switch (mode) {
+        case BlendMode.ADD:
+            return Phaser.BlendModes.ADD
+        case BlendMode.NORMAL:
+            return Phaser.BlendModes.NORMAL
+        case BlendMode.MULTIPLY:
+            return Phaser.BlendModes.MULTIPLY
+        case BlendMode.SCREEN:
+            return Phaser.BlendModes.SCREEN
+        case BlendMode.ERASE:
+            return Phaser.BlendModes.ERASE
+    }
+}
+
+function isTintMode(value: unknown): value is TintMode {
+    return Object.values(TintMode).includes(value as any)
+}
+
+function isBlendMode(value: unknown): value is BlendMode {
+    return Object.values(BlendMode).includes(value as any)
+}
+
+type SpriteProps = GameObjectProps & {
+    /**
+     * The sprite's image: the name of an image file in your project, like 'player.png', or a URL.
+     * @default `undefined`
+     */
+    src?: ImageSource
+    /**
+     * Color the sprite is tinted. Applied before the corner tints below, so
+     * any of those given override it for their own corner.
+     * @default `'#ffffff'`
+     */
+    tint?: string
+    /**
+     * Color the top left corner of the sprite is tinted.
+     * @default `'#ffffff'`
+     */
+    tintTopLeft?: string
+    /**
+     * Color the top right corner of the sprite is tinted.
+     * @default `'#ffffff'`
+     */
+    tintTopRight?: string
+    /**
+     * Color the bottom left corner of the sprite is tinted.
+     * @default `'#ffffff'`
+     */
+    tintBottomLeft?: string
+    /**
+     * Color the bottom right corner of the sprite is tinted.
+     * @default `'#ffffff'`
+     */
+    tintBottomRight?: string
+    /**
+     * Tint mode applied when drawing a tint on the sprite's texture: 'add', 'fill',
+     * 'hard_light', 'multiply', 'overlay', or 'screen'. See Sprite.tintMode.
+     * @default `'multiply'`
+     */
+    tintMode?: TintModeName
+    /**
+     * Blend mode applied when drawing this sprite: 'add', 'erase', 'normal',
+     * 'multiply', or 'screen'. See Sprite.blendMode.
+     * @default `'normal'`
+     */
+    blendMode?: BlendModeName
+}
+
+/**
+ * An image-based game object.
+ *
+ * @default width the image's width (`32` with no src)
+ * @default height the image's height (`32` with no src)
+ */
 export default class Sprite extends GameObject {
     readonly _sprite: Phaser.GameObjects.Sprite
     _src?: string
-
+    _blendMode: BlendMode = BlendMode.NORMAL
+    _tint: string = '#ffffff'
+    _tintTopLeft: string = '#ffffff'
+    _tintTopRight: string = '#ffffff'
+    _tintBottomLeft: string = '#ffffff'
+    _tintBottomRight: string = '#ffffff'
+    _tintMode: TintMode = TintMode.MULTIPLY
+    
     constructor(props?: SpriteProps) {
         super()
-
         const sprite = scene.add.sprite(0, 0, '__MISSING') // Phaser Sprite
         this._refObj = sprite // Reference to Phaser object used in mixins
         this._sprite = sprite // Reference to Phaser object used within this class (for readability)
         
         this.src = props?.src
+        
+        if (props?.tint !== undefined) this.tint = props.tint
+        if (props?.tintTopLeft !== undefined) this.tintTopLeft = props.tintTopLeft
+        if (props?.tintTopRight !== undefined) this.tintTopRight = props.tintTopRight
+        if (props?.tintBottomLeft !== undefined) this.tintBottomLeft = props.tintBottomLeft
+        if (props?.tintBottomRight !== undefined) this.tintBottomRight = props.tintBottomRight
+        if (props?.tintMode !== undefined) this.tintMode = props.tintMode
+        if (props?.blendMode !== undefined) this.blendMode = props.blendMode
         // Set mixin props
         this._initMixins(props)
         
@@ -45,8 +173,11 @@ export default class Sprite extends GameObject {
         resizeReactors.push(this)
     }
     
-    /** The sprite's image: the name of an image file in your project, like 'player.png', or a URL. */
-    get src() {
+    /**
+     * The sprite's image: the name of an image file in your project, like 'player.png', or a URL.
+     * @default `undefined`
+     */
+    get src(): string | undefined {
         return this._src
     }
     set src(keyOrPath: ImageSource | undefined | null) {
@@ -88,6 +219,201 @@ export default class Sprite extends GameObject {
         scene.load.start()
     }
 
+    /**
+     * Whether this sprite is tinted with some color.
+     * @readonly
+     */
+    get isTinted(): boolean {
+        return this._sprite.isTinted
+    }
+
+    /**
+     * Tint mode applied when drawing a tint on the sprite's texture.
+     * 
+     * | Mode | Effect |
+     * | ---- | ------ |
+     * | add | Tint color is added to texture color. |
+     * | fill | Tint color is used to fill the sprite with a solid color. |
+     * | hard_light | Tint color brightens light areas and darkens dark areas. Like overlay, but with tint colors swapped. |
+     * | multiply | Tint color is multiplied with texture color. |
+     * | overlay | Tint color brightens light areas and darkens dark areas. |
+     * | screen | Tint color brightens dark areas. |
+     * 
+     * @default `'multiply'`
+     */
+    get tintMode(): TintModeName {
+        return this._tintMode
+    }
+    set tintMode(mode: string) {
+        const modeName = mode.toLowerCase()
+        if (!isTintMode(modeName)) {
+            Output.runtimeWarning(`Invalid tint mode, must be one of: ['add', 'fill', 'hard_light', 'multiply', 'overlay', 'screen']. Ignoring this command.`, currentLocation())
+            return
+        }
+        this._tintMode = modeName
+        this._sprite.setTintMode(_phaserTintMode(modeName))
+    }
+
+    /**
+     * Color the whole sprite is tinted. Setting it tints all four corners; a
+     * corner tinted afterwards (tintTopLeft, etc.) keeps its own color without
+     * changing this one. If no tint has been applied, this will be white: #ffffff.
+     * @default `'#ffffff'`
+     */
+    get tint(): string {
+        return this._tint
+    }
+    set tint(color: string) {
+        this._tint = color
+        this._tintTopLeft = color
+        this._tintTopRight = color
+        this._tintBottomLeft = color
+        this._tintBottomRight = color
+        this._sprite.setTint(_hexStringToColor(color))
+    }
+
+    /**
+     * Color the top left corner of the sprite is tinted. If no tint has been 
+     * applied to this corner specifically, this will be white: #ffffff.
+     * @default `'#ffffff'`
+     */
+    get tintTopLeft(): string {
+        return this._tintTopLeft
+    }
+    set tintTopLeft(color: string) {
+        this._tintTopLeft = color
+        this._sprite.tintTopLeft = _hexStringToColor(color)
+    }
+
+    /**
+     * Color the top right corner of the sprite is tinted. If no tint has been 
+     * applied to this corner specifically, this will be white: #ffffff.
+     * @default `'#ffffff'`
+     */
+    get tintTopRight(): string {
+        return this._tintTopRight
+    }
+    set tintTopRight(color: string) {
+        this._tintTopRight = color
+        this._sprite.tintTopRight = _hexStringToColor(color)
+    }
+
+    /**
+     * Color the bottom left corner of the sprite is tinted. If no tint has been 
+     * applied to this corner specifically, this will be white: #ffffff.
+     * @default `'#ffffff'`
+     */
+    get tintBottomLeft(): string {
+        return this._tintBottomLeft
+    }
+    set tintBottomLeft(color: string) {
+        this._tintBottomLeft = color
+        this._sprite.tintBottomLeft = _hexStringToColor(color)
+    }
+
+    /**
+     * Color the bottom right corner of the sprite is tinted. If no tint has been 
+     * applied to this corner specifically, this will be white: #ffffff.
+     * @default `'#ffffff'`
+     */
+    get tintBottomRight(): string {
+        return this._tintBottomRight
+    }
+    set tintBottomRight(color: string) {
+        this._tintBottomRight = color
+        this._sprite.tintBottomRight = _hexStringToColor(color)
+    }
+
+    get _tintHexColors() {
+        return {
+            tintTopLeft: _hexStringToColor(this._tintTopLeft),
+            tintTopRight: _hexStringToColor(this._tintTopRight),
+            tintBottomLeft: _hexStringToColor(this._tintBottomLeft),
+            tintBottomRight: _hexStringToColor(this._tintBottomRight),
+        }
+    }
+
+    /**
+     * Set the sprite's tint. If one argument is provided, the entire sprite is tinted
+     * that color. If multiple are provided, they apply tints in order: top left, top right,
+     * bottom left, bottom right. Any undefined values apply white. For example:
+     * 
+     * `setTint(Colors.Red)` tints the whole sprite red
+     * 
+     * `setTint(Colors.Cyan, Colors.Magenta, Colors.Yello, Colors.Black)` tints the
+     * top left corner cyan, the top right magenta, the bottom left yellow, and
+     * the bottom right black.
+     * 
+     * `setTint(Colors.Green, undefined, Colors.Blue)` tints the top left corner green,
+     * the top right white, the bottom left blue, and the bottom right white.
+     */
+    setTint(allOrTopLeft: string, topRight?: string, bottomLeft?: string, bottomRight?: string) {
+        this._tintTopLeft = allOrTopLeft
+        if (topRight !== undefined || bottomLeft !== undefined || bottomRight !== undefined) {
+            // Corners given one by one: there's no whole-sprite color, and the
+            // ones left out are white, so that's what tint reports.
+            this._tint = '#ffffff'
+            this._tintTopRight = topRight ?? '#ffffff'
+            this._tintBottomLeft = bottomLeft ?? '#ffffff'
+            this._tintBottomRight = bottomRight ?? '#ffffff'
+            const { tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight } = this._tintHexColors
+            this._sprite.setTint(tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight)
+        } else {
+            this._tint = allOrTopLeft
+            this._tintTopRight = allOrTopLeft
+            this._tintBottomLeft = allOrTopLeft
+            this._tintBottomRight = allOrTopLeft
+            this._sprite.setTint(_hexStringToColor(allOrTopLeft))
+        }
+    }
+
+    /** Remove the sprite's tint, setting all tint values to white, and tint mode to multiply. */
+    clearTint() {
+        this._tint = '#ffffff'
+        this._tintTopLeft = '#ffffff'
+        this._tintTopRight = '#ffffff'
+        this._tintBottomLeft = '#ffffff'
+        this._tintBottomRight = '#ffffff'
+        this._tintMode = TintMode.MULTIPLY
+        this._sprite.clearTint()
+    }
+
+    /** Temporarily disable the tint without unsetting the values. Can be re-enabled with showTint(). */
+    hideTint() {
+        this._sprite.clearTint()
+    }
+
+    /** Enable a tint temporarily hidden with hideTint(). */
+    showTint() {
+        const { tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight } = this._tintHexColors
+        this._sprite.setTint(tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight)
+    }
+
+    /**
+     * Blend mode applied when drawing this sprite.
+     * 
+     * | Mode | Effect |
+     * | ---- | ------ |
+     * | add | Where both shapes overlap the color is determined by adding color values. |
+     * | erase | ? |
+     * | normal | Default mode, draws new shapes on top of existing content. |
+     * | multiply | The pixels are of the top layer are multiplied with the corresponding pixel of the bottom layer. A darker picture is the result. |
+     * | screen | The pixels are inverted, multiplied, and inverted again. A lighter picture is the result (opposite of multiply) |
+     * 
+     * @default `'normal'`
+     */
+    get blendMode(): BlendModeName {
+        return this._blendMode
+    }
+    set blendMode(mode: string) {
+        const modeName = mode.toLowerCase()
+        if (!isBlendMode(modeName)) {
+            Output.runtimeWarning(`Invalid blend mode, must be one of: ['add', 'erase'(?), 'normal', 'multiply', 'screen']. Ignoring this command.`, currentLocation())
+            return
+        }
+        this._blendMode = modeName
+        this._sprite.setBlendMode(_phaserBlendMode(modeName))
+    }
     // Override
     // _updateScale() {
     //     this.setAnchorCenter()

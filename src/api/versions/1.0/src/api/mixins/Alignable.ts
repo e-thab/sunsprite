@@ -23,7 +23,7 @@ type CanonicalAnchor = `${Anchor}`
  * property naming the same point ('topLeft'), since anchorOffsets lowercases
  * the name before looking it up. Only the lowercase half is a real key of
  * ANCHOR_OFFSETS; the camelCase half exists so the type matches what the
- * runtime has always accepted. apiLib.ts keeps a hand-written copy of this
+ * runtime has always accepted. libTypes.ts keeps a hand-written copy of this
  * union for the editor — widen both together.
  */
 export type AnchorPoint =
@@ -53,7 +53,7 @@ const ANCHOR_OFFSETS: Record<CanonicalAnchor, readonly [number, number]> = {
     [Anchor.BOTTOM_RIGHT]:  [ 1/2, -1/2],
 }
 
-function isAlignable(obj: any): obj is AlignableLike {
+export function isAlignable(obj: any): obj is AlignableLike {
     return typeof (obj).x === 'number'
         && typeof (obj).y === 'number'
         && typeof (obj as AlignableLike).width === "number"
@@ -61,9 +61,9 @@ function isAlignable(obj: any): obj is AlignableLike {
 }
 
 /** Resolve an anchor name to its width/height factors, tolerating any casing. */
-function anchorOffsets(anchor: AnchorPoint): readonly [number, number] {
+export function anchorOffsets(anchor: AnchorPoint): readonly [number, number] {
     const offsets = ANCHOR_OFFSETS[anchor.toLowerCase() as CanonicalAnchor]
-    if (offsets === undefined) throw new Error(`Bad goTo anchor: ${anchor}`)
+    if (offsets === undefined) throw new Error(`Bad anchor: ${anchor}`)
     return offsets
 }
 
@@ -112,11 +112,15 @@ export type AlignableProps = {
  *  OtherMixin(
  *  ...
  */
+// width/height are declared as accessors, not properties, so a class further
+// down the chain can override them with accessors of its own
 export function Alignable<Base extends Class<{
     x: number
     y: number
-    width: number
-    height: number
+    get width(): number
+    set width(width: number)
+    get height(): number
+    set height(height: number)
 }>>(base: Base) {
     return class Alignable extends base {
         constructor(...args: any[]) {

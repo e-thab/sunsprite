@@ -137,13 +137,13 @@ export default class Mixer {
         if (existingBus) {
             let warnMsg = `A mixer bus with name '${name}' already exists. `
             try {
-                if (typeof nameOrProps === 'string') {
+                if (typeof nameOrProps === 'string' || (nameOrProps.muted === undefined && nameOrProps.pitch === undefined && nameOrProps.sounds === undefined && nameOrProps.speed === undefined && nameOrProps.volume === undefined)) {
                     // If a duplicate bus name was provided only, don't do anything
-                    warnMsg += `Ignoring Mixer.addBus('${name}')`
+                    warnMsg += `Ignoring this command.`
                 } else {
                     // If a BusProps object was provided with a duplicate name, just
                     // set properties of the extant bus
-                    warnMsg += `Setting properties of the existing bus rather than adding a new one`
+                    warnMsg += `Setting properties of the existing bus rather than adding a new one.`
                     existingBus.set(nameOrProps)
                 }
             } finally {

@@ -21,7 +21,23 @@ import Colors from '@/api/Colors'
 // those with the Colors.* matches into one combined result. rgb()/hsl()
 // aren't reproduced — nothing in this project ever uses them, only hex —
 // so there's nothing real to restore parity with there.
-const colorsByName = new Map(Object.entries(Colors) as [string, string][])
+//
+// Starts as the live Colors; setColorTable swaps in a snapshot's own names
+// when the editor switches API version.
+let colorsByName = new Map(Object.entries(Colors) as [string, string][])
+
+/**
+ * Switches the color names the swatches, completions and unknown-name markers
+ * below go by — a snapshot's frozen table (see VersionedApiConstants.colorTable),
+ * or the live Colors when `table` is undefined (dev, or a snapshot cut before
+ * colors were frozen).
+ */
+export function setColorTable(table: Record<string, string> | undefined) {
+	colorsByName = new Map(Object.entries(table ?? Colors) as [string, string][])
+	for (const model of markerWatchers.keys()) {
+		if (!model.isDisposed()) refreshUnknownColorMarkers(model)
+	}
+}
 
 const COLORS_REFERENCE_PATTERN = /\bColors\.(\w+)\b/g
 // Captures the surrounding quotes too (backreference \1 requires the same

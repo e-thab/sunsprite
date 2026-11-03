@@ -3,7 +3,7 @@
 
 import type { Returnable } from "./types"
 import { _clearPropUpdater, _registerPropUpdater, resizeReactors, camera, _getNextObjectId, scene } from "./core"
-import { Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins/index"
+import { Destructible, Rotatable, Timeable, Viewable, type RotatableProps, type ViewableProps } from "./mixins/index"
 import { Vector2, type Vector2Like } from "./Vector2"
 import Phaser from "phaser"
 
@@ -21,9 +21,10 @@ type LineProps = RotatableProps & ViewableProps & {
 export default class Line extends 
     Rotatable(
     Viewable(
+    Destructible(
     Timeable(class {
         constructor() {}
-    }))) {
+    })))) {
 
     readonly _line: Phaser.GameObjects.Line
 
