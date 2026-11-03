@@ -21,7 +21,7 @@ export default {}
 		<DocProperty name="color" type="string" default="'#444444'">Color to fill the background with, as a hex string.</DocProperty>
 		<DocProperty name="image" type="string | undefined" default="undefined">The background image's source — a file path, a URL, or the key of an image already loaded in the project. Setting it to undefined or null clears the image, the same as clearImage().</DocProperty>
 		<DocProperty name="style" type="BackgroundStyle" default="'fill'">How the image is sized and placed against the screen. See Styles below.</DocProperty>
-		<DocProperty name="canZoom" type="boolean" default="false">Whether the image honors camera zoom. When true it grows as you zoom in and shrinks as you zoom out; when false it stays the same size on screen no matter the zoom.</DocProperty>
+		<DocProperty name="canZoom" type="boolean" default="false">Whether the image honors camera zoom. When true it grows as you zoom in and shrinks as you zoom out; when false it stays the same size on screen no matter the zoom. Switching style to Tile turns this on.</DocProperty>
 		<DocProperty name="followCamera" type="boolean" default="true">Whether the image follows the camera. When true it stays put on screen as the camera moves; when false it's fixed in the world and scrolls away with everything else.</DocProperty>
 		<DocProperty name="Styles" type="object" readonly>Every available style, for use with style — see the table below.</DocProperty>
 	</DocProperties>
@@ -36,7 +36,7 @@ export default {}
 		<DocProperty name="Styles.Fit" type="'fit'">Size the image to fit entirely within the screen, keeping its aspect ratio. Leaves the background color showing on two sides unless the ratios match.</DocProperty>
 		<DocProperty name="Styles.Stretch" type="'stretch'">Stretch the image to the screen's exact aspect ratio, distorting it if they differ.</DocProperty>
 		<DocProperty name="Styles.Center" type="'center'">Place the image in the center at its original size, unaffected by screen size.</DocProperty>
-		<DocProperty name="Styles.Tile" type="'tile'">Repeat the image in a grid at its original size. Not yet implemented — currently renders the same as Center.</DocProperty>
+		<DocProperty name="Styles.Tile" type="'tile'">Repeat the image in a grid at its original size, filling the whole screen. One tile sits centered on screen; with followCamera off, the grid is fixed in the world and scrolls with the camera instead, and still never runs out. Switching to Tile turns canZoom on, so the tiles zoom with the world; set canZoom back to false afterward to keep them a fixed size on screen.</DocProperty>
 	</DocProperties>
 
 	<DocSnippet title="Example">
