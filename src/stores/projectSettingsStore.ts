@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
-import { supabase } from '@/assets/utils/supabase'
-import type { Json } from '@/assets/utils/database.types'
-import { familyScriptTypes, SCRIPT_FAMILIES, type ScriptFileType } from '@/assets/utils/fileTypes'
+import { supabase } from '@/utils/supabase'
+import type { Json } from '@/utils/database.types'
+import { familyScriptTypes, SCRIPT_FAMILIES, type ScriptFileType } from '@/utils/fileTypes'
 
 // The object half of Json (see database.types.ts) — what a jsonb column
 // actually round-trips. Deliberately this rather than Record<string, unknown>:
@@ -153,6 +153,18 @@ export const useProjectSettingsStore = defineStore('projectSettings', () => {
         Object.assign(settings, PROJECT_SETTINGS_DEFAULTS)
     }
 
+    /**
+     * Guest sandbox only — forgets the sandbox's stored settings, so its next
+     * load starts from the defaults. Used by the sandbox reset, which reloads
+     * the page right after; a pending debounced write is dropped so it can't
+     * put them back first.
+     */
+    function clearGuestStored() {
+        if (projectId.value) return
+        cancelPendingWrite()
+        localStorage.removeItem(GUEST_STORAGE_KEY)
+    }
+
     function schedulePersist() {
         cancelPendingWrite()
         const target = projectId.value
@@ -214,5 +226,5 @@ export const useProjectSettingsStore = defineStore('projectSettings', () => {
      */
     const scriptType = computed<ScriptFileType>(() => availableScriptTypes.value[0]!)
 
-    return { settings, projectId, scriptType, availableScriptTypes, hydrate, set, reset }
+    return { settings, projectId, scriptType, availableScriptTypes, hydrate, set, reset, clearGuestStored }
 })

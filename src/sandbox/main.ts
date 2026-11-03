@@ -1,9 +1,10 @@
-import { setScriptResolver } from '@/assets/api/moduleRunner'
-import { loadVersionedRuntime, loadDevRuntime } from '@/assets/api/versions/runtime'
-import { DEV_VERSION } from '@/assets/api/versions/constants'
+import { setScriptResolver } from '@/api/moduleRunner'
+import { loadVersionedRuntime, loadDevRuntime } from '@/api/versions/runtime'
+import { DEV_VERSION } from '@/api/versions/constants'
 import { onHostMessage, postToHost } from './channel'
 import { API_VERSION_PARAM, type HostMessage } from './protocol'
-import { _engineLive } from '@/assets/api/core'
+import { whenAudioUnlocked, cancelAudioUnlock } from './audioGate'
+import { _engineLive } from '@/api/core'
 
 // Entry point for runner.html — the document inside
 // `<iframe sandbox="allow-scripts">`. Phaser, the Sunsprite API, and every line
@@ -37,6 +38,11 @@ const pendingScripts = new Map<number, (content: string | undefined) => void>()
 /** seq of the last 'set-paused' command applied — echoed in status reports; see protocol.ts. */
 let appliedPauseSeq = 0
 
+/** Only ever moves forward, so a held command settling late can't undo a newer one. */
+function applyPauseSeq(seq: number | undefined) {
+    if (seq !== undefined && seq > appliedPauseSeq) appliedPauseSeq = seq
+}
+
 setScriptResolver((name) => {
     return new Promise<string | undefined>((resolve) => {
         const id = nextScriptRequestId++
@@ -45,11 +51,64 @@ setScriptResolver((name) => {
     })
 })
 
+/**
+ * Whatever's waiting on audioGate.ts for permission to make sound: an unpaused
+ * run, or Play on a paused game. Only the newest counts, so a Restart pressed
+ * while the overlay is up replaces the run it was holding.
+ *
+ * A held Play carries the `seq` of the 'set-paused' that asked for it, and
+ * that seq isn't applied until the hold settles one way or the other. Applied
+ * up front, the status reports sent during the silent probe (a few dozen ms,
+ * when the host's permission is delegated in) would say "paused" with a seq
+ * the host accepts, and its button would bounce back to Play and forward
+ * again. So it's applied when the Play starts, when the overlay is shown (the
+ * game really is waiting on a click then, and the button saying Play is
+ * accurate), or when the hold is dropped or replaced, so no seq is left behind.
+ */
+let held: { start: () => void, isRun: boolean, pauseSeq?: number } | null = null
+
+function startWhenAudible(start: () => void, isRun: boolean, pauseSeq?: number) {
+    applyPauseSeq(held?.pauseSeq)
+    const entry = { start, isRun, pauseSeq }
+    held = entry
+    whenAudioUnlocked(() => {
+        if (held === entry) applyPauseSeq(pauseSeq)
+    }).then(() => {
+        if (held !== entry) return
+        held = null
+        start()
+        applyPauseSeq(pauseSeq)
+    })
+}
+
+/** Drops whatever's held, handing it back so the caller can start it some other way. */
+function releaseHeld() {
+    const released = held
+    held = null
+    cancelAudioUnlock()
+    applyPauseSeq(released?.pauseSeq)
+    return released
+}
+
 function handleMessage(message: HostMessage) {
     switch (message.type) {
-        case 'run':
-            core.runUserCode(message.code, message.entryName, message.theme)
+        case 'run': {
+            // A snapshot version's runUserCode may predate `assets` or
+            // `textFiles` and simply ignores the extra arguments — its
+            // scripts never had filename keys or Files.read to use them.
+            const run = () => core.runUserCode(message.code, message.entryName, message.theme, message.assets ?? [], message.textFiles ?? [])
+            if (message.paused) {
+                // A paused game makes no sound, so there's nothing to wait
+                // for; Play gets held instead, if it needs to be.
+                releaseHeld()
+                run()
+                core.pause()
+                applyPauseSeq(message.pauseSeq)
+            } else {
+                startWhenAudible(run, true)
+            }
             break
+        }
 
         case 'script-response': {
             const resolve = pendingScripts.get(message.id)
@@ -60,9 +119,27 @@ function handleMessage(message: HostMessage) {
         }
 
         case 'set-paused':
-            if (message.paused) core.pause()
-            else core.play()
-            appliedPauseSeq = message.seq
+            if (message.paused) {
+                // Pausing needs no sound. A run still held starts now, paused
+                // on its first frame like any other paused run.
+                const released = releaseHeld()
+                if (released?.isRun) released.start()
+                core.pause()
+                applyPauseSeq(message.seq)
+            } else if (!held) {
+                // seq applied once the hold settles; see `held` above
+                startWhenAudible(() => core.play(), false, message.seq)
+            } else {
+                // A run is already held, which this Play joins rather than
+                // replaces; it starts unpaused whenever that run does.
+                applyPauseSeq(message.seq)
+            }
+            break
+
+        case 'set-client-audio':
+            // Snapshot versions predate the toolbar's volume control and
+            // don't export this, so their audio stays as the script set it.
+            core.setClientAudio?.(message.volume, message.muted)
             break
 
         case 'resize':

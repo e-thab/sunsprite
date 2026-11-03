@@ -15,7 +15,7 @@ export default {
       .eq("object_key", objectKey)
       .maybeSingle();
     if (!image) {
-      return Response.json({ error: "Image not found" }, { status: 404 });
+      return Response.json({ error: "File not found" }, { status: 404 });
     }
 
     await deleteObject(objectKey);

@@ -1,4 +1,4 @@
-import type { ThemePalette } from '@/assets/theme/themes'
+import type { ThemePalette } from '@/theme/themes'
 
 // The complete contract between the editor app (host) and the sandbox iframe
 // that runs user code. These two sides share no memory and no globals — an
@@ -15,8 +15,30 @@ export type HostMessage =
      * `entryName` is that file's real name, so compiled stack traces (and
      * therefore locateError) attribute errors to it correctly instead of
      * always assuming "main.js".
+     *
+     * `assets` is every image and sound in the project's file tree, preloaded
+     * under its own name before the entry script runs (see ProjectAsset).
+     * Sent whole with every run rather than requested lazily like scripts:
+     * preloading has to know the full set before the game starts, and a file
+     * added mid-run should wait for the next run like any other change does.
+     *
+     * `textFiles` is every text file's current content, for Files.read. Also
+     * sent whole rather than requested: Files.read has to answer synchronously,
+     * mid-frame, and a round trip can't. Collected only here, as the run is
+     * posted — never kept as a standing computed — so typing in a text file
+     * doesn't rebuild anything. At MAX_FILE_CONTENT_LENGTH per file the copy
+     * stays in the low milliseconds for any realistic project.
+     *
+     * `paused` builds the game but leaves it paused and silent on its first
+     * frame, waiting for Play, as if a 'set-paused' carrying `pauseSeq` had
+     * arrived the moment the run began. It's part of the run rather than a
+     * 'set-paused' sent after it because core's runUserCode unpauses as it
+     * starts, and an unpaused run can be held back (see audioGate.ts), so a
+     * separate pause could land first and be undone. main.ts applies it, so
+     * it works for every API version. Omitted, the run starts playing as soon
+     * as it's allowed to make sound.
      */
-    | { type: 'run', code: string, entryName: string, theme?: ThemePalette }
+    | { type: 'run', code: string, entryName: string, theme?: ThemePalette, assets?: ProjectAsset[], textFiles?: ProjectTextFile[], paused?: boolean, pauseSeq?: number }
     /** Reply to a 'script-request'. `content: null` means "no such script". */
     | { type: 'script-response', id: number, content: string | null }
     /**
@@ -30,6 +52,15 @@ export type HostMessage =
      * discard those stale snapshots instead of trusting whichever arrives last.
      */
     | { type: 'set-paused', paused: boolean, seq: number }
+    /**
+     * The editor's own volume/mute control (the canvas toolbar's Volume
+     * dropdown), applied to the client bus — the one bus user scripts can't
+     * reach, so a game can't override what the person listening chose. Both
+     * fields travel together, and the host re-sends them on every 'ready': a
+     * sandbox that just reloaded (an API version change) boots at the client
+     * bus's defaults and has no way to ask what the slider says.
+     */
+    | { type: 'set-client-audio', volume: number, muted: boolean }
     /** Nudge the game to re-measure its container (splitter drags, etc.). */
     | { type: 'resize' }
     /**
@@ -98,6 +129,24 @@ export type SandboxMessage =
         watch: WatchCardSnapshot[],
     }
 
+/**
+ * One file from the project's file tree, as the running game sees it. `name`
+ * is exactly what the tree shows ('player.png') and becomes the file's Phaser
+ * texture/audio key — case-sensitive, like every other name in a project.
+ * `url` is absolute, since it's fetched from inside the sandbox document.
+ */
+export interface ProjectAsset {
+    name: string
+    kind: 'image' | 'audio'
+    url: string
+}
+
+/** One text file from the project's file tree, by the name the tree shows. */
+export interface ProjectTextFile {
+    name: string
+    content: string
+}
+
 export type OutputKind = 'print' | 'warn' | 'error' | 'start'
 
 /**
@@ -132,12 +181,12 @@ export const HOST_ORIGIN_PARAM = 'hostOrigin'
 
 /**
  * Query-string key carrying which permanent API version the sandbox should
- * load (see src/assets/api/versions/runtime.ts) — read once, synchronously,
+ * load (see src/api/versions/runtime.ts) — read once, synchronously,
  * at main.ts's own module top level, before setup() runs and before the
  * ready handshake. A HostMessage field can't do this job: it would need a
  * full postMessage round trip, arriving too late to influence which module
  * graph gets imported in the first place. Omitted (or 'dev') for the live
- * engine — see src/assets/api/versions/constants.ts.
+ * engine — see src/api/versions/constants.ts.
  */
 export const API_VERSION_PARAM = 'apiVersion'
 

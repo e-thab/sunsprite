@@ -5,41 +5,59 @@ export interface ParamDoc {
     doc: string
 }
 
+export interface TagDoc {
+    tag: string
+    doc: string
+}
+
 export interface ExtractedDoc {
     summary: string
     params: ParamDoc[]
+    /** Every JSDoc tag that isn't @param — @returns, @throws, @example — in source order. */
+    tags: TagDoc[]
 }
 
-/** Pulls the summary comment and any @param tags off a node's leading JSDoc. */
+/** Pulls the summary comment and every JSDoc tag off a node's leading JSDoc. */
 export function extractDoc(node: ts.Node): ExtractedDoc {
     const jsDocs = ts.getJSDocCommentsAndTags(node).filter(ts.isJSDoc)
     const doc = jsDocs[0]
     const summary = doc ? (ts.getTextOfJSDocComment(doc.comment) ?? '').trim() : ''
 
+    // @param needs its own shape because the name is a node rather than part of the
+    // comment text. Everything else is read generically off tagName, so a tag nobody
+    // has written yet still reaches the declarations without another edit here.
     const params: ParamDoc[] = []
+    const tags: TagDoc[] = []
     if (doc?.tags) {
         for (const tag of doc.tags) {
+            const text = (ts.getTextOfJSDocComment(tag.comment) ?? '').trim()
             if (ts.isJSDocParameterTag(tag)) {
-                params.push({
-                    name: tag.name.getText(),
-                    doc: (ts.getTextOfJSDocComment(tag.comment) ?? '').trim(),
-                })
+                params.push({ name: tag.name.getText(), doc: text })
+            } else {
+                tags.push({ tag: tag.tagName.text, doc: text })
             }
         }
     }
-    return { summary, params }
+    return { summary, params, tags }
 }
 
-/** Formats a doc comment block: single-line when there's just a summary, multi-line with @param tags otherwise. */
+/**
+ * Formats a doc comment block: single-line when there's just a one-line summary,
+ * multi-line otherwise. Comment text keeps its line breaks (blank lines included,
+ * which hovers render as paragraph breaks), so every line gets its own ` * `.
+ */
 export function formatDocBlock(doc: ExtractedDoc, indent: string): string {
-    if (!doc.summary && doc.params.length === 0) return ''
-    if (doc.params.length === 0) return `${indent}/** ${doc.summary} */\n`
+    const hasTags = doc.params.length > 0 || doc.tags.length > 0
+    if (!doc.summary && !hasTags) return ''
+    if (!hasTags && !doc.summary.includes('\n')) return `${indent}/** ${doc.summary} */\n`
 
     const lines = [`${indent}/**`]
-    if (doc.summary) lines.push(`${indent} * ${doc.summary}`)
-    for (const p of doc.params) {
-        lines.push(`${indent} * @param ${p.name} ${p.doc}`)
+    const push = (text: string) => {
+        for (const line of text.split('\n')) lines.push(line ? `${indent} * ${line}` : `${indent} *`)
     }
+    if (doc.summary) push(doc.summary)
+    for (const p of doc.params) push(`@param ${p.name} ${p.doc}`)
+    for (const t of doc.tags) push(`@${t.tag} ${t.doc}`)
     lines.push(`${indent} */`)
     return lines.join('\n') + '\n'
 }
@@ -73,14 +91,17 @@ export function findMixinClassExpression(sourceFile: ts.SourceFile, functionName
     return undefined
 }
 
-/** Finds `export default class Name extends ... {...}`. */
-export function findDefaultExportClass(sourceFile: ts.SourceFile): ts.ClassDeclaration | undefined {
+/**
+ * Finds `export [default] class Name extends ... {...}` by its class name. By
+ * name rather than "the file's first exported class": Sound.ts exports both
+ * Bus and Sound, and taking the first one silently swapped Bus's members in
+ * as Sound's.
+ */
+export function findExportedClass(sourceFile: ts.SourceFile, name: string): ts.ClassDeclaration | undefined {
     for (const statement of sourceFile.statements) {
-        if (!ts.isClassDeclaration(statement)) continue
-        const isDefault = statement.modifiers?.some(
-            (m) => m.kind === ts.SyntaxKind.ExportKeyword || m.kind === ts.SyntaxKind.DefaultKeyword
-        )
-        if (isDefault) return statement
+        if (!ts.isClassDeclaration(statement) || statement.name?.text !== name) continue
+        const isExported = statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+        if (isExported) return statement
     }
     return undefined
 }

@@ -15,8 +15,8 @@ export const useFullscreenStore = defineStore('fullscreen', () => {
 
     // Why can't I use @ as an alias for src here?
     // This may need to be updated once subpaths are implemented; moving paths to component for now.
-    // const largerIcon = 'src/assets/images/game-icons/larger.png'
-    // const smallerIcon = 'src/assets/images/game-icons/smaller.png'
+    // const largerIcon = 'src/library/images/game-icons/larger.png'
+    // const smallerIcon = 'src/library/images/game-icons/smaller.png'
 
     // const icon = computed(() => {
     //     return fullscreen.value ? smallerIcon : largerIcon

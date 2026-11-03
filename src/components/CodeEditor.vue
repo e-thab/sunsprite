@@ -5,14 +5,22 @@ import { useFileStore } from '@/stores/fileStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
-import { runUserCode } from '@/sandbox/hostBridge'
-import { getExampleCode } from '@/assets/api/examples'
-import { themes, buildMonacoThemeData, monacoThemeName } from '@/assets/theme/themes'
-import { resolveSpecifierCandidates, listImportSpecifiers } from '@/assets/api/scriptResolution'
-import { scriptTypeForFile, TEXT_MONACO_LANGUAGE } from '@/assets/utils/fileTypes'
-import { configureLanguageServices, installExtraLib, languageSupportFor, type EditorLanguageSupport } from '@/assets/languages/monacoLanguages'
+import { useEditorStateStore } from '@/stores/editorStateStore'
+import { runUserCode, type RunOptions } from '@/sandbox/hostBridge'
+import { getExampleCode } from '@/api/examples'
+import { themes, buildMonacoThemeData, monacoThemeName } from '@/theme/themes'
+import { resolveSpecifierCandidates, listImportSpecifiers } from '@/api/scriptResolution'
+import { FILE_TREE_DRAG_MIME, scriptTypeForFile, TEXT_MONACO_LANGUAGE } from '@/utils/fileTypes'
+import { releaseButtonFocus } from '@/utils/releaseButtonFocus'
+import { configureLanguageServices, installExtraLib, languageSupportFor, type EditorLanguageSupport } from '@/languages/monacoLanguages'
+import { installTextMateHighlighting } from '@/languages/textmateHighlighting'
+import { installSemanticHighlighting } from '@/languages/semanticHighlighting'
+import { installQuickInfoHover } from '@/languages/quickInfoHover'
+import { installFloatingWaitMarkers } from '@/languages/floatingWaitMarkers'
 import CollapsiblePane from './CollapsiblePane.vue'
 import '@/assets/code-completion/monaco-colors'
+import { setKnownAssets } from '@/assets/code-completion/monaco-assets'
+import type { NamedAsset } from '@/api/fileNames'
 
 // CodeMirror
 // import { Codemirror } from 'vue-codemirror'
@@ -39,7 +47,8 @@ import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
 import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
+// Monaco's ts.worker plus semantic classifications (see tsSemantic.worker.ts)
+import tsWorker from '@/languages/tsSemantic.worker?worker'
 
 // Instantiated up here rather than beside the other stores below, because
 // editorOptions (immediately after) reads from this one and is itself needed
@@ -72,14 +81,27 @@ const editorOptions = computed<EditorOptions>(() => ({
   // internal .overflow-guard div never actually shrinks below a few px even
   // when the pane is dragged fully closed, and overflow:visible let that
   // sliver bleed out over the splitter, blocking it.
-  fixedOverflowWidgets: true
+  fixedOverflowWidgets: true,
+  // Monaco's default leaves this to the theme, and standalone themes can't
+  // turn it on. See semanticHighlighting.ts.
+  'semanticHighlighting.enabled': true,
 }))
 
 // Define a Monaco theme for every app palette, sourced from the same
-// data that drives the app's CSS variables (src/assets/theme/themes.ts).
+// data that drives the app's CSS variables (src/theme/themes.ts).
 for (const palette of themes) {
 	monaco.editor.defineTheme(monacoThemeName(palette.id), buildMonacoThemeData(palette))
 }
+// Swaps Monaco's Monarch tokenizer for VSCode's TextMate grammars, which emit
+// the token names the themes above color, then layers the TS language
+// service's own classifications over them, under the same names.
+installTextMateHighlighting()
+installSemanticHighlighting()
+// Hover docs with the comment text and its tags in separate blocks, so
+// main.css can space them (see quickInfoHover.ts).
+installQuickInfoHover()
+// Warns where a bare `wait(2)` drops its promise (see floatingWaitMarkers.ts).
+installFloatingWaitMarkers()
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -92,6 +114,67 @@ const themeStore = useThemeStore()
 // returning something that isn't === the model actually attached via
 // setModel(), and revealLineInCenter() becoming a silent no-op.
 const editorInstance = shallowRef<monaco.editor.IStandaloneCodeEditor>()
+
+// A file dragged in from the file tree drops its name as a quoted string
+// literal, ready to pass to whatever wants a file name.
+//
+// Monaco's own text drop can't do this: it inserts drops as a snippet
+// (`<text>$0`, $0 marking where the cursor ends up), but the standalone
+// editor's bulk-edit service ignores the snippet flag and writes that text
+// verbatim, so a literal "$0" landed after every drop. The tree's drags carry
+// their name under FILE_TREE_DRAG_MIME instead of text/plain, which none of
+// Monaco's built-in drop providers accept, so Monaco still draws the drop
+// caret, focuses and clears it, but inserts nothing, and this (bound on the
+// editor's container, so it runs after Monaco's own handler) inserts the name.
+//
+// Several rows dragged at once arrive one name per line, and go in as a
+// comma-separated list of literals.
+function onEditorDrop(event: DragEvent) {
+	const names = event.dataTransfer?.getData(FILE_TREE_DRAG_MIME)
+	const editor = editorInstance.value
+	if (!names || !editor || editor.getOption(monaco.editor.EditorOption.readOnly)) return
+	event.preventDefault()
+
+	const position = editor.getTargetAtClientPoint(event.clientX, event.clientY)?.position
+	if (!position) return
+
+	// Escaped so a name holding a quote or backslash still makes a valid literal.
+	const text = names.split('\n').map((name) => `'${name.replace(/[\\']/g, '\\$&')}'`).join(', ')
+	editor.executeEdits('file-tree-drop', [{ range: monaco.Range.fromPositions(position), text, forceMoveMarkers: true }])
+	editor.setPosition({ lineNumber: position.lineNumber, column: position.column + text.length })
+	editor.focus()
+}
+
+// The parts of Monaco's find controller (an editor contribution with no public
+// type) that trackFindWidgetOnBody reads.
+interface FindControllerContribution extends monaco.editor.IEditorContribution {
+	getState(): { readonly isRevealed: boolean, onFindReplaceStateChange: monaco.IEvent<{ isRevealed: boolean }> }
+}
+
+const FIND_OPEN_BODY_CLASS = 'monaco-find-open'
+
+// Mirrors whether the find widget is open onto a class on <body>, for
+// main.css's hover-flicker fix, which has to reach the hover container Monaco
+// reparents onto <body>. That rule used to find the widget with
+// `body:has(.monaco-editor .find-widget.visible)` instead, but Chrome
+// re-evaluates a <body>-level :has() on every change to the classes it
+// names, and Monaco's scrollbars toggle `visible` on every scroll. Once the
+// find widget existed and any workbench hover had shown (its buttons'
+// tooltips are enough), each scroll tick paid for a style recalc over the
+// whole page: about 38ms a tick measured, against under 1ms with a class.
+function trackFindWidgetOnBody(editor: monaco.editor.IStandaloneCodeEditor) {
+	const state = editor.getContribution<FindControllerContribution>('editor.contrib.findController')?.getState()
+	if (!state) return
+
+	const sync = () => document.body.classList.toggle(FIND_OPEN_BODY_CLASS, state.isRevealed)
+	sync()
+	state.onFindReplaceStateChange((event) => {
+		if (event.isRevealed) sync()
+	})
+	// Switching files remounts the editor (see the :key on <CodeEditor>), and
+	// one disposed with its find widget open would otherwise leave the class on.
+	editor.onDidDispose(() => document.body.classList.remove(FIND_OPEN_BODY_CLASS))
+}
 
 function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	editorInstance.value = editor
@@ -106,6 +189,8 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
 		saveCurrentCode()
 	})
+
+	trackFindWidgetOnBody(editor)
 
 	// TODO: Look into setting up CodeLens, maybe for running specific sections of the code..?
 
@@ -153,11 +238,39 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 			refreshDiagnostics(editor, activeModel, importedNames)
 		}
 
+		// Back to wherever this file was last left — before any pending reveal
+		// below, which is a more specific request and wins.
+		const activeId = recordIdForModel(activeModel)
+		const viewState = activeId ? editorStateStore.viewState(activeId) : undefined
+		if (viewState) editor.restoreViewState(viewState)
+
 		if (pendingReveal && pendingReveal.script === fileStore.activeFileName) {
 			editor.revealLineInCenter(pendingReveal.line)
 			pendingReveal = null
 		}
 	}
+
+	// Keeps the stored view state current as the user moves around, so a
+	// refresh at any moment comes back to the same spot. Read off whichever
+	// model is attached when the event lands rather than the one attached
+	// above: a rename swaps in a new model under this same editor (see the
+	// rename watcher below), and a disposing editor has none at all.
+	const rememberViewState = () => {
+		const model = editor.getModel()
+		const id = model ? recordIdForModel(model) : undefined
+		const state = id ? editor.saveViewState() : null
+		if (id && state) editorStateStore.setViewState(id, state)
+	}
+	editor.onDidScrollChange(rememberViewState)
+	editor.onDidChangeCursorSelection(rememberViewState)
+	editor.onDidChangeHiddenAreas(rememberViewState)
+
+	// Straight from Monaco rather than through the wrapper's @change, which
+	// only emits when the new text differs from its `value` prop. That prop
+	// isn't bound here, so it sits at its default of '' — and the one edit the
+	// wrapper then swallows is the one that empties the file, leaving a
+	// cleared-out file showing as saved.
+	editor.onDidChangeModelContent(() => onEditorChange(editor.getValue()))
 
 	editor.updateOptions({
 		codeLens: false,
@@ -170,8 +283,8 @@ function handleErr(editor: monaco.editor.IStandaloneCodeEditor) {
 	// console.log(editor)
 }
 
-import { apiLib, apiModel } from '@/assets/api/apiLib'
-import { apiVersionDropdownItems, loadVersionedApiLib } from '@/assets/api/versions'
+import { apiLib, apiModel, buildProjectAssetsLib } from '@/api/apiLib'
+import { apiVersionDropdownItems, loadVersionedApiLib } from '@/api/versions'
 import { useAuthStore } from '@/stores/authStore'
 const modelUri = 'file:///node_modules/@types/sunsprite/api.d.ts'
 const libUri = 'file:///lib.ts'
@@ -236,6 +349,29 @@ watch(activeMonacoTheme, (name) => monaco.editor.setTheme(name))
 type ModelEntry = { model: monaco.editor.ITextModel, recordId?: string, isText?: boolean }
 const modelEntries = new Map<string, ModelEntry>()
 
+// Which file is open and where each one was scrolled to, kept per project
+// across visits (see editorStateStore.ts). Opened for this project by
+// EditorView, before this component exists.
+const editorStateStore = useEditorStateStore()
+
+function recordIdForModel(model: monaco.editor.ITextModel): string | undefined {
+	for (const entry of modelEntries.values()) {
+		if (entry.model === model) return entry.recordId
+	}
+	return undefined
+}
+
+function recordIdForName(name: string): string | undefined {
+	return (fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name))?.id
+}
+
+// By id, so a rename (which changes activeFileName but not the record) is a
+// no-op here rather than looking like a switch.
+watch(() => fileStore.activeFileName, (name) => {
+	const id = recordIdForName(name)
+	if (id) editorStateStore.setActiveFileId(id)
+})
+
 // Owner id for the marker (see applyErrorDecoration) behind a runtime
 // warning's underline — Monaco's marker service namespaces markers by owner,
 // so this can be freely set/cleared without touching the TS worker's own
@@ -249,7 +385,7 @@ const RUNTIME_MARKER_OWNER = 'sunsprite-runtime'
 // error is a showstopper, so a new one replaces whatever was there before.
 // Warnings are the opposite — passive, non-blocking, and meant to accumulate
 // — so they get their own list-based tracking below instead of sharing this.
-let currentErrorDecoration: { model: monaco.editor.ITextModel, ids: string[], line: number } | null = null
+let currentErrorDecoration: { model: monaco.editor.ITextModel, ids: string[] } | null = null
 
 // Watches the decorated model for edits that land on the decorated line
 // itself, so fixing the offending line clears the highlight (editor and
@@ -259,12 +395,9 @@ let errorDecorationWatcher: monaco.IDisposable | null = null
 // Every warning currently underlined, across every open script at once —
 // unlike currentErrorDecoration above, this is a list: multiple warnings
 // (even several on the same script) all stay visible simultaneously, since
-// none of them block anything the way an error does. Each entry's real
-// position lives on its own margin decoration (marginId); `line` is only a
-// fallback for recreating that decoration after a setValue()-driven flush
-// (see reapplyWarningHighlights) and gets kept in sync with the decoration's
-// live range otherwise (see ensureWarningWatcher).
-interface WarningMark { model: monaco.editor.ITextModel, marginId: string, message: string, line: number }
+// none of them block anything the way an error does. Each entry's position
+// lives on its own margin decoration (marginId), which follows edits.
+interface WarningMark { model: monaco.editor.ITextModel, marginId: string, message: string }
 const activeWarnings: WarningMark[] = []
 
 // One content-change watcher per model that currently has any warnings on
@@ -362,16 +495,12 @@ function applyErrorDecoration(model: monaco.editor.ITextModel, line: number) {
 		range: new monaco.Range(clampedLine, 1, clampedLine, 1),
 		options: { isWholeLine: true, className: 'error-line-highlight', marginClassName: 'error-line-margin' },
 	}])
-	currentErrorDecoration = { model, ids, line: clampedLine }
+	currentErrorDecoration = { model, ids }
 
 	const decorationId = ids[0]
 	if (!decorationId) return
 
 	errorDecorationWatcher = model.onDidChangeContent((event) => {
-		// setValue()-driven resets (refreshDiagnostics's forced re-check below)
-		// flag as a "flush", not a real edit — reapplyErrorDecoration handles
-		// restoring the decoration those cause on its own, right after.
-		if (event.isFlush) return
 		if (!currentErrorDecoration || currentErrorDecoration.model !== model) return
 
 		// The decoration's own tracked range, not the line it was created at —
@@ -385,18 +514,6 @@ function applyErrorDecoration(model: monaco.editor.ITextModel, line: number) {
 		)
 		if (touchedDecoratedLine) clearErrorDecoration()
 	})
-}
-
-// refreshDiagnostics (below) forces a fresh model.setValue() to re-trigger
-// the TS worker, which — being a full content replace rather than an edit —
-// silently drops any decorations that were sitting on the model, including
-// the error highlight. Called right after that setValue so the highlight
-// reappears immediately instead of vanishing for whatever's left of
-// refreshDiagnostics's settle window.
-function reapplyErrorDecoration(model: monaco.editor.ITextModel) {
-	if (currentErrorDecoration && currentErrorDecoration.model === model) {
-		applyErrorDecoration(model, currentErrorDecoration.line)
-	}
 }
 
 // Full reset of every bit of "there's a current runtime error" state — the
@@ -457,21 +574,17 @@ function removeWarningsOnLine(model: monaco.editor.ITextModel, line: number) {
 	}
 }
 
-// One-time-per-model watcher that keeps every one of that model's warnings'
-// stored `line` in sync with reality, and drops whichever ones an edit
-// actually lands on — mirroring errorDecorationWatcher, but shared across
+// One-time-per-model watcher that drops whichever of that model's warnings an
+// edit actually lands on — mirroring errorDecorationWatcher, but shared across
 // however many warnings that model currently has instead of one-at-a-time.
 function ensureWarningWatcher(model: monaco.editor.ITextModel) {
 	if (warningWatchers.has(model)) return
 	warningWatchers.set(model, model.onDidChangeContent((event) => {
-		if (event.isFlush) return
-
 		let touchedAny = false
 		for (const mark of [...activeWarnings]) {
 			if (mark.model !== model) continue
 			const liveRange = model.getDecorationRange(mark.marginId)
 			if (!liveRange) continue
-			mark.line = liveRange.startLineNumber
 
 			const touched = event.changes.some((change) =>
 				change.range.startLineNumber <= liveRange.startLineNumber && change.range.endLineNumber >= liveRange.startLineNumber
@@ -495,28 +608,10 @@ function addWarningHighlight(model: monaco.editor.ITextModel, line: number, mess
 		options: { isWholeLine: true, marginClassName: 'warning-line-margin' },
 	}])
 	const marginId = ids[0]
-	if (marginId) activeWarnings.push({ model, marginId, message, line: clampedLine })
+	if (marginId) activeWarnings.push({ model, marginId, message })
 
 	rebuildWarningMarkers(model)
 	ensureWarningWatcher(model)
-}
-
-// Recreates every warning decoration refreshDiagnostics's forced setValue()
-// just dropped (see reapplyErrorDecoration's comment — same underlying
-// issue, applied to a list instead of one decoration), from each mark's
-// last-known `line` rather than a (now-gone) live decoration range.
-function reapplyWarningHighlights(model: monaco.editor.ITextModel) {
-	const marks = activeWarnings.filter((mark) => mark.model === model)
-	if (!marks.length) return
-
-	for (const mark of marks) {
-		const ids = model.deltaDecorations([], [{
-			range: new monaco.Range(mark.line, 1, mark.line, 1),
-			options: { isWholeLine: true, marginClassName: 'warning-line-margin' },
-		}])
-		if (ids[0]) mark.marginId = ids[0]
-	}
-	rebuildWarningMarkers(model)
 }
 
 /** Clears every active warning, on every script — a fresh run starts with a clean slate (see runNamedScript). */
@@ -562,7 +657,7 @@ function revealErrorLine(script: string, line: number, kind: 'error' | 'warn' = 
 // Resolves once no marker-change event has landed for `uri` for `quietMs`,
 // or after `timeoutMs` regardless (so a pathological case that never
 // settles can't leave a model suppressed forever). Needed because the
-// validation pass triggered by refreshDiagnostics's forced setValue isn't
+// validation pass refreshDiagnostics forces (see its language flip) isn't
 // guaranteed to be the last stale one: under a slow-to-start TS worker
 // (observed: ~4s in dev, almost certainly Vite cold-building the ts.worker
 // chunk), a straggler pass scheduled before the sync landed can still fire
@@ -626,12 +721,22 @@ async function syncWithRetry(support: EditorLanguageSupport, uri: monaco.Uri, re
 // re-races the same problem on a delay; the deterministic fix is to await
 // the worker's own getJavaScriptWorker(...uris) call, which resolves only
 // once those exact URIs are actually synced, then force a fresh
-// content-change event so validation reruns against a worker that's
+// validation pass (see below for how) against a worker that's
 // genuinely caught up. Even so, the caller (handleMount) already turned
 // renderValidationDecorations off before attaching this model, so none of
 // the intermediate (wrong) passes this triggers ever reach the screen —
 // this function's only remaining job is to turn it back on once things
 // have actually settled.
+//
+// The re-validation is forced by flipping the model's language away and back,
+// not by writing its content back with setValue() as it once was: Monaco's
+// diagnostics adapter drops and re-adds a model whose language changes, and
+// re-adding validates it on the spot. setValue() got the same re-check but
+// also cleared the model's undo stack and reset its cursor and scroll — and
+// since this runs every time a file is opened, simply switching away from a
+// file and back lost its whole undo history. A language change touches none
+// of that, nor the content, so there's no change event for auto-run to
+// mistake for an edit and no decorations to put back afterward.
 async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, model: monaco.editor.ITextModel, relatedNames: Iterable<string>) {
 	const relatedUris = [...relatedNames]
 		.map((name) => modelEntries.get(name)?.model.uri)
@@ -639,17 +744,9 @@ async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, m
 	try {
 		await syncWithRetry(languageSupportFor(model.uri.path), model.uri, relatedUris)
 		if (!model.isDisposed()) {
-			// Writes the model's own value back purely to re-trigger validation
-			// — bracketed so auto-run doesn't mistake it for an edit (see
-			// revalidationWrites).
-			revalidationWrites++
-			try {
-				model.setValue(model.getValue())
-			} finally {
-				revalidationWrites--
-			}
-			reapplyErrorDecoration(model)
-			reapplyWarningHighlights(model)
+			const language = model.getLanguageId()
+			monaco.editor.setModelLanguage(model, TEXT_MONACO_LANGUAGE)
+			monaco.editor.setModelLanguage(model, language)
 		}
 	} catch (err) {
 		console.error(`Failed to sync ${model.uri} with the TS worker after retries`, err)
@@ -687,13 +784,21 @@ watch(
 				continue
 			}
 			if (current.name !== name) {
-				const wasActive = editorInstance.value?.getModel() === entry.model
+				const editor = editorInstance.value
+				const wasActive = editor?.getModel() === entry.model
+				// The fresh model starts at the top, so the open editor's place is
+				// carried across by hand. Its undo history can't be — Monaco keeps
+				// that on the model, with no way to move it to another.
+				const viewState = wasActive ? editor?.saveViewState() : null
 				const language = entry.isText ? TEXT_MONACO_LANGUAGE : scriptTypeForFile(current.name).monacoLanguage
 				const renamed = monaco.editor.createModel(entry.model.getValue(), language, monaco.Uri.parse('file:///' + current.name))
 				entry.model.dispose()
 				modelEntries.delete(name)
 				modelEntries.set(current.name, { model: renamed, recordId: entry.recordId, isText: entry.isText })
-				if (wasActive) editorInstance.value?.setModel(renamed)
+				if (wasActive && editor) {
+					editor.setModel(renamed)
+					if (viewState) editor.restoreViewState(viewState)
+				}
 			}
 		}
 	},
@@ -725,8 +830,14 @@ function getCode(): string {
 	return modelEntries.get(fileStore.activeFileName)?.model.getValue() ?? ''
 }
 
+// An edit over the whole file rather than setValue(), which would clear the
+// undo stack — so a revert or reset can be undone like any other change.
 function setCode(newCode: string) {
-	modelEntries.get(fileStore.activeFileName)?.model.setValue(newCode)
+	const model = modelEntries.get(fileStore.activeFileName)?.model
+	if (!model) return
+	model.pushStackElement()
+	model.pushEditOperations([], [{ range: model.getFullModelRange(), text: newCode }], () => null)
+	model.pushStackElement()
 }
 
 function resetCode() {
@@ -767,40 +878,29 @@ async function saveAll() {
 // ensureModel loads a script that's never been opened from its last saved
 // content; one that's already open (with live, possibly unsaved edits)
 // keeps using that model, same as running the active file always has.
-// Every run (re)starts the game, so every run re-baselines the "changed
-// since run" snapshot — along with which script it ran, which is what
-// decides whether Restart or that script's own play button gets the
-// highlight (see fileStore's runningScriptName).
-function runNamedScript(name: string) {
+// The same goes for everything else the run touches: every open model's
+// live value is handed over too, so the scripts it imports and the text
+// files it reads run as edited, not as last saved (see hostBridge's
+// runUserCode, which also takes the "changed since run" snapshot from them).
+function runNamedScript(name: string, options?: RunOptions) {
 	clearErrorDecoration()
 	clearWarningHighlights()
 	const code = ensureModel(name)?.getValue() ?? ''
 	const liveContent: Record<string, string> = {}
-	for (const [modelName, entry] of modelEntries) {
-		if (!entry.isText) liveContent[modelName] = entry.model.getValue()
-	}
-	fileStore.snapshotScripts(name, liveContent)
-	runUserCode(code, name, themeStore.current)
+	for (const [modelName, entry] of modelEntries) liveContent[modelName] = entry.model.getValue()
+	runUserCode(code, name, themeStore.current, { ...options, liveContent })
 }
 
 function runActiveUserCode() {
 	runNamedScript(fileStore.activeFileName)
 }
 
-// Blurs the play button once clicked: a button keeps focus after a mouse
-// press, and Space/Enter on a focused button re-clicks it — so without this,
-// pressing Space for the game (e.g. jump) would restart the script instead.
-function onRunActiveClick(event: MouseEvent) {
-	(event.currentTarget as HTMLElement | null)?.blur()
-	runActiveUserCode()
-}
-
 // The game header's Restart button always runs this — the project's main
 // script is its canonical entry point regardless of whichever script happens
 // to be open in the editor at the time. Its name comes from the store rather
 // than a literal, since in a TypeScript project it's main.ts.
-function runMainScript() {
-	runNamedScript(fileStore.mainScriptName)
+function runMainScript(options?: RunOptions) {
+	runNamedScript(fileStore.mainScriptName, options)
 }
 
 const runActiveHighlighted = computed(() => fileStore.entryChangedSinceLastRun(fileStore.activeFileName))
@@ -808,9 +908,7 @@ const runActiveHighlighted = computed(() => fileStore.entryChangedSinceLastRun(f
 function onEditorChange(value: string) {
 	updateSaveMsg(value)
 	if (!fileStore.isTextFile(fileStore.activeFileName)) ensureImportedModels(value, fileStore.activeFileName)
-	// Both calls above are idempotent and safe to run for any change at all;
-	// only re-running the game needs the edit to have been a real one.
-	if (revalidationWrites === 0) scheduleAutoRun()
+	scheduleAutoRun()
 }
 
 // --- Settings (see SettingsPanel.vue) -------------------------------------
@@ -880,23 +978,6 @@ watch(
 const AUTO_RUN_DELAY_MS = 1500
 
 let autoRunTimer: ReturnType<typeof setTimeout> | null = null
-
-// Non-zero while the editor is rewriting a model with its own content to force
-// the TS worker to re-validate (refreshDiagnostics' setValue). Monaco raises
-// its ordinary content-change event for that write, indistinguishable from
-// typing — and because switching files remounts the editor and refreshes
-// diagnostics every time, auto-run would read merely *selecting* a script as an
-// edit and tear down and rebuild the running game. Nothing changed: the value
-// written is the value already there.
-//
-// Deliberately only that write. resetCode and revertCode also write through
-// setCode, but those genuinely replace the content at the user's request, so a
-// re-run is the right response to them.
-//
-// A counter rather than a boolean: the bracket is synchronous today (Monaco
-// emits during setValue), so the two would behave identically — a counter just
-// stays correct if a self-write is ever nested inside another.
-let revalidationWrites = 0
 
 function scheduleAutoRun() {
 	if (autoRunTimer) clearTimeout(autoRunTimer)
@@ -968,8 +1049,13 @@ onMounted(() => {
 		}
 	}
 
-	fileStore.activate(fileStore.mainScriptName)
-	ensureModel(fileStore.mainScriptName)
+	// Whichever file was open last time, if it's still around — otherwise main.
+	const lastActiveId = editorStateStore.activeFileId()
+	const lastActive = lastActiveId
+		? (fileStore.scripts.find((s) => s.id === lastActiveId) ?? fileStore.textFiles.find((f) => f.id === lastActiveId))
+		: undefined
+	fileStore.activate(lastActive?.name ?? fileStore.mainScriptName)
+	ensureModel(fileStore.activeFileName)
 	fileStore.registerSaveAllHandler(saveAll)
 	emit('ready')
 })
@@ -984,7 +1070,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
 
 // 'dev' is the live, unversioned apiLib (current source, not a snapshot);
-// anything else names a permanent folder under src/assets/api/versions/.
+// anything else names a permanent folder under src/api/versions/.
 // Session-local, shared with hostBridge.ts (via the store) so the sandboxed
 // game's next run uses the same version this dropdown selects — not just
 // Monaco's declarations. Persisting a pick is the store's own job now (see
@@ -1026,25 +1112,57 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 
 	apiLibDisposable.dispose()
 	apiLibDisposable = installExtraLib(newLib, libUri)
+	revalidateActiveModel()
+})
 
-	// Nudge the currently active model to re-validate against the swapped
-	// declarations — same mechanism handleMount already uses after attaching
-	// a model (see refreshDiagnostics above), needed here for the same reason:
-	// Monaco's TS worker doesn't automatically repaint already-open squiggles
-	// just because the ambient lib changed underneath it.
+// Nudges the currently active model to re-validate against swapped
+// declarations — same mechanism handleMount already uses after attaching
+// a model (see refreshDiagnostics above), needed here for the same reason:
+// Monaco's TS worker doesn't automatically repaint already-open squiggles
+// just because the ambient lib changed underneath it.
+function revalidateActiveModel() {
 	const editor = editorInstance.value
 	const model = editor?.getModel()
 	if (editor && model && !fileStore.isTextFile(fileStore.activeFileName)) {
 		const importedNames = ensureImportedModels(model.getValue(), fileStore.activeFileName)
 		refreshDiagnostics(editor, model, importedNames)
 	}
+}
+
+// The project's own image/sound/text file names. Text files contribute only
+// their names — content is never read here, so typing in one doesn't
+// recompute this (the running game gets content separately, see hostBridge.ts).
+const namedProjectFiles = computed<NamedAsset[]>(() => [
+	...fileStore.projectAssets.map(({ name, kind }) => ({ name, kind })),
+	...fileStore.textFiles.map(({ name }) => ({ name, kind: 'text' as const })),
+])
+
+// What ImageSource/AudioSource/TextSource complete from (see
+// buildProjectAssetsLib). Watched as the generated text itself, so moving or
+// reordering a file — which changes the list but not a single name — doesn't
+// reinstall anything.
+const projectAssetsLibUri = 'file:///project-assets.d.ts'
+let projectAssetsLibDisposable = installExtraLib(buildProjectAssetsLib(namedProjectFiles.value), projectAssetsLibUri)
+
+watch(() => buildProjectAssetsLib(namedProjectFiles.value), (lib) => {
+	projectAssetsLibDisposable.dispose()
+	projectAssetsLibDisposable = installExtraLib(lib, projectAssetsLibUri)
+	revalidateActiveModel()
 })
+
+// Same names, for the unknown-file markers in monaco-assets.ts.
+watch(namedProjectFiles, (files) => setKnownAssets(files), { immediate: true })
+
+onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 </script>
 
 <template>
 	<CollapsiblePane label="Code" icon="tabler:code">
 	<div class="panel-wrapper">
-		<div id="editor-bar" class="panel-bar">
+		<!-- Buttons give focus back after a click, so Space reaches the game
+		     instead of re-clicking them — e.g. re-running the script from the
+		     play button below (see releaseButtonFocus). -->
+		<div id="editor-bar" class="panel-bar" @click="releaseButtonFocus">
 			<div class="save-group">
 				<!-- The tooltip carries the save time whenever there is one, so
 				     the timestamp is still reachable in the narrow-pane case
@@ -1068,7 +1186,7 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 				     main.js — see runMainScript). Text files aren't scripts. -->
 				<UTooltip v-if="!fileStore.isTextFile(fileStore.activeFileName)" text="Run this script">
 					<UChip inset color="warning" :show="runActiveHighlighted">
-						<UButton icon="tabler:player-play-filled" variant="subtle" :color="runActiveHighlighted ? 'warning' : 'primary'" size="xs" @click="onRunActiveClick" />
+						<UButton icon="tabler:player-play-filled" variant="subtle" :color="runActiveHighlighted ? 'warning' : 'primary'" size="xs" @click="runActiveUserCode" />
 					</UChip>
 				</UTooltip>
 			</div>
@@ -1090,7 +1208,7 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 				</UTooltip>
 			</div>
 		</div>
-		<div id="code-container" class="editor">
+		<div id="code-container" class="editor" @drop="onEditorDrop">
 			<!-- :key forces a full remount on file switch rather than calling
 			     editorInstance.setModel() on the live instance. Calling setModel
 			     a second time — from any later event (click, setTimeout, whatever),
@@ -1107,7 +1225,6 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 				:theme="activeMonacoTheme"
 				:options="editorOptions"
 				@editorDidMount="handleMount"
-				@change="onEditorChange"
 				@error="handleErr"
 			/>
 		</div>
@@ -1141,7 +1258,14 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 
 #editor-bar {
 	display: grid;
-	grid-template-columns: 1fr 1fr 1fr;
+	/* The side columns split whatever the file name leaves them, which keeps
+	   it centered while there's room. Each track still floors at its own
+	   group's min-content (1fr is minmax(auto, 1fr)), so once there's no room
+	   left the groups don't shrink into one another: the file name truncates
+	   first, then the grid simply runs past the bar's right edge and
+	   .panel-bar's overflow: hidden clips it — the same thing PhaserCanvas's
+	   flex toolbar does at that width. */
+	grid-template-columns: 1fr auto 1fr;
 	/* Makes this bar's own width queryable by .save-time below. Named rather
 	   than anonymous so the query can't accidentally resolve against some
 	   other ancestor that later becomes a container. Safe to contain on the
@@ -1162,11 +1286,10 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 	gap: 0.25em;
 	color: var(--theme-text);
 	justify-self: center;
-	/* Lets this grid item actually shrink below its content's width instead
-	   of overflowing the column — grid items default to min-width: auto,
-	   same trap flex items have. max-width keeps it from claiming more than
-	   its column ever has to give. */
-	min-width: 0;
+	/* Left at min-width: auto, this item's minimum is the run button alone:
+	   .file-name-text can shrink to nothing, so the name ellipsizes before
+	   the auto column takes any room from the groups either side. max-width
+	   keeps it from claiming more than its column ever has to give. */
 	max-width: 100%;
 }
 
@@ -1183,10 +1306,6 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 	align-self: center;
 	gap: 0.5em;
 	justify-self: start;
-	/* Same grid-item escape hatch #file-name documents above: without it this
-	   column can't shrink past its own content and the three columns overflow
-	   the bar (now clipped, not wrapped) well before they need to. */
-	min-width: 0;
 }
 
 /* Below this the save button is the widest thing in the row — one third of
@@ -1204,7 +1323,6 @@ watch(() => apiVersionStore.selectedVersion, async (version) => {
 	display: inline-flex;
 	justify-self: end;
 	align-self: center;
-	min-width: 0;
 	/* transform: translate(-1px, -1px) */
 }
 

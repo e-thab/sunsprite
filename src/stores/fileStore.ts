@@ -1,10 +1,11 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import { supabase } from "@/assets/utils/supabase";
-import { getExampleCode } from "@/assets/api/examples";
-import { DEFAULT_SCRIPT_FILE_TYPE, imageDisplayName, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, splitFileName, type ScriptFileType } from "@/assets/utils/fileTypes";
+import { supabase } from "@/utils/supabase";
+import { getExampleCode, newProjectMainCode } from "@/api/examples";
+import { assetKindForName, type AssetKind, DEFAULT_SCRIPT_FILE_TYPE, isFileContentTooLong, isMainScript, joinFileName, MAIN_SCRIPT_BASE, MAX_FILE_CONTENT_LENGTH, splitFileName, type ScriptFileType, uploadDisplayName, uploadFileTypeFor } from "@/utils/fileTypes";
 import { useProjectSettingsStore } from "./projectSettingsStore";
 import { MAX_PROJECT_SIZE as PROJECT_STORAGE_QUOTA_BYTES } from "../../supabase/functions/_shared/uploadLimits.ts";
+import type { ProjectAsset } from "@/sandbox/protocol";
 
 function publicUrlForKey(objectKey: string): string {
     return `${import.meta.env.VITE_R2_PUBLIC_BASE_URL}/${objectKey}`
@@ -62,6 +63,9 @@ type FolderRecord = {
     position: number
 }
 
+// Any uploaded file — images and audio alike, despite the name. Both live in
+// the images table (see 20261012120000_allow_audio_uploads.sql for why) and
+// are told apart by contentType; see uploadKind below.
 type ImageRecord = {
     id: string
     name: string
@@ -73,11 +77,13 @@ type ImageRecord = {
     position: number
 }
 
-// A link to one of the built-in Library assets (public/images/*, see
-// gameAssets.ts) rather than an uploaded object — no file data, no size, no
-// R2 key. Its own table (library_images) for the reasons given in that
-// migration; in the tree it behaves like any other image, except that
-// deleting one only removes the link.
+// A link to one of the built-in Library assets (src/library, served at
+// /library/* — see api/library.ts) rather than an uploaded object — no file
+// data, no size, no R2 key. Images and sounds alike, despite the name (the
+// same as ImageRecord); libraryKind tells them apart. Its own table
+// (library_images) for the reasons given in that migration; in the tree it
+// behaves like any other image or sound, except that deleting one only
+// removes the link.
 type LibraryImageRecord = {
     id: string
     name: string
@@ -99,17 +105,44 @@ type TextFileRecord = {
     position: number
 }
 
-// A folder/script/image/text file blended and sorted by position, for
+// A folder/script/image/text file blended into one sorted list, for
 // rendering one ordered list per tree level regardless of which kind each
-// row is.
+// row is (see compareTreeNodes for the order).
 export type TreeNode =
     | { kind: 'folder', id: string, name: string, position: number }
     | { kind: 'script', id: string, name: string, position: number, size: number }
     | { kind: 'image', id: string, name: string, position: number, publicUrl: string, size: number }
+    | { kind: 'audio', id: string, name: string, position: number, publicUrl: string, size: number }
     // size is always 0 — a link stores nothing — but kept on the node so
     // folderSizeBytes can sum every non-folder kind the same way.
     | { kind: 'libraryImage', id: string, name: string, position: number, libraryPath: string, size: number }
     | { kind: 'text', id: string, name: string, position: number, size: number }
+
+// VS Code's default explorer order: folders before files, each alphabetical,
+// case-insensitive, with digit runs compared as numbers (sprite2 before
+// sprite10). The tree is always shown in this order — `position` is still
+// written on create/move but no longer decides anything. The final plain
+// comparison only breaks ties the collator calls equal ("A.js" vs "a.js"), so
+// the order never depends on load order.
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
+function compareTreeNodes(a: TreeNode, b: TreeNode): number {
+    const aIsFolder = a.kind === 'folder'
+    if (aIsFolder !== (b.kind === 'folder')) return aIsFolder ? -1 : 1
+    return nameCollator.compare(a.name, b.name) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+}
+
+// Unknown content types fall to 'image' — every row predating audio uploads is
+// one, and the images table's own check rules out anything else.
+function uploadKind(record: ImageRecord): AssetKind {
+    return record.contentType.startsWith('audio/') ? 'audio' : 'image'
+}
+
+// Read off the Library path rather than the link's name: the path is fixed,
+// and older links (public/images/*) are all images.
+export function libraryKind(libraryPath: string): AssetKind {
+    return assetKindForName(libraryPath) === 'audio' ? 'audio' : 'image'
+}
 
 export const useFileStore = defineStore('files', () => {
     // Only what's shown before anything has loaded — every real load path
@@ -144,9 +177,11 @@ export const useFileStore = defineStore('files', () => {
     }
 
     // Every script's *live* content at the moment the game was last
-    // (re)started (see CodeEditor.vue's runMainScript) — including whatever
+    // (re)started (see hostBridge's runUserCode) — including whatever
     // unsaved edits were sitting in an open model, since that's the actual
-    // code that ran. Lets the restart button's warning chip track "does the
+    // code that ran. It's also what the running game's imports are served
+    // from (hostBridge's resolveScript), so the two can't disagree. Lets the
+    // restart button's warning chip track "does the
     // project's script state differ from what's actually running" instead of
     // just "is anything dirty right now": a save alone doesn't clear the
     // difference (the new content still hasn't been run), and restarting
@@ -173,10 +208,11 @@ export const useFileStore = defineStore('files', () => {
     }
 
     // `liveContent` carries the current value of every open (possibly
-    // unsaved) Monaco model, keyed by script name — CodeEditor.vue is the
+    // unsaved) Monaco model, keyed by file name — CodeEditor.vue is the
     // only thing that can see those, so it's the one that has to hand them
-    // over. A script with no entry (never opened) falls back to its saved
-    // content, which is necessarily what's about to run for it too.
+    // over (text files' entries are simply never looked up here). A script
+    // with no entry (never opened, or a PlayView run) falls back to its saved
+    // content, which is then what resolveScript serves for it too.
     function snapshotScripts(entryName: string, liveContent: Record<string, string> = {}) {
         const snapshot: Record<string, string> = {}
         for (const script of scripts.value) snapshot[script.name] = liveContent[script.name] ?? script.content
@@ -335,6 +371,7 @@ export const useFileStore = defineStore('files', () => {
     // deliberately excluded: uploads always require a real project (see
     // uploadImage), so the sandbox never has any.
     function persistGuestProject() {
+        if (guestResetPending) return
         const data = { folders: folders.value, scripts: scripts.value, textFiles: textFiles.value, libraryImages: libraryImages.value }
         localStorage.setItem(GUEST_PROJECT_STORAGE_KEY, JSON.stringify(data))
     }
@@ -450,14 +487,14 @@ export const useFileStore = defineStore('files', () => {
             .map((s) => ({ kind: 'script' as const, id: s.id, name: s.name, position: s.position, size: sizeEncoder.encode(s.content).length }))
         const containedImages: TreeNode[] = images.value
             .filter((img) => img.folderId === folderId)
-            .map((img) => ({ kind: 'image' as const, id: img.id, name: img.name, position: img.position, publicUrl: img.publicUrl, size: img.size }))
+            .map((img) => ({ kind: uploadKind(img), id: img.id, name: img.name, position: img.position, publicUrl: img.publicUrl, size: img.size }))
         const containedLibraryImages: TreeNode[] = libraryImages.value
             .filter((img) => img.folderId === folderId)
             .map((img) => ({ kind: 'libraryImage' as const, id: img.id, name: img.name, position: img.position, libraryPath: img.libraryPath, size: 0 }))
         const containedTextFiles: TreeNode[] = textFiles.value
             .filter((f) => f.folderId === folderId)
             .map((f) => ({ kind: 'text' as const, id: f.id, name: f.name, position: f.position, size: sizeEncoder.encode(f.content).length }))
-        return [...subfolders, ...containedScripts, ...containedImages, ...containedLibraryImages, ...containedTextFiles].sort((a, b) => a.position - b.position)
+        return [...subfolders, ...containedScripts, ...containedImages, ...containedLibraryImages, ...containedTextFiles].sort(compareTreeNodes)
     }
 
     // Recursive sum of everything under a folder — descends into
@@ -490,8 +527,8 @@ export const useFileStore = defineStore('files', () => {
     }
 
     // Appends after the current last sibling (folders and scripts share one
-    // position sequence per parent, so newly added items — whichever kind —
-    // land at the end of what's already there).
+    // position sequence per parent). Only keeps the stored column sensible —
+    // the tree itself is sorted by name (see compareTreeNodes).
     function nextPosition(folderId: string | null): number {
         const siblings = childNodes(folderId)
         if (siblings.length === 0) return 0
@@ -640,7 +677,7 @@ export const useFileStore = defineStore('files', () => {
 
         if (folderRows.length === 0 && scriptRows.length === 0) {
             const scriptsFolderId = await createFolder('scripts')
-            await createScript(newScriptName(MAIN_SCRIPT_BASE), getExampleCode(), scriptsFolderId)
+            await createScript(newScriptName(MAIN_SCRIPT_BASE), newProjectMainCode, scriptsFolderId)
         } else {
             folders.value = folderRows.map((row) => ({
                 id: row.id,
@@ -754,6 +791,27 @@ export const useFileStore = defineStore('files', () => {
         persistGuestProject()
     }
 
+    // Set by resetGuestProject for the moment between clearing the sandbox and
+    // the page reload that follows it, so nothing still scheduled (an autosave
+    // pass, say) can write the old files straight back.
+    let guestResetPending = false
+
+    /**
+     * Guest sandbox only — throws away every file, so the next load reseeds
+     * the sandbox exactly as a first-ever visit would. The caller reloads the
+     * page right after: reseeding in place would leave Monaco's models, and
+     * the editor keyed on the active file's name, pointing at records that no
+     * longer exist.
+     */
+    function resetGuestProject() {
+        if (projectId.value) return
+        guestResetPending = true
+        localStorage.removeItem(GUEST_PROJECT_STORAGE_KEY)
+        // Nothing unsaved is worth keeping now, and leaving these would have
+        // EditorView's beforeunload prompt interrupt the reload.
+        dirtyFiles.value = new Set()
+    }
+
     // ---- Scripts ----
 
     async function createScript(name: string, content: string = '', folderId: string | null = null) {
@@ -831,22 +889,31 @@ export const useFileStore = defineStore('files', () => {
     // action is also hidden entirely in the sandbox, but this is the actual
     // enforcement point).
 
+    // Images and audio both — the name is from before audio existed, and still
+    // matches the table every upload lands in.
     async function uploadImage(file: File, folderId: string | null = null) {
         if (!projectId.value) throw new Error('No active project')
 
-        // The stored name always carries the canonical extension for file.type
-        // (see imageDisplayName) rather than whatever the source file was
-        // called — this is what "type recognized and assigned automatically"
-        // means for an upload, same as a locked extension means for a rename.
-        const name = imageDisplayName(file)
+        // The stored name always carries the canonical extension for the
+        // recognized type (see uploadDisplayName) rather than whatever the
+        // source file was called — this is what "type recognized and assigned
+        // automatically" means for an upload, same as a locked extension means
+        // for a rename.
+        const name = uploadDisplayName(file)
+
+        // The canonical content type, not file.type as reported — that can be
+        // an alias (audio/x-wav) or empty (.ogg on Windows), neither of which
+        // the edge functions or the images table accept. It's what gets signed,
+        // so it has to be what the PUT below sends too.
+        const contentType = uploadFileTypeFor(file)?.contentType ?? file.type
 
         const { data: signed, error: signError } = await supabase.functions.invoke('r2-sign-upload', {
-            body: { projectId: projectId.value, fileName: name, contentType: file.type, size: file.size },
+            body: { projectId: projectId.value, fileName: name, contentType, size: file.size },
         })
         if (signError) throw new Error(await functionErrorMessage(signError))
 
-        const putRes = await fetch(signed.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
-        if (!putRes.ok) throw new Error('Failed to upload image to storage')
+        const putRes = await fetch(signed.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': contentType } })
+        if (!putRes.ok) throw new Error('Failed to upload file to storage')
 
         // r2-confirm-upload HEADs the object we just PUT to verify the real
         // size/content-type before creating the DB row (and cleans up the R2
@@ -904,10 +971,11 @@ export const useFileStore = defineStore('files', () => {
         image.position = position
     }
 
-    // Uploaded images and library links live in separate tables, each with its
-    // own unique(project_id, name), but they read as one kind of file in the
-    // tree — so a name has to be free across both, which only the client can
-    // check. `exceptId` is the row being renamed, so it doesn't clash with itself.
+    // Uploaded files and library links live in separate tables, each with its
+    // own unique(project_id, name), but share one namespace — a file's name is
+    // its asset key in the running game (see projectAssets) — so a name has to
+    // be free across both, which only the client can check. `exceptId` is the
+    // row being renamed, so it doesn't clash with itself.
     function isImageNameTaken(name: string, exceptId?: string): boolean {
         return images.value.some((img) => img.id !== exceptId && img.name === name)
             || libraryImages.value.some((img) => img.id !== exceptId && img.name === name)
@@ -924,6 +992,20 @@ export const useFileStore = defineStore('files', () => {
             if (!isImageNameTaken(candidate)) return candidate
         }
     }
+
+    // Every image and sound file in the project, by the name the user sees in
+    // the tree. The game preloads all of them under exactly that name before a
+    // script runs (see core.ts's UserScene.preload), which is what lets a
+    // script say `new Sprite({ src: 'player.png' })`; the editor offers the
+    // same names as completions and flags literals that match none of them.
+    //
+    // Library links resolve to an absolute URL here because the game runs in
+    // a document of its own (runner.html) — a root-relative /library/... path
+    // means the same thing there today, but nothing should have to know that.
+    const projectAssets = computed<ProjectAsset[]>(() => [
+        ...images.value.map((img) => ({ name: img.name, kind: uploadKind(img), url: img.publicUrl })),
+        ...libraryImages.value.map((img) => ({ name: img.name, kind: libraryKind(img.libraryPath), url: new URL(img.libraryPath, window.location.href).href })),
+    ])
 
     // ---- Library images ----
     // Links to built-in Library assets. Unlike uploads these work in the guest
@@ -1117,6 +1199,7 @@ export const useFileStore = defineStore('files', () => {
         setProjectName,
         exitProject,
         loadGuestProject,
+        resetGuestProject,
         createScript,
         renameScript,
         deleteScript,
@@ -1138,6 +1221,7 @@ export const useFileStore = defineStore('files', () => {
         moveImage,
         isImageNameTaken,
         uniqueImageName,
+        projectAssets,
         addLibraryImage,
         renameLibraryImage,
         removeLibraryImage,

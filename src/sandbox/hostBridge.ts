@@ -4,7 +4,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useWatchPanelStore } from '@/stores/watchPanelStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
 import { DEV_VERSION } from '@api/versions/constants'
-import type { ThemePalette } from '@/assets/theme/themes'
+import type { ThemePalette } from '@/theme/themes'
 import { HOST_ORIGIN_PARAM, API_VERSION_PARAM, OPAQUE_ORIGIN, type HostMessage, type SandboxMessage } from './protocol'
 
 // Host side of the sandbox. User code no longer runs in the editor app at all:
@@ -37,7 +37,40 @@ const clockRef = ref({
 const screenRef = ref({ width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0 })
 const camRef = ref({ x: 0, y: 0, width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0, zoom: 0 })
 
-export { fpsRef, mouseRef, pausedRef, clockRef, screenRef, camRef }
+/*
+ * The listener's own volume, as set by the canvas toolbar's Volume dropdown —
+ * the client bus sandbox-side (see api/Sound.ts). It's a property of this
+ * machine, not of the project or of the running game, so it's kept here with
+ * the rest of the sandbox's host-side state and persisted to localStorage the
+ * way the other editor-chrome preferences are (see stores/editorSettingsStore.ts).
+ * Nothing reads it back out of the sandbox: this is the authoritative copy,
+ * re-sent on every 'ready' because a reloaded sandbox starts at its defaults.
+ */
+const CLIENT_AUDIO_KEY = 'sunsprite-client-audio'
+
+function loadClientAudio(): { volume: number, muted: boolean } {
+    try {
+        const raw = localStorage.getItem(CLIENT_AUDIO_KEY)
+        if (!raw) return { volume: 1, muted: false }
+        const stored = JSON.parse(raw) as Record<string, unknown>
+        return {
+            volume: typeof stored?.volume === 'number' && stored.volume >= 0 && stored.volume <= 1
+                ? stored.volume
+                : 1,
+            muted: stored?.muted === true,
+        }
+    } catch {
+        // Unparseable, or localStorage unavailable in a locked-down context.
+        // Full volume is the right answer either way.
+        return { volume: 1, muted: false }
+    }
+}
+
+const stored = loadClientAudio()
+const clientVolumeRef = ref(stored.volume)
+const clientMutedRef = ref(stored.muted)
+
+export { fpsRef, mouseRef, pausedRef, clockRef, screenRef, camRef, clientVolumeRef, clientMutedRef }
 
 let frame: HTMLIFrameElement | null = null
 let sandboxReady = false
@@ -48,13 +81,15 @@ let loadedVersion: string = DEV_VERSION
 /** seq of the last 'set-paused' command sent — see protocol.ts's comment on that type. */
 let sentPauseSeq = 0
 
+type RunMessage = Extract<HostMessage, { type: 'run' }>
+
 /** Set while the sandbox is still booting, so an early Run isn't dropped. */
-let queuedRun: { code: string, entryName: string, theme?: ThemePalette } | null = null
+let queuedRun: Omit<RunMessage, 'type'> | null = null
 
 /**
  * URL for the sandbox document, carrying our origin so it can address replies,
  * plus which permanent API version it should load (omitted for 'dev' — the
- * live engine, main.ts's own default). See src/assets/api/versions/runtime.ts.
+ * live engine, main.ts's own default). See src/api/versions/runtime.ts.
  * The file itself is named runner.html, not sandbox.html — see the comment on
  * vite.config.ts's build.rollupOptions.input for why the two are kept apart.
  */
@@ -113,6 +148,9 @@ function onSandboxMessage(event: MessageEvent) {
             // (rather than failing) when a requested version isn't found, so
             // this can legitimately differ from what sandboxUrl() last asked for.
             loadedVersion = message.apiVersion
+            // Before any queued run: a game that starts playing audio in its
+            // first frames should already be at the volume the slider shows.
+            postClientAudio()
             if (queuedRun) {
                 post({ type: 'run', ...queuedRun })
                 queuedRun = null
@@ -172,16 +210,40 @@ function onSandboxMessage(event: MessageEvent) {
 }
 
 /**
- * Same content source CodeEditor.vue resolves models against, so the editor and
- * the running game always agree on what './helper.js' means. A miss — in a
- * loaded project or the guest sandbox alike, both real record-backed file
- * lists now — is a genuine error and stays undefined.
+ * Answered from the snapshot runUserCode took at the start of this run, so an
+ * import gets the same content the editor had open when Run/Restart was hit —
+ * unsaved edits included — even if the import itself only happens mid-game.
+ * Falls back to saved content for a script created since the run started. A
+ * miss — in a loaded project or the guest sandbox alike, both real
+ * record-backed file lists now — is a genuine error and stays undefined.
+ *
+ * Text files are excluded: getLocalCode serves them too (the editor opens
+ * them through it), but they're data, not modules — `import './notes.txt'`
+ * would otherwise run the text as JavaScript. Files.read is how a script reads
+ * one, and a miss here reports "no script named ..." instead of a syntax error.
  */
 function resolveScript(name: string): string | undefined {
-    return useFileStore().getLocalCode(name)
+    const fileStore = useFileStore()
+    if (fileStore.isTextFile(name)) return undefined
+    return fileStore.scriptSnapshot[name] ?? fileStore.getLocalCode(name)
 }
 
-export function runUserCode(code: string, entryName: string, theme?: ThemePalette) {
+export interface RunOptions {
+    /**
+     * Current value of every open editor model, keyed by file name — scripts
+     * and text files alike, possibly unsaved. Only CodeEditor.vue can see
+     * those; anything without an entry runs as last saved.
+     */
+    liveContent?: Record<string, string>
+    /**
+     * Build the game but leave it paused on its first frame until Play (or
+     * another run) starts it — the editor's first run after loading, so
+     * opening a project doesn't start a game, and its sound, unasked.
+     */
+    paused?: boolean
+}
+
+export function runUserCode(code: string, entryName: string, theme?: ThemePalette, options: RunOptions = {}) {
     // A version change only ever takes effect here, at the next run — not by
     // live-patching a game that's already running. Reloading is the only sane
     // option: Phaser scenes/GameObjects already built from the old classes
@@ -196,11 +258,36 @@ export function runUserCode(code: string, entryName: string, theme?: ThemePalett
         frame.src = sandboxUrl()
     }
 
+    // Read here, at the one choke-point every run path shares, for the same
+    // reason the version check above is. Copied into fresh plain objects so
+    // nothing reactive ever reaches postMessage's structured clone.
+    const fileStore = useFileStore()
+    const liveContent = options.liveContent ?? {}
+    // Every run (re)starts the game, so every run re-baselines the "changed
+    // since run" snapshot — and which script it ran, which decides whether
+    // Restart or that script's own play button gets the highlight (see
+    // fileStore's runningScriptName). resolveScript serves imports from it.
+    fileStore.snapshotScripts(entryName, liveContent)
+    const assets = fileStore.projectAssets.map(({ name, kind, url }) => ({ name, kind, url }))
+    // Read straight off the store at post time rather than through a computed
+    // like projectAssets, which would re-run on every keystroke in a text file.
+    const textFiles = fileStore.textFiles.map(({ name, content }) => ({ name, content: liveContent[name] ?? content }))
+
+    const run: Omit<RunMessage, 'type'> = { code, entryName, theme, assets, textFiles }
+    if (options.paused) {
+        // Same optimistic write and seq bump as pause(), for the same reason:
+        // the button should read Play now, not after the next status.
+        pausedRef.value = true
+        sentPauseSeq += 1
+        run.paused = true
+        run.pauseSeq = sentPauseSeq
+    }
+
     if (!sandboxReady) {
-        queuedRun = { code, entryName, theme }
+        queuedRun = run
         return
     }
-    post({ type: 'run', code, entryName, theme })
+    post({ type: 'run', ...run })
 }
 
 export function pause() {
@@ -217,6 +304,40 @@ export function play() {
 
 export function resizeStage() {
     post({ type: 'resize' })
+}
+
+function postClientAudio() {
+    post({ type: 'set-client-audio', volume: clientVolumeRef.value, muted: clientMutedRef.value })
+}
+
+function persistClientAudio() {
+    try {
+        localStorage.setItem(CLIENT_AUDIO_KEY, JSON.stringify({
+            volume: clientVolumeRef.value,
+            muted: clientMutedRef.value,
+        }))
+    } catch {
+        // Storage unavailable or full — the setting still applies to this
+        // session, it just won't be remembered. Not worth failing the click.
+    }
+}
+
+/**
+ * Volume for everything the game plays, 0..1, multiplied into every sound's
+ * own volume sandbox-side. Called straight from the slider, so it's written
+ * on every drag tick — a postMessage of two numbers, nothing heavier.
+ */
+export function setClientVolume(volume: number) {
+    clientVolumeRef.value = Math.min(1, Math.max(0, volume))
+    persistClientAudio()
+    postClientAudio()
+}
+
+/** Silence the game without losing the volume the slider is set to. */
+export function setClientMuted(muted: boolean) {
+    clientMutedRef.value = muted
+    persistClientAudio()
+    postClientAudio()
 }
 
 /*

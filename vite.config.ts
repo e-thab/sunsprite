@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import ui from '@nuxt/ui/vite'
 import { viteAliases } from './scripts/aliases'
+import { libraryPlugin } from './scripts/libraryPlugin'
 
 // const prefix = `monaco-editor/esm/vs`
 
@@ -18,6 +19,9 @@ export default defineConfig(({ command }) => {
       // where it immediately throws reading localStorage, because a document
       // without allow-same-origin isn't allowed to have any.
       vueDevTools({ appendTo: 'src/main.ts' }),
+      // src/library -> virtual:library plus stable /library/* URLs; see the
+      // plugin's own header.
+      libraryPlugin(),
       ui({
         ui: {
           splitter: {

@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { DEV_VERSION_AVAILABLE, defaultApiVersion } from '@/assets/api/versions'
-import { DEV_VERSION } from '@/assets/api/versions/constants'
+import { DEV_VERSION_AVAILABLE, defaultApiVersion } from '@/api/versions'
+import { DEV_VERSION } from '@/api/versions/constants'
 import { useFileStore } from './fileStore'
 import { useProjectStore } from './projectStore'
 
-// Which API version (see src/assets/api/versions/) the editor and the
+// Which API version (see src/api/versions/) the editor and the
 // sandboxed game should use — DEV_VERSION ('dev') means the live source as it
 // stands right now rather than a permanent snapshot; anything else names a
 // permanent folder there. See DEFAULT_VERSION below for what a session starts

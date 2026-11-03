@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '@/assets/utils/supabase'
+import { supabase } from '@/utils/supabase'
 import { useAuthStore } from '@/stores/authStore'
 
 const usernamePattern = /^[a-z0-9_]{3,20}$/

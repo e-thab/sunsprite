@@ -5,7 +5,9 @@ import { useFullscreenStore } from '@/stores/fullscreen'
 import { useFileStore } from '@/stores/fileStore'
 import GameFrame from '@/components/GameFrame.vue'
 import CollapsiblePane from './CollapsiblePane.vue'
-import Output from '@/assets/api/output'
+import VolumeControl from './VolumeControl.vue'
+import Output from '@/api/output'
+import { releaseButtonFocus } from '@/utils/releaseButtonFocus'
 // import { AUTO, Game, Scene, type Types } from 'phaser'
 
 const fpsColor = ref()
@@ -34,6 +36,8 @@ watch(fpsRef, (fps) => {
 
 const playPauseIcon = computed(() => pausedRef.value ? 'tabler:player-play-filled' : 'tabler:player-pause-filled')
 const playPauseLabel = computed(() => pausedRef.value ? 'Play' : 'Pause')
+const playPauseColor = computed(() => pausedRef.value ? 'warning' : 'neutral')
+const playPauseVariant = computed(() => pausedRef.value ? 'subtle' : 'ghost')
 function togglePlayPause() {
   if (pausedRef.value) {
     play()
@@ -54,10 +58,12 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 <template>
   <CollapsiblePane label="Game" icon="streamline-plump:controller-1-solid">
   <div class="panel-wrapper">
-    <div class="panel-bar">
+    <!-- Buttons give focus back after a click, so Space reaches the game
+         instead of re-clicking them (see releaseButtonFocus). -->
+    <div class="panel-bar" @click="releaseButtonFocus">
       <!-- Play / Pause -->
       <!-- <UTooltip :text="playPauseLabel"> -->
-        <UButton :icon="playPauseIcon" variant="subtle" color="primary" :label="playPauseLabel" size="xs" @click="togglePlayPause" />
+        <UButton :icon="playPauseIcon" :variant="playPauseVariant" :color="playPauseColor" :label="playPauseLabel" size="xs" @click="togglePlayPause" />
       <!-- </UTooltip> -->
 
       <!-- Restart / Run code -->
@@ -67,11 +73,9 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
         <!-- </UTooltip> -->
       </UChip>
 
-      <!-- Sound -->
-      <!-- Icon should change based on volume -->
-      <!-- <UTooltip text="Volume"> -->
-        <UButton icon="tabler:volume" variant="ghost" color="neutral" label="Volume" size="xs" @click="Output.print('sound')" />
-      <!-- </UTooltip> -->
+      <!-- Sound: volume slider + mute for the client bus. Its own component
+           so PlayView.vue's toolbar can show the same control. -->
+      <VolumeControl />
 
       <!-- Fullscreen toggle -->
       <!-- <UTooltip :text="fullscreenTooltip"> -->
@@ -90,7 +94,7 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
       </UBadge> -->
 
       <!-- FPS indicator -->
-      <UBadge color="primary" variant="outline">FPS: <span class="fps-number">{{ fpsRef }}</span></UBadge>
+      <UBadge class="fps-badge" color="neutral" variant="subtle">FPS: {{ fpsRef }}</UBadge>
     </div>
 
     <GameFrame @ready="$emit('ready')" />
@@ -99,8 +103,14 @@ const emit = defineEmits(['ready', 'runGame', 'fullscreen'])
 </template>
 
 <style scoped>
-.fps-number {
-  color: v-bind(fpsColor)
+/* fpsColor is a CSS named color, not one of the theme's, so it can't go
+   through UBadge's color prop. This redoes what the subtle variant does with
+   a theme color (bg-{color}/10, ring-{color}/25) by hand, over the neutral
+   subtle badge's defaults; unlayered, so it outranks those utilities. The
+   text keeps the neutral badge's color. */
+.fps-badge {
+  background-color: color-mix(in srgb, v-bind(fpsColor) 10%, transparent);
+  --tw-ring-color: color-mix(in srgb, v-bind(fpsColor) 25%, transparent);
 }
 
 .coords-badge {

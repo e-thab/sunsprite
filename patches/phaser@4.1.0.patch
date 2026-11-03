@@ -1,0 +1,39 @@
+diff --git a/dist/phaser.esm.js b/dist/phaser.esm.js
+index bb71b9c77475aa99f9f0d0532e36aa3018ddc897..0a95403b57214550004dcee626aab054e81de86c 100644
+--- a/dist/phaser.esm.js
++++ b/dist/phaser.esm.js
+@@ -81696,7 +81696,7 @@ var StrokePathWebGL = function (drawingContext, submitter, matrix, src, alpha, d
+         var y = path[i + 1] - dy;
+         if (i > 0)
+         {
+-            if (x === path[i - 2] && y === path[i - 1])
++            if (x === path[i - 2] - dx && y === path[i - 1] - dy)
+             {
+                 // Duplicate point, skip it
+                 continue;
+diff --git a/dist/phaser.js b/dist/phaser.js
+index 875acb20c849c5937b88338a337113812f7a2300..4a0feca422056136a551db8ae342051b50baf3b2 100644
+--- a/dist/phaser.js
++++ b/dist/phaser.js
+@@ -81708,7 +81708,7 @@ var StrokePathWebGL = function (drawingContext, submitter, matrix, src, alpha, d
+         var y = path[i + 1] - dy;
+         if (i > 0)
+         {
+-            if (x === path[i - 2] && y === path[i - 1])
++            if (x === path[i - 2] - dx && y === path[i - 1] - dy)
+             {
+                 // Duplicate point, skip it
+                 continue;
+diff --git a/src/gameobjects/shape/StrokePathWebGL.js b/src/gameobjects/shape/StrokePathWebGL.js
+index 3fd93a1f2653118c21c658895d8c92dd0045ebfd..70911f40e2e3d34e6acb16fcd5398b047ca7a289 100644
+--- a/src/gameobjects/shape/StrokePathWebGL.js
++++ b/src/gameobjects/shape/StrokePathWebGL.js
+@@ -46,7 +46,7 @@ var StrokePathWebGL = function (drawingContext, submitter, matrix, src, alpha, d
+         var y = path[i + 1] - dy;
+         if (i > 0)
+         {
+-            if (x === path[i - 2] && y === path[i - 1])
++            if (x === path[i - 2] - dx && y === path[i - 1] - dy)
+             {
+                 // Duplicate point, skip it
+                 continue;

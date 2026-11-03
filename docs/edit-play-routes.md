@@ -264,7 +264,7 @@ creation's post-create redirect, and the "recent projects" dropdown). No
 other NavBar changes — its `/projects` (the *list*) links were already
 correct and untouched.
 
-### `src/assets/utils/database.types.ts`
+### `src/utils/database.types.ts`
 
 Hand-patched (`is_public: boolean` / `is_public?: boolean` added to
 `projects`' `Row`/`Insert`/`Update`) rather than regenerated, since this
@@ -286,7 +286,7 @@ until it's actually been regenerated.
 | `src/views/ProjectsView.vue` | Route links, visibility `USwitch`, Play button |
 | `src/components/NavBar.vue` | Route links (project creation redirect, recent-projects dropdown) |
 | `src/views/EditorView.vue` | One stale comment referencing the old `/projects/:slug` path |
-| `src/assets/utils/database.types.ts` | Hand-patched `is_public` on the `projects` table types |
+| `src/utils/database.types.ts` | Hand-patched `is_public` on the `projects` table types |
 
 ## Considerations for working with this later
 

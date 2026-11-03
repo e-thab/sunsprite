@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DocSearchResult } from '@/assets/docs/docsSearch'
+import type { DocSearchResult } from '@/docs/docsSearch'
 
 defineProps<{
 	results: DocSearchResult[]

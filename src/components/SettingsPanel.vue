@@ -4,9 +4,9 @@ import CollapsiblePane from './CollapsiblePane.vue'
 import { useEditorSettingsStore, EDITOR_SETTINGS_DEFAULTS } from '@/stores/editorSettingsStore'
 import { useProjectSettingsStore, PROJECT_SETTINGS_DEFAULTS } from '@/stores/projectSettingsStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
-import { familyScriptTypes, SCRIPT_FAMILIES, scriptFamilyById } from '@/assets/utils/fileTypes'
-import { listApiVersions, latestApiVersion, DEV_VERSION_AVAILABLE } from '@/assets/api/versions'
-import { DEV_VERSION } from '@/assets/api/versions/constants'
+import { familyScriptTypes, SCRIPT_FAMILIES, scriptFamilyById } from '@/utils/fileTypes'
+import { listApiVersions, latestApiVersion, DEV_VERSION_AVAILABLE } from '@/api/versions'
+import { DEV_VERSION } from '@/api/versions/constants'
 
 const editorSettingsStore = useEditorSettingsStore()
 const projectSettingsStore = useProjectSettingsStore()

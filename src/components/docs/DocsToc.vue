@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DocsTocSection } from '@/assets/docs/docsToc'
+import type { DocsTocSection } from '@/docs/docsToc'
 
 // Sections come from the page itself — each DocSection registers as it mounts
 // (see docsToc.ts) — rather than being derived from the node, since a page is

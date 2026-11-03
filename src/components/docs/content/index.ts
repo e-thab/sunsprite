@@ -1,5 +1,5 @@
 import type { App } from 'vue'
-import '@/assets/docs/docsPage.css'
+import '@/docs/docsPage.css'
 import DocWebColorSwatches from './DocColorSwatches.vue'
 import DocLink from './DocLink.vue'
 import DocMethod from './DocMethod.vue'
@@ -13,11 +13,12 @@ import DocRelated from './DocRelated.vue'
 import DocReturns from './DocReturns.vue'
 import DocSection from './DocSection.vue'
 import DocSnippet from './DocSnippet.vue'
+import DocUnderConstruction from './DocUnderConstruction.vue'
 
 /**
  * The building blocks a docs page writes its body out of. They're registered
  * globally (from main.ts) rather than imported per page, so a page under
- * `@/assets/docs/content` is just markup — no import block to maintain, which
+ * `@/docs/content` is just markup — no import block to maintain, which
  * is what makes pages quick to write and edit.
  *
  * Anything added here is immediately usable, and type-checked, in every page.
@@ -38,6 +39,7 @@ export const docComponents = {
 	DocReturns,
 	DocSection,
 	DocSnippet,
+	DocUnderConstruction,
 }
 
 export function installDocComponents(app: App) {

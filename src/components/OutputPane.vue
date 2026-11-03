@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import Output, { outputActivity } from '@/assets/api/output';
+import Output, { outputActivity } from '@/api/output';
 import InfoPanel from '@/components/InfoPanel.vue';
 import WatchPanel from '@/components/WatchPanel.vue';
 import CollapsiblePane from './CollapsiblePane.vue';

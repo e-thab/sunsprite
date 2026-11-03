@@ -3,16 +3,23 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import type { DropdownMenuItem, TreeItem } from '@nuxt/ui'
 import { useToast } from '@nuxt/ui/composables'
-import { useFileStore, type TreeNode } from '@/stores/fileStore'
-import { useTreeSelectionStore } from '@/stores/treeSelectionStore'
+import { libraryKind, useFileStore, type TreeNode } from '@/stores/fileStore'
+import { selectModifier, useTreeSelectionStore } from '@/stores/treeSelectionStore'
+import { setCountDragImage } from '@/utils/dragImage'
 import { useNamePromptStore } from '@/stores/namePromptStore'
 import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
+import { useEditorStateStore } from '@/stores/editorStateStore'
+import { attributionFor, attributionLabel } from '@/api/library'
+import { audioDuration, formatDuration } from '@/utils/audioDuration'
 import {
-	ALLOWED_IMAGE_CONTENT_TYPES,
 	DEFAULT_TEXT_FILE_TYPE,
-	IMAGE_ACCEPT_ATTR,
-	imageDisplayName,
-	imageFileTypeForExtension,
+	FILE_TREE_DRAG_MIME,
+	LIBRARY_DRAG_MIME,
+	UPLOAD_ACCEPT_ATTR,
+	UPLOAD_FORMAT_LABELS,
+	uploadDisplayName,
+	uploadFileTypeFor,
+	uploadFileTypeForExtension,
 	isFileNameTooLong,
 	isMainScript,
 	joinFileName,
@@ -21,15 +28,17 @@ import {
 	MAX_FILE_NAME_LENGTH,
 	scriptFileType,
 	splitFileName,
-} from '@/assets/utils/fileTypes'
-import { formatBytes } from '@/assets/utils/formatBytes'
+} from '@/utils/fileTypes'
+import { formatBytes } from '@/utils/formatBytes'
 import CollapsiblePane from './CollapsiblePane.vue'
+import LibraryCredit from './LibraryCredit.vue'
 import StorageIndicator from './StorageIndicator.vue'
 
 const fileStore = useFileStore()
 const treeSelectionStore = useTreeSelectionStore()
 const namePromptStore = useNamePromptStore()
 const projectSettingsStore = useProjectSettingsStore()
+const editorStateStore = useEditorStateStore()
 const toast = useToast()
 
 // The project's canonical entry point — always what the game header's
@@ -50,7 +59,7 @@ function checkNameLength(base: string): boolean {
 	return false
 }
 
-async function copyImageUrl(path: string) {
+async function copyFileUrl(path: string) {
 	await navigator.clipboard.writeText(path)
 	toast.add({
 		title: 'Copied to clipboard',
@@ -64,13 +73,28 @@ const emit = defineEmits<{
 	runScript: [fileName: string]
 }>()
 
+// Every file row's select handler. A plain click is left to Reka, which
+// replaces treeSelectionStore.current (collapsing any multi-selection — see
+// the store's Multi-selection notes), and opens a script or text file. A
+// Shift or Ctrl/Cmd click only changes which rows are selected, so it's kept
+// from Reka and opens nothing. Folders are never part of a multi-selection —
+// clicking one only ever opens or closes it (see preventFolderSelect).
+//
 // Reads the script name from the item's own data rather than the clicked
 // element's rendered text — the label slot appends a "*" for unsaved
 // files, which would otherwise get emitted as part of the file name. The
 // template invokes this with (event, item) even though TreeItem.onSelect's
 // declared type only requires the event, so item is typed optional here.
-function selectHandler(_event: any, item?: TreeItem) {
-	if (item?.label) emit('selectScript', item.label)
+function onFileSelect(event: CustomEvent<{ originalEvent?: Event }>, item?: TreeItem) {
+	if (!item) return
+	const modifier = selectModifier(event)
+	if (modifier) {
+		event.preventDefault()
+		if (modifier === 'range') treeSelectionStore.selectRange('files', item.id, visibleFileIds())
+		else treeSelectionStore.toggle('files', item.id)
+		return
+	}
+	if ((item.kind === 'script' || item.kind === 'text') && item.label) emit('selectScript', item.label)
 }
 
 // Reka UI's TreeItem fires select *and* toggle on every click, folders
@@ -85,40 +109,31 @@ function preventFolderSelect(event: Event) {
 
 // ---- Folders + scripts, in a loaded project or the guest sandbox alike ----
 
-// Hovering a folder's own header means "drop inside, at the end" (the only
-// shape onDragOverItem's folder branch ever produces — index always equals
-// the current child count). Splicing a placeholder into *that* folder's
-// children is safe from the reflow-flicker loop line-indicators elsewhere
-// avoid: the folder header row a script's placeholder would've shifted
-// away from the cursor isn't in this array at all, just its contents are —
-// so the header never moves. A script row within the folder being hovered
-// instead (to reorder before/after it) produces index < children.length,
-// which is left alone here and shown via the line-indicator (dropLineTarget)
-// instead, same as any other sibling-reorder.
-function withFolderDropPlaceholder(realChildren: TreeItem[], folderId: string): TreeItem[] {
-	if (!dropTarget.value || dropTarget.value.folderId !== folderId) return realChildren
-	if (dropTarget.value.index !== realChildren.length) return realChildren
-	const placeholder: TreeItem = { label: `__drop-placeholder__${folderId}`, slot: 'drop-placeholder' }
-	return [...realChildren, placeholder]
-}
-
 // Nuxt UI's `defaultExpanded` per item only seeds Reka's *initial*,
 // uncontrolled expand state once at mount — a folder created afterward
 // (during this session, after that one seeding pass already ran) never
-// gets added to it and stays permanently collapsed regardless of the field,
-// which silently hid the placeholder above for exactly the folders someone
-// would actually be testing drag-and-drop into. Switching to the
-// *controlled* `expanded` prop (bound below) fixes that generally, and
-// additionally lets a hover force a specific folder open on demand.
+// gets added to it and stays permanently collapsed regardless of the field.
+// Switching to the *controlled* `expanded` prop (bound below) fixes that
+// generally, and additionally lets a drag hover open a specific folder on
+// demand (see scheduleAutoExpand).
 const expandedFolderIds = ref<string[]>([])
 const seededFolderIds = new Set<string>()
+
+// Folders the user had closed last time stay closed (see editorStateStore.ts);
+// every other one opens, same as a folder created during this session.
+const restoredCollapsedIds = new Set(editorStateStore.collapsedFolderIds())
 
 watch(() => fileStore.folders.map((f) => f.id), (ids) => {
 	const additions = ids.filter((id) => !seededFolderIds.has(id))
 	if (additions.length === 0) return
 	for (const id of additions) seededFolderIds.add(id)
-	expandedFolderIds.value = [...expandedFolderIds.value, ...additions]
+	expandedFolderIds.value = [...expandedFolderIds.value, ...additions.filter((id) => !restoredCollapsedIds.has(id))]
 }, { immediate: true })
+
+watch(expandedFolderIds, (expanded) => {
+	const open = new Set(expanded)
+	editorStateStore.setCollapsedFolderIds(fileStore.folders.filter((f) => !open.has(f.id)).map((f) => f.id))
+})
 
 function ensureFolderExpanded(folderId: string) {
 	if (expandedFolderIds.value.includes(folderId)) return
@@ -140,7 +155,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			// inside it, recursively (see folderSizeBytes's own comment).
 			size: fileStore.folderSizeBytes(node.id),
 			onSelect: preventFolderSelect,
-			children: withFolderDropPlaceholder(fileStore.childNodes(node.id).map((child) => buildNode(child, node.id)), node.id),
+			children: fileStore.childNodes(node.id).map((child) => buildNode(child, node.id)),
 		}
 	}
 	if (node.kind === 'image') {
@@ -152,22 +167,47 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			size: node.size,
 			thumbnail: node.publicUrl,
 			path: node.publicUrl,
-			typeLabel: imageFileTypeForExtension(splitFileName(node.name).extension)?.label,
+			typeLabel: uploadFileTypeForExtension(splitFileName(node.name).extension)?.label,
+			onSelect: onFileSelect,
+		}
+	}
+	if (node.kind === 'audio') {
+		// No thumbnail, so selecting one doesn't open EditorView's image
+		// preview — the row has its own Play instead, on hover and in its menu
+		// (see Audio preview).
+		const fileType = uploadFileTypeForExtension(splitFileName(node.name).extension)
+		return {
+			label: node.name,
+			kind: 'audio',
+			id: node.id,
+			parentId,
+			size: node.size,
+			path: node.publicUrl,
+			icon: fileType?.icon,
+			typeLabel: fileType?.label,
+			onSelect: onFileSelect,
 		}
 	}
 	if (node.kind === 'libraryImage') {
-		// Same shape as an uploaded image — thumbnail/path are what EditorView's
-		// preview and the "Copy image URL" action read — just pointed at the
-		// Library asset instead of an R2 object. No size: a link stores nothing,
-		// so the trailing slot shows the library chip in its place.
+		// Same shape as an uploaded image or sound — thumbnail/path are what
+		// EditorView's preview and the "Copy URL" actions read — just pointed
+		// at the Library asset instead of an R2 object. No size: a link stores
+		// nothing, so the trailing slot shows the library chip in its place.
+		// The chip opens the asset's credit, which travels with the link.
+		const fileType = uploadFileTypeForExtension(splitFileName(node.libraryPath).extension)
+		const sound = libraryKind(node.libraryPath) === 'audio'
 		return {
 			label: node.name,
 			kind: 'libraryImage',
 			id: node.id,
 			parentId,
-			thumbnail: node.libraryPath,
+			sound,
+			thumbnail: sound ? undefined : node.libraryPath,
+			icon: sound ? fileType?.icon : undefined,
 			path: node.libraryPath,
-			typeLabel: imageFileTypeForExtension(splitFileName(node.name).extension)?.label,
+			typeLabel: fileType?.label,
+			attribution: attributionFor(node.libraryPath),
+			onSelect: onFileSelect,
 		}
 	}
 	if (node.kind === 'text') {
@@ -181,7 +221,7 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			typeLabel: DEFAULT_TEXT_FILE_TYPE.label,
 			// Opens the same way a script does — same Monaco pane, just a
 			// plaintext model with no language worker (see CodeEditor.vue).
-			onSelect: selectHandler,
+			onSelect: onFileSelect,
 		}
 	}
 	const fileType = scriptFileType(splitFileName(node.name).extension)
@@ -193,35 +233,61 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 		size: node.size,
 		icon: fileType.icon,
 		typeLabel: fileType.label,
-		onSelect: selectHandler,
+		onSelect: onFileSelect,
 	}
 }
 
 const items = computed<TreeItem[]>(() => fileStore.childNodes(null).map((node) => buildNode(node, null)))
 
-// A dropped-into row shifting position because a placeholder row got
-// spliced in right next to it — the previous approach — moves the row out
-// from under the cursor, which fires a native dragleave, clears the
-// target, snaps the row back, re-triggers dragover... an infinite flicker
-// loop. This never inserts anything into the list at all: it just derives
-// which existing row (if any) should show a drop-line indicator, so the
-// layout can never shift under the pointer. `index < siblings.length`
-// means "insert before that sibling" (line on its top edge); reaching the
-// end of the list means "insert after the last one" (line on its bottom
-// edge) instead, since there's no next sibling to draw a top edge on.
-const dropLineTarget = computed(() => {
-	if (!dropTarget.value) return null
-	const { folderId, index } = dropTarget.value
-	const siblings = fileStore.childNodes(folderId)
-	if (siblings.length === 0) return null
-	if (index < siblings.length) return { beforeId: siblings[index]!.id, afterId: null }
-	// Reaching the end of a folder's children is hovering that folder's own
-	// header (see withFolderDropPlaceholder) — shown via the nested
-	// placeholder instead, not a line, so don't show both. The root has no
-	// header row of its own to nest a placeholder under, so it still gets
-	// an after-line on its last item.
-	if (folderId !== null) return null
-	return { beforeId: null, afterId: siblings[siblings.length - 1]!.id }
+// Every row by id, at any depth — what a multi-row drag turns its selected
+// ids back into.
+const itemsById = computed(() => {
+	const byId = new Map<string, TreeItem>()
+	const add = (list: TreeItem[]) => {
+		for (const item of list) {
+			byId.set(item.id, item)
+			if (item.children) add(item.children)
+		}
+	}
+	add(items.value)
+	return byId
+})
+
+// ---- Multi-selection ----
+// Kept in treeSelectionStore, shared with the Library so that only one tree
+// ever has a multi-selection — see the notes there.
+
+// Files in the order they're shown, skipping the contents of closed folders —
+// what a Shift-click's range runs over.
+function visibleFileIds(): string[] {
+	const ids: string[] = []
+	const add = (list: TreeItem[]) => {
+		for (const item of list) {
+			if (item.kind !== 'folder') ids.push(item.id)
+			else if (expandedFolderIds.value.includes(item.id)) add(item.children ?? [])
+		}
+	}
+	add(items.value)
+	return ids
+}
+
+// `current` included — the store always puts it in the selection.
+function isInSelection(item: TreeItem): boolean {
+	return treeSelectionStore.isSelected('files', item.id)
+}
+
+// Whatever the center panel is showing: the image EditorView previews (it
+// opens one for any selection with a thumbnail — see its watcher on
+// treeSelectionStore.current), and otherwise the active script or text file.
+// A previewed Library image has no row here, so nothing is marked then.
+// Highlighted apart from the selection (see .viewing), since the two drift
+// apart: Ctrl-clicking other files, or selecting a sound, leaves the open
+// file where it was.
+const viewedId = computed<string | null>(() => {
+	const current = treeSelectionStore.current
+	if (current?.thumbnail && current.path) return current.id ?? null
+	const name = fileStore.activeFileName
+	return (fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name))?.id ?? null
 })
 
 function scriptName(item: TreeItem): string {
@@ -245,10 +311,21 @@ function itemStateClass(item: TreeItem): string | undefined {
 	return undefined
 }
 
+// An uploaded sound, or a link to one of the Library's.
+function isSoundItem(item: TreeItem): boolean {
+	return item.kind === 'audio' || (item.kind === 'libraryImage' && item.sound)
+}
+
+function libraryChipTitle(item: TreeItem): string {
+	const credit = item.attribution ? `\n${attributionLabel(item.attribution)}` : ''
+	return `Linked from the Library: ${item.path}${credit}\nDoesn't use project storage`
+}
+
 // Human label for the rename/delete tooltips below — a plain if-chain reads
 // better here than a 4-way ternary once 'text' joins 'folder'/'image'/'script'.
 function kindLabel(item: TreeItem): string {
 	if (item.kind === 'folder') return 'folder'
+	if (isSoundItem(item)) return 'sound'
 	if (item.kind === 'image' || item.kind === 'libraryImage') return 'image'
 	if (item.kind === 'text') return 'text file'
 	return 'script'
@@ -331,28 +408,31 @@ async function addFolder(parentId: string | null) {
 	await fileStore.createFolder(name, parentId)
 }
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10MB
+
+// "PNG, JPG, SVG, WebP, MP3, Ogg, WAV, and M4A"
+const supportedFormatsText = `${UPLOAD_FORMAT_LABELS.slice(0, -1).join(', ')}, and ${UPLOAD_FORMAT_LABELS[UPLOAD_FORMAT_LABELS.length - 1]}`
 
 function uploadFile(folderId: string | null) {
 	const input = document.createElement('input')
 	input.type = 'file'
-	input.accept = IMAGE_ACCEPT_ATTR
+	input.accept = UPLOAD_ACCEPT_ATTR
 	input.onchange = async () => {
 		const file = input.files?.[0]
 		if (!file) return
 
-		if (!ALLOWED_IMAGE_CONTENT_TYPES.has(file.type)) {
-			window.alert('Only PNG, JPG, SVG, and WebP images are supported.')
+		if (!uploadFileTypeFor(file)) {
+			window.alert(`Only ${supportedFormatsText} files are supported.`)
 			return
 		}
-		if (file.size > MAX_IMAGE_SIZE) {
-			window.alert('That file is too large — images must be 10MB or smaller.')
+		if (file.size > MAX_UPLOAD_SIZE) {
+			window.alert('That file is too large — uploads must be 10MB or smaller.')
 			return
 		}
 		// The name it'll actually be stored under — its recognized type's
 		// canonical extension, not necessarily whatever this source file was
-		// called (see imageDisplayName) — is what has to be unique, not file.name.
-		const name = imageDisplayName(file)
+		// called (see uploadDisplayName) — is what has to be unique, not file.name.
+		const name = uploadDisplayName(file)
 		if (!checkNameLength(splitFileName(name).base)) return
 		if (fileStore.isImageNameTaken(name)) {
 			window.alert('A file with that name already exists in this project.')
@@ -362,11 +442,40 @@ function uploadFile(folderId: string | null) {
 		try {
 			await fileStore.uploadImage(file, folderId)
 		} catch (err) {
-			window.alert(err instanceof Error ? err.message : 'Failed to upload image')
+			window.alert(err instanceof Error ? err.message : 'Failed to upload file')
 		}
 	}
 	input.click()
 }
+
+// ---- Audio preview ----
+// One shared element, so starting a second file's preview stops the first.
+
+const previewingAudioId = ref<string | null>(null)
+let previewAudio: HTMLAudioElement | null = null
+
+function toggleAudioPreview(item: TreeItem) {
+	if (previewingAudioId.value === item.id) {
+		stopAudioPreview()
+		return
+	}
+	stopAudioPreview()
+	previewAudio = new Audio(item.path)
+	previewAudio.addEventListener('ended', stopAudioPreview)
+	previewingAudioId.value = item.id
+	previewAudio.play().catch((err) => {
+		stopAudioPreview()
+		window.alert(`Couldn't play "${scriptName(item)}": ${err instanceof Error ? err.message : err}`)
+	})
+}
+
+function stopAudioPreview() {
+	previewAudio?.pause()
+	previewAudio = null
+	previewingAudioId.value = null
+}
+
+onBeforeUnmount(stopAudioPreview)
 
 // Blank creation, same shape as addScript — not upload-based: there's no
 // file picker here, just a name prompt and an empty new row.
@@ -488,8 +597,13 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 		primary.push({ label: 'Run script', icon: 'tabler:player-play-filled', onSelect: () => emit('runScript', scriptName(item)) })
 	}
 	if (item.kind === 'folder') primary.push(...folderMenuItems(item.id))
-	if ((item.kind === 'image' || item.kind === 'libraryImage') && item.path) {
-		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyImageUrl(item.path) })
+	if (isSoundItem(item) && item.path) {
+		primary.push(previewingAudioId.value === item.id
+			? { label: 'Stop', icon: 'tabler:player-stop-filled', onSelect: () => toggleAudioPreview(item) }
+			: { label: 'Play', icon: 'tabler:player-play-filled', onSelect: () => toggleAudioPreview(item) })
+		primary.push({ label: 'Copy sound URL', icon: 'tabler:copy-filled', onSelect: () => copyFileUrl(item.path) })
+	} else if ((item.kind === 'image' || item.kind === 'libraryImage') && item.path) {
+		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyFileUrl(item.path) })
 	}
 	if (item.kind === 'script') {
 		const typeItem = scriptTypeItem(item)
@@ -521,6 +635,11 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 // can look it up and re-target its own right-clicks there.
 const rowDndRefs = new Map<string, HTMLElement>()
 
+// The reverse direction: from a row's element back to the item it was
+// rendered for, which is how drag-and-drop works out what's being hovered
+// (see hoveredItem).
+const rowItems = new WeakMap<Element, TreeItem>()
+
 function rowKey(item: TreeItem): string | undefined {
 	return item.id ?? item.label
 }
@@ -528,8 +647,12 @@ function rowKey(item: TreeItem): string | undefined {
 function setRowDndRef(item: TreeItem, el: Element | ComponentPublicInstance | null) {
 	const key = rowKey(item)
 	if (!key) return
-	if (el) rowDndRefs.set(key, el as HTMLElement)
-	else rowDndRefs.delete(key)
+	if (el) {
+		rowDndRefs.set(key, el as HTMLElement)
+		rowItems.set(el as HTMLElement, item)
+	} else {
+		rowDndRefs.delete(key)
+	}
 }
 
 // The actions button lives in Nuxt UI's separate item-trailing slot, outside
@@ -754,7 +877,7 @@ function commitRename(item: TreeItem) {
 	// The extension itself was never part of renamingValue (see startRename),
 	// so it's re-attached here rather than trusted from what was typed.
 	const name = joinFileName(typed, fileExtension(item))
-	if (item.kind === 'image' || item.kind === 'libraryImage') renameImage(item, name)
+	if (item.kind === 'image' || item.kind === 'audio' || item.kind === 'libraryImage') renameImage(item, name)
 	else if (item.kind === 'text') renameTextFile(item.id, scriptName(item), name)
 	else renameScript(scriptName(item), name)
 }
@@ -814,6 +937,17 @@ async function deleteImage(id: string, name: string) {
 	await fileStore.deleteImage(id)
 }
 
+// Guest sandbox only: back to exactly what a first-ever visit gets, files and
+// sandbox settings both. A reload rather than reseeding in place — see
+// fileStore.resetGuestProject for why.
+function resetSandbox() {
+	if (!window.confirm('Reset the sandbox? All files and settings go back to how they started. This can\'t be undone.')) return
+	fileStore.resetGuestProject()
+	projectSettingsStore.clearGuestStored()
+	editorStateStore.clearGuestStored()
+	window.location.reload()
+}
+
 async function deleteTextFile(id: string, name: string) {
 	if (!window.confirm(`Delete "${name}"? This can't be undone.`)) return
 
@@ -832,200 +966,263 @@ async function removeLibraryImage(id: string) {
 	try {
 		await fileStore.removeLibraryImage(id)
 	} catch (err) {
-		window.alert(err instanceof Error ? err.message : 'Failed to remove image')
+		window.alert(err instanceof Error ? err.message : 'Failed to remove file')
 	}
 }
 
 function deleteItem(item: TreeItem) {
 	if (item.kind === 'folder') return deleteFolder(item.id, scriptName(item))
-	if (item.kind === 'image') return deleteImage(item.id, scriptName(item))
-	if (item.kind === 'libraryImage') return removeLibraryImage(item.id)
+	if (item.kind === 'image' || item.kind === 'audio') {
+		if (previewingAudioId.value === item.id) stopAudioPreview()
+		return deleteImage(item.id, scriptName(item))
+	}
+	if (item.kind === 'libraryImage') {
+		if (previewingAudioId.value === item.id) stopAudioPreview()
+		return removeLibraryImage(item.id)
+	}
 	if (item.kind === 'text') return deleteTextFile(item.id, scriptName(item))
 	return deleteScript(scriptName(item))
 }
 
 // ---- Drag and drop ----
 //
-// Native HTML5 DnD rather than a tree-DnD library — the drag handle/drop
-// target is a div rendered into the item-label slot (the one bit of each
-// row's markup this component fully controls; Nuxt UI's Tree renders the
-// rest of the row itself), absolutely positioned to cover the whole row
-// rather than just the label text, so hovering/dropping anywhere on the
-// item works, not only directly over its name. Dropping on a folder reparents into it
-// (appended at the end); dropping on a script makes the dragged item that
-// script's sibling, inserted just before it; dropping on the tree's own
-// background (nothing more specific claimed the event) sends it to the
-// project root (or the guest sandbox's own root, in the sandbox).
+// Native HTML5 DnD, modeled on VS Code's explorer. The tree is always sorted
+// (see fileStore's compareTreeNodes), so a drop only ever chooses a *folder*,
+// never a spot within one: hovering a folder's row targets that folder,
+// hovering a file targets the folder it sits in, and hovering the empty space
+// below the rows targets the project root. That folder's whole block — its
+// own row and every row under it — is tinted (the whole tree, for the root),
+// so the highlight reads as "into here" rather than "next to this row".
 //
-// `dropTarget` mirrors whichever of those three outcomes is currently
-// hovered as a { folderId, index } pair — withDropPlaceholder (above)
-// splices an actual placeholder row into that folder's/root's rendered
-// children at that index, so the projected drop location reads as a real,
-// highlighted empty slot rather than just a highlighted existing row.
+// Each row's drag handle is a div rendered into the item-label slot (the one
+// bit of each row's markup this component fully controls; Nuxt UI's Tree
+// renders the rest of the row itself), absolutely positioned to cover the
+// whole row rather than just the label text. Only dragstart/dragend live on
+// it — dragover and drop are handled once, on the tree's container, by
+// resolving the hovered <li> (see hoveredItem). That gives the parts of a row
+// the handle doesn't cover (the actions button, the indent gutter beside a
+// folder's children) the same answer as the row itself, so sweeping the
+// pointer across them never flickers the target off and back on.
+//
+// Dragging a row that's part of a multi-selection moves every selected file
+// (see Multi-selection); dragging any other row moves just that row. The tree
+// also takes Library assets dragged in from AssetLibrary.vue, adding a link
+// to the asset in the target folder rather than moving anything.
 
-type DraggedNode = { id: string, kind: 'folder' | 'script' | 'image' | 'libraryImage' | 'text' }
-type DropTarget = { folderId: string | null, index: number }
+type DraggedNode = {
+	id: string
+	kind: 'folder' | 'script' | 'image' | 'audio' | 'libraryImage' | 'text'
+	name: string
+	parentId: string | null
+	// For a folder: itself plus everything under it, none of which it can be
+	// moved into. Worked out once at dragstart rather than on every dragover.
+	blockedFolderIds: Set<string>
+}
+// folderId is null for the project root.
+type DropTarget = { folderId: string | null }
 
-const draggedNode = ref<DraggedNode | null>(null)
-const dragOverId = ref<string | null>(null)
+const draggedNodes = ref<DraggedNode[] | null>(null)
 const dropTarget = ref<DropTarget | null>(null)
 
 function isDraggable(item: TreeItem): boolean {
-	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image' || item.kind === 'libraryImage' || item.kind === 'text'
+	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image' || item.kind === 'audio' || item.kind === 'libraryImage' || item.kind === 'text'
 }
 
-async function moveDraggedTo(dragged: DraggedNode, folderId: string | null, position: number) {
+// The stored position is still written, but only so the column stays
+// sensible — it no longer affects where anything is shown.
+async function moveDraggedTo(dragged: DraggedNode, folderId: string | null) {
+	const position = fileStore.nextPosition(folderId)
 	if (dragged.kind === 'folder') await fileStore.moveFolder(dragged.id, folderId, position)
-	else if (dragged.kind === 'image') await fileStore.moveImage(dragged.id, folderId, position)
+	else if (dragged.kind === 'image' || dragged.kind === 'audio') await fileStore.moveImage(dragged.id, folderId, position)
 	else if (dragged.kind === 'libraryImage') await fileStore.moveLibraryImage(dragged.id, folderId, position)
 	else if (dragged.kind === 'text') await fileStore.moveTextFile(dragged.id, folderId, position)
 	else await fileStore.moveScript(dragged.id, folderId, position)
 }
 
-// Native `dragover` fires continuously — many times a second — for as long
-// as the pointer sits over a valid target, not just when it actually moves
-// to a new one. `dropTarget` feeds the `items` computed (via
-// withDropPlaceholder), so assigning a plain new object here on every one
-// of those events, even while hovering the exact same spot, was invalidating
-// that computed and rebuilding the *entire* tree dozens of times a second —
-// this was the "extremely slow" drag lag. Skipping the write when the
-// target hasn't actually changed cuts that down to once per real crossing.
-function dropTargetsEqual(a: DropTarget | null, b: DropTarget | null): boolean {
-	if (a === b) return true
-	if (!a || !b) return false
-	return a.folderId === b.folderId && a.index === b.index
-}
-
+// Native `dragover` fires continuously — many times a second — even while
+// the pointer sits still. `dropTarget` drives a class on every row, so a
+// fresh object on each of those events would re-render the whole tree each
+// time; only real changes are written.
 function setDropTarget(next: DropTarget | null) {
-	if (dropTargetsEqual(dropTarget.value, next)) return
+	const current = dropTarget.value
+	if (current === next || (current && next && current.folderId === next.folderId)) return
 	dropTarget.value = next
 }
 
-// Skipping no-op writes (above) stopped the *reactive* explosion, but
-// `fileStore.childNodes(...)` — an O(n) filter+sort over every folder and
-// script — still ran synchronously on every single dragover event before
-// that equality check ever saw the result, and dragover can fire faster
-// than the screen can repaint. Capping the actual computation to once per
-// rendered frame (via rAF) fixes that: at most ~60 of these a second no
-// matter how fast the browser fires the raw event, while dragOverId (cheap,
-// just a CSS class) still updates immediately so hover feedback stays
-// instant.
-let dragOverFrameId: number | null = null
-let pendingDragOverUpdate: (() => void) | null = null
-
-function scheduleDragOverUpdate(update: () => void) {
-	pendingDragOverUpdate = update
-	if (dragOverFrameId !== null) return
-	dragOverFrameId = requestAnimationFrame(() => {
-		dragOverFrameId = null
-		pendingDragOverUpdate?.()
-		pendingDragOverUpdate = null
-	})
+// The row under the pointer, or null over the empty space below the last
+// row. Nuxt UI wraps every row in an <li> holding the row's own link and, for
+// an expanded folder, the nested list of its children — so the nearest <li>
+// is either the hovered row, or (in the gutter beside a folder's children)
+// that folder, which is the right drop target for that spot too.
+function hoveredItem(event: DragEvent): TreeItem | null {
+	const li = event.target instanceof Element ? event.target.closest('li') : null
+	const handle = li?.querySelector(':scope > [data-slot="link"] .tree-row-dnd')
+	return handle ? rowItems.get(handle) ?? null : null
 }
 
-function cancelScheduledDragOverUpdate() {
-	if (dragOverFrameId !== null) cancelAnimationFrame(dragOverFrameId)
-	dragOverFrameId = null
-	pendingDragOverUpdate = null
+function dropFolderFor(item: TreeItem | null): string | null {
+	if (!item) return null
+	return item.kind === 'folder' ? item.id : (item.parentId ?? null)
+}
+
+// Same rules as VS Code: nothing moves into the folder it's already in (with
+// the order fixed, that would do nothing), and a folder can't move into
+// itself or anything under it. moveFolder refuses the latter as well; this is
+// what keeps the highlight from offering it in the first place. Several rows
+// can go wherever at least one of them would actually move — the rest are
+// left where they are (see onDropOnTree).
+function canDropInto(dragged: DraggedNode[], folderId: string | null): boolean {
+	if (!dragged.some((node) => node.parentId !== folderId)) return false
+	return folderId === null || dragged.every((node) => !node.blockedFolderIds.has(folderId))
+}
+
+// A Library asset is never in the tree to begin with, so it can go anywhere.
+function isLibraryDrag(event: DragEvent): boolean {
+	return !draggedNodes.value && !!event.dataTransfer?.types.includes(LIBRARY_DRAG_MIME)
+}
+
+// VS Code opens a collapsed folder once the pointer rests on it for a moment,
+// so a drag can reach somewhere deeper without letting go first.
+const AUTO_EXPAND_DELAY_MS = 500
+let autoExpandFolderId: string | null = null
+let autoExpandTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleAutoExpand(folderId: string | null) {
+	if (folderId === autoExpandFolderId) return
+	cancelAutoExpand()
+	if (folderId === null || expandedFolderIds.value.includes(folderId)) return
+	autoExpandFolderId = folderId
+	autoExpandTimer = setTimeout(() => {
+		autoExpandTimer = null
+		ensureFolderExpanded(folderId)
+	}, AUTO_EXPAND_DELAY_MS)
+}
+
+function cancelAutoExpand() {
+	if (autoExpandTimer !== null) clearTimeout(autoExpandTimer)
+	autoExpandTimer = null
+	autoExpandFolderId = null
+}
+
+function endDrag() {
+	cancelAutoExpand()
+	draggedNodes.value = null
+	dropTarget.value = null
+}
+
+onBeforeUnmount(cancelAutoExpand)
+
+function toDraggedNode(item: TreeItem): DraggedNode {
+	return {
+		id: item.id,
+		kind: item.kind,
+		name: scriptName(item),
+		parentId: item.parentId ?? null,
+		blockedFolderIds: new Set(item.kind === 'folder' ? fileStore.folderAndDescendantIds(item.id) : []),
+	}
 }
 
 function onDragStart(event: DragEvent, item: TreeItem) {
 	if (!isDraggable(item)) return
-	draggedNode.value = { id: item.id, kind: item.kind }
-	event.dataTransfer?.setData('text/plain', item.label ?? '')
-	if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+	const selected = isInSelection(item)
+		? treeSelectionStore.selectedKeys('files').map((id) => itemsById.value.get(id)).filter((selectedItem) => selectedItem !== undefined)
+		: []
+	const dragging = selected.length > 1 ? selected : [item]
+	draggedNodes.value = dragging.map(toDraggedNode)
+
+	if (!event.dataTransfer) return
+	// Read back by the code editor, which inserts them on drop (see
+	// CodeEditor.vue's onEditorDrop) — one name per line.
+	event.dataTransfer.setData(FILE_TREE_DRAG_MIME, dragging.map(scriptName).join('\n'))
+	event.dataTransfer.effectAllowed = 'move'
+	if (dragging.length > 1) setCountDragImage(event.dataTransfer, dragging.length)
 }
 
-function onDragEnd() {
-	cancelScheduledDragOverUpdate()
-	draggedNode.value = null
-	dragOverId.value = null
-	dropTarget.value = null
+function onDragOverTree(event: DragEvent) {
+	const dragged = draggedNodes.value
+	const fromLibrary = isLibraryDrag(event)
+	// Only rows dragged from this tree, or assets from the Library, are
+	// accepted — not files dragged in from the OS, or text from elsewhere on
+	// the page. Leaving dragover un-prevented is what gives those the
+	// browser's no-drop cursor.
+	if (!dragged && !fromLibrary) return
+
+	const item = hoveredItem(event)
+	const folderId = dropFolderFor(item)
+	const allowed = fromLibrary || canDropInto(dragged!, folderId)
+
+	scheduleAutoExpand(allowed && item?.kind === 'folder' ? item.id : null)
+	setDropTarget(allowed ? { folderId } : null)
+	if (!allowed) return
+
+	event.preventDefault()
+	if (event.dataTransfer) event.dataTransfer.dropEffect = fromLibrary ? 'copy' : 'move'
 }
 
-function canDropOn(item: TreeItem): boolean {
-	if (!draggedNode.value || !isDraggable(item)) return false
-	// Refuse dropping a folder onto itself — moveFolder also guards against
-	// dropping into one of its own descendants, since that's only knowable
-	// by walking the tree the store already owns.
-	return !(draggedNode.value.kind === 'folder' && draggedNode.value.id === item.id)
-}
-
-function onDragOverItem(item: TreeItem) {
-	if (!canDropOn(item)) return
-	dragOverId.value = item.id
-
-	scheduleDragOverUpdate(() => {
-		if (item.kind === 'folder') {
-			ensureFolderExpanded(item.id)
-			setDropTarget({ folderId: item.id, index: fileStore.childNodes(item.id).length })
-			return
-		}
-
-		const parentId: string | null = item.parentId ?? null
-		const siblings = fileStore.childNodes(parentId)
-		const index = siblings.findIndex((n) => n.id === item.id)
-		setDropTarget({ folderId: parentId, index: index >= 0 ? index : siblings.length })
-	})
-}
-
-function onDragLeaveItem(item: TreeItem) {
-	if (dragOverId.value !== item.id) return
-	dragOverId.value = null
-	cancelScheduledDragOverUpdate()
+// dragleave also fires each time the pointer crosses from one element to
+// another *inside* the tree; only leaving the container outright clears the
+// target. relatedTarget is the element the pointer moved onto.
+function onDragLeaveTree(event: DragEvent) {
+	const container = event.currentTarget as HTMLElement
+	if (event.relatedTarget instanceof Node && container.contains(event.relatedTarget)) return
+	cancelAutoExpand()
 	setDropTarget(null)
 }
 
-function onDragOverRoot() {
-	scheduleDragOverUpdate(() => {
-		setDropTarget({ folderId: null, index: fileStore.childNodes(null).length })
-	})
+async function onDropOnTree(event: DragEvent) {
+	const dragged = draggedNodes.value
+	const fromLibrary = isLibraryDrag(event)
+	const target = dropTarget.value
+	endDrag()
+	if ((!dragged && !fromLibrary) || !target) return
+	event.preventDefault()
+
+	if (fromLibrary) await addLibraryDrop(event.dataTransfer?.getData(LIBRARY_DRAG_MIME) ?? '', target.folderId)
+	else await moveDropped(dragged!, target.folderId)
+
+	// So the moved or added item is visible where it landed, even if the drop
+	// went onto a folder's row without waiting for it to auto-expand.
+	if (target.folderId !== null) ensureFolderExpanded(target.folderId)
 }
 
-function onDragLeaveRoot() {
-	if (dropTarget.value?.folderId === null) {
-		cancelScheduledDragOverUpdate()
-		setDropTarget(null)
+// One at a time, so each move's nextPosition sees the one before it. A row
+// that can't move (already there, or a folder whose name is taken there)
+// doesn't stop the rest.
+async function moveDropped(dragged: DraggedNode[], folderId: string | null) {
+	for (const node of dragged) {
+		if (node.parentId === folderId) continue
+
+		// Folder names only have to be unique among siblings (files are unique
+		// project-wide already, so moving one can't collide).
+		const nameTaken = node.kind === 'folder'
+			&& fileStore.childNodes(folderId).some((sibling) => sibling.kind === 'folder' && sibling.name === node.name)
+		if (nameTaken) {
+			window.alert(`A folder named "${node.name}" already exists there.`)
+			continue
+		}
+
+		try {
+			await moveDraggedTo(node, folderId)
+		} catch (err) {
+			window.alert(err instanceof Error ? err.message : `Failed to move "${node.name}"`)
+		}
 	}
 }
 
-async function onDropOnItem(item: TreeItem) {
-	const dragged = draggedNode.value
-	const droppable = canDropOn(item)
-	cancelScheduledDragOverUpdate()
-	dragOverId.value = null
-	draggedNode.value = null
-	dropTarget.value = null
-	if (!dragged || !droppable) return
-
-	if (item.kind === 'folder') {
-		const position = fileStore.nextPosition(item.id)
-		await moveDraggedTo(dragged, item.id, position)
-		return
+// Same link the Library's own "Add to project" button makes, just into the
+// folder they were dropped on — including its numbered-suffix answer to a
+// name that's already taken. `paths` is one per line (several selected assets
+// dragged together); added one at a time, like moveDropped, so each name
+// check sees the links added before it.
+async function addLibraryDrop(paths: string, folderId: string | null) {
+	for (const path of paths.split('\n').filter(Boolean)) {
+		const fileName = path.slice(path.lastIndexOf('/') + 1)
+		try {
+			await fileStore.addLibraryImage(path, fileStore.uniqueImageName(fileName), folderId)
+		} catch (err) {
+			window.alert(err instanceof Error ? err.message : `Failed to add "${fileName}" to the project`)
+		}
 	}
-
-	// Dropped on a script/image/text-file row: become its sibling, inserted just before it.
-	const targetParentId: string | null = item.parentId ?? null
-	const siblings = fileStore.childNodes(targetParentId)
-	const targetIndex = siblings.findIndex((n) => n.id === item.id)
-	const target = siblings[targetIndex]
-	if (!target) return
-	const before = targetIndex > 0 ? siblings[targetIndex - 1] : undefined
-	const position = before ? (before.position + target.position) / 2 : target.position - 1
-
-	await moveDraggedTo(dragged, targetParentId, position)
-}
-
-async function onDropOnRoot() {
-	const dragged = draggedNode.value
-	cancelScheduledDragOverUpdate()
-	draggedNode.value = null
-	dragOverId.value = null
-	dropTarget.value = null
-	if (!dragged) return
-
-	const position = fileStore.nextPosition(null)
-	await moveDraggedTo(dragged, null, position)
 }
 </script>
 
@@ -1033,7 +1230,12 @@ async function onDropOnRoot() {
 	<CollapsiblePane label="Files" icon="tabler:folder-filled">
 	<div class="panel-wrapper">
 		<div class="panel-bar">
-			<div class="spacer"></div>
+			<!-- The sandbox's reset button takes the spacer's place: both are
+			     there to balance the add button, keeping "Files" centered. -->
+			<UTooltip v-if="!fileStore.projectId" text="Reset sandbox">
+				<UButton icon="tabler:restore" variant="ghost" color="neutral" size="xs" @click="resetSandbox" />
+			</UTooltip>
+			<div v-else class="spacer"></div>
 
 			<div>Files</div>
 
@@ -1045,7 +1247,13 @@ async function onDropOnRoot() {
 		</div>
 
 		<UContextMenu :items="folderMenuItems(null)">
-			<div class="file-tree" @dragover.prevent="onDragOverRoot" @dragleave="onDragLeaveRoot" @drop="onDropOnRoot">
+			<div
+				class="file-tree"
+				:class="{ 'drop-target-root': dropTarget?.folderId === null }"
+				@dragover="onDragOverTree"
+				@dragleave="onDragLeaveTree"
+				@drop="onDropOnTree"
+			>
 				<!-- selection-behavior="replace": Reka's own default ('toggle')
 				deselects an item when it's clicked again while already
 				selected, which — since this is a real v-model straight to the
@@ -1075,17 +1283,14 @@ async function onDropOnRoot() {
 								class="tree-row-dnd"
 								:ref="(el) => setRowDndRef(item, el)"
 								:class="{
-									'drag-over': dragOverId === item.id,
-									'drop-line-before': dropLineTarget?.beforeId === item.id,
-									'drop-line-after': dropLineTarget?.afterId === item.id,
+									'drop-target': dropTarget?.folderId === item.id,
 									'renaming': renamingItemId === item.id,
+									'in-selection': isInSelection(item),
+									'viewing': viewedId === item.id,
 								}"
 								:draggable="isDraggable(item) && renamingItemId !== item.id"
 								@dragstart="onDragStart($event, item)"
-								@dragend="onDragEnd"
-								@dragover.prevent.stop="onDragOverItem(item)"
-								@dragleave="onDragLeaveItem(item)"
-								@drop.stop="onDropOnItem(item)"
+								@dragend="endDrag"
 								@mousedown="onRowMouseDown($event, item)"
 								@click="onRowClick($event, item)"
 							></div>
@@ -1126,12 +1331,35 @@ async function onDropOnRoot() {
 							     shown the same way regardless, since the
 							     distinction doesn't matter for what this column
 							     is answering ("where is my space going"). -->
+							<!-- Same Play/Stop as the Library's rows (and this row's
+							     own menu), shown on hover — and for as long as it's
+							     playing, so there's always a way to stop it. -->
+							<div v-if="isSoundItem(item) && item.path" class="item-play" :class="{ playing: previewingAudioId === item.id }">
+								<UTooltip :text="previewingAudioId === item.id ? 'Stop' : 'Play'">
+									<UButton
+										:icon="previewingAudioId === item.id ? 'tabler:player-stop-filled' : 'tabler:player-play-filled'"
+										variant="soft"
+										color="neutral"
+										size="xs"
+										@click.stop="toggleAudioPreview(item)"
+									/>
+								</UTooltip>
+							</div>
+							<span v-if="isSoundItem(item) && item.path && audioDuration(item.path) !== undefined" class="item-duration">{{ formatDuration(audioDuration(item.path)!) }}</span>
 							<!-- A library link has no size of its own (it stores
 							     nothing — see buildNode), so its chip takes the
-							     size column's place instead of a meaningless "0 B". -->
-							<span v-if="item.kind === 'libraryImage'" class="library-chip" title="Linked from the Library. Doesn't use project storage">
-								<UIcon name="tabler:link" class="library-chip-icon" /><div class="library-label">Library</div>
-							</span>
+							     size column's place instead of a meaningless "0 B".
+							     Clicking it shows where the link points and who
+							     made the asset. -->
+							<UPopover v-if="item.kind === 'libraryImage'" :content="{ align: 'end' }">
+								<button type="button" class="library-chip" :title="libraryChipTitle(item)" @click.stop>
+									<UIcon name="tabler:link" class="library-chip-icon" />
+								</button>
+
+								<template #content>
+									<LibraryCredit :attribution="item.attribution" :path="item.path" />
+								</template>
+							</UPopover>
 							<span v-else class="item-size" :title="`${(item.size ?? 0).toLocaleString()} bytes`">{{ formatBytes(item.size ?? 0) }}</span>
 							<div class="item-actions" @contextmenu="forwardRowContextMenu($event, item)">
 								<UDropdownMenu
@@ -1157,10 +1385,6 @@ async function onDropOnRoot() {
 							</div>
 						</template>
 					</template>
-
-					<template #drop-placeholder>
-						<div class="drop-placeholder"></div>
-					</template>
 				</UTree>
 			</div>
 		</UContextMenu>
@@ -1180,6 +1404,18 @@ async function onDropOnRoot() {
 	min-height: 0;
 	overflow-y: auto;
 	background-color: var(--theme-bg-elevated);
+	--drop-highlight: color-mix(in srgb, var(--theme-primary) 18%, transparent);
+}
+
+/* The UTree itself (it also carries .file-tree) — reached through :deep()
+   because its root element doesn't get this component's scope attribute. A
+   nested row's fill starts a small gap past its folder's guide line — Nuxt
+   UI's `ps-1.5 -ms-px` on itemWithChildren — but a top-level row's would
+   otherwise run right to the panel's edge. The same gap here lines the two
+   up, and the matching one on the right stops every row's fill short of the
+   panel's right edge by as much. */
+.file-tree :deep(.file-tree[data-slot="root"]) {
+	padding-inline: calc(0.375rem - 1px);
 }
 
 .spacer {
@@ -1233,8 +1469,8 @@ async function onDropOnRoot() {
 }
 
 /* Absolutely positioned against the tree-item link's own `position:
-   relative` rather than sized to the label text, so the drag handle/drop
-   target covers the whole row — icon, whitespace, and trailing-button area
+   relative` rather than sized to the label text, so the drag handle covers
+   the whole row — icon, whitespace, and trailing-button area
    included — not just wherever the label happens to be. The label text
    itself renders as a plain sibling in this slot; Nuxt UI's own linkLabel
    span already truncates it. */
@@ -1291,43 +1527,49 @@ async function onDropOnRoot() {
 	user-select: none;
 }
 
-/* Needs to stay the topmost element in the row — it's what dragstart/
-   dragover/drop are actually bound to, and giving it a negative z-index to
-   avoid covering the label text (tried previously) also pulled it out of
-   the hit-testing order, silently breaking drag-and-drop entirely. A
-   translucent fill keeps it on top for events while still letting the text
-   read through underneath, instead of fighting over paint order. */
-.tree-row-dnd.drag-over {
-	outline: 2px solid var(--theme-accent, var(--theme-text-muted));
-	outline-offset: -1px;
-	background-color: color-mix(in srgb, var(--theme-bg-accented) 55%, transparent);
-}
-
-/* Only ever spliced into a *folder's* own children (see
-   withFolderDropPlaceholder) — never into the same list a hovered row
-   itself lives in — so unlike the old script-drop placeholder, this can't
-   shift anything out from under the cursor and re-trigger itself. */
-.drop-placeholder {
-	width: 100%;
-	height: 1.25rem;
+/* The drop highlight (see the Drag and drop section of the script). A folder
+   target tints its <li>, which Nuxt UI renders around both the folder's own
+   row and the nested list of everything under it, so the whole block lights
+   up as one piece. The child combinators matter: every ancestor folder's <li>
+   also contains the target row somewhere inside it, and would otherwise be
+   tinted too. Translucent, so a selected row stays visible underneath. */
+.file-tree :deep(li:has(> [data-slot="link"] .tree-row-dnd.drop-target)) {
+	background-color: var(--drop-highlight);
 	border-radius: 0.25rem;
-	border: 1.5px dashed var(--theme-text-muted);
+}
+
+/* Row highlights: a neutral fill for every selected file (see Multi-selection
+   in the script), and a theme-colored one for the file open in the center
+   panel (viewedId), which wins when a row is both. Drawn on the same ::before
+   Nuxt UI paints its own selected fill on (bg-elevated — the same color as
+   this tree's background, so it never shows here).
+
+   Selection doesn't recolor the name: Nuxt UI's text-primary on the row Reka
+   selects is undone, leaving it the same color as any other row, hover
+   included. Unsaved/error colors are on the label itself, so they still show. */
+.file-tree :deep([data-slot="link"]:has(.tree-row-dnd.in-selection))::before {
 	background-color: var(--theme-bg-accented);
-	pointer-events: none;
 }
 
-/* box-shadow rather than a border/outline: it's purely visual and never
-   contributes to layout, so drawing it on the hovered row can't shift that
-   row's own position — which a spliced-in placeholder row used to do,
-   moving the hovered row out from under the cursor and causing dragleave
-   to fire, clearing the target, snapping it back, re-triggering dragover,
-   and so on in an endless flicker loop. */
-.tree-row-dnd.drop-line-before {
-	box-shadow: inset 0 2px 0 0 var(--theme-accent, var(--theme-text-muted));
+.file-tree :deep([data-slot="link"]:has(.tree-row-dnd.viewing))::before {
+	background-color: color-mix(in srgb, var(--theme-primary) 25%, transparent);
 }
 
-.tree-row-dnd.drop-line-after {
-	box-shadow: inset 0 -2px 0 0 var(--theme-accent, var(--theme-text-muted));
+.file-tree :deep([data-slot="link"][data-selected]) {
+	color: inherit;
+}
+
+.file-tree :deep([data-slot="link"][data-selected]:hover) {
+	color: var(--ui-text-highlighted);
+}
+
+/* The project root has no row of its own, so the whole tree is tinted. Both
+   the outer container and the UTree inside it carry .file-tree, and the
+   UTree's own opaque background would hide a tint on the outer one alone —
+   so both get it, layered over (not replacing) their background color. */
+.file-tree.drop-target-root,
+.drop-target-root .file-tree {
+	background-image: linear-gradient(var(--drop-highlight), var(--drop-highlight));
 }
 
 /* Rendered inside Nuxt UI's own linkTrailing span (data-slot="linkTrailing"
@@ -1385,9 +1627,39 @@ async function onDropOnRoot() {
 	white-space: nowrap;
 }
 
+/* Shown on hover, or while its sound plays. In flow like .item-actions, and
+   raised above .tree-row-dnd for the same reason. */
+.item-play {
+	position: relative;
+	z-index: 1;
+	flex-shrink: 0;
+	display: none;
+}
+
+:deep([data-slot="link"]:hover) .item-play,
+:deep([data-slot="link"]:focus-within) .item-play,
+.item-play.playing {
+	display: block;
+}
+
+/* Fixed width so durations line up down the list; 4ch fits "0:00"–"9:59". */
+.item-duration {
+	flex-shrink: 0;
+	min-width: 4ch;
+	text-align: right;
+	font-size: 0.75em;
+	font-variant-numeric: tabular-nums;
+	color: var(--theme-text-toned);
+	white-space: nowrap;
+}
+
 /* Marks a library link. Unlike .item-size it doesn't shrink away as the row
-   narrows — it's the only thing distinguishing the row from an upload. */
+   narrows — it's the only thing distinguishing the row from an upload. A
+   button, opening the link's credit, so it's raised above .tree-row-dnd like
+   .item-actions. */
 .library-chip {
+	position: relative;
+	z-index: 1;
 	display: inline-flex;
 	align-items: center;
 	gap: 0.25em;
@@ -1396,12 +1668,19 @@ async function onDropOnRoot() {
 	font-size: 0.7em;
 	white-space: nowrap;
 	color: var(--theme-primary);
+	background: none;
 	border: 1px solid var(--theme-primary);
 	border-radius: 0.4em;
+	cursor: pointer;
+}
+
+.library-chip:hover,
+.library-chip[data-state="open"] {
+	background-color: color-mix(in srgb, var(--theme-primary) 15%, transparent);
 }
 
 .library-chip-icon {
-	width: 1.15em;
+	width: 1em;
 	height: 1.15em;
 	color: var(--theme-primary);
 }

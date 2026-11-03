@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { attributionFor, attributionLabel } from '@/api/library'
 
 const props = defineProps<{
 	path: string | null
 	label?: string
 }>()
+
+// Library images (opened from the Library or from a link to one in the
+// project tree) carry their pack's credit; uploads never match one.
+const attribution = computed(() => (props.path ? attributionFor(props.path) : undefined))
 
 defineEmits<{ close: [] }>()
 
@@ -102,6 +107,20 @@ function onPointerUp() {
 			/>
 		</div>
 
+		<div v-if="attribution" class="credit-line">
+			<span>{{ attributionLabel(attribution) }}</span>
+			<template v-if="attribution.license">
+				·
+				<a v-if="attribution.licenseUrl" :href="attribution.licenseUrl" target="_blank" rel="noopener">{{ attribution.license }}</a>
+				<span v-else>{{ attribution.license }}</span>
+			</template>
+			<UTooltip v-if="attribution.url" text="View source">
+				<a :href="attribution.url" target="_blank" rel="noopener" class="credit-source" :aria-label="`Source: ${attribution.url}`">
+					<UIcon name="tabler:external-link" />
+				</a>
+			</UTooltip>
+		</div>
+
 		<div class="panel-bar viewer-controls">
 			<UTooltip text="Zoom out">
 				<UButton icon="tabler:zoom-out" variant="ghost" color="neutral" size="sm" @click="zoomBy(1 / BUTTON_ZOOM_STEP)" />
@@ -173,6 +192,29 @@ function onPointerUp() {
 	padding: 0.5em;
 	background-color: var(--theme-bg-muted);
 	border-top: 1px solid var(--theme-border)
+}
+
+.credit-line {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 0.35em;
+	flex-shrink: 0;
+	padding: 0.35em 0.75em;
+	font-size: 0.8em;
+	color: var(--theme-text-toned);
+	background-color: var(--theme-bg-muted);
+	border-top: 1px solid var(--theme-border);
+}
+
+.credit-line a {
+	text-decoration: underline;
+}
+
+.credit-line .credit-source {
+	display: inline-flex;
+	text-decoration: none;
 }
 
 .zoom-level {

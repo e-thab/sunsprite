@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '@/assets/utils/supabase'
+import { supabase } from '@/utils/supabase'
 import { useFileStore } from '@/stores/fileStore'
 import { useFullscreenStore } from '@/stores/fullscreen'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useApiVersionStore } from '@/stores/apiVersionStore'
 import { runUserCode, resizeStage } from '@/sandbox/hostBridge'
-import { formatDate } from '@/assets/utils/timeAgo'
+import { formatDate } from '@/utils/timeAgo'
+import { releaseButtonFocus } from '@/utils/releaseButtonFocus'
 import GameFrame from '@/components/GameFrame.vue'
+import VolumeControl from '@/components/VolumeControl.vue'
 import ErrorView from './ErrorView.vue'
 
 // Matches the literal name every other run entry point uses (fileStore.ts,
@@ -120,7 +122,10 @@ onMounted(() => {
 
 watch(() => props.slug, (slug) => load(slug))
 
-onUnmounted(() => {
+// onBeforeUnmount for the same reason as ProjectEditorView's: unmounted hooks
+// run after the next route's setup, so clearing the store here would wipe
+// whatever that view (the guest sandbox, say) had just loaded into it.
+onBeforeUnmount(() => {
   // Global singleton — leaving it true would hide NavBar on every other
   // route too, if the visitor toggled fullscreen before navigating away.
   fullscreenStore.fullscreen = false
@@ -144,14 +149,16 @@ onUnmounted(() => {
 
       <div class="canvas-frame" :class="{ 'canvas-frame--fullscreen': fullscreenStore.fullscreen }">
         <div class="panel-wrapper">
-          <div class="panel-bar">
+          <!-- Buttons give focus back after a click, so Space reaches the game
+               instead of re-clicking them (see releaseButtonFocus). -->
+          <div class="panel-bar" @click="releaseButtonFocus">
             <UTooltip text="Restart" ignore-non-keyboard-focus>
               <UButton icon="tabler:refresh" variant="ghost" color="neutral" label="Restart" size="xs" @click="runGame" />
             </UTooltip>
 
-            <UTooltip text="Volume — coming soon" ignore-non-keyboard-focus>
-              <UButton icon="tabler:volume" variant="ghost" color="neutral" label="Volume" size="xs" disabled />
-            </UTooltip>
+            <!-- No UTooltip around this one: the button is a popover trigger,
+                 and the panel it opens is its own label. -->
+            <VolumeControl />
 
             <UTooltip :text="fullscreenStore.fullscreen ? 'Exit fullscreen' : 'Fullscreen'" ignore-non-keyboard-focus>
               <UButton

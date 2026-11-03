@@ -1,0 +1,1439 @@
+import { AUTO, Game, Scene, type Types } from 'phaser'
+import Phaser from 'phaser'
+
+import type { Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Returnable, SmoothableKey, Smoothing } from './types'
+import type { ThemePalette } from '@/theme/themes'
+import type { ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
+import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@api/assets'
+import { isVector2, Vector2, type Vector2Like } from '@api/Vector2'
+import { Mouse, unwrap } from '@api/types'
+import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp, smoothStep } from '@api/utility'
+import { runEntryModule, locateError, resetLoopGuard } from '@api/moduleRunner'
+import { watch, unwatch, clearWatchCards } from '@/sandbox/watch'
+
+import Output from '@/sandbox/output'
+import Warning from '@api/Warning'
+import Random from '@api/Random'
+import Files from '@api/Files'
+import Colors from '@api/Colors'
+import Timer from '@api/Timer'
+import Clock from '@api/Clock'
+import Camera from '@api/Camera'
+import Screen from '@api/Screen'
+import Background from '@api/Background'
+import Sprite from '@api/Sprite'
+import Rectangle from '@api/Rectangle'
+import Circle from '@api/Circle'
+import Label from '@api/Label'
+import Line from '@api/Line'
+import HLine from '@api/HLine'
+import VLine from '@api/VLine'
+import Sound from '@api/Sound'
+import { mixer, setClientVolume, setClientMute } from '@api/Mixer'
+import { after, clearControls, every, forever, repeat, repeatUntil, repeatWhile, runControls, wait, when } from '@api/control'
+
+export const VERSION = '1.0'
+
+// export const outputItems: {
+// 	stamps: HTMLElement[],
+// 	msgs: HTMLElement[]
+// } = {
+// 	stamps: [],
+// 	msgs: []
+// }
+// let _printIndex = 0
+// const _outputLines = 100
+
+// This module runs inside the sandbox iframe, which has no Vue and no access to
+// the editor app's reactivity. State the UI cares about (fps, mouse, paused) is
+// read out of here by src/sandbox/main.ts and forwarded to the host as plain
+// data; hostBridge.ts turns it back into refs on the app side.
+
+/**
+ * Normalizes anything a user script might throw into a real Error with a
+ * readable message — `throw "oops"` or `throw {code: 1}` are legal JS and
+ * shouldn't degrade into a bare "[object Object]" in the output panel just
+ * because they aren't `instanceof Error` (which also means locateError has
+ * no stack to recover a line from, but the message stays useful).
+ */
+function toDisplayError(e: unknown): Error {
+	if (e instanceof Error) return e
+	if (typeof e === 'string') return new Error(e)
+	try {
+		return new Error(JSON.stringify(e))
+	} catch {
+		return new Error(String(e))
+	}
+}
+
+/**
+ * Single place that turns "something a user script threw" into output panel
+ * content. An error (not a warning) also pauses the game: whatever threw it
+ * is usually a forever() body or similar that would otherwise throw again on
+ * every frame, re-reporting and re-highlighting the same line in the editor
+ * 60 times a second, which pins its scroll position to it. Paused, the
+ * script can be read and fixed; Play retries it, and Restart runs the fix.
+ * The host's pause button follows along through the next status report.
+ */
+function reportUserError(e: unknown) {
+	const err = toDisplayError(e)
+	const location = locateError(err)
+
+	if (err instanceof Warning) {
+		Output.runtimeWarning(err.toString(), location)
+		console.warn('User code warning:', err)
+	} else {
+		Output.runtimeError(err.toString(), location)
+		console.error('User code error:', err)
+		if (!paused) pause()
+	}
+}
+
+/**
+ * Runs a user-supplied callback — forever(), repeat(), onKey(), a mouse
+ * handler, whatever — catching and reporting anything it throws the same way
+ * the initial script run already is. Unlike that one-time run, all of these
+ * fire from Phaser's own update loop or its event emitter, on every frame or
+ * every input event, for the entire lifetime of the game — with nothing
+ * wrapping them before now, a throwing forever() body just died silently in
+ * the sandbox's own (invisible) console and was never seen again.
+ *
+ * `fallback` is what callers get back when `fn` throws, so a broken
+ * predicate (repeatUntil's condition, etc.) fails toward whatever behavior
+ * is safest for its caller rather than propagating further.
+ */
+export function runUserCallback<T>(fn: () => T, fallback: T): T {
+	if (_crash) return fallback
+
+	try {
+		return fn()
+	} catch (e) {
+		// Whatever loop may have tripped the guard has unwound by now; the
+		// next callback this frame starts with a clean slate.
+		resetLoopGuard()
+		reportUserError(e)
+		return fallback
+	}
+}
+
+/**
+ * Same as runUserCallback, but for a callback handed off to Phaser's own
+ * event emitter (mouse input) instead of one we call ourselves — Phaser owns
+ * invocation timing here, so this wraps the function once at registration
+ * time. The wrapped function is what must be stored for later `.off()` calls
+ * too, since Phaser's emitter removes listeners by reference.
+ */
+function wrapUserCallback<A extends unknown[]>(fn: (...args: A) => void): (...args: A) => void {
+	return (...args: A) => runUserCallback(() => fn(...args), undefined)
+}
+
+/**
+ * Internal. The game's Web Audio context — the same one assets.ts hands
+ * Phaser at boot (see _sharedAudioContext). Undefined before a game exists,
+ * or when the browser left Phaser on a NoAudio/HTML5 sound manager, which
+ * has no context to suspend.
+ */
+function audioContext(): AudioContext | undefined {
+	return (game?.sound as Phaser.Sound.WebAudioSoundManager | undefined)?.context
+}
+
+/**
+ * Internal. Stops and restarts the clock in audio hardware time, so a paused
+ * game is silent rather than paused-but-still-playing.
+ */
+function suspendAudio() {
+	const context = audioContext()
+	if (context?.state === 'running') context.suspend()
+}
+function resumeAudio() {
+	const context = audioContext()
+	if (context?.state === 'suspended') context.resume()
+}
+
+/** Internal. How long a restart spends fading out the previous game's audio before tearing it down, in seconds. */
+const RETIRE_FADE = 0.015
+
+/**
+ * Internal. Takes down the previous run's Game without a pop.
+ *
+ * Phaser's own teardown is abrupt twice over: its sound manager's destroy()
+ * disconnects the master output mid-waveform, then, because the context was
+ * handed in through the config, suspends it — the shared context the game
+ * replacing this one already plays through (see assets.ts's
+ * _sharedAudioContext). Suspending a context that's making sound stops the
+ * output stream mid-sample, and the new game's onFocus() starts it again a
+ * frame later: two hard edges, heard as a crack whenever anything was playing
+ * as Restart was pressed.
+ *
+ * So the old game's output is ramped to silence first, and only once that has
+ * played out are its sounds stopped and its graph disconnected — by us, with
+ * Phaser's sound manager teardown (the part that suspends) taken off its
+ * DESTROY event.
+ */
+function retireGame(old: Game) {
+	const manager = old.sound as Phaser.Sound.WebAudioSoundManager
+	const context = manager.context
+	// No Web Audio, or no scene has run yet, so there's nothing to fade.
+	if (!context || !old.isRunning) {
+		old.destroy(true)
+		return
+	}
+
+	// Its scene's update() runs the module-level loop lists, which already
+	// belong to the run replacing it, so it can't take another step while the
+	// fade plays out. Its canvas makes way for the new one now too.
+	old.loop.sleep()
+	old.canvas.remove()
+
+	const gain = manager.masterVolumeNode.gain
+	const now = context.currentTime
+	gain.cancelScheduledValues(now)
+	if (context.state === 'running') {
+		gain.setValueAtTime(gain.value, now)
+		gain.linearRampToValueAtTime(0, now + RETIRE_FADE)
+	} else {
+		// Paused, so nothing's audible and the clock isn't moving: a ramp would
+		// only begin once the next run resumes the context, playing the old
+		// game's audio back for its length.
+		gain.setValueAtTime(0, now)
+	}
+
+	window.setTimeout(() => {
+		old.events.off(Phaser.Core.Events.DESTROY, manager.destroy, manager)
+		manager.removeAll()
+		manager.masterMuteNode.disconnect()
+		manager.masterVolumeNode.disconnect()
+		old.destroy(true)
+		// Phaser only acts on destroy() from inside a step.
+		old.loop.wake()
+	}, RETIRE_FADE * 2000)
+}
+
+/** Pause engine processing. Must be manually un-paused using the UI button for now. */
+export function pause() {
+	clock.pause()
+	paused = true
+	suspendAudio()
+}
+/** Resume engine processing. There is currently no practical way to use this function since it can't be processed while paused. (WIP) */
+export function play() {
+	clock.play()
+	paused = false
+	resumeAudio()
+}
+
+/**
+ * Internal. The host's own volume/mute control (the canvas toolbar's Volume
+ * dropdown), applied to the client bus. Host-driven like pause()/play(), so
+ * it lives here with the rest of the sandbox's message entry points rather
+ * than on the Mixer itself, where user scripts could reach it. Survives a restart
+ * untouched: mixer._reset() rebuilds the script-facing buses only.
+ */
+export function setClientAudio(volume: number, muted: boolean) {
+	setClientVolume(volume)
+	setClientMute(muted)
+}
+
+/**
+ * How far back currentFps() looks. Phaser's own loop.actualFps only updates
+ * once a second, and then only moves 25% of the way to the new count, so it
+ * takes ~8s to settle after a change.
+ */
+const FPS_WINDOW_MS = 2000
+/** Timestamps of the current game's steps within the last FPS_WINDOW_MS. */
+let frameTimes: number[] = []
+
+/** Internal. Start sampling `g`'s steps for currentFps(), dropping the previous game's. */
+function _trackFps(g: Game) {
+	frameTimes = []
+	g.events.on(Phaser.Core.Events.POST_STEP, (time: number) => {
+		// A retired game keeps stepping through its fade-out (see retireGame).
+		if (g !== game) return
+		frameTimes.push(time)
+		// Never empties: the time just pushed is always inside the window.
+		while (frameTimes[0]! < time - FPS_WINDOW_MS) frameTimes.shift()
+	})
+	// Phaser stops the loop while the tab is hidden; without this the gap
+	// would drag the average down until it aged out.
+	g.events.on(Phaser.Core.Events.VISIBLE, () => frameTimes = [])
+}
+
+/** Current renderer frame rate averaged over the last FPS_WINDOW_MS, or 0 before a game exists. */
+export function currentFps(): number {
+	if (frameTimes.length < 2) return 0
+	const span = frameTimes[frameTimes.length - 1]! - frameTimes[0]!
+	return span > 0 ? Math.round((frameTimes.length - 1) * 1000 / span) : 0
+}
+
+/**
+ * API Internal vars
+ */
+/** Internal. All objects that can be positioned on the screen/in the world */
+export let resizeReactors: { _onResize(): void }[] = []
+
+/**
+ * A map associating Phaser objects to custom Sunsprite objects. Will be used to allow for
+ * interfacing more directly with Phaser if desired
+ */
+// export const customObjects: Map<Phaser.GameObjects.GameObject, any> = new Map()
+
+/** Internal. All timer objects that need updating each frame */
+export let allTimers: Timer[] = []
+export let _engineLive: boolean = false
+let _crash: boolean = false
+let _nextObjectId: number = 0
+let _lastLeftClickTime: number = 0
+let _sessionCount: number = 0
+
+let _shiftRepeating: boolean = false
+let _ctrlRepeating: boolean = false
+let _altRepeating: boolean = false
+
+const _keyPressActions: Map<string, Action> = new Map()
+const _keyReleaseActions: Map<string, Action> = new Map()
+const _keyHoldActions: Map<string, Action> = new Map()
+
+// TODO
+const _mouseInputActions: Map<string, PointerAction> = new Map()
+const _mouseHoldActions: Map<string, Action> = new Map()
+
+/**
+ * API internal methods
+ */
+
+// Maybe these will be user-accessible at some point?
+export const PointerEvents = {
+	DRAG: 'sunsprite-drag',
+	DRAG_END: 'sunsprite-dragend',
+	DRAG_START: 'sunsprite-dragstart',
+	HOLD_LEFT: 'sunsprite-hold-left',
+	HOLD_RIGHT: 'sunsprite-hold-right',
+	HOLD_MIDDLE: 'sunsprite-hold-middle',
+	POINTER_DOUBLE: 'sunsprite-doubleclick',
+	POINTER_DOWN: 'sunsprite-pointerdown',
+	POINTER_DOWN_LEFT: 'sunsprite-pointerdown-left',
+	POINTER_DOWN_RIGHT: 'sunsprite-pointerdown-right',
+	POINTER_DOWN_MIDDLE: 'sunsprite-pointerdown-middle',
+	POINTER_MOVE: 'sunsprite-pointermove',
+	POINTER_OUT: 'sunsprite-pointerout',
+	POINTER_OVER: 'sunsprite-pointerover',
+	POINTER_UP: 'sunsprite-pointerup',
+	POINTER_UP_LEFT: 'sunsprite-pointerup-left',
+	POINTER_UP_RIGHT: 'sunsprite-pointerup-right',
+	POINTER_UP_MIDDLE: 'sunsprite-pointerup-middle',
+	POINTER_WHEEL: 'sunsprite-pointerwheel',
+}
+
+export function _getNextObjectId(): string {
+	return (_nextObjectId++).toString()
+}
+
+export function _updatePositions() {
+	for (const reactor of resizeReactors) {
+		reactor._onResize()
+	}
+}
+
+function _updateTimers() {
+	for (const timer of allTimers) {
+		timer._update()
+	}
+}
+
+function _runOnKeyActions() {
+	for (const [key, action] of _keyPressActions) {
+		if (action && keyJustPressed(key)) runUserCallback(() => action(), undefined)
+	}
+
+	for (const [key, action] of _keyHoldActions) {
+		if (action && keyPressed(key)) runUserCallback(() => action(), undefined)
+	}
+
+	for (const [key, action] of _keyReleaseActions) {
+		if (action && keyJustReleased(key)) runUserCallback(() => action(), undefined)
+	}
+
+	const anyPressAction = _keyPressActions.get('any')
+	if (keysJustPressed.size > 0 && anyPressAction) {
+		runUserCallback(() => anyPressAction(), undefined)
+	}
+
+	const anyHoldAction = _keyHoldActions.get('any')
+	if (keysPressed.length > 0 && anyHoldAction) {
+		runUserCallback(() => anyHoldAction(), undefined)
+	}
+}
+
+const _propUpdaters: Map<string, (() => any)> = new Map()
+
+export function _clearPropUpdater(id: string) {
+	_propUpdaters.delete(id)
+}
+
+export function _registerPropUpdater(id: string, updater: (() => any)) {
+	_propUpdaters.set(id, updater)
+}
+
+function _runPropUpdaters() {
+	for (const [, updater] of _propUpdaters) {
+		updater()
+	}
+}
+
+function _clearKeysJustPressed(frame: number) {
+	for (const key of keysJustPressed.keys()) {
+		if (keysJustPressed.get(key) !== frame) {
+			keysJustPressed.delete(key)
+		}
+	}
+}
+
+function _clearKeysJustReleased(frame: number) {
+	for (const key of keysJustReleased.keys()) {
+		if (keysJustReleased.get(key) !== frame) {
+			keysJustReleased.delete(key)
+		}
+	}
+}
+
+function _releaseAllKeys() {
+	for (const key of keysPressed) {
+		keysJustReleased.set(key, clock.frame)
+	}
+	// Emptied in place
+	keysPressed.length = 0
+}
+
+/**
+ * Key handling entry points for events the host observed and forwarded,
+ * which is the normal case (the iframe only receives keys directly when the
+ * user has clicked the canvas). Assigned by setup(); no-ops until then.
+ * {code} is a raw KeyboardEvent.code, aliasing happens inside.
+ */
+export let handleKeyDown: (code: string) => void = () => {}
+export let handleKeyUp: (code: string) => void = () => {}
+export function releaseAllKeys() {
+	_releaseAllKeys()
+}
+
+/** Internal. Converts Phaser coordinate point to our coord system. */
+export function getGamePoint(pos: Vector2Like): Vector2 {
+	pos = Vector2.from(pos)
+	return new Vector2(
+		// top minds spent 2000 hours on this problem
+		pos.x - camera.zoom * (camera.right - camera.x),
+		-pos.y + camera.zoom * (camera.top - camera.y)
+	)
+}
+
+/** Internal. Inverse of getGamePoint; Converts coordinate point from our coord system to Phaser's. */
+export function getOurPoint(pos: Vector2Like): Vector2 {
+	pos = Vector2.from(pos)
+	return new Vector2(
+		pos.x + camera.zoom * (camera.right - camera.x),
+		-pos.y + camera.zoom * (camera.top - camera.y)
+	)
+}
+
+// function _resetTicker() {
+// 	_ticker.destroy()
+// 	_ticker = new Ticker()
+// 	_ticker.start()
+// 	Clock.frame = 0
+// }
+
+/**
+ * User-accessible
+ */
+// Idea: setScreenSize() ?
+export const clock: Clock = new Clock()
+export let game: Game
+export let scene: Scene
+export let camera: Camera
+export let screen: Screen
+export let mouse: Mouse
+export let paused = false
+/** The game's background. */
+let background: Background
+
+/** An array of all keys currently pressed. */
+let keysPressed: string[] = []
+/** An array of all keys that were just pressed last frame. */
+let keysJustPressed: Map<string, number | undefined> = new Map()
+/** An array of all keys that were just released last frame. */
+let keysJustReleased: Map<string, number | undefined> = new Map()
+
+// const BackgroundStyle = {
+// 	Center: 'center',
+// 	Fill: 'fill',
+// 	Fit: 'fit',
+// 	Stretch: 'stretch',
+// 	Tile: 'tile'
+// }
+// function setBackgroundStyle(style: string) {
+// 	// Set the positioning style of the background image
+// }
+
+async function setCursor(src: string) {
+	// Come back to this
+	// app.renderer.events.cursorStyles.default = `url(${src}), auto`;
+	// const defaultIcon = `url(${src}),auto`;
+	// app.renderer.events.cursorStyles.hover = defaultIcon;
+}
+
+/**
+ * Returns true if the specified key is currently pressed. Will repeatedly be true while the key is held.
+ * @param key The key to check.
+ */
+export function keyPressed(key: string): boolean {
+	return keysPressed.includes(key.toLowerCase())
+}
+
+/**
+ * Returns true if the specified key is pressed, AND this is the first frame that it's being held. Will only be true once when a key starts being held.
+ * @param key The key to check.
+ */
+export function keyJustPressed(key: string): boolean {
+	return keysJustPressed.get(key.toLowerCase()) !== undefined
+}
+
+/**
+ * Returns true if the specified key is no longer pressed, AND this is the first frame after release. Will only be true once when a key stops being held.
+ * @param key The key to check.
+ */
+export function keyJustReleased(key: string): boolean {
+	return keysJustReleased.get(key.toLowerCase()) !== undefined
+}
+
+/**
+ * Register input actions to run once each time a key is pressed.
+ * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
+ */
+export function onKeyPress(actions: KeyAction) {
+	for (const [inputKey, action] of Object.entries(actions)) {
+		// const actionKey = inputKey as keyof typeof actions
+		_keyPressActions.set(inputKey.toLowerCase(), action)
+	}
+}
+
+/**
+ * Register input actions to run once each time a key is released.
+ * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
+ */
+export function onKeyRelease(actions: KeyAction) {
+	for (const [inputKey, action] of Object.entries(actions)) {
+		// const actionKey = inputKey as keyof typeof actions
+		_keyReleaseActions.set(inputKey.toLowerCase(), action)
+	}
+}
+
+/**
+ * Register input actions to run repeatedly while a key is held.
+ * @param actions An object whose keys are strings representing keyboard keys, and whose values are the functions that pressing that key should run.
+ */
+export function onKeyHold(actions: KeyAction) {
+	for (const [inputKey, action] of Object.entries(actions)) {
+		// const actionKey = inputKey as keyof typeof actions
+		_keyHoldActions.set(inputKey.toLowerCase(), action)
+	}
+}
+
+/**
+ * Register input actions to run once each time a mouse event is detected.
+ * @param actions An object whose keys are strings representing mouse events, and whose values are the functions that activating that event should run.
+ */
+function onMouse(actions: MouseInputAction) {
+	for (const [button, action] of Object.entries(actions)) {
+		const eventName = mouseInputEventNames[button]
+		if (eventName) _registerMouseInputAction(eventName, action)
+	}
+}
+
+/** TODO */
+function onMouseHold(actions: MouseHoldAction) {
+	for (const [button, action] of Object.entries(actions)) {
+		// const actionButton = button as keyof typeof actions
+		// _keyPressActions.set(button, action)
+	}
+}
+
+const mouseInputEventNames: { [key: string]: string } = {
+	Click: PointerEvents.POINTER_DOWN,
+	DoubleClick: PointerEvents.POINTER_DOUBLE,
+	Enter: PointerEvents.POINTER_OVER,
+	Exit: PointerEvents.POINTER_OUT,
+	LeftClick: PointerEvents.POINTER_DOWN_LEFT,
+	LeftRelease: PointerEvents.POINTER_UP_LEFT,
+	MiddleClick: PointerEvents.POINTER_DOWN_MIDDLE,
+	MiddleRelease: PointerEvents.POINTER_UP_MIDDLE,
+	Move: PointerEvents.POINTER_MOVE,
+	Release: PointerEvents.POINTER_UP,
+	RightClick: PointerEvents.POINTER_DOWN_RIGHT,
+	RightRelease: PointerEvents.POINTER_UP_RIGHT,
+	Scroll: PointerEvents.POINTER_WHEEL
+}
+
+// TODO: mouse hold events
+const mouseHoldEventNames: { [key: string]: string } = {
+	Right: PointerEvents.POINTER_DOWN_RIGHT,
+	Middle: PointerEvents.POINTER_DOWN_MIDDLE,
+	Left: PointerEvents.HOLD_LEFT,
+}
+
+// TODO: Are these useful anymore?
+type MouseHoldEvent = 'Left' | 'Right' | 'Middle'
+type MouseHoldAction = { [key in MouseHoldEvent]?: Action }
+
+function _registerMouseInputAction(eventName: string, action?: PointerAction) {
+	if (_mouseInputActions.get(eventName)) {
+		// Coalesce in case action entry is null but not undefined
+		scene.input.off(eventName, _mouseInputActions.get(eventName) ?? undefined)
+	}
+
+	if (action) {
+		const wrapped = wrapUserCallback(action)
+		_mouseInputActions.set(eventName, wrapped)
+		scene.input.on(eventName, wrapped)
+	} else {
+		_mouseInputActions.delete(eventName)
+	}
+}
+
+function _registerMouseHoldAction(eventName: string, action?: PointerAction) {
+	if (_mouseHoldActions.get(eventName)) {
+		scene.input.off(eventName, _mouseHoldActions.get(eventName))
+	}
+
+	if (action) {
+		const wrapped = wrapUserCallback(action)
+		_mouseHoldActions.set(eventName, wrapped)
+		scene.input.on(eventName, wrapped)
+	} else {
+		_mouseHoldActions.delete(eventName)
+	}
+}
+
+function clearStage() {
+	// app.stage.removeChildren()
+}
+
+// export function log(...args: any[]) {
+// 	console.log(args)
+// }
+
+function mouseOverCanvas() {
+	return game.canvas.matches(':hover')
+}
+
+type SmoothFunction = 
+	| ((value: number, stop: Action) => void)
+	| ((value: Vector2, stop: Action) => void)
+
+type AutoSmoothBase = {
+	smoothTime: Returnable<number>,
+	threshold: number,
+	/** smoothFollow's smooths ignore threshold and keep chasing target until stopped */
+	follow: boolean,
+	stopped: boolean,
+	/** Marks this smooth stopped and settles the promise its Smoothing handle is */
+	stop: () => void,
+	/** The property form's object and key, so a newer smooth on the same property can replace this one */
+	object?: object,
+	key?: PropertyKey
+}
+
+/** read, when present, re-reads value each frame so outside changes to a smoothed property are kept */
+type AutoSmooth = AutoSmoothBase & (
+	| { kind: 'number', value: number, target: Returnable<number>, velocity: number, fn: (value: number, stop: Action) => void, read?: () => number }
+	| { kind: 'vector', value: Vector2, target: Returnable<Vector2>, velocity: Vector2, fn: (value: Vector2, stop: Action) => void, read?: () => Vector2 }
+)
+
+type SmoothOptions = {
+	/** The public function's name, for error messages */
+	name: string,
+	smoothTime?: Returnable<number>,
+	threshold?: number,
+	follow?: boolean,
+	object?: object,
+	key?: PropertyKey,
+	read?: () => number | Vector2
+}
+
+let autoSmooths: AutoSmooth[] = []
+
+// smoothDamp and smoothFollow's property forms come in pairs. The SmoothableKey one completes key names but
+// can't resolve SmoothableKey<this>, so a class passing `this` falls through to the PropertyKey one, which
+// still checks key and target through T's { [P in K]: ... } constraint.
+/**
+ * Smoothly moves an object's property toward a target over time, stopping once it gets there. The property must
+ * hold a number or a Vector2, and target must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to move toward
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the values should be before smoothing is considered done. Default 0.01 for numbers, 0.1 for Vector2s.
+ * @returns A Smoothing you can `await` to wait until the property reaches target, or `stop()` to end early
+ */
+function smoothDamp<K extends SmoothableKey<T>, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>, threshold?: number): Smoothing
+/**
+ * Smoothly moves an object's property toward a target over time, stopping once it gets there. The property must
+ * hold a number or a Vector2, and target must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to move toward
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the values should be before smoothing is considered done. Default 0.01 for numbers, 0.1 for Vector2s.
+ * @returns A Smoothing you can `await` to wait until the property reaches target, or `stop()` to end early
+ */
+function smoothDamp<K extends PropertyKey, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>, threshold?: number): Smoothing
+/**
+ * Moves a vector toward a target smoothly over time, stopping once it gets there.
+ * @param value The starting vector
+ * @param target The target vector to move toward
+ * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the vector changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the vectors should be before smoothing is considered done. Default 0.1.
+ * @returns A Smoothing you can `await` to wait until vector reaches target, or `stop()` to end early
+ */
+function smoothDamp(value: Vector2, target: Returnable<Vector2>, fn: (value: Vector2, stop: Action) => void, smoothTime?: Returnable<number>, threshold?: number): Smoothing
+/**
+ * Moves a number toward a target smoothly over time, stopping once it gets there.
+ * @param value The start value
+ * @param target The target (end) value to move toward
+ * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @param threshold How close the values should be before smoothing is considered done. Default 0.01.
+ * @returns A Smoothing you can `await` to wait until value reaches target, or `stop()` to end early
+*/
+function smoothDamp(value: number, target: Returnable<number>, fn: (value: number, stop: Action) => void, smoothTime?: Returnable<number>, threshold?: number): Smoothing
+function smoothDamp(...args: any[]): Smoothing {
+	// Only the property form has a string second argument; the value form's is a number, Vector2 or function
+	if (typeof args[1] === 'string') {
+		const [object, key, target, smoothTime, threshold] = args
+		return _startPropertySmooth(object, key, target, { name: 'smoothDamp', smoothTime, threshold })
+	}
+
+	const [value, target, fn, smoothTime, threshold] = args
+	return _startSmooth(value, target, fn, { name: 'smoothDamp', smoothTime, threshold })
+}
+
+/**
+ * Smoothly moves an object's property toward a target over time, and keeps following it until stopped. Pass a
+ * function as target to follow something that moves. The property must hold a number or a Vector2, and target
+ * must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to follow, like `() => player.position`
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow<K extends SmoothableKey<T>, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>): Smoothing
+/**
+ * Smoothly moves an object's property toward a target over time, and keeps following it until stopped. Pass a
+ * function as target to follow something that moves. The property must hold a number or a Vector2, and target
+ * must match it. Starting another smooth on the same property stops this one.
+ * @param object The object whose property to smooth, like a Rectangle
+ * @param key The name of the property to smooth, like 'position' or 'rotation'
+ * @param target The target value to follow, like `() => player.position`
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow<K extends PropertyKey, T extends { [P in K]: number | Vector2 }>(object: T, key: K, target: Returnable<NoInfer<T[K]>>, smoothTime?: Returnable<number>): Smoothing
+/**
+ * Moves a vector toward a target smoothly over time, and keeps following it until stopped. Pass a function as
+ * target to follow something that moves.
+ * @param value The starting vector
+ * @param target The target vector to follow, like `() => player.position`
+ * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the vector changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow(value: Vector2, target: Returnable<Vector2>, fn: (value: Vector2, stop: Action) => void, smoothTime?: Returnable<number>): Smoothing
+/**
+ * Moves a number toward a target smoothly over time, and keeps following it until stopped. Pass a function as
+ * target to follow something that changes.
+ * @param value The start value
+ * @param target The target value to follow, like `() => player.rotation`
+ * @param fn A function that allows you to use the smoothed value, stepped toward target once each frame
+ * @param smoothTime How fast the value changes, **lower** values mean **faster** movement. Default 0.25.
+ * @returns A Smoothing you can `stop()` to stop following; `await` it to wait until something stops it
+ */
+function smoothFollow(value: number, target: Returnable<number>, fn: (value: number, stop: Action) => void, smoothTime?: Returnable<number>): Smoothing
+function smoothFollow(...args: any[]): Smoothing {
+	if (typeof args[1] === 'string') {
+		const [object, key, target, smoothTime] = args
+		return _startPropertySmooth(object, key, target, { name: 'smoothFollow', smoothTime, follow: true })
+	}
+
+	const [value, target, fn, smoothTime] = args
+	return _startSmooth(value, target, fn, { name: 'smoothFollow', smoothTime, follow: true })
+}
+
+function _startPropertySmooth(object: any, key: string, target: Returnable<number | Vector2>, options: SmoothOptions): Smoothing {
+	const value = object[key]
+	if (typeof value !== 'number' && !isVector2(value)) {
+		throw new Error(`${options.name}: '${key}' must be a number or Vector2 property`)
+	}
+	// One smooth per property, so a follow left running doesn't fight the newer smooth every frame
+	for (const other of autoSmooths) {
+		if (other.object === object && other.key === key) other.stop()
+	}
+	return _startSmooth(value, target, (value: number | Vector2) => object[key] = value, { ...options, object, key, read: () => object[key] })
+}
+
+function _startSmooth(value: number | Vector2, target: Returnable<number | Vector2>, fn: SmoothFunction, options: SmoothOptions): Smoothing {
+	const { name, smoothTime = 0.25, threshold, follow = false, object, key, read } = options
+	let resolve!: () => void
+	const done = new Promise<void>(r => resolve = r)
+	const base = {
+		smoothTime, follow, object, key,
+		stopped: false,
+		stop() {
+			if (autoSmooth.stopped) return
+			autoSmooth.stopped = true
+			resolve()
+		}
+	}
+	let autoSmooth: AutoSmooth
+
+	const initialTarget = unwrap(target)
+
+	if (typeof value === 'number' && typeof initialTarget === 'number') {
+		autoSmooth = {
+			...base,
+			kind: 'number',
+			threshold: threshold ?? 0.01,
+			value,
+			target: target as Returnable<number>,
+			velocity: 0,
+			fn: fn as (value: number, stop: Action) => void,
+			read: read as (() => number) | undefined
+		}
+	} else if (isVector2(value) && isVector2(initialTarget)) {
+		autoSmooth = {
+			...base,
+			kind: 'vector',
+			threshold: threshold ?? 0.1,
+			value,
+			target: target as Returnable<Vector2>,
+			velocity: Vector2.ZERO,
+			fn: fn as (value: Vector2, stop: Action) => void,
+			read: read as (() => Vector2) | undefined
+		}
+	} else {
+		throw new Error(`${name}: value and target must both be numbers or both be Vector2s`)
+	}
+
+	autoSmooths.push(autoSmooth)
+	// The handle is the promise itself, so then/catch/finally and Promise.all keep working
+	return Object.defineProperties(done, {
+		stop: { value: autoSmooth.stop },
+		stopped: { get: () => autoSmooth.stopped }
+	}) as Smoothing
+}
+
+function _runSmooths(deltaMs: number) {
+	const dt = deltaMs / 1000
+	for (const autoSmooth of autoSmooths) {
+		// Already stopped this frame, by another smooth's fn or a newer smooth on the same property
+		if (autoSmooth.stopped) continue
+		const { stop } = autoSmooth
+		const smoothTime = unwrap(autoSmooth.smoothTime)
+
+		// First, check if value is already within threshold of target
+		if (autoSmooth.kind === 'number') {
+			if (autoSmooth.read) autoSmooth.value = autoSmooth.read()
+			const target = unwrap(autoSmooth.target)
+
+			if (!autoSmooth.follow && Math.abs(autoSmooth.value - target) < autoSmooth.threshold) {
+				// Run the function one last time so that value fully reaches target
+				autoSmooth.fn(target, stop)
+				stop()
+				continue
+			}
+
+			const step = smoothStep(
+				autoSmooth.value,
+				target,
+				autoSmooth.velocity,
+				smoothTime,
+				dt
+			)
+			autoSmooth.value = step.value
+			autoSmooth.velocity = step.velocity
+			autoSmooth.fn(step.value, stop)
+		} else if (autoSmooth.kind === 'vector') {
+			if (autoSmooth.read) autoSmooth.value = autoSmooth.read()
+			const target = unwrap(autoSmooth.target)
+
+			if (!autoSmooth.follow && autoSmooth.value.distanceTo(target) < autoSmooth.threshold) {
+				autoSmooth.fn(target, stop)
+				stop()
+				continue
+			}
+			const step = smoothStep(
+				autoSmooth.value,
+				target,
+				autoSmooth.velocity,
+				smoothTime,
+				dt
+			)
+			autoSmooth.value = step.position
+			autoSmooth.velocity = step.velocity
+			autoSmooth.fn(step.position, stop)
+		}
+	}
+	autoSmooths = autoSmooths.filter((item) => !item.stopped)
+}
+
+/**
+ * API utility
+ */
+class UserScene extends Scene {
+	JScode: string
+	/** Real name of the active script JScode came from, see runEntryModule. */
+	entryName: string
+
+	constructor(JScode: string, entryName: string) {
+		super('main')
+		this.JScode = JScode
+		this.entryName = entryName
+		scene = this
+	}
+	
+	preload() {
+		console.log('preload')
+
+		// resetTimer()
+
+		// timer.startTimeMs = Date.now()
+		// timer.startTime = timer.startTimeMs / 1000
+
+		// timer.nowMs = timer.startTimeMs
+		// timer.now = timer.startTime
+
+		// timer.timeMs = 0
+		// timer.time = 0
+
+		// timer.totalTimeMs = 0
+		// timer.totalTime = 0
+
+		// timer.frame = 0
+
+		// _totalPauseTime = 0
+		// _lastPauseTime = 0
+
+		// Every image/sound in the project's file tree, under its own file name.
+		_preloadProjectAssets(this)
+
+		// this.load.image('guy', 'assets/guy.png')
+		// this.load.image('boot', 'assets/boot.png')
+		// this.load.image('gator', 'https://woofjs.com/docs/images/river-gator.png')
+		// this.load.audio('confirm', 'assets/confirmation_001.ogg')
+		// this.load.audio('win', 'assets/you_win.ogg')
+	}
+	
+	async create() {
+		// !! PROBLEM: every and after don't honor pause state when using delayed call method
+		console.log('create')
+
+		// Prevent audio from pausing when canvas loses focus... maybe expose this to the API?
+		this.sound.pauseOnBlur = false
+
+		// Manually pause/resume audio when hiding tab or minimizing.
+		const soundManager = this.sound as Phaser.Sound.WebAudioSoundManager
+		if (soundManager.context) {
+			// Phaser registers its own VISIBLE handler in the sound manager's
+			// constructor, outside pauseOnBlur's control, which cycles
+			// suspend() + resume() 100ms after the tab comes back — an iOS 17/18
+			// workaround (phaserjs/phaser#6829). Because it's late *and*
+			// unconditional, it would undo the `if (!paused)` below and hand a
+			// paused game its audio back. Dropping it and re-doing the same
+			// cycle ourselves is what keeps audio and the clock in sync; the
+			// handler is private, hence the cast.
+			const manager = soundManager as unknown as { onGameVisible: () => void, onFocus: () => void, locked: boolean }
+			this.game.events.off(Phaser.Core.Events.VISIBLE, manager.onGameVisible, soundManager)
+
+			// Phaser decides `locked` once, at construction, from whether the
+			// context is suspended — meaning "the browser hasn't allowed audio
+			// yet" — and won't resume a locked context from onFocus() below
+			// until a click or key lands on this document. With a shared
+			// context that test reads our own state, not the browser's:
+			// restarting a paused game boots on the context pause() suspended,
+			// so the new game came up locked, its script running and its
+			// audio stuck until the canvas was clicked. Whether audio is
+			// allowed is sandbox/audioGate.ts's job, and it holds every
+			// unpaused start until it is, so by the time this game is allowed
+			// to play, so is its audio.
+			manager.locked = false
+
+			// And the sound manager resumes the context from its own update(),
+			// on every single game step: WebAudioSoundManager.update() ends
+			// with `if (!this.gameLostFocus) this.onFocus()`, and onFocus()
+			// resumes whatever is suspended — iOS "interrupted audio"
+			// recovery, and not gated by pauseOnBlur either.
+			const phaserOnFocus = manager.onFocus.bind(soundManager)
+			manager.onFocus = () => {
+				if (paused) suspendAudio()
+				else phaserOnFocus()
+			}
+
+			// A fresh Game resumes the shared context on its way up (Phaser's
+			// createAudioContext resumes whatever context the config handed
+			// it — see assets.ts's _sharedAudioContext), so restarting while
+			// paused would come back audible. Re-assert the pause instead of
+			// going through suspendAudio(), whose `running` check can't see a
+			// resume that's still in flight this early in the boot.
+			if (paused && soundManager.context.state !== 'closed') soundManager.context.suspend()
+
+			this.game.events.on(Phaser.Core.Events.HIDDEN, () => suspendAudio())
+			this.game.events.on(Phaser.Core.Events.VISIBLE, () => {
+				// Same 100ms delay Phaser's own handler used — the artifacts it
+				// avoids are a property of the context, not of who asked.
+				window.setTimeout(() => {
+					if (paused) {
+						// The browser may have resumed it on our behalf while
+						// handing focus back. Put it back where pause() left it.
+						suspendAudio()
+						return
+					}
+					const context = audioContext()
+					if (!context) return
+					context.suspend()
+					context.resume()
+				}, 100)
+			})
+		}
+
+		if (mouse) {
+			mouse._setPointer(this.input.activePointer)
+		} else {
+			mouse = new Mouse(this.input.activePointer)
+		}
+
+		const cam = this.cameras.main
+		if (camera) {
+			camera._setCam(cam)
+		} else {
+			camera = new Camera(cam)
+		}
+
+		if (screen) {
+			screen._setCam(cam)
+		} else {
+			screen = new Screen(cam)
+		}
+
+		if (background) {
+			background._reset(this, camera)
+		} else {
+			background = new Background(this, camera)
+		}
+
+		// Set poll always to allow cursors to change when pointer isn't moving
+		this.input.setPollAlways()
+		this.input.setDefaultCursor('url(cursors/default.cur), default')
+
+		/* 
+		 * Capturing Phaser pointer events
+		 */
+		// Canvas pointer down events
+		this.input.on(Phaser.Input.Events.POINTER_DOWN, (pointer: Phaser.Input.Pointer, gameObjects: Phaser.GameObjects.GameObject[]) => {
+			if (pointer.leftButtonDown()) {
+				this.input.emit(PointerEvents.POINTER_DOWN_LEFT, mouse.x, mouse.y)
+				
+				// Double click if it's been <= 500 ms since last left click
+				if (Date.now() - _lastLeftClickTime <= 500) {
+					this.input.emit(PointerEvents.POINTER_DOUBLE, mouse.x, mouse.y)
+					// Reset last click time so that three quick clicks don't count as single-double-double.
+					// So two consecutive *double* clicks requires 4 individual clicks.
+					_lastLeftClickTime = 0
+				} else {
+					_lastLeftClickTime = Date.now()
+				}
+			}
+
+			if (pointer.rightButtonDown()) {
+				this.input.emit(PointerEvents.POINTER_DOWN_RIGHT, mouse.x, mouse.y)
+			}
+
+			if (pointer.middleButtonDown()) {
+				this.input.emit(PointerEvents.POINTER_DOWN_MIDDLE, mouse.x, mouse.y)
+			}
+
+			this.input.emit(PointerEvents.POINTER_DOWN, mouse.x, mouse.y)
+		})
+
+		// Canvas pointer up events
+		this.input.on(Phaser.Input.Events.POINTER_UP, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+			if (pointer.leftButtonReleased()) {
+				this.input.emit(PointerEvents.POINTER_UP_LEFT, mouse.x, mouse.y)
+			}
+
+			if (pointer.rightButtonReleased()) {
+				this.input.emit(PointerEvents.POINTER_UP_RIGHT, mouse.x, mouse.y)
+			}
+
+			if (pointer.middleButtonReleased()) {
+				this.input.emit(PointerEvents.POINTER_UP_MIDDLE, mouse.x, mouse.y)
+			}
+
+			this.input.emit(PointerEvents.POINTER_UP, mouse.x, mouse.y)
+		})
+		
+		// Canvas pointer exit event
+		this.input.on(Phaser.Input.Events.GAME_OUT, (pointer: Phaser.Input.Pointer) => {
+			// _mouseOverCanvas = false
+			this.input.emit(PointerEvents.POINTER_OUT, mouse.x, mouse.y)
+		})
+		
+		// Canvas pointer enter event
+		this.input.on(Phaser.Input.Events.GAME_OVER, (pointer: Phaser.Input.Pointer) => {
+			// _mouseOverCanvas = true
+			this.input.emit(PointerEvents.POINTER_OVER, mouse.x, mouse.y)
+		})
+
+		// Canvas scroll event
+		this.input.on(Phaser.Input.Events.POINTER_WHEEL, (pointer: Phaser.Input.Pointer, gameObjects: Phaser.GameObjects.GameObject[], deltaX: number, deltaY: number, ...rest: any[]) => {
+			this.input.emit(PointerEvents.POINTER_WHEEL, deltaX, -deltaY)
+		})
+
+		// Canvas pointer move event
+		this.input.on(Phaser.Input.Events.POINTER_MOVE, (pointer: Phaser.Input.Pointer, ...rest: any[]) => {
+			this.input.emit(PointerEvents.POINTER_MOVE, mouse.x, mouse.y)
+		})
+
+		// I would like to move the API definition into its own file, but it relies on object instances
+		// that don't exist at compile time (timer, camera, etc.)... look into this
+		const api = {
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
+			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Mixer: mixer, Colors,
+			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
+			forever, repeat, repeatUntil, repeatWhile, after, every, when, wait,
+			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
+			print: Output.print, watch, unwatch, play, pause, /* setBackgroundColor, setBackgroundImage, clearBackgroundImage, */
+			Random, Files, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
+			sqrt: Math.sqrt,
+			min: Math.min,
+			max: Math.max,
+			floor: Math.floor,
+			ceil: Math.ceil,
+			round: Math.round,
+			smoothStep, smoothDamp, smoothFollow,
+			PI: Math.PI,
+		}
+
+		try {
+			_engineLive = true
+			await runEntryModule(this.JScode, api, this.entryName)
+		} catch (e) {
+			reportUserError(e)
+			_crash = true
+		}
+	}
+	
+	update(time: number, delta: number) {
+		// onUpdate()
+		clock._update(delta)
+		_updateTimers()
+
+		// Only update mouse pos while mouse is over canvas, otherwise clicking code editor updates
+		// if (mouseOverCanvas()) {
+		// 	mouse.x = clamp(this.input.activePointer.worldX - screen.width / 2, screen.left, screen.right)
+		// 	mouse.y = clamp(screen.height / 2 - this.input.activePointer.worldY, screen.bottom, screen.top)
+		// 	mouse.x = this.input.activePointer.worldX - screen.width / 2
+		// 	mouse.y = screen.height / 2 - this.input.activePointer.worldY
+		// }
+
+		if (!paused) {
+			_runOnKeyActions()
+			runControls()
+			_runSmooths(clock.deltaMs)
+			_runPropUpdaters()
+			if (background.image) background._update()
+		}
+
+		// Runs after actions have had a chance to observe this tick's just-pressed/released
+		// state; keydown/keyup arrive async between ticks and get stamped with whatever
+		// Clock.frame was at that moment, so clearing before _runOnKeyActions() would wipe
+		// them out one tick before anything ever reads them.
+		_clearKeysJustPressed(clock.frame)
+		_clearKeysJustReleased(clock.frame)
+	}
+}
+
+export async function runUserCode(code: string, entryName: string, theme?: ThemePalette, assets: readonly ProjectAsset[] = [], textFiles: readonly ProjectTextFile[] = []): Promise<void> {
+	Output.clear()
+	_setProjectAssets(assets, theme, textFiles)
+
+	if (_sessionCount > 0) console.groupEnd()
+	// Be cool to print the group header in the theme primary color, but can't use the theme store here
+	// console.group(`%cSunsprite session ${++_sessionCount}`, `color: ${theme?.primary ?? 'white'}; font-weight: bold;`)
+	console.group(`%cSunsprite v${VERSION} session ${++_sessionCount}`, `color: ${Colors.HotPink}; font-weight: bold;`)
+
+	_crash = false
+	clearControls()
+	resizeReactors = []
+	allTimers = []
+	autoSmooths = []
+
+	_keyPressActions.clear()
+	_keyHoldActions.clear()
+	_keyReleaseActions.clear()
+	_mouseInputActions.clear()
+	_mouseHoldActions.clear()
+	_propUpdaters.clear()
+	clearWatchCards()
+	mixer._reset()
+
+	keysPressed = []
+	keysJustPressed.clear()
+	keysJustReleased.clear()
+	// camera.goTo(0, 0)
+
+	// timer.time = 0
+	// timer.totalTime = 0
+	// timer.frame = 0
+	// clock.frame = 0
+	_nextObjectId = 0
+	_lastLeftClickTime = 0
+	
+	Output.printStartMsg(entryName)
+	clock._reset()
+	play()
+
+	// whilePaused loops? or a flag to be able to run standard loops through pause?
+	
+	_engineLive = false
+	if (game) retireGame(game)
+
+	scene = new UserScene(code, entryName)
+
+	let config: Types.Core.GameConfig = {
+		type: AUTO,
+		scale: {
+			// mode: Phaser.Scale.RESIZE
+			mode: Phaser.Scale.NONE
+		},
+		parent: 'game-container',
+		antialias: true,
+		// Phaser defaults this to true, which calls window.focus() from inside
+		// this iframe the moment a game boots (see its VisibilityHandler) —
+		// pulling focus out of whatever the user was doing in the host app.
+		// Every run builds a new Game, so with auto-run on (see
+		// projectSettingsStore) that fired mid-typing and sent the next
+		// keystrokes to the game instead of the editor.
+		//
+		// Nothing needs it: the host forwards key events to the sandbox
+		// whenever it has focus and the user isn't typing into a text surface
+		// (hostBridge.ts's forwardKey), so a game is fully playable by keyboard
+		// without this frame ever holding focus. Clicking the canvas still
+		// hands focus over — natively, plus the explicit focus() in
+		// sandbox/main.ts, which is also what turning this off would otherwise
+		// have cost (Phaser reads autoFocus again in its MouseManager to focus
+		// on canvas mousedown).
+		autoFocus: false,
+		// backgroundColor: '#333',
+		// Every image is cross-origin from in here: the sandbox document has an
+		// opaque origin, so even same-server /images/* is "another origin" to it.
+		// Without requesting them CORS-clean the WebGL renderer refuses to upload
+		// them as textures. Requires the image host to send ACAO (GitHub Pages and
+		// the Vite dev server both do — see vite.config.ts).
+		//
+		// The non-obvious half of this is user-uploaded art on cdn.sunsprite.dev:
+		// because the origin here is opaque, those requests carry `Origin: null`,
+		// which no named allowlist entry can ever match (and which R2 rejects as an
+		// AllowedOrigins value — it validates as scheme://host[:port]). The R2
+		// bucket policy therefore needs a *separate*, read-only rule granting GET to
+		// "*", kept after the narrower rule that grants GET+PUT to the app's real
+		// origins — first match wins, and the browser upload in fileStore.uploadImage
+		// PUTs straight to R2, so a wildcard rule ordered ahead of it would break
+		// uploads. Narrowing that "*" back down to named origins is only possible if
+		// the sandbox is ever moved to a real origin of its own (a subdomain plus
+		// `allow-same-origin`); as long as it stays opaque, "*" is the only thing
+		// `Origin: null` matches.
+		loader: {
+			crossOrigin: 'anonymous'
+		},
+		// Shared across every Game this document builds, so decoded project
+		// sounds and the user's audio unlock both survive a restart — see
+		// assets.ts's _sharedAudioContext. Undefined (no Web Audio) leaves
+		// Phaser to pick its own fallback, same as before.
+		audio: {
+			context: _sharedAudioContext()
+		},
+		scene
+	}
+
+	game = new Game(config)
+	_trackFps(game)
+	resizeStage()
+
+	// The old canvas-click handler that blurred Monaco is gone: clicking the
+	// canvas now moves focus into the sandbox iframe, which blurs the editor
+	// natively.
+}
+
+const resizeDelay = 0 // milliseconds
+export function resizeStage() {
+	new Promise(resolve => setTimeout(resolve, resizeDelay)).then(() => _resizeStage())
+}
+
+function _resizeStage() {
+	// The container's ResizeObserver fires as soon as it starts observing,
+	// which is well before the first run creates a game.
+	if (!game) return
+
+	const size = game.scale.parentSize
+	game.scale.setGameSize(size.width, size.height)
+	_updatePositions()
+}
+
+export function setup() {
+	// TODO: Add 'group' codes like Shift that allows detecting either left or right shift
+	// TODO: Pass a way to detect modifier keys as action param(s)
+	const keyAlias: { [key: string]: string } = {
+		// Rename for simplicity
+		Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4', Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
+		KeyQ: 'Q', KeyW: 'W', KeyE: 'E', KeyR: 'R', KeyT: 'T', KeyY: 'Y', KeyU: 'U', KeyI: 'I', KeyO: 'O', KeyP: 'P',
+		KeyA: 'A', KeyS: 'S', KeyD: 'D', KeyF: 'F', KeyG: 'G', KeyH: 'H', KeyJ: 'J', KeyK: 'K', KeyL: 'L',
+		KeyZ: 'Z', KeyX: 'X', KeyC: 'C', KeyV: 'V', KeyB: 'B', KeyN: 'N', KeyM: 'M',
+		ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up',
+		ControlLeft: 'CtrlLeft', ControlRight: 'CtrlRight', Control: 'Ctrl'
+		// Rename to consolidate 
+		// ShiftLeft: 'Shift', ShiftRight: 'Shift',
+		// ControlLeft: 'Ctrl', ControlRight: 'Ctrl',
+		// AltLeft: 'Alt', AltRight: 'Alt',
+		// NumpadEnter: 'Enter'
+	}
+
+	function apiKeyCode(keyCode: string): string | undefined {
+		return (keyAlias[keyCode] ?? keyCode).toLowerCase()
+	}
+
+	// A keyboard event is delivered to exactly one document, so these two
+	// sources are mutually exclusive and can't double-fire:
+	//   - the listeners below, when the sandbox iframe itself has focus
+	//     (i.e. the user clicked the game canvas), and
+	//   - 'key' messages forwarded by the host, when it has focus instead.
+	// The host is what decides whether a key belongs to the game or to Monaco,
+	// since only it can see the editor.
+	function onKeyDown(rawCode: string) {
+		// Left/right shift can't really be separated the way I was originally thinking, because
+		// the keyup event doesn't trigger if one shift is released while the other is still held.
+		// Left/right shift should be consolidated into one code, just Shift. In order to reduce
+		// confusion I think the same should be done for Ctrl/Alt.
+		// Addend: Enter & NumpadEnter work the same way and will also be consolidated.
+		// Addend.2: Shift behavior is normal on Linux, but Enter still does this?
+		// Addend.3: Can't do further testing now on my laptop, kinda thinking I should remove
+		// Ctrl/Alt/Shift as action keys altogether and just let users check event.shiftKey etc.
+		
+		// pass a key object containing:
+		// event.altKey
+		// event.ctrlKey
+		// event.shiftKey
+		// event.key?
+
+		const keyCode = apiKeyCode(rawCode)
+
+		// Add specific key to keysJustPressed map
+		if (keyCode && !keysPressed.includes(keyCode)) {
+			keysPressed.push(keyCode)
+			keysJustPressed.set(keyCode, clock.frame)
+			
+			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keysPressed.includes('shift')) {
+				keysPressed.push('shift')
+				keysJustPressed.set('shift', clock.frame)
+			}
+
+			else if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keysPressed.includes('ctrl')) {
+				keysPressed.push('ctrl')
+				keysJustPressed.set('ctrl', clock.frame)
+			}
+
+			else if ((keyCode === 'altleft' || keyCode === 'altright') && keysPressed.includes('alt')) {
+				keysPressed.push('alt')
+				keysJustPressed.set('alt', clock.frame)
+			}
+		}
+	}
+
+	function onKeyUp(rawCode: string) {
+		const keyCode = apiKeyCode(rawCode)
+
+		// Add key to justReleased map and remove from pressed array
+		if (keyCode && keysPressed.includes(keyCode)) {
+			// Remove key from keysPressed array
+			keysPressed.splice(keysPressed.indexOf(keyCode), 1)
+			// Only add to map if it was being pressed. This prevents potential extra release events
+			// if releasing key after window regains focus
+			keysJustReleased.set(keyCode, clock.frame)
+
+			if ((keyCode === 'shiftleft' || keyCode === 'shiftright') && !keyPressed('shiftleft') && !keyPressed('shiftright')) {
+				// console.log('clear shift')
+				keysPressed.splice(keysPressed.indexOf('shift'), 1)
+				keysJustReleased.set('shift', clock.frame)
+			}
+
+			if ((keyCode === 'ctrlleft' || keyCode === 'ctrlright') && !keyPressed('ctrlleft') && !keyPressed('ctrlright')) {
+				// console.log('clear ctrl')
+				keysPressed.splice(keysPressed.indexOf('ctrl'), 1)
+				keysJustReleased.set('ctrl', clock.frame)
+			}
+
+			if ((keyCode === 'altleft' || keyCode === 'altright') && !keyPressed('altleft') && !keyPressed('altright')) {
+				// console.log('clear alt')
+				keysPressed.splice(keysPressed.indexOf('alt'), 1)
+				keysJustReleased.set('alt', clock.frame)
+			}
+		}
+	}
+
+	// Exposed so src/sandbox/main.ts can drive the same state machine from the
+	// key events the host forwards while it, rather than the iframe, has focus.
+	handleKeyDown = onKeyDown
+	handleKeyUp = onKeyUp
+
+	// Events seen while the sandbox iframe itself has focus.
+	window.addEventListener('keydown', event => onKeyDown(event.code))
+	window.addEventListener('keyup', event => onKeyUp(event.code))
+	window.addEventListener('contextmenu', () => {
+		// Prevent opening the context menu from holding down pressed keys
+		// Note: this probably doesn't matter since context menu events were disabled
+		// on the game canvas, but I'll leave it here for now.
+		_releaseAllKeys()
+	})
+	window.addEventListener('blur', () => {
+		// Prevent window losing focus from holding down pressed keys
+		_releaseAllKeys()
+	})
+	// window.addEventListener('resize', async () => {
+	// 	new Promise(resolve => setTimeout(resolve, 100)).then(() => {
+	// 		// resizeStage()
+	// 		updatePositions()
+	// 	})
+	// })
+
+	// Last line of defense: anything a user script throws that doesn't reach
+	// one of runUserCallback's try/catches above — a promise the user's own
+	// code never awaited or caught, an error from somewhere genuinely
+	// unwrapped — still deserves to reach the output panel instead of
+	// silently vanishing into this iframe's own (invisible, to the user)
+	// devtools console.
+	window.addEventListener('error', (event) => {
+		reportUserError(event.error ?? event.message)
+		event.preventDefault()
+	})
+	window.addEventListener('unhandledrejection', (event) => {
+		reportUserError(event.reason)
+		event.preventDefault()
+	})
+
+	// app.stage.eventMode = 'dynamic'
+	// app.stage.on('globalmousemove', event => {
+	// 	mouseX = Math.round(event.globalX - app.screen.width / 2)
+	// 	mouseY = Math.round(app.screen.height / 2 - event.globalY)
+	// 	mouseRef.value = { mouseX, mouseY }
+	// })
+	// runUserCode(startCode)
+}

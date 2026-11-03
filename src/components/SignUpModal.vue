@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
-import { supabase } from '@/assets/utils/supabase'
+import { supabase } from '@/utils/supabase'
 
 const authStore = useAuthStore()
 const router = useRouter()

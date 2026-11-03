@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useToast } from '@nuxt/ui/composables'
-import { getForegroundColor } from '@/assets/api/utility'
-// import { CustomColors } from '@/assets/api/Colors'
+import { getForegroundColor } from '@/api/utility'
+// import { CustomColors } from '@/api/Colors'
 
 const toast = useToast()
 const props = defineProps<{ colors: Record<string, string> }>()

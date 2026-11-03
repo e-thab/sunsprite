@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { inject } from 'vue'
-import type { DocCategoryNode } from '@/assets/docs/docsTypes'
-import { docsNavigationKey } from '@/assets/docs/docsNavigation'
+import type { DocCategoryNode } from '@/docs/docsTypes'
+import { docsNavigationKey } from '@/docs/docsNavigation'
 
 defineProps<{
 	node: DocCategoryNode

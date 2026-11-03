@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useFileStore } from '@/stores/fileStore'
-import { nodesByPath } from '@/assets/docs/docsIndex'
+import { nodesByPath } from '@/docs/docsIndex'
 
 /**
  * The contextual title for whichever page is current — a loaded project's

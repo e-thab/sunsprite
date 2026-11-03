@@ -1,6 +1,6 @@
 import * as monaco from 'monaco-editor'
-import { SCRIPT_MONACO_LANGUAGES } from '@/assets/languages/monacoLanguages'
-import Colors from '@/assets/api/Colors'
+import { SCRIPT_MONACO_LANGUAGES } from '@/languages/monacoLanguages'
+import Colors from '@/api/Colors'
 
 // Monaco's own built-in color provider (registered for every language) only
 // recognizes color literals that already look like one in the raw text —

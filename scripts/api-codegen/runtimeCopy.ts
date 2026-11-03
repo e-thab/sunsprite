@@ -80,8 +80,8 @@ export function toSpecifier(fromFile: string, toFile: string): string {
  * SUPPORTING_API_FILES instead.
  */
 const ALLOWED_EXTERNAL_IMPORTS: ReadonlySet<string> = new Set([
-    'assets/api/moduleRunner.ts',
-    'assets/theme/themes.ts',
+    'api/moduleRunner.ts',
+    'theme/themes.ts',
     'sandbox/channel.ts',
     'sandbox/protocol.ts',
 ])

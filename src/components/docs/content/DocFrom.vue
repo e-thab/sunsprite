@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { DocRef } from '@/assets/docs/docsTypes'
+import type { DocRef } from '@/docs/docsTypes'
 import { useDocRefs } from './useDocRefs'
 
 /**

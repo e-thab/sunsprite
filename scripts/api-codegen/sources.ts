@@ -4,9 +4,9 @@ import { REPO_ROOT } from '../aliases'
 
 export { REPO_ROOT }
 
-const API_DIR = path.join(REPO_ROOT, 'src', 'assets', 'api')
+const API_DIR = path.join(REPO_ROOT, 'src', 'api')
 const SANDBOX_DIR = path.join(REPO_ROOT, 'src', 'sandbox')
-const DOCS_API_DIR = path.join(REPO_ROOT, 'src', 'assets', 'docs', 'content', 'api')
+const DOCS_API_DIR = path.join(REPO_ROOT, 'src', 'docs', 'content', 'api')
 
 export function apiPath(...segments: string[]): string {
     return path.join(API_DIR, ...segments)
@@ -28,6 +28,7 @@ export const MIXINS = [
     { file: apiPath('mixins', 'Viewable.ts'), typeName: 'ViewableProps', functionName: 'Viewable' },
     { file: apiPath('mixins', 'Interactable.ts'), typeName: 'InteractableProps', functionName: 'Interactable' },
     { file: apiPath('mixins', 'Timeable.ts'), typeName: undefined, functionName: 'Timeable' },
+    { file: apiPath('mixins', 'Destructible.ts'), typeName: undefined, functionName: 'Destructible' },
     // Shape-only, composed by Shape.ts rather than GameObject.ts — so they
     // reach Rectangle/Circle through `extends Shape`, not a mixin chain the
     // class itself writes out. Still listed here like any other mixin:
@@ -63,9 +64,8 @@ export const CONCRETE_CLASSES = [
     // Timer()`, `new Vector2(x, y)`), so constructorParams carries their
     // real (hand-written — constructors aren't extracted) parameter list,
     // and both render as `declare class X { constructor(...); ... }`.
-    // Mouse lives in types.ts, not its own file — findDefaultExportClass
-    // matches any exported class regardless of file name, and it's the
-    // only exported class in that file.
+    // Mouse lives in types.ts, not its own file — findExportedClass looks
+    // the class up by className, regardless of file name.
     { file: apiPath('Camera.ts'), typeName: undefined, className: 'Camera', constructorParams: undefined },
     { file: apiPath('Vector2.ts'), typeName: undefined, className: 'Vector2', constructorParams: 'x: number, y: number' },
     { file: apiPath('Timer.ts'), typeName: undefined, className: 'Timer', constructorParams: '' },
@@ -73,18 +73,32 @@ export const CONCRETE_CLASSES = [
     { file: apiPath('Screen.ts'), typeName: undefined, className: 'Screen', constructorParams: undefined },
     { file: apiPath('types.ts'), typeName: undefined, className: 'Mouse', constructorParams: undefined },
     { file: apiPath('Background.ts'), typeName: undefined, className: 'Background', constructorParams: undefined },
+    { file: apiPath('Mixer.ts'), typeName: undefined, className: 'Mixer', constructorParams: undefined },
+] as const
+
+/**
+ * Classes user code gets instances of but never reaches by name — not keys of
+ * core.ts's `api` object, so neither constructible nor a global value. Their
+ * members are extracted exactly like CONCRETE_CLASSES', but they're declared
+ * as an `interface` (type only): a `class`/`const` declaration would let the
+ * editor accept `new Bus(...)` or `Bus.x`, which throw at runtime.
+ */
+export const TYPE_ONLY_CLASSES = [
+    // Reached through Mixer.bus(name) / Mixer.addBus(...) / Mixer.buses.
+    { file: apiPath('Bus.ts'), className: 'Bus' },
 ] as const
 
 export const GAME_OBJECT_FILE = apiPath('GameObject.ts')
 
 /**
  * Plain `const <exportName> = {...}` object literals (not classes) that are
- * part of the real api-object surface — currently just Random. Extracted via
+ * part of the real api-object surface — Random and Files. Extracted via
  * extractObjectLiteral into the same propsFields/members shape a concrete
  * class produces, so it shares render.ts's existing output path.
  */
 export const OBJECT_LITERALS = [
     { file: apiPath('Random.ts'), exportName: 'Random', className: 'Random' },
+    { file: apiPath('Files.ts'), exportName: 'Files', className: 'Files' },
 ] as const
 
 /**
@@ -107,6 +121,13 @@ export const OBJECT_LITERALS = [
 export const TYPE_ALIASES = [
     { file: apiPath('Background.ts'), name: 'BackgroundStyle' },
     { file: apiPath('Background.ts'), name: 'BackgroundProps' },
+    // Mixer.addBus's options object.
+    { file: apiPath('Bus.ts'), name: 'BusProps' },
+    // Sprite.tintMode's getter type. The TintMode enum itself isn't on the api
+    // object, so this alias expands it to its plain string values.
+    { file: apiPath('Sprite.ts'), name: 'TintModeName' },
+    // Sprite.blendMode's getter type, the same way.
+    { file: apiPath('Sprite.ts'), name: 'BlendModeName' },
 ] as const
 
 /**
@@ -119,13 +140,14 @@ export const TYPE_ALIASES = [
  * but are just as real a part of the runtime surface.
  */
 export const FREE_FUNCTIONS = [
-    { file: apiPath('core.ts'), name: 'forever' },
-    { file: apiPath('core.ts'), name: 'repeat' },
-    { file: apiPath('core.ts'), name: 'repeatUntil' },
-    { file: apiPath('core.ts'), name: 'repeatWhile' },
-    { file: apiPath('core.ts'), name: 'after' },
-    { file: apiPath('core.ts'), name: 'every' },
-    { file: apiPath('core.ts'), name: 'when' },
+    { file: apiPath('control.ts'), name: 'forever' },
+    { file: apiPath('control.ts'), name: 'repeat' },
+    { file: apiPath('control.ts'), name: 'repeatUntil' },
+    { file: apiPath('control.ts'), name: 'repeatWhile' },
+    { file: apiPath('control.ts'), name: 'after' },
+    { file: apiPath('control.ts'), name: 'every' },
+    { file: apiPath('control.ts'), name: 'when' },
+    { file: apiPath('control.ts'), name: 'wait' },
     { file: apiPath('core.ts'), name: 'keyPressed' },
     { file: apiPath('core.ts'), name: 'keyJustPressed' },
     { file: apiPath('core.ts'), name: 'keyJustReleased' },
@@ -145,6 +167,9 @@ export const FREE_FUNCTIONS = [
     { file: apiPath('utility.ts'), name: 'tan' },
     { file: apiPath('utility.ts'), name: 'atan2' },
     { file: apiPath('utility.ts'), name: 'clamp' },
+    { file: apiPath('utility.ts'), name: 'smoothStep' },
+    { file: apiPath('core.ts'), name: 'smoothDamp' },
+    { file: apiPath('core.ts'), name: 'smoothFollow' },
 ] as const
 
 /**
@@ -162,15 +187,15 @@ export const SET_TYPE_OVERRIDES: Record<string, string> = {
 }
 
 /**
- * Files under src/assets/api/ that are part of the real, runnable API surface
+ * Files under src/api/ that are part of the real, runnable API surface
  * but aren't already named by MIXINS/CONCRETE_CLASSES/GAME_OBJECT_FILE above —
  * core.ts included, since it's not a clean "engine" layer underneath the API,
  * it's mutually circular with it (Camera/Random/Timer/types/the mixins all
  * import live bindings back from it, and it imports the concrete classes).
  * Deliberately excluded, confirmed safe: moduleRunner.ts/scriptResolution.ts
- * (generic script-compilation engine, version-agnostic), examples.ts/gameAssets.ts
- * (zero imports, host-only), api.d.ts/apiLib.ts (the declaration system itself,
- * not runtime code), and src/assets/api/output.ts (the *host-side* DOM output
+ * (generic script-compilation engine, version-agnostic), examples.ts/library.ts
+ * (host-only; library.ts is the editor's view of virtual:library), api.d.ts/apiLib.ts (the declaration system itself,
+ * not runtime code), and src/api/output.ts (the *host-side* DOM output
  * renderer — a different file from src/sandbox/output.ts below, which is the
  * one core.ts actually imports).
  */
@@ -178,15 +203,20 @@ export const SUPPORTING_API_FILES = [
     apiPath('utility.ts'),
     apiPath('Colors.ts'),
     apiPath('core.ts'),
+    apiPath('control.ts'),
     apiPath('types.ts'),
     apiPath('mixins', 'index.ts'),
     apiPath('mixins', 'shared.ts'),
     apiPath('Shape.ts'),
     apiPath('Warning.ts'),
+    // Project-file preloading/caching (core.ts, Sprite, Background, Sound) and
+    // the pure name helpers it shares with the editor's typo markers.
+    apiPath('assets.ts'),
+    apiPath('fileNames.ts'),
 ]
 
 /**
- * Two files outside src/assets/api/ that core.ts circularly imports live
+ * Two files outside src/api/ that core.ts circularly imports live
  * (watch/unwatch/clearWatchCards, and the Output/print machinery) — confirmed
  * in scope with the user despite being diagnostic tooling rather than
  * game-behavior API, since core.ts can't run without them.
@@ -202,11 +232,13 @@ export function runtimeCopySet(): string[] {
         ...SUPPORTING_API_FILES,
         ...SANDBOX_RUNTIME_FILES,
         // FREE_FUNCTIONS isn't included here — every file it points at
-        // (core.ts, utility.ts, sandbox/watch.ts) is already covered above.
+        // (core.ts, control.ts, utility.ts, sandbox/watch.ts) is already covered above.
         // OBJECT_LITERALS' files aren't otherwise covered (Random.ts used to
         // reach the copy set via SUPPORTING_API_FILES; now it's only reached
         // through extraction, so it has to be added back explicitly here).
         ...OBJECT_LITERALS.map((o) => o.file),
+        // Same for TYPE_ONLY_CLASSES (Bus.ts, imported by Sound.ts and Mixer.ts).
+        ...TYPE_ONLY_CLASSES.map((c) => c.file),
     ]
 }
 

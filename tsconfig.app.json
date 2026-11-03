@@ -21,8 +21,8 @@
     // directory must be excluded there via TYPE_ONLY_PATTERNS.
     "paths": {
       "@/*": ["./src/*"],
-      "@api/*": ["./src/assets/api/*"],
-      "@mixins/*": ["./src/assets/api/mixins/*"],
+      "@api/*": ["./src/api/*"],
+      "@mixins/*": ["./src/api/mixins/*"],
 
       // Nuxt
       "#build/ui/*": [

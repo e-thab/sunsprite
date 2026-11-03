@@ -112,7 +112,7 @@ flattens into the prototype: no per-object slot tags, no branch in hot paths.
 
 ## Application to sunsprite
 
-A survey of `src/assets/api/mixins/` found **no genuine disjunction anywhere**:
+A survey of `src/api/mixins/` found **no genuine disjunction anywhere**:
 
 - `position`, `pos`, `distanceTo`, `goTo`, `screenPosition` — all need exactly `{x, y}`
 - `lookAt` (currently a TODO stub in `Rotatable.ts`) — needs `{x, y, rotation}`

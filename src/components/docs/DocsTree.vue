@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import type { TreeItem } from '@nuxt/ui'
-import type { DocNode } from '@/assets/docs/docsTypes'
-import { docsNavigationKey } from '@/assets/docs/docsNavigation'
-import { docsDataKey } from '@/assets/docs/docsData'
+import type { DocNode } from '@/docs/docsTypes'
+import { docsNavigationKey } from '@/docs/docsNavigation'
+import { docsDataKey } from '@/docs/docsData'
 
 const props = defineProps<{
 	nodes: DocNode[]
