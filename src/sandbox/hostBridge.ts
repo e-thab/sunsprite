@@ -210,10 +210,12 @@ function onSandboxMessage(event: MessageEvent) {
 }
 
 /**
- * Same content source CodeEditor.vue resolves models against, so the editor and
- * the running game always agree on what './helper.js' means. A miss — in a
- * loaded project or the guest sandbox alike, both real record-backed file
- * lists now — is a genuine error and stays undefined.
+ * Answered from the snapshot runUserCode took at the start of this run, so an
+ * import gets the same content the editor had open when Run/Restart was hit —
+ * unsaved edits included — even if the import itself only happens mid-game.
+ * Falls back to saved content for a script created since the run started. A
+ * miss — in a loaded project or the guest sandbox alike, both real
+ * record-backed file lists now — is a genuine error and stays undefined.
  *
  * Text files are excluded: getLocalCode serves them too (the editor opens
  * them through it), but they're data, not modules — `import './notes.txt'`
@@ -223,10 +225,16 @@ function onSandboxMessage(event: MessageEvent) {
 function resolveScript(name: string): string | undefined {
     const fileStore = useFileStore()
     if (fileStore.isTextFile(name)) return undefined
-    return fileStore.getLocalCode(name)
+    return fileStore.scriptSnapshot[name] ?? fileStore.getLocalCode(name)
 }
 
 export interface RunOptions {
+    /**
+     * Current value of every open editor model, keyed by file name — scripts
+     * and text files alike, possibly unsaved. Only CodeEditor.vue can see
+     * those; anything without an entry runs as last saved.
+     */
+    liveContent?: Record<string, string>
     /**
      * Build the game but leave it paused on its first frame until Play (or
      * another run) starts it — the editor's first run after loading, so
@@ -254,10 +262,16 @@ export function runUserCode(code: string, entryName: string, theme?: ThemePalett
     // reason the version check above is. Copied into fresh plain objects so
     // nothing reactive ever reaches postMessage's structured clone.
     const fileStore = useFileStore()
+    const liveContent = options.liveContent ?? {}
+    // Every run (re)starts the game, so every run re-baselines the "changed
+    // since run" snapshot — and which script it ran, which decides whether
+    // Restart or that script's own play button gets the highlight (see
+    // fileStore's runningScriptName). resolveScript serves imports from it.
+    fileStore.snapshotScripts(entryName, liveContent)
     const assets = fileStore.projectAssets.map(({ name, kind, url }) => ({ name, kind, url }))
     // Read straight off the store at post time rather than through a computed
     // like projectAssets, which would re-run on every keystroke in a text file.
-    const textFiles = fileStore.textFiles.map(({ name, content }) => ({ name, content }))
+    const textFiles = fileStore.textFiles.map(({ name, content }) => ({ name, content: liveContent[name] ?? content }))
 
     const run: Omit<RunMessage, 'type'> = { code, entryName, theme, assets, textFiles }
     if (options.paused) {

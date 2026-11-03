@@ -265,6 +265,13 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 	editor.onDidChangeCursorSelection(rememberViewState)
 	editor.onDidChangeHiddenAreas(rememberViewState)
 
+	// Straight from Monaco rather than through the wrapper's @change, which
+	// only emits when the new text differs from its `value` prop. That prop
+	// isn't bound here, so it sits at its default of '' — and the one edit the
+	// wrapper then swallows is the one that empties the file, leaving a
+	// cleared-out file showing as saved.
+	editor.onDidChangeModelContent(() => onEditorChange(editor.getValue()))
+
 	editor.updateOptions({
 		codeLens: false,
 		definitionLinkOpensInPeek: true,
@@ -871,20 +878,17 @@ async function saveAll() {
 // ensureModel loads a script that's never been opened from its last saved
 // content; one that's already open (with live, possibly unsaved edits)
 // keeps using that model, same as running the active file always has.
-// Every run (re)starts the game, so every run re-baselines the "changed
-// since run" snapshot — along with which script it ran, which is what
-// decides whether Restart or that script's own play button gets the
-// highlight (see fileStore's runningScriptName).
+// The same goes for everything else the run touches: every open model's
+// live value is handed over too, so the scripts it imports and the text
+// files it reads run as edited, not as last saved (see hostBridge's
+// runUserCode, which also takes the "changed since run" snapshot from them).
 function runNamedScript(name: string, options?: RunOptions) {
 	clearErrorDecoration()
 	clearWarningHighlights()
 	const code = ensureModel(name)?.getValue() ?? ''
 	const liveContent: Record<string, string> = {}
-	for (const [modelName, entry] of modelEntries) {
-		if (!entry.isText) liveContent[modelName] = entry.model.getValue()
-	}
-	fileStore.snapshotScripts(name, liveContent)
-	runUserCode(code, name, themeStore.current, options)
+	for (const [modelName, entry] of modelEntries) liveContent[modelName] = entry.model.getValue()
+	runUserCode(code, name, themeStore.current, { ...options, liveContent })
 }
 
 function runActiveUserCode() {
@@ -1221,7 +1225,6 @@ onBeforeUnmount(() => projectAssetsLibDisposable.dispose())
 				:theme="activeMonacoTheme"
 				:options="editorOptions"
 				@editorDidMount="handleMount"
-				@change="onEditorChange"
 				@error="handleErr"
 			/>
 		</div>

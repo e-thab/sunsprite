@@ -177,9 +177,11 @@ export const useFileStore = defineStore('files', () => {
     }
 
     // Every script's *live* content at the moment the game was last
-    // (re)started (see CodeEditor.vue's runMainScript) — including whatever
+    // (re)started (see hostBridge's runUserCode) — including whatever
     // unsaved edits were sitting in an open model, since that's the actual
-    // code that ran. Lets the restart button's warning chip track "does the
+    // code that ran. It's also what the running game's imports are served
+    // from (hostBridge's resolveScript), so the two can't disagree. Lets the
+    // restart button's warning chip track "does the
     // project's script state differ from what's actually running" instead of
     // just "is anything dirty right now": a save alone doesn't clear the
     // difference (the new content still hasn't been run), and restarting
@@ -206,10 +208,11 @@ export const useFileStore = defineStore('files', () => {
     }
 
     // `liveContent` carries the current value of every open (possibly
-    // unsaved) Monaco model, keyed by script name — CodeEditor.vue is the
+    // unsaved) Monaco model, keyed by file name — CodeEditor.vue is the
     // only thing that can see those, so it's the one that has to hand them
-    // over. A script with no entry (never opened) falls back to its saved
-    // content, which is necessarily what's about to run for it too.
+    // over (text files' entries are simply never looked up here). A script
+    // with no entry (never opened, or a PlayView run) falls back to its saved
+    // content, which is then what resolveScript serves for it too.
     function snapshotScripts(entryName: string, liveContent: Record<string, string> = {}) {
         const snapshot: Record<string, string> = {}
         for (const script of scripts.value) snapshot[script.name] = liveContent[script.name] ?? script.content
