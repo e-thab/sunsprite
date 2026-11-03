@@ -90,8 +90,9 @@ export function Interactable<Base extends Class<{x: number, y: number}>>(base: B
         }
 
         _initInteractable(props?: InteractableProps) {
+            // Interactivity is enabled lazily (see _updateInteractive) so that objects without
+            // mouse actions don't block pointer events from reaching objects underneath them
             this.draggable = props?.draggable ?? false
-            this._setInteractive()
             if (props?.cursor) this.cursor = props.cursor
 
             // Warning if providing onMouse along with other event registers
@@ -276,13 +277,14 @@ export function Interactable<Base extends Class<{x: number, y: number}>>(base: B
             }
 
             if (!cursor || cursorObj.src === 'default') {
-                // Disable interactive here if no input actions are defined?
                 this._cursor = undefined
-                this._refObj.input.cursor = false
+                if (this._refObj.input) this._refObj.input.cursor = false
+                this._updateInteractive()
                 return
             }
 
             this._cursor = cursorObj
+            this._updateInteractive()
 
             // Absolutely find a better way to do this, just testing for now
             const url = `url(cursors/${cursorObj.src})`
@@ -502,13 +504,34 @@ export function Interactable<Base extends Class<{x: number, y: number}>>(base: B
             if (draggable === this._draggable) return
 
             this._draggable = draggable
-            this._setInteractive()
+            this._updateInteractive()
             // scene.input.setDraggable(this._refObj, draggable)
         }
 
         /** Set this object's hover cursor back to the default pointer. */
         resetCursor() {
             this.cursor = 'default'
+        }
+
+        /**
+         * Whether this object needs Phaser input enabled. Drag actions alone don't count since
+         * they can't fire unless the object is draggable (and there's always a default onDrag).
+         */
+        _needsInteractive(): boolean {
+            if (this._draggable || this._cursor) return true
+            // Note: PointerEvents can't be referenced at module level due to a circular import with core
+            for (const eventName of this._eventActions.keys()) {
+                if (eventName !== PointerEvents.DRAG
+                    && eventName !== PointerEvents.DRAG_START
+                    && eventName !== PointerEvents.DRAG_END) return true
+            }
+            return false
+        }
+
+        /** Enable or disable Phaser input depending on whether any mouse behavior is defined. */
+        _updateInteractive() {
+            if (this._needsInteractive()) this._setInteractive()
+            else this._disableInteractive()
         }
 
         _setInteractive() {
@@ -549,6 +572,8 @@ export function Interactable<Base extends Class<{x: number, y: number}>>(base: B
             } else {
                 this._eventActions.delete(eventName)
             }
+
+            this._updateInteractive()
         }
     }
 }

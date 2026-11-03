@@ -234,9 +234,35 @@ export function setClientAudio(volume: number, muted: boolean) {
 	setClientMute(muted)
 }
 
-/** Current renderer frame rate, or 0 before a game exists. */
+/**
+ * How far back currentFps() looks. Phaser's own loop.actualFps only updates
+ * once a second, and then only moves 25% of the way to the new count, so it
+ * takes ~8s to settle after a change.
+ */
+const FPS_WINDOW_MS = 2000
+/** Timestamps of the current game's steps within the last FPS_WINDOW_MS. */
+let frameTimes: number[] = []
+
+/** Internal. Start sampling `g`'s steps for currentFps(), dropping the previous game's. */
+function _trackFps(g: Game) {
+	frameTimes = []
+	g.events.on(Phaser.Core.Events.POST_STEP, (time: number) => {
+		// A retired game keeps stepping through its fade-out (see retireGame).
+		if (g !== game) return
+		frameTimes.push(time)
+		// Never empties: the time just pushed is always inside the window.
+		while (frameTimes[0]! < time - FPS_WINDOW_MS) frameTimes.shift()
+	})
+	// Phaser stops the loop while the tab is hidden; without this the gap
+	// would drag the average down until it aged out.
+	g.events.on(Phaser.Core.Events.VISIBLE, () => frameTimes = [])
+}
+
+/** Current renderer frame rate averaged over the last FPS_WINDOW_MS, or 0 before a game exists. */
 export function currentFps(): number {
-	return game ? Math.round(game.loop.actualFps) : 0
+	if (frameTimes.length < 2) return 0
+	const span = frameTimes[frameTimes.length - 1]! - frameTimes[0]!
+	return span > 0 ? Math.round((frameTimes.length - 1) * 1000 / span) : 0
 }
 
 /**
@@ -1240,6 +1266,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	}
 
 	game = new Game(config)
+	_trackFps(game)
 	resizeStage()
 
 	// The old canvas-click handler that blurred Monaco is gone: clicking the
