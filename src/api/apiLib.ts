@@ -29,13 +29,13 @@ import {
     positionableApi,
     positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
     fillablePropsTypeDef, outlinablePropsTypeDef,
-    spritePropsFields, spriteMembers, tintModeNameDeclaration,
-    rectanglePropsFields, rectangleMembers,
-    circlePropsFields, circleMembers,
-    labelPropsFields, labelMembers,
-    linePropsFields, lineMembers,
-    hLinePropsFields, hLineMembers,
-    vLinePropsFields, vLineMembers,
+    spritePropsFields, spritePropsOmitted, spriteMembers, tintModeNameDeclaration, blendModeNameDeclaration,
+    rectanglePropsFields, rectanglePropsOmitted, rectangleMembers,
+    circlePropsFields, circlePropsOmitted, circleMembers,
+    labelPropsFields, labelPropsOmitted, labelMembers,
+    linePropsFields, linePropsOmitted, lineMembers,
+    hLinePropsFields, hLinePropsOmitted, hLineMembers,
+    vLinePropsFields, vLinePropsOmitted, vLineMembers,
     soundPropsFields, soundMembers, busMembers, busPropsDeclaration, mixerMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
     randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
@@ -68,20 +68,31 @@ export interface VersionedApiConstants {
     fillablePropsTypeDef: string
     outlinablePropsTypeDef: string
     spritePropsFields: string
+    // Optional, as are the other *PropsOmitted: snapshots cut before
+    // class-level @default tags reached the declarations don't export them.
+    spritePropsOmitted?: string
     spriteMembers: string
     // Optional: snapshots cut before sprite tinting existed don't export it.
     tintModeNameDeclaration?: string
+    // Optional: snapshots cut before it existed don't export it.
+    blendModeNameDeclaration?: string
     rectanglePropsFields: string
+    rectanglePropsOmitted?: string
     rectangleMembers: string
     circlePropsFields: string
+    circlePropsOmitted?: string
     circleMembers: string
     labelPropsFields: string
+    labelPropsOmitted?: string
     labelMembers: string
     linePropsFields: string
+    linePropsOmitted?: string
     lineMembers: string
     hLinePropsFields: string
+    hLinePropsOmitted?: string
     hLineMembers: string
     vLinePropsFields: string
+    vLinePropsOmitted?: string
     vLineMembers: string
     soundPropsFields: string
     soundMembers: string
@@ -157,6 +168,15 @@ export interface VersionedApiConstants {
     smoothDampDeclaration?: string
     // Optional: snapshots cut before smoothFollow existed don't export it.
     smoothFollowDeclaration?: string
+}
+
+/**
+ * A class's props base, less the inherited fields the class re-declares with
+ * its own class-level `@default` (Sprite's `width`) — otherwise the editor
+ * would show both fields' docs, the mixin's default and the class's, at once.
+ */
+function propsBase(base: string, omitted: string | undefined): string {
+    return omitted ? `Omit<${base}, ${omitted}>` : base
 }
 
 // TODO: Maybe each lib 'module' (Random, Colors, etc.) should be its own model
@@ -590,11 +610,13 @@ const PI = ${Math.PI}`,
 // Sprite
 // TODO: include default values
 `
-type SpriteProps = GameObjectProps & {
+type SpriteProps = ${propsBase('GameObjectProps', v.spritePropsOmitted)} & {
 ${v.spritePropsFields}
 }
 
 ${v.tintModeNameDeclaration ?? ''}
+
+${v.blendModeNameDeclaration ?? ''}
 
 ${v.spriteDoc}class Sprite {
     /**
@@ -608,7 +630,7 @@ ${v.spriteMembers}
 
 // Rectangle
 `
-type RectangleProps = ShapeProps & {
+type RectangleProps = ${propsBase('ShapeProps', v.rectanglePropsOmitted)} & {
 ${v.rectanglePropsFields}
 }
 
@@ -627,7 +649,7 @@ ${v.rectangleMembers}
 // setters. Using [x, y] to define a point in the props object is no problem, but
 // when just doing something like line.pointA = [x, y] it raises an error along
 // the lines of 'number[] not assignable to [number, number] (Target requires 2 element(s) but source may have fewer)'
-`type LineProps = RotatableProps & ViewableProps & {
+`type LineProps = ${propsBase('RotatableProps & ViewableProps', v.linePropsOmitted)} & {
 ${v.linePropsFields}
 }
 
@@ -642,7 +664,7 @@ ${v.lineMembers}
 }`,
 
 // VLine
-`type VLineProps = ViewableProps & {
+`type VLineProps = ${propsBase('ViewableProps', v.vLinePropsOmitted)} & {
 ${v.vLinePropsFields}
 }
 
@@ -657,7 +679,7 @@ ${v.vLineMembers}
 }`,
 
 // HLine
-`type HLineProps = ViewableProps & {
+`type HLineProps = ${propsBase('ViewableProps', v.hLinePropsOmitted)} & {
 ${v.hLinePropsFields}
 }
 
@@ -672,7 +694,7 @@ ${v.hLineMembers}
 }`,
 
 // Label
-`type LabelProps = GameObjectProps & {
+`type LabelProps = ${propsBase('GameObjectProps', v.labelPropsOmitted)} & {
 ${v.labelPropsFields}
 }
 
@@ -687,7 +709,7 @@ ${v.labelMembers}
 }`,
 
 // Circle
-`type CircleProps = ShapeProps & {
+`type CircleProps = ${propsBase('ShapeProps', v.circlePropsOmitted)} & {
 ${v.circlePropsFields}
 }
 
@@ -759,13 +781,13 @@ export const apiLib = buildApiLib({
     positionableApi,
     positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
     fillablePropsTypeDef, outlinablePropsTypeDef,
-    spritePropsFields, spriteMembers, tintModeNameDeclaration,
-    rectanglePropsFields, rectangleMembers,
-    circlePropsFields, circleMembers,
-    labelPropsFields, labelMembers,
-    linePropsFields, lineMembers,
-    hLinePropsFields, hLineMembers,
-    vLinePropsFields, vLineMembers,
+    spritePropsFields, spritePropsOmitted, spriteMembers, tintModeNameDeclaration, blendModeNameDeclaration,
+    rectanglePropsFields, rectanglePropsOmitted, rectangleMembers,
+    circlePropsFields, circlePropsOmitted, circleMembers,
+    labelPropsFields, labelPropsOmitted, labelMembers,
+    linePropsFields, linePropsOmitted, lineMembers,
+    hLinePropsFields, hLinePropsOmitted, hLineMembers,
+    vLinePropsFields, vLinePropsOmitted, vLineMembers,
     soundPropsFields, soundMembers, busMembers, busPropsDeclaration, mixerMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
     randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,

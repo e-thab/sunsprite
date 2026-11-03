@@ -68,9 +68,9 @@ function _phaserBlendMode(mode: BlendMode): Phaser.BlendModes {
         case BlendMode.ADD:
             return Phaser.BlendModes.ADD
         case BlendMode.NORMAL:
-            return Phaser.BlendModes.HARD_LIGHT
+            return Phaser.BlendModes.NORMAL
         case BlendMode.MULTIPLY:
-            return Phaser.BlendModes.OVERLAY
+            return Phaser.BlendModes.MULTIPLY
         case BlendMode.SCREEN:
             return Phaser.BlendModes.SCREEN
         case BlendMode.ERASE:
@@ -92,6 +92,44 @@ type SpriteProps = GameObjectProps & {
      * @default `undefined`
      */
     src?: ImageSource
+    /**
+     * Color the sprite is tinted. Applied before the corner tints below, so
+     * any of those given override it for their own corner.
+     * @default `'#ffffff'`
+     */
+    tint?: string
+    /**
+     * Color the top left corner of the sprite is tinted.
+     * @default `'#ffffff'`
+     */
+    tintTopLeft?: string
+    /**
+     * Color the top right corner of the sprite is tinted.
+     * @default `'#ffffff'`
+     */
+    tintTopRight?: string
+    /**
+     * Color the bottom left corner of the sprite is tinted.
+     * @default `'#ffffff'`
+     */
+    tintBottomLeft?: string
+    /**
+     * Color the bottom right corner of the sprite is tinted.
+     * @default `'#ffffff'`
+     */
+    tintBottomRight?: string
+    /**
+     * Tint mode applied when drawing a tint on the sprite's texture: 'add', 'fill',
+     * 'hard_light', 'multiply', 'overlay', or 'screen'. See Sprite.tintMode.
+     * @default `'multiply'`
+     */
+    tintMode?: TintModeName
+    /**
+     * Blend mode applied when drawing this sprite: 'add', 'erase', 'normal',
+     * 'multiply', or 'screen'. See Sprite.blendMode.
+     * @default `'normal'`
+     */
+    blendMode?: BlendModeName
 }
 
 /**
@@ -103,7 +141,7 @@ type SpriteProps = GameObjectProps & {
 export default class Sprite extends GameObject {
     readonly _sprite: Phaser.GameObjects.Sprite
     _src?: string
-    _blendMode: string = 'normal'
+    _blendMode: BlendMode = BlendMode.NORMAL
     _tint: string = '#ffffff'
     _tintTopLeft: string = '#ffffff'
     _tintTopRight: string = '#ffffff'
@@ -118,6 +156,14 @@ export default class Sprite extends GameObject {
         this._sprite = sprite // Reference to Phaser object used within this class (for readability)
         
         this.src = props?.src
+        
+        if (props?.tint !== undefined) this.tint = props.tint
+        if (props?.tintTopLeft !== undefined) this.tintTopLeft = props.tintTopLeft
+        if (props?.tintTopRight !== undefined) this.tintTopRight = props.tintTopRight
+        if (props?.tintBottomLeft !== undefined) this.tintBottomLeft = props.tintBottomLeft
+        if (props?.tintBottomRight !== undefined) this.tintBottomRight = props.tintBottomRight
+        if (props?.tintMode !== undefined) this.tintMode = props.tintMode
+        if (props?.blendMode !== undefined) this.blendMode = props.blendMode
         // Set mixin props
         this._initMixins(props)
         
@@ -209,7 +255,9 @@ export default class Sprite extends GameObject {
     }
 
     /**
-     * Color the sprite is tinted. If no tint has been applied, this will be white: #ffffff.
+     * Color the whole sprite is tinted. Setting it tints all four corners; a
+     * corner tinted afterwards (tintTopLeft, etc.) keeps its own color without
+     * changing this one. If no tint has been applied, this will be white: #ffffff.
      * @default `'#ffffff'`
      */
     get tint(): string {
@@ -233,7 +281,6 @@ export default class Sprite extends GameObject {
         return this._tintTopLeft
     }
     set tintTopLeft(color: string) {
-        this._tint = color
         this._tintTopLeft = color
         this._sprite.tintTopLeft = _hexStringToColor(color)
     }
@@ -301,15 +348,21 @@ export default class Sprite extends GameObject {
      * the top right white, the bottom left blue, and the bottom right white.
      */
     setTint(allOrTopLeft: string, topRight?: string, bottomLeft?: string, bottomRight?: string) {
-        this._tint = allOrTopLeft
         this._tintTopLeft = allOrTopLeft
         if (topRight !== undefined || bottomLeft !== undefined || bottomRight !== undefined) {
+            // Corners given one by one: there's no whole-sprite color, and the
+            // ones left out are white, so that's what tint reports.
+            this._tint = '#ffffff'
             this._tintTopRight = topRight ?? '#ffffff'
             this._tintBottomLeft = bottomLeft ?? '#ffffff'
             this._tintBottomRight = bottomRight ?? '#ffffff'
             const { tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight } = this._tintHexColors
             this._sprite.setTint(tintTopLeft, tintTopRight, tintBottomLeft, tintBottomRight)
         } else {
+            this._tint = allOrTopLeft
+            this._tintTopRight = allOrTopLeft
+            this._tintBottomLeft = allOrTopLeft
+            this._tintBottomRight = allOrTopLeft
             this._sprite.setTint(_hexStringToColor(allOrTopLeft))
         }
     }
@@ -349,10 +402,10 @@ export default class Sprite extends GameObject {
      * 
      * @default `'normal'`
      */
-    get blendMode(): string {
+    get blendMode(): BlendModeName {
         return this._blendMode
     }
-    set blendMode(mode: BlendMode) {
+    set blendMode(mode: string) {
         const modeName = mode.toLowerCase()
         if (!isBlendMode(modeName)) {
             Output.runtimeWarning(`Invalid blend mode, must be one of: ['add', 'erase'(?), 'normal', 'multiply', 'screen']. Ignoring this command.`, currentLocation())

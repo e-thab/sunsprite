@@ -126,6 +126,8 @@ export const TYPE_ALIASES = [
     // Sprite.tintMode's getter type. The TintMode enum itself isn't on the api
     // object, so this alias expands it to its plain string values.
     { file: apiPath('Sprite.ts'), name: 'TintModeName' },
+    // Sprite.blendMode's getter type, the same way.
+    { file: apiPath('Sprite.ts'), name: 'BlendModeName' },
 ] as const
 
 /**

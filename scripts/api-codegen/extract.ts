@@ -52,13 +52,17 @@ export function extractPropsFields(typeAlias: ts.TypeAliasDeclaration): string[]
     const lines: string[] = []
     for (const member of typeLiteral.members) {
         if (!ts.isPropertySignature(member) || !member.type) continue
-        const name = member.name.getText(sourceFile)
-        const optional = member.questionToken ? '?' : ''
-        const type = member.type.getText(sourceFile)
-        const doc = extractDoc(member)
-        lines.push(`${formatDocBlock(doc, INDENT)}${INDENT}${name}${optional}: ${type}`)
+        lines.push(renderPropsField(member, member.type, extractDoc(member)))
     }
     return lines
+}
+
+/** One `*Props` field as a doc-commented line, `doc` standing in for the field's own (see extractConcreteClass's class-level defaults). */
+function renderPropsField(member: ts.PropertySignature, type: ts.TypeNode, doc: ExtractedDoc): string {
+    const sourceFile = member.getSourceFile()
+    const name = member.name.getText(sourceFile)
+    const optional = member.questionToken ? '?' : ''
+    return `${formatDocBlock(doc, INDENT)}${INDENT}${name}${optional}: ${type.getText(sourceFile)}`
 }
 
 /**
@@ -201,9 +205,8 @@ function renderConstObjectType(checker: ts.TypeChecker, literal: ts.ObjectLitera
     return `{\n${indented.join('\n\n')}\n${INDENT}}`
 }
 
-function renderAccessor(name: string, group: AccessorGroup, overrideKey: string, checker: ts.TypeChecker): string {
+function renderAccessor(name: string, group: AccessorGroup, overrideKey: string, checker: ts.TypeChecker, doc = extractDoc(group.getter)): string {
     const sourceFile = group.getter.getSourceFile()
-    const doc = extractDoc(group.getter)
     const constObject = group.setter ? undefined : returnedConstObjectLiteral(group.getter, checker)
     const getType = constObject ? renderConstObjectType(checker, constObject) : returnTypeText(group.getter, checker, sourceFile)
     const staticPrefix = group.isStatic ? 'static ' : ''
@@ -254,9 +257,8 @@ function renderMethod(name: string, group: MethodGroup, checker: ts.TypeChecker)
         .join('\n\n')
 }
 
-function renderProperty(name: string, group: PropertyGroup, checker: ts.TypeChecker): string {
+function renderProperty(name: string, group: PropertyGroup, checker: ts.TypeChecker, doc = extractDoc(group.decl)): string {
     const sourceFile = group.decl.getSourceFile()
-    const doc = extractDoc(group.decl)
     const type = declaredTypeText(group.decl.type, group.decl, checker, sourceFile)
     const staticPrefix = group.isStatic ? 'static ' : ''
     const optional = group.decl.questionToken ? '?' : ''
@@ -277,6 +279,11 @@ function defaultTagText(doc: ExtractedDoc): string | undefined {
     return tag ? tag.doc.replace(/\s+/g, ' ') : undefined
 }
 
+/** `doc` with its `@default` (if any) swapped for `value`. */
+function withDefault(doc: ExtractedDoc, value: string): ExtractedDoc {
+    return { ...doc, tags: [...doc.tags.filter((t) => t.tag !== DEFAULT_TAG), { tag: DEFAULT_TAG, doc: value }] }
+}
+
 /**
  * A class body's rendered members, plus the `@default` each one documents —
  * both keyed by {@link memberKey}. Kept side by side so composition (see
@@ -286,6 +293,12 @@ function defaultTagText(doc: ExtractedDoc): string | undefined {
 export interface MemberSet {
     members: Map<string, string>
     defaults: Map<string, string>
+    /**
+     * Renders a property again with a different `@default`, for a class that
+     * inherits it and documents its own (Sprite's `width`). Methods have none —
+     * there's no default to give one.
+     */
+    withDefault: Map<string, (value: string) => string>
 }
 
 /**
@@ -301,6 +314,9 @@ function layerMembers(target: MemberSet, layer: MemberSet) {
         const value = layer.defaults.get(key)
         if (value !== undefined) target.defaults.set(key, value)
         else target.defaults.delete(key)
+        const rerender = layer.withDefault.get(key)
+        if (rerender) target.withDefault.set(key, rerender)
+        else target.withDefault.delete(key)
     }
 }
 
@@ -308,6 +324,7 @@ function layerMembers(target: MemberSet, layer: MemberSet) {
 function extractOwnMembers(classNode: ts.ClassDeclaration | ts.ClassExpression, ownerName: string, checker: ts.TypeChecker): MemberSet {
     const members = new Map<string, string>()
     const defaults = new Map<string, string>()
+    const rerenders = new Map<string, (value: string) => string>()
     const groups = groupMembers(classNode.members)
 
     for (const [key, group] of groups) {
@@ -318,18 +335,23 @@ function extractOwnMembers(classNode: ts.ClassDeclaration | ts.ClassExpression, 
         else members.set(key, renderProperty(name, group, checker))
 
         if (group.kind === 'method') continue
-        const value = defaultTagText(extractDoc(group.kind === 'accessor' ? group.getter : group.decl))
+        const doc = extractDoc(group.kind === 'accessor' ? group.getter : group.decl)
+        const value = defaultTagText(doc)
         if (value !== undefined) defaults.set(key, value)
+        rerenders.set(key, group.kind === 'accessor'
+            ? (v) => renderAccessor(name, group, overrideKey, checker, withDefault(doc, v))
+            : (v) => renderProperty(name, group, checker, withDefault(doc, v)))
     }
-    return { members, defaults }
+    return { members, defaults, withDefault: rerenders }
 }
 
 /**
  * Splits a class's `@default <property> <value>` tags off its doc comment.
  * They name a default the class gives a member it inherits rather than
  * declares — Sprite's `width` comes from its image, not Sizable's `0` — so
- * they're docs data rather than anything to say when hovering the class
- * itself, and are left out of the doc that's rendered for it.
+ * they belong on that member (and its props field) rather than in anything
+ * said when hovering the class itself, and are left out of the doc that's
+ * rendered for it. See extractConcreteClass.
  */
 function splitClassDefaults(doc: ExtractedDoc, className: string): { doc: ExtractedDoc; overrides: Map<string, string> } {
     const overrides = new Map<string, string>()
@@ -449,7 +471,7 @@ export function resolveComposedMembers(
     ownerName: string,
     mixinCache: Map<string, MemberSet>
 ): MemberSet {
-    const result: MemberSet = { members: new Map(), defaults: new Map() }
+    const result: MemberSet = { members: new Map(), defaults: new Map(), withDefault: new Map() }
     const heritage = classNode.heritageClauses?.[0]?.types[0]?.expression
 
     if (heritage && ts.isCallExpression(heritage)) {
@@ -474,7 +496,7 @@ export function resolveComposedMembers(
             if (!members) {
                 const mixinSourceFile = getSourceFile(program, mixin.file)
                 const classExpr = findMixinClassExpression(mixinSourceFile, mixin.functionName)
-                members = classExpr ? extractOwnMembers(classExpr, mixinName, checker) : { members: new Map(), defaults: new Map() }
+                members = classExpr ? extractOwnMembers(classExpr, mixinName, checker) : { members: new Map(), defaults: new Map(), withDefault: new Map() }
                 mixinCache.set(mixinName, members)
             }
             layerMembers(result, members)
@@ -510,6 +532,13 @@ interface ConcreteClassBundle {
     members: string[]
     /** Every property's `@default` text, inherited ones included, by property name. */
     defaults: Record<string, string>
+    /**
+     * Inherited props fields the class re-declares in `propsFields` with its
+     * own class-level `@default`, to be left out of its props base
+     * (`Omit<GameObjectProps, 'width' | 'height'> & {...}`) so the editor shows
+     * only the class's default. Only for a class with a `*Props` type.
+     */
+    propsOmitted?: string[]
 }
 
 export function extractConcreteClass(
@@ -532,6 +561,11 @@ export function extractConcreteClass(
 
     const { doc, overrides } = splitClassDefaults(extractDoc(classDecl), className)
     const ownKeys = new Set(groupMembers(classDecl.members).keys())
+    // The props type's full field set, inherited fields included, to find each
+    // overridden member's inherited props field by.
+    const propsType = typeAlias ? checker.getTypeAtLocation(typeAlias.name) : undefined
+    const overriddenPropsFields: string[] = []
+    const propsOmitted: string[] = []
     for (const [name, value] of overrides) {
         if (!composed.members.has(name)) {
             throw new Error(`${className}: class-level @default names "${name}", but ${className} has no member by that name. Check the spelling.`)
@@ -539,14 +573,24 @@ export function extractConcreteClass(
         if (ownKeys.has(name)) {
             throw new Error(`${className}: class-level @default names "${name}", which ${className} declares itself. Put the @default on that declaration instead.`)
         }
+        const rerender = composed.withDefault.get(name)
+        if (!rerender) throw new Error(`${className}: class-level @default names "${name}", which is a method — only properties have defaults.`)
         composed.defaults.set(name, value)
+        composed.members.set(name, rerender(value))
+
+        const field = propsType?.getProperty(name)?.declarations?.find(ts.isPropertySignature)
+        if (field?.type) {
+            overriddenPropsFields.push(renderPropsField(field, field.type, withDefault(extractDoc(field), value)))
+            propsOmitted.push(name)
+        }
     }
 
     return {
         doc: formatDocBlock(doc, ''),
-        propsFields,
+        propsFields: [...overriddenPropsFields, ...propsFields],
         members: [...composed.members.values()],
         defaults: instanceDefaults(composed.defaults),
+        ...(concrete.typeName ? { propsOmitted } : {}),
     }
 }
 

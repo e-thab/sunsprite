@@ -3,7 +3,7 @@ import { createInterface } from 'node:readline/promises'
 import path from 'node:path'
 import ts from 'typescript'
 import { generateApiDeclarations } from './api-codegen/index'
-import { renderDocDefaultsModule, renderGeneratedModule } from './api-codegen/render'
+import { propsOmittedUnion, renderDocDefaultsModule, renderGeneratedModule } from './api-codegen/render'
 import { createProgram } from './api-codegen/extract'
 import { findTypeAlias } from './api-codegen/ast'
 import { CONCRETE_CLASSES, TYPE_ONLY_CLASSES, apiPath, docsCopySet, runtimeCopySet } from './api-codegen/sources'
@@ -39,7 +39,7 @@ async function confirmOverwrite(version: string): Promise<boolean> {
 }
 
 /** The `Base &` prefix of a concrete class's own `*Props` type (e.g. `RotatableProps & ViewableProps &` for Line). */
-function findPropsBasePrefix(program: ts.Program, file: string, typeName: string): string {
+function findPropsBasePrefix(program: ts.Program, file: string, typeName: string, omitted: string[] = []): string {
     const sourceFile = program.getSourceFile(file)
     if (!sourceFile) return ''
     const typeAlias = findTypeAlias(sourceFile, typeName)
@@ -47,7 +47,9 @@ function findPropsBasePrefix(program: ts.Program, file: string, typeName: string
 
     const baseMembers = typeAlias.type.types.slice(0, -1)
     if (baseMembers.length === 0) return ''
-    return baseMembers.map((t) => t.getText(sourceFile)).join(' & ') + ' & '
+    const base = baseMembers.map((t) => t.getText(sourceFile)).join(' & ')
+    // Fields the class re-declares with its own class-level @default, as in apiLib.ts's propsBase.
+    return (omitted.length > 0 ? `Omit<${base}, ${propsOmittedUnion(omitted)}>` : base) + ' & '
 }
 
 async function main() {
@@ -119,7 +121,7 @@ async function main() {
 
         if (concrete.typeName) {
             // Options-constructed classes (Sprite, Rectangle, ...): real `*Props` type plus `constructor(options?: XProps)`.
-            const basePrefix = findPropsBasePrefix(program, concrete.file, concrete.typeName)
+            const basePrefix = findPropsBasePrefix(program, concrete.file, concrete.typeName, bundle.propsOmitted)
             lines.push(
                 `export type ${concrete.typeName} = ${basePrefix}{\n${bundle.propsFields.join('\n\n')}\n}`,
                 '',

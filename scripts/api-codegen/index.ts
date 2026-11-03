@@ -15,6 +15,8 @@ export interface ConcreteClassBundle {
     members: string[]
     /** For the docs' Default column — see render.ts's renderDocDefaultsModule. */
     defaults: Record<string, string>
+    /** Inherited props fields `propsFields` re-declares — see extract.ts's extractConcreteClass. */
+    propsOmitted?: string[]
 }
 
 export interface GeneratedDeclarations {

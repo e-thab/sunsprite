@@ -60,8 +60,13 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
             `export const ${prefix}Doc = \`${esc(bundle.doc)}\``,
             `export const ${prefix}PropsFields = \`${esc(bundle.propsFields.join('\n\n'))}\``,
             `export const ${prefix}Members = \`${esc(bundle.members.join('\n\n'))}\``,
-            ''
         )
+        // As a union of key literals for apiLib's `Omit<Base, ...>` — empty
+        // when the class re-declares none, which leaves its props base as is.
+        if (bundle.propsOmitted) {
+            lines.push(`export const ${prefix}PropsOmitted = \`${esc(propsOmittedUnion(bundle.propsOmitted))}\``)
+        }
+        lines.push('')
     }
 
     // One complete `declare function name(...): T` statement per entry (or
@@ -79,6 +84,11 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
     }
 
     return lines.join('\n')
+}
+
+/** `['width', 'height']` -> `'width' | 'height'`, for an `Omit<Base, ...>` (see extract.ts's extractConcreteClass). */
+export function propsOmittedUnion(keys: string[]): string {
+    return keys.map((key) => `'${key}'`).join(' | ')
 }
 
 /**
