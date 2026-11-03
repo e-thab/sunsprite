@@ -8,6 +8,7 @@ import { selectModifier, useTreeSelectionStore } from '@/stores/treeSelectionSto
 import { setCountDragImage } from '@/utils/dragImage'
 import { useNamePromptStore } from '@/stores/namePromptStore'
 import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
+import { useEditorStateStore } from '@/stores/editorStateStore'
 import { attributionFor, attributionLabel } from '@/api/library'
 import { audioDuration, formatDuration } from '@/utils/audioDuration'
 import {
@@ -37,6 +38,7 @@ const fileStore = useFileStore()
 const treeSelectionStore = useTreeSelectionStore()
 const namePromptStore = useNamePromptStore()
 const projectSettingsStore = useProjectSettingsStore()
+const editorStateStore = useEditorStateStore()
 const toast = useToast()
 
 // The project's canonical entry point — always what the game header's
@@ -117,12 +119,21 @@ function preventFolderSelect(event: Event) {
 const expandedFolderIds = ref<string[]>([])
 const seededFolderIds = new Set<string>()
 
+// Folders the user had closed last time stay closed (see editorStateStore.ts);
+// every other one opens, same as a folder created during this session.
+const restoredCollapsedIds = new Set(editorStateStore.collapsedFolderIds())
+
 watch(() => fileStore.folders.map((f) => f.id), (ids) => {
 	const additions = ids.filter((id) => !seededFolderIds.has(id))
 	if (additions.length === 0) return
 	for (const id of additions) seededFolderIds.add(id)
-	expandedFolderIds.value = [...expandedFolderIds.value, ...additions]
+	expandedFolderIds.value = [...expandedFolderIds.value, ...additions.filter((id) => !restoredCollapsedIds.has(id))]
 }, { immediate: true })
+
+watch(expandedFolderIds, (expanded) => {
+	const open = new Set(expanded)
+	editorStateStore.setCollapsedFolderIds(fileStore.folders.filter((f) => !open.has(f.id)).map((f) => f.id))
+})
 
 function ensureFolderExpanded(folderId: string) {
 	if (expandedFolderIds.value.includes(folderId)) return
@@ -933,6 +944,7 @@ function resetSandbox() {
 	if (!window.confirm('Reset the sandbox? All files and settings go back to how they started. This can\'t be undone.')) return
 	fileStore.resetGuestProject()
 	projectSettingsStore.clearGuestStored()
+	editorStateStore.clearGuestStored()
 	window.location.reload()
 }
 

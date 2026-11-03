@@ -9,6 +9,7 @@ import { useFileStore } from '@/stores/fileStore';
 import { useProjectSettingsStore } from '@/stores/projectSettingsStore';
 import { useDocsStore } from '@/stores/docsStore';
 import { useTreeSelectionStore } from '@/stores/treeSelectionStore';
+import { useEditorStateStore } from '@/stores/editorStateStore';
 import { usePixelMinSize } from '@/composables/usePixelMinSize';
 import { useCollapseSnap } from '@/composables/useCollapseSnap';
 import { useStablePanelSizing } from '@/composables/useStablePanelSizing';
@@ -34,6 +35,7 @@ const fileStore = useFileStore()
 const projectSettingsStore = useProjectSettingsStore()
 const docsStore = useDocsStore()
 const treeSelectionStore = useTreeSelectionStore()
+const editorStateStore = useEditorStateStore()
 
 // Guest sandbox: populate fileStore's scripts/folders/textFiles from
 // localStorage synchronously, here in setup rather than onMounted below —
@@ -57,6 +59,16 @@ const treeSelectionStore = useTreeSelectionStore()
 if (!props.projectId) projectSettingsStore.hydrate(null)
 
 if (!props.projectId) fileStore.loadGuestProject()
+
+// Where the user left off in this project (see editorStateStore.ts) — opened
+// here, with the files loaded but before CodeEditor and FileTree mount and
+// read from it, and pruned of anything deleted since it was last saved.
+editorStateStore.open(props.projectId ?? null)
+editorStateStore.prune(new Set([
+  ...fileStore.scripts.map((s) => s.id),
+  ...fileStore.textFiles.map((f) => f.id),
+  ...fileStore.folders.map((f) => f.id),
+]))
 
 // FileTree (guest sandbox) and AssetLibrary (project mode) both bind their
 // UTree directly to treeSelectionStore.current as a shared v-model, so
@@ -721,10 +733,11 @@ onMounted(async () => {
 
 	// console.log('components ready')
 
-	// Correct the active file if CodeEditor's own default ('main.js') isn't
-	// actually one of this project's — or guest sandbox's — scripts (e.g. it
-	// was renamed). Both are real, record-backed script lists now.
-	if (!fileStore.scripts.some((s) => s.name === fileStore.activeFileName)) {
+	// Correct the active file if whatever CodeEditor picked (the file open
+	// last time, or main) isn't actually one of this project's — or guest
+	// sandbox's — scripts or text files (e.g. main was renamed). Both are real,
+	// record-backed file lists now.
+	if (fileStore.getLocalCode(fileStore.activeFileName) === undefined) {
 		const firstScript = fileStore.scripts[0]?.name
 		if (firstScript) {
 			fileStore.activate(firstScript)

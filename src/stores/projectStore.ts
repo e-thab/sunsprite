@@ -4,6 +4,7 @@ import { supabase } from "@/utils/supabase";
 import { useAuthStore } from "./authStore";
 import { generateSlug } from "@/utils/slugWords";
 import { latestApiVersion } from "@/api/versions";
+import { forgetEditorState } from "./editorStateStore";
 export type ProjectRecord = {
     id: string
     name: string
@@ -198,6 +199,7 @@ export const useProjectStore = defineStore('projects', () => {
         if (error) throw error
 
         projects.value = projects.value.filter((p) => p.id !== id)
+        forgetEditorState(id)
     }
 
     async function setPublic(id: string, isPublic: boolean) {

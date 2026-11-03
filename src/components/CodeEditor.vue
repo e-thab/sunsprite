@@ -5,6 +5,7 @@ import { useFileStore } from '@/stores/fileStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useEditorSettingsStore } from '@/stores/editorSettingsStore'
 import { useProjectSettingsStore } from '@/stores/projectSettingsStore'
+import { useEditorStateStore } from '@/stores/editorStateStore'
 import { runUserCode, type RunOptions } from '@/sandbox/hostBridge'
 import { getExampleCode } from '@/api/examples'
 import { themes, buildMonacoThemeData, monacoThemeName } from '@/theme/themes'
@@ -237,11 +238,32 @@ function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
 			refreshDiagnostics(editor, activeModel, importedNames)
 		}
 
+		// Back to wherever this file was last left — before any pending reveal
+		// below, which is a more specific request and wins.
+		const activeId = recordIdForModel(activeModel)
+		const viewState = activeId ? editorStateStore.viewState(activeId) : undefined
+		if (viewState) editor.restoreViewState(viewState)
+
 		if (pendingReveal && pendingReveal.script === fileStore.activeFileName) {
 			editor.revealLineInCenter(pendingReveal.line)
 			pendingReveal = null
 		}
 	}
+
+	// Keeps the stored view state current as the user moves around, so a
+	// refresh at any moment comes back to the same spot. Read off whichever
+	// model is attached when the event lands rather than the one attached
+	// above: a rename swaps in a new model under this same editor (see the
+	// rename watcher below), and a disposing editor has none at all.
+	const rememberViewState = () => {
+		const model = editor.getModel()
+		const id = model ? recordIdForModel(model) : undefined
+		const state = id ? editor.saveViewState() : null
+		if (id && state) editorStateStore.setViewState(id, state)
+	}
+	editor.onDidScrollChange(rememberViewState)
+	editor.onDidChangeCursorSelection(rememberViewState)
+	editor.onDidChangeHiddenAreas(rememberViewState)
 
 	editor.updateOptions({
 		codeLens: false,
@@ -320,6 +342,29 @@ watch(activeMonacoTheme, (name) => monaco.editor.setTheme(name))
 type ModelEntry = { model: monaco.editor.ITextModel, recordId?: string, isText?: boolean }
 const modelEntries = new Map<string, ModelEntry>()
 
+// Which file is open and where each one was scrolled to, kept per project
+// across visits (see editorStateStore.ts). Opened for this project by
+// EditorView, before this component exists.
+const editorStateStore = useEditorStateStore()
+
+function recordIdForModel(model: monaco.editor.ITextModel): string | undefined {
+	for (const entry of modelEntries.values()) {
+		if (entry.model === model) return entry.recordId
+	}
+	return undefined
+}
+
+function recordIdForName(name: string): string | undefined {
+	return (fileStore.scripts.find((s) => s.name === name) ?? fileStore.textFiles.find((f) => f.name === name))?.id
+}
+
+// By id, so a rename (which changes activeFileName but not the record) is a
+// no-op here rather than looking like a switch.
+watch(() => fileStore.activeFileName, (name) => {
+	const id = recordIdForName(name)
+	if (id) editorStateStore.setActiveFileId(id)
+})
+
 // Owner id for the marker (see applyErrorDecoration) behind a runtime
 // warning's underline — Monaco's marker service namespaces markers by owner,
 // so this can be freely set/cleared without touching the TS worker's own
@@ -333,7 +378,7 @@ const RUNTIME_MARKER_OWNER = 'sunsprite-runtime'
 // error is a showstopper, so a new one replaces whatever was there before.
 // Warnings are the opposite — passive, non-blocking, and meant to accumulate
 // — so they get their own list-based tracking below instead of sharing this.
-let currentErrorDecoration: { model: monaco.editor.ITextModel, ids: string[], line: number } | null = null
+let currentErrorDecoration: { model: monaco.editor.ITextModel, ids: string[] } | null = null
 
 // Watches the decorated model for edits that land on the decorated line
 // itself, so fixing the offending line clears the highlight (editor and
@@ -343,12 +388,9 @@ let errorDecorationWatcher: monaco.IDisposable | null = null
 // Every warning currently underlined, across every open script at once —
 // unlike currentErrorDecoration above, this is a list: multiple warnings
 // (even several on the same script) all stay visible simultaneously, since
-// none of them block anything the way an error does. Each entry's real
-// position lives on its own margin decoration (marginId); `line` is only a
-// fallback for recreating that decoration after a setValue()-driven flush
-// (see reapplyWarningHighlights) and gets kept in sync with the decoration's
-// live range otherwise (see ensureWarningWatcher).
-interface WarningMark { model: monaco.editor.ITextModel, marginId: string, message: string, line: number }
+// none of them block anything the way an error does. Each entry's position
+// lives on its own margin decoration (marginId), which follows edits.
+interface WarningMark { model: monaco.editor.ITextModel, marginId: string, message: string }
 const activeWarnings: WarningMark[] = []
 
 // One content-change watcher per model that currently has any warnings on
@@ -446,16 +488,12 @@ function applyErrorDecoration(model: monaco.editor.ITextModel, line: number) {
 		range: new monaco.Range(clampedLine, 1, clampedLine, 1),
 		options: { isWholeLine: true, className: 'error-line-highlight', marginClassName: 'error-line-margin' },
 	}])
-	currentErrorDecoration = { model, ids, line: clampedLine }
+	currentErrorDecoration = { model, ids }
 
 	const decorationId = ids[0]
 	if (!decorationId) return
 
 	errorDecorationWatcher = model.onDidChangeContent((event) => {
-		// setValue()-driven resets (refreshDiagnostics's forced re-check below)
-		// flag as a "flush", not a real edit — reapplyErrorDecoration handles
-		// restoring the decoration those cause on its own, right after.
-		if (event.isFlush) return
 		if (!currentErrorDecoration || currentErrorDecoration.model !== model) return
 
 		// The decoration's own tracked range, not the line it was created at —
@@ -469,18 +507,6 @@ function applyErrorDecoration(model: monaco.editor.ITextModel, line: number) {
 		)
 		if (touchedDecoratedLine) clearErrorDecoration()
 	})
-}
-
-// refreshDiagnostics (below) forces a fresh model.setValue() to re-trigger
-// the TS worker, which — being a full content replace rather than an edit —
-// silently drops any decorations that were sitting on the model, including
-// the error highlight. Called right after that setValue so the highlight
-// reappears immediately instead of vanishing for whatever's left of
-// refreshDiagnostics's settle window.
-function reapplyErrorDecoration(model: monaco.editor.ITextModel) {
-	if (currentErrorDecoration && currentErrorDecoration.model === model) {
-		applyErrorDecoration(model, currentErrorDecoration.line)
-	}
 }
 
 // Full reset of every bit of "there's a current runtime error" state — the
@@ -541,21 +567,17 @@ function removeWarningsOnLine(model: monaco.editor.ITextModel, line: number) {
 	}
 }
 
-// One-time-per-model watcher that keeps every one of that model's warnings'
-// stored `line` in sync with reality, and drops whichever ones an edit
-// actually lands on — mirroring errorDecorationWatcher, but shared across
+// One-time-per-model watcher that drops whichever of that model's warnings an
+// edit actually lands on — mirroring errorDecorationWatcher, but shared across
 // however many warnings that model currently has instead of one-at-a-time.
 function ensureWarningWatcher(model: monaco.editor.ITextModel) {
 	if (warningWatchers.has(model)) return
 	warningWatchers.set(model, model.onDidChangeContent((event) => {
-		if (event.isFlush) return
-
 		let touchedAny = false
 		for (const mark of [...activeWarnings]) {
 			if (mark.model !== model) continue
 			const liveRange = model.getDecorationRange(mark.marginId)
 			if (!liveRange) continue
-			mark.line = liveRange.startLineNumber
 
 			const touched = event.changes.some((change) =>
 				change.range.startLineNumber <= liveRange.startLineNumber && change.range.endLineNumber >= liveRange.startLineNumber
@@ -579,28 +601,10 @@ function addWarningHighlight(model: monaco.editor.ITextModel, line: number, mess
 		options: { isWholeLine: true, marginClassName: 'warning-line-margin' },
 	}])
 	const marginId = ids[0]
-	if (marginId) activeWarnings.push({ model, marginId, message, line: clampedLine })
+	if (marginId) activeWarnings.push({ model, marginId, message })
 
 	rebuildWarningMarkers(model)
 	ensureWarningWatcher(model)
-}
-
-// Recreates every warning decoration refreshDiagnostics's forced setValue()
-// just dropped (see reapplyErrorDecoration's comment — same underlying
-// issue, applied to a list instead of one decoration), from each mark's
-// last-known `line` rather than a (now-gone) live decoration range.
-function reapplyWarningHighlights(model: monaco.editor.ITextModel) {
-	const marks = activeWarnings.filter((mark) => mark.model === model)
-	if (!marks.length) return
-
-	for (const mark of marks) {
-		const ids = model.deltaDecorations([], [{
-			range: new monaco.Range(mark.line, 1, mark.line, 1),
-			options: { isWholeLine: true, marginClassName: 'warning-line-margin' },
-		}])
-		if (ids[0]) mark.marginId = ids[0]
-	}
-	rebuildWarningMarkers(model)
 }
 
 /** Clears every active warning, on every script — a fresh run starts with a clean slate (see runNamedScript). */
@@ -646,7 +650,7 @@ function revealErrorLine(script: string, line: number, kind: 'error' | 'warn' = 
 // Resolves once no marker-change event has landed for `uri` for `quietMs`,
 // or after `timeoutMs` regardless (so a pathological case that never
 // settles can't leave a model suppressed forever). Needed because the
-// validation pass triggered by refreshDiagnostics's forced setValue isn't
+// validation pass refreshDiagnostics forces (see its language flip) isn't
 // guaranteed to be the last stale one: under a slow-to-start TS worker
 // (observed: ~4s in dev, almost certainly Vite cold-building the ts.worker
 // chunk), a straggler pass scheduled before the sync landed can still fire
@@ -710,12 +714,22 @@ async function syncWithRetry(support: EditorLanguageSupport, uri: monaco.Uri, re
 // re-races the same problem on a delay; the deterministic fix is to await
 // the worker's own getJavaScriptWorker(...uris) call, which resolves only
 // once those exact URIs are actually synced, then force a fresh
-// content-change event so validation reruns against a worker that's
+// validation pass (see below for how) against a worker that's
 // genuinely caught up. Even so, the caller (handleMount) already turned
 // renderValidationDecorations off before attaching this model, so none of
 // the intermediate (wrong) passes this triggers ever reach the screen —
 // this function's only remaining job is to turn it back on once things
 // have actually settled.
+//
+// The re-validation is forced by flipping the model's language away and back,
+// not by writing its content back with setValue() as it once was: Monaco's
+// diagnostics adapter drops and re-adds a model whose language changes, and
+// re-adding validates it on the spot. setValue() got the same re-check but
+// also cleared the model's undo stack and reset its cursor and scroll — and
+// since this runs every time a file is opened, simply switching away from a
+// file and back lost its whole undo history. A language change touches none
+// of that, nor the content, so there's no change event for auto-run to
+// mistake for an edit and no decorations to put back afterward.
 async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, model: monaco.editor.ITextModel, relatedNames: Iterable<string>) {
 	const relatedUris = [...relatedNames]
 		.map((name) => modelEntries.get(name)?.model.uri)
@@ -723,17 +737,9 @@ async function refreshDiagnostics(editor: monaco.editor.IStandaloneCodeEditor, m
 	try {
 		await syncWithRetry(languageSupportFor(model.uri.path), model.uri, relatedUris)
 		if (!model.isDisposed()) {
-			// Writes the model's own value back purely to re-trigger validation
-			// — bracketed so auto-run doesn't mistake it for an edit (see
-			// revalidationWrites).
-			revalidationWrites++
-			try {
-				model.setValue(model.getValue())
-			} finally {
-				revalidationWrites--
-			}
-			reapplyErrorDecoration(model)
-			reapplyWarningHighlights(model)
+			const language = model.getLanguageId()
+			monaco.editor.setModelLanguage(model, TEXT_MONACO_LANGUAGE)
+			monaco.editor.setModelLanguage(model, language)
 		}
 	} catch (err) {
 		console.error(`Failed to sync ${model.uri} with the TS worker after retries`, err)
@@ -771,13 +777,21 @@ watch(
 				continue
 			}
 			if (current.name !== name) {
-				const wasActive = editorInstance.value?.getModel() === entry.model
+				const editor = editorInstance.value
+				const wasActive = editor?.getModel() === entry.model
+				// The fresh model starts at the top, so the open editor's place is
+				// carried across by hand. Its undo history can't be — Monaco keeps
+				// that on the model, with no way to move it to another.
+				const viewState = wasActive ? editor?.saveViewState() : null
 				const language = entry.isText ? TEXT_MONACO_LANGUAGE : scriptTypeForFile(current.name).monacoLanguage
 				const renamed = monaco.editor.createModel(entry.model.getValue(), language, monaco.Uri.parse('file:///' + current.name))
 				entry.model.dispose()
 				modelEntries.delete(name)
 				modelEntries.set(current.name, { model: renamed, recordId: entry.recordId, isText: entry.isText })
-				if (wasActive) editorInstance.value?.setModel(renamed)
+				if (wasActive && editor) {
+					editor.setModel(renamed)
+					if (viewState) editor.restoreViewState(viewState)
+				}
 			}
 		}
 	},
@@ -809,8 +823,14 @@ function getCode(): string {
 	return modelEntries.get(fileStore.activeFileName)?.model.getValue() ?? ''
 }
 
+// An edit over the whole file rather than setValue(), which would clear the
+// undo stack — so a revert or reset can be undone like any other change.
 function setCode(newCode: string) {
-	modelEntries.get(fileStore.activeFileName)?.model.setValue(newCode)
+	const model = modelEntries.get(fileStore.activeFileName)?.model
+	if (!model) return
+	model.pushStackElement()
+	model.pushEditOperations([], [{ range: model.getFullModelRange(), text: newCode }], () => null)
+	model.pushStackElement()
 }
 
 function resetCode() {
@@ -884,9 +904,7 @@ const runActiveHighlighted = computed(() => fileStore.entryChangedSinceLastRun(f
 function onEditorChange(value: string) {
 	updateSaveMsg(value)
 	if (!fileStore.isTextFile(fileStore.activeFileName)) ensureImportedModels(value, fileStore.activeFileName)
-	// Both calls above are idempotent and safe to run for any change at all;
-	// only re-running the game needs the edit to have been a real one.
-	if (revalidationWrites === 0) scheduleAutoRun()
+	scheduleAutoRun()
 }
 
 // --- Settings (see SettingsPanel.vue) -------------------------------------
@@ -956,23 +974,6 @@ watch(
 const AUTO_RUN_DELAY_MS = 1500
 
 let autoRunTimer: ReturnType<typeof setTimeout> | null = null
-
-// Non-zero while the editor is rewriting a model with its own content to force
-// the TS worker to re-validate (refreshDiagnostics' setValue). Monaco raises
-// its ordinary content-change event for that write, indistinguishable from
-// typing — and because switching files remounts the editor and refreshes
-// diagnostics every time, auto-run would read merely *selecting* a script as an
-// edit and tear down and rebuild the running game. Nothing changed: the value
-// written is the value already there.
-//
-// Deliberately only that write. resetCode and revertCode also write through
-// setCode, but those genuinely replace the content at the user's request, so a
-// re-run is the right response to them.
-//
-// A counter rather than a boolean: the bracket is synchronous today (Monaco
-// emits during setValue), so the two would behave identically — a counter just
-// stays correct if a self-write is ever nested inside another.
-let revalidationWrites = 0
 
 function scheduleAutoRun() {
 	if (autoRunTimer) clearTimeout(autoRunTimer)
@@ -1044,8 +1045,13 @@ onMounted(() => {
 		}
 	}
 
-	fileStore.activate(fileStore.mainScriptName)
-	ensureModel(fileStore.mainScriptName)
+	// Whichever file was open last time, if it's still around — otherwise main.
+	const lastActiveId = editorStateStore.activeFileId()
+	const lastActive = lastActiveId
+		? (fileStore.scripts.find((s) => s.id === lastActiveId) ?? fileStore.textFiles.find((f) => f.id === lastActiveId))
+		: undefined
+	fileStore.activate(lastActive?.name ?? fileStore.mainScriptName)
+	ensureModel(fileStore.activeFileName)
 	fileStore.registerSaveAllHandler(saveAll)
 	emit('ready')
 })
