@@ -1,17 +1,20 @@
 // import type { ReferenceObject } from "@api/types"
 import type { Class } from "@mixins/shared"
+import type { PositionableScreenSpace } from "@mixins/Positionable"
 import { isVector2Like, Vector2, type Vector2Like } from "@api/Vector2"
+import { camera } from "@api/core"
 
+/** The nine anchor points on an object, usable anywhere an anchor name is accepted. */
 export enum Anchor {
-    TOP_LEFT = 'topleft',
-    TOP_CENTER = 'topcenter',
-    TOP_RIGHT = 'topright',
-    CENTER_LEFT = 'centerleft',
-    CENTER = 'center',
-    CENTER_RIGHT = 'centerright',
-    BOTTOM_LEFT = 'bottomleft',
-    BOTTOM_CENTER = 'bottomcenter',
-    BOTTOM_RIGHT = 'bottomright',
+    TopLeft = 'topleft',
+    TopCenter = 'topcenter',
+    TopRight = 'topright',
+    CenterLeft = 'centerleft',
+    Center = 'center',
+    CenterRight = 'centerright',
+    BottomLeft = 'bottomleft',
+    BottomCenter = 'bottomcenter',
+    BottomRight = 'bottomright',
 }
 
 /** The nine anchor points in their canonical, all-lowercase spelling. */
@@ -42,15 +45,15 @@ type AlignableLike = { x: number, y: number, width: number, height: number }
 
 /** Factors applied to an object's width/height to reach each anchor point from its center. */
 const ANCHOR_OFFSETS: Record<CanonicalAnchor, readonly [number, number]> = {
-    [Anchor.TOP_LEFT]:      [-1/2,  1/2],
-    [Anchor.TOP_CENTER]:    [  0 ,  1/2],
-    [Anchor.TOP_RIGHT]:     [ 1/2,  1/2],
-    [Anchor.CENTER_LEFT]:   [-1/2,   0 ],
-    [Anchor.CENTER]:        [  0,    0 ],
-    [Anchor.CENTER_RIGHT]:  [ 1/2,   0 ],
-    [Anchor.BOTTOM_LEFT]:   [-1/2, -1/2],
-    [Anchor.BOTTOM_CENTER]: [  0,  -1/2],
-    [Anchor.BOTTOM_RIGHT]:  [ 1/2, -1/2],
+    [Anchor.TopLeft]:      [-1/2,  1/2],
+    [Anchor.TopCenter]:    [  0 ,  1/2],
+    [Anchor.TopRight]:     [ 1/2,  1/2],
+    [Anchor.CenterLeft]:   [-1/2,   0 ],
+    [Anchor.Center]:       [  0,    0 ],
+    [Anchor.CenterRight]:  [ 1/2,   0 ],
+    [Anchor.BottomLeft]:   [-1/2, -1/2],
+    [Anchor.BottomCenter]: [  0,  -1/2],
+    [Anchor.BottomRight]:  [ 1/2, -1/2],
 }
 
 export function isAlignable(obj: any): obj is AlignableLike {
@@ -65,6 +68,65 @@ export function anchorOffsets(anchor: AnchorPoint): readonly [number, number] {
     const offsets = ANCHOR_OFFSETS[anchor.toLowerCase() as CanonicalAnchor]
     if (offsets === undefined) throw new Error(`Bad anchor: ${anchor}`)
     return offsets
+}
+
+/** Converts a world position to a position relative to the screen. */
+function worldToScreen({ x, y }: Vector2): Vector2 {
+    return new Vector2(x - camera.x, y - camera.y)
+}
+
+/** Converts a position relative to the screen to a world position. */
+function screenToWorld(screenPosition: Vector2Like): Vector2 {
+    const { x, y } = Vector2.from(screenPosition)
+    return new Vector2(x + camera.x, y + camera.y)
+}
+
+// Vector2 properties are written as accessor pairs so they can be assigned any
+// Vector2Like (e.g. an [x, y] array) while still reading back as a Vector2.
+export type AlignableScreenSpace = {
+    /** This object's horizontal position relative to the screen. */
+    x: number
+    /** This object's vertical position relative to the screen. */
+    y: number
+    /** This object's position relative to the screen. */
+    get position(): Vector2
+    set position(position: Vector2Like)
+
+    /** X coordinate at the left edge of this object, relative to the screen. */
+    left: number
+    /** X coordinate at the right edge of this object, relative to the screen. */
+    right: number
+    /** Y coordinate at the top edge of this object, relative to the screen. */
+    top: number
+    /** Y coordinate at the bottom edge of this object, relative to the screen. */
+    bottom: number
+
+    /** Position at the top left corner of this object, relative to the screen. */
+    get topLeft(): Vector2
+    set topLeft(topLeft: Vector2Like)
+    /** Position at the top edge in the horizontal center of this object, relative to the screen. */
+    get topCenter(): Vector2
+    set topCenter(topCenter: Vector2Like)
+    /** Position at the top right corner of this object, relative to the screen. */
+    get topRight(): Vector2
+    set topRight(topRight: Vector2Like)
+
+    /** Position at the bottom left corner of this object, relative to the screen. */
+    get bottomLeft(): Vector2
+    set bottomLeft(bottomLeft: Vector2Like)
+    /** Position at the bottom edge in the horizontal center of this object, relative to the screen. */
+    get bottomCenter(): Vector2
+    set bottomCenter(bottomCenter: Vector2Like)
+    /** Position at the bottom right corner of this object, relative to the screen. */
+    get bottomRight(): Vector2
+    set bottomRight(bottomRight: Vector2Like)
+
+    /** Position at the vertical center of the left edge of this object, relative to the screen. */
+    get centerLeft(): Vector2
+    set centerLeft(centerLeft: Vector2Like)
+    /** Position at the vertical center of the right edge of this object, relative to the screen. */
+    get centerRight(): Vector2
+    set centerRight(centerRight: Vector2Like)
 }
 
 export type AlignableProps = {
@@ -121,6 +183,7 @@ export function Alignable<Base extends Class<{
     set width(width: number)
     get height(): number
     set height(height: number)
+    get screenSpace(): PositionableScreenSpace
 }>>(base: Base) {
     return class Alignable extends base {
         constructor(...args: any[]) {
@@ -259,6 +322,127 @@ export function Alignable<Base extends Class<{
         }
 
         /**
+         * Used to access and/or modify this object's positioning data in screen-space coordinates.
+         * This allows you to position something relative to the screen itself.
+         *
+         * For example, placing a sprite's top left corner in the center of the screen:
+         *
+         * ```js
+         * sprite.screenSpace.topLeft = [0, 0]
+         * ```
+         */
+        get screenSpace(): AlignableScreenSpace {
+            const alignable = this
+            const positionable = super.screenSpace
+            return {
+                get x(): number {
+                    return positionable.x
+                },
+                set x(x: number) {
+                    positionable.x = x
+                },
+
+                get y(): number {
+                    return positionable.y
+                },
+                set y(y: number) {
+                    positionable.y = y
+                },
+
+                get position(): Vector2 {
+                    return positionable.position
+                },
+                set position(position: Vector2Like) {
+                    positionable.position = Vector2.from(position)
+                },
+
+                get left(): number {
+                    return alignable.left - camera.x
+                },
+                set left(left: number) {
+                    alignable.left = left + camera.x
+                },
+
+                get right(): number {
+                    return alignable.right - camera.x
+                },
+                set right(right: number) {
+                    alignable.right = right + camera.x
+                },
+
+                get top(): number {
+                    return alignable.top - camera.y
+                },
+                set top(top: number) {
+                    alignable.top = top + camera.y
+                },
+
+                get bottom(): number {
+                    return alignable.bottom - camera.y
+                },
+                set bottom(bottom: number) {
+                    alignable.bottom = bottom + camera.y
+                },
+
+                get topLeft(): Vector2 {
+                    return worldToScreen(alignable.topLeft)
+                },
+                set topLeft(topLeft: Vector2Like) {
+                    alignable.topLeft = screenToWorld(topLeft)
+                },
+
+                get topCenter(): Vector2 {
+                    return worldToScreen(alignable.topCenter)
+                },
+                set topCenter(topCenter: Vector2Like) {
+                    alignable.topCenter = screenToWorld(topCenter)
+                },
+
+                get topRight(): Vector2 {
+                    return worldToScreen(alignable.topRight)
+                },
+                set topRight(topRight: Vector2Like) {
+                    alignable.topRight = screenToWorld(topRight)
+                },
+
+                get bottomLeft(): Vector2 {
+                    return worldToScreen(alignable.bottomLeft)
+                },
+                set bottomLeft(bottomLeft: Vector2Like) {
+                    alignable.bottomLeft = screenToWorld(bottomLeft)
+                },
+
+                get bottomCenter(): Vector2 {
+                    return worldToScreen(alignable.bottomCenter)
+                },
+                set bottomCenter(bottomCenter: Vector2Like) {
+                    alignable.bottomCenter = screenToWorld(bottomCenter)
+                },
+
+                get bottomRight(): Vector2 {
+                    return worldToScreen(alignable.bottomRight)
+                },
+                set bottomRight(bottomRight: Vector2Like) {
+                    alignable.bottomRight = screenToWorld(bottomRight)
+                },
+
+                get centerLeft(): Vector2 {
+                    return worldToScreen(alignable.centerLeft)
+                },
+                set centerLeft(centerLeft: Vector2Like) {
+                    alignable.centerLeft = screenToWorld(centerLeft)
+                },
+
+                get centerRight(): Vector2 {
+                    return worldToScreen(alignable.centerRight)
+                },
+                set centerRight(centerRight: Vector2Like) {
+                    alignable.centerRight = screenToWorld(centerRight)
+                },
+            }
+        }
+
+        /**
          * Set world position.
          * @param x New horizontal world position.
          * @param y New vertical world position.
@@ -293,6 +477,29 @@ export function Alignable<Base extends Class<{
                     this.x = point.x - this.width * xFact
                     this.y = point.y - this.height * yFact
                 }
+            }
+        }
+
+        /**
+         * Set position relative to the screen, without resizing.
+         * @param x New horizontal position relative to the screen.
+         * @param y New vertical position relative to the screen.
+         */
+        goToScreen(x: number, y: number): void
+        /**
+         * Set position relative to the screen, without resizing.
+         * @param other New position relative to the screen.
+         * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
+         * (or 'topLeft' — either casing is accepted), this object's top left point will be placed
+         * at other's position.
+         */
+        goToScreen(other: Vector2Like, anchor?: AnchorPoint): void
+        goToScreen(xOrOther: number | Vector2Like, yOrAnchor?: number | AnchorPoint) {
+            if (typeof(xOrOther) === 'number' && typeof(yOrAnchor) === 'number') {
+                this.goTo(camera.x + xOrOther, camera.y + yOrAnchor)
+            }
+            else if (isVector2Like(xOrOther) && typeof(yOrAnchor) !== 'number') {
+                this.goTo(screenToWorld(xOrOther), yOrAnchor)
             }
         }
     }

@@ -1,5 +1,5 @@
-import { createProgram, extractMixin, extractConcreteClass, extractObjectLiteral, extractFreeFunction, extractTypeAlias, type MemberSet, type TypeAliasBundle } from './extract'
-import { MIXINS, CONCRETE_CLASSES, TYPE_ONLY_CLASSES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES } from './sources'
+import { createProgram, extractMixin, extractConcreteClass, extractObjectLiteral, extractFreeFunction, extractTypeAlias, extractEnum, type MemberSet, type TypeAliasBundle } from './extract'
+import { MIXINS, CONCRETE_CLASSES, TYPE_ONLY_CLASSES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES, ENUMS } from './sources'
 
 export interface MixinBundle {
     propsFields: string[]
@@ -24,6 +24,7 @@ export interface GeneratedDeclarations {
     concreteClasses: Record<string, ConcreteClassBundle>
     freeFunctions: Record<string, string>
     typeAliases: Record<string, TypeAliasBundle>
+    enums: Record<string, string>
 }
 
 /**
@@ -69,5 +70,10 @@ export function generateApiDeclarations(): GeneratedDeclarations {
         typeAliases[alias.name] = extractTypeAlias(program, checker, alias)
     }
 
-    return { mixins, concreteClasses, freeFunctions, typeAliases }
+    const enums: Record<string, string> = {}
+    for (const entry of ENUMS) {
+        enums[entry.name] = extractEnum(program, entry)
+    }
+
+    return { mixins, concreteClasses, freeFunctions, typeAliases, enums }
 }

@@ -16,6 +16,7 @@ import Warning from '@api/Warning'
 import Random from '@api/Random'
 import Files from '@api/Files'
 import Colors from '@api/Colors'
+import { Anchor } from '@mixins/Alignable'
 import Timer from '@api/Timer'
 import Clock from '@api/Clock'
 import Camera from '@api/Camera'
@@ -1019,9 +1020,9 @@ class UserScene extends Scene {
 		}
 
 		if (screen) {
-			screen._setCam(cam)
+			screen._setCam(camera)
 		} else {
-			screen = new Screen(cam)
+			screen = new Screen(camera)
 		}
 
 		if (background) {
@@ -1107,7 +1108,7 @@ class UserScene extends Scene {
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
 			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
-			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Mixer: mixer, Colors,
+			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Mixer: mixer, Colors, Anchor,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when, wait,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,

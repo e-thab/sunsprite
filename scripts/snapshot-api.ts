@@ -116,6 +116,10 @@ async function main() {
         lines.push(`${doc}export type ${name} = ${type}`, '')
     }
 
+    for (const declaration of Object.values(generated.enums)) {
+        lines.push(declaration.replace(/^declare enum /gm, 'export declare enum '), '')
+    }
+
     for (const concrete of CONCRETE_CLASSES) {
         const bundle = generated.concreteClasses[concrete.className]
         if (!bundle) continue

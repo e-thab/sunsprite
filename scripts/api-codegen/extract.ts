@@ -1,6 +1,6 @@
 import ts from 'typescript'
 import { extractDoc, formatDocBlock, isExcluded, findTypeAlias, findMixinClassExpression, findExportedClass, findFunctionDeclarations, findObjectLiteralConst, unwrapExpression, type ExtractedDoc } from './ast'
-import { MIXINS, CONCRETE_CLASSES, TYPE_ONLY_CLASSES, GAME_OBJECT_FILE, SET_TYPE_OVERRIDES, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES, COLORS_FILE } from './sources'
+import { MIXINS, CONCRETE_CLASSES, TYPE_ONLY_CLASSES, GAME_OBJECT_FILE, OBJECT_LITERALS, FREE_FUNCTIONS, TYPE_ALIASES, ENUMS, COLORS_FILE } from './sources'
 import { REPO_ROOT, TS_PATHS } from '../aliases'
 
 const INDENT = '    '
@@ -12,6 +12,7 @@ export function createProgram(): { program: ts.Program; checker: ts.TypeChecker 
         ...OBJECT_LITERALS.map((o) => o.file),
         ...FREE_FUNCTIONS.map((f) => f.file),
         ...TYPE_ALIASES.map((t) => t.file),
+        ...ENUMS.map((e) => e.file),
         COLORS_FILE,
     ]
     const program = ts.createProgram(rootFiles, {
@@ -52,8 +53,19 @@ export function extractPropsFields(typeAlias: ts.TypeAliasDeclaration): string[]
 
     const lines: string[] = []
     for (const member of typeLiteral.members) {
-        if (!ts.isPropertySignature(member) || !member.type) continue
-        lines.push(renderPropsField(member, member.type, extractDoc(member)))
+        if (ts.isPropertySignature(member) && member.type) {
+            lines.push(renderPropsField(member, member.type, extractDoc(member)))
+        } else if (ts.isGetAccessor(member)) {
+            // A get/set pair (AlignableScreenSpace's Vector2 properties, which read back a
+            // Vector2 but accept any Vector2Like) stays together under the getter's doc.
+            // A lone setter is skipped, as in groupMembers.
+            const name = member.name.getText(sourceFile)
+            const setter = typeLiteral.members.find(
+                (m): m is ts.SetAccessorDeclaration => ts.isSetAccessor(m) && m.name.getText(sourceFile) === name
+            )
+            const setterLine = setter ? `\n${INDENT}${setter.getText(sourceFile)}` : ''
+            lines.push(`${formatDocBlock(extractDoc(member), INDENT)}${INDENT}${member.getText(sourceFile)}${setterLine}`)
+        }
     }
     return lines
 }
@@ -206,7 +218,7 @@ function renderConstObjectType(checker: ts.TypeChecker, literal: ts.ObjectLitera
     return `{\n${indented.join('\n\n')}\n${INDENT}}`
 }
 
-function renderAccessor(name: string, group: AccessorGroup, overrideKey: string, checker: ts.TypeChecker, doc = extractDoc(group.getter)): string {
+function renderAccessor(name: string, group: AccessorGroup, checker: ts.TypeChecker, doc = extractDoc(group.getter)): string {
     const sourceFile = group.getter.getSourceFile()
     const constObject = group.setter ? undefined : returnedConstObjectLiteral(group.getter, checker)
     const getType = constObject ? renderConstObjectType(checker, constObject) : returnTypeText(group.getter, checker, sourceFile)
@@ -217,8 +229,7 @@ function renderAccessor(name: string, group: AccessorGroup, overrideKey: string,
     }
 
     const param = group.setter.parameters[0]
-    const rawSetType = param ? declaredTypeText(param.type, param, checker, sourceFile) : getType
-    const setType = SET_TYPE_OVERRIDES[overrideKey] ?? rawSetType
+    const setType = param ? declaredTypeText(param.type, param, checker, sourceFile) : getType
 
     if (setType === getType) {
         return `${formatDocBlock(doc, INDENT)}${INDENT}${staticPrefix}${name}: ${getType}`
@@ -322,7 +333,7 @@ function layerMembers(target: MemberSet, layer: MemberSet) {
 }
 
 /** Renders a class body's own (non-`_`-prefixed) members as an ordered map of {@link memberKey} -> line(s), with their defaults. */
-function extractOwnMembers(classNode: ts.ClassDeclaration | ts.ClassExpression, ownerName: string, checker: ts.TypeChecker): MemberSet {
+function extractOwnMembers(classNode: ts.ClassDeclaration | ts.ClassExpression, checker: ts.TypeChecker): MemberSet {
     const members = new Map<string, string>()
     const defaults = new Map<string, string>()
     const rerenders = new Map<string, (value: string) => string>()
@@ -330,8 +341,7 @@ function extractOwnMembers(classNode: ts.ClassDeclaration | ts.ClassExpression, 
 
     for (const [key, group] of groups) {
         const name = group.isStatic ? key.slice(STATIC_KEY_PREFIX.length) : key
-        const overrideKey = `${ownerName}.${name}`
-        if (group.kind === 'accessor') members.set(key, renderAccessor(name, group, overrideKey, checker))
+        if (group.kind === 'accessor') members.set(key, renderAccessor(name, group, checker))
         else if (group.kind === 'method') members.set(key, renderMethod(name, group, checker))
         else members.set(key, renderProperty(name, group, checker))
 
@@ -340,7 +350,7 @@ function extractOwnMembers(classNode: ts.ClassDeclaration | ts.ClassExpression, 
         const value = defaultTagText(doc)
         if (value !== undefined) defaults.set(key, value)
         rerenders.set(key, group.kind === 'accessor'
-            ? (v) => renderAccessor(name, group, overrideKey, checker, withDefault(doc, v))
+            ? (v) => renderAccessor(name, group, checker, withDefault(doc, v))
             : (v) => renderProperty(name, group, checker, withDefault(doc, v)))
     }
     return { members, defaults, withDefault: rerenders }
@@ -401,7 +411,7 @@ function extractObjectLiteralMembers(checker: ts.TypeChecker, node: ts.ObjectLit
             const setter = node.properties.find(
                 (p): p is ts.SetAccessorDeclaration => ts.isSetAccessor(p) && p.name.getText(sourceFile) === name
             )
-            result.set(name, renderAccessor(name, { kind: 'accessor', getter: prop, setter, isStatic: false }, name, checker))
+            result.set(name, renderAccessor(name, { kind: 'accessor', getter: prop, setter, isStatic: false }, checker))
             continue
         }
 
@@ -450,7 +460,7 @@ export function extractMixin(program: ts.Program, checker: ts.TypeChecker, mixin
     const classExpr = findMixinClassExpression(sourceFile, mixin.functionName)
     if (!classExpr) throw new Error(`Could not find mixin class body for ${mixin.functionName} in ${mixin.file}`)
 
-    const { members, defaults } = extractOwnMembers(classExpr, mixin.functionName, checker)
+    const { members, defaults } = extractOwnMembers(classExpr, checker)
     const apiLines = [...members.values()]
 
     return { propsFields, propsTypeDef, api: apiLines.join('\n\n'), apiLines, defaults: instanceDefaults(defaults) }
@@ -469,7 +479,6 @@ export function resolveComposedMembers(
     checker: ts.TypeChecker,
     sourceFile: ts.SourceFile,
     classNode: ts.ClassDeclaration | ts.ClassExpression,
-    ownerName: string,
     mixinCache: Map<string, MemberSet>
 ): MemberSet {
     const result: MemberSet = { members: new Map(), defaults: new Map(), withDefault: new Map() }
@@ -497,7 +506,7 @@ export function resolveComposedMembers(
             if (!members) {
                 const mixinSourceFile = getSourceFile(program, mixin.file)
                 const classExpr = findMixinClassExpression(mixinSourceFile, mixin.functionName)
-                members = classExpr ? extractOwnMembers(classExpr, mixinName, checker) : { members: new Map(), defaults: new Map(), withDefault: new Map() }
+                members = classExpr ? extractOwnMembers(classExpr, checker) : { members: new Map(), defaults: new Map(), withDefault: new Map() }
                 mixinCache.set(mixinName, members)
             }
             layerMembers(result, members)
@@ -515,13 +524,13 @@ export function resolveComposedMembers(
             const parentSource = decl.getSourceFile()
             // The recursive call's own trailing step already layers the parent's
             // own members on top of whatever it inherits — no need to repeat that here.
-            const parentComposed = resolveComposedMembers(program, checker, parentSource, decl, heritage.text, mixinCache)
+            const parentComposed = resolveComposedMembers(program, checker, parentSource, decl, mixinCache)
             layerMembers(result, parentComposed)
         }
     }
 
     // Finally, layer the class's own directly-declared members on top.
-    layerMembers(result, extractOwnMembers(classNode, ownerName, checker))
+    layerMembers(result, extractOwnMembers(classNode, checker))
 
     return result
 }
@@ -558,7 +567,7 @@ export function extractConcreteClass(
     const classDecl = findExportedClass(sourceFile, className)
     if (!classDecl) throw new Error(`Could not find exported class ${className} in ${concrete.file}`)
 
-    const composed = resolveComposedMembers(program, checker, sourceFile, classDecl, className, mixinCache)
+    const composed = resolveComposedMembers(program, checker, sourceFile, classDecl, mixinCache)
 
     const { doc, overrides } = splitClassDefaults(extractDoc(classDecl), className)
     const ownKeys = new Set(groupMembers(classDecl.members).keys())
@@ -662,6 +671,18 @@ export function extractTypeAlias(
             ts.TypeFormatFlags.InTypeAlias | ts.TypeFormatFlags.NoTruncation
         )
     return { doc: formatDocBlock(extractDoc(alias), ''), type }
+}
+
+/** Extracts one ENUMS entry as a complete, standalone `declare enum Name {...}` statement, its members copied verbatim. */
+export function extractEnum(program: ts.Program, entry: (typeof ENUMS)[number]): string {
+    const sourceFile = getSourceFile(program, entry.file)
+    const declaration = sourceFile.statements.find(
+        (s): s is ts.EnumDeclaration => ts.isEnumDeclaration(s) && s.name.text === entry.name
+    )
+    if (!declaration) throw new Error(`Could not find enum ${entry.name} in ${entry.file}`)
+
+    const members = declaration.members.map((member) => `${formatDocBlock(extractDoc(member), INDENT)}${INDENT}${member.getText(sourceFile)},`)
+    return `${formatDocBlock(extractDoc(declaration), '')}declare enum ${entry.name} {\n${members.join('\n')}\n}`
 }
 
 /**

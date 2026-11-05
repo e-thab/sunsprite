@@ -62,9 +62,9 @@ export function formatDocBlock(doc: ExtractedDoc, indent: string): string {
     return lines.join('\n') + '\n'
 }
 
-/** Internal wiring is excluded from the generated declarations by a single, already-established convention. */
+/** Internal wiring is excluded from the generated declarations: `_`-prefixed by convention, `#`-prefixed because it's truly private. */
 export function isExcluded(name: string): boolean {
-    return name.startsWith('_')
+    return name.startsWith('_') || name.startsWith('#')
 }
 
 /** Finds a top-level exported (or local) type alias by name in a source file. */

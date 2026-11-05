@@ -27,7 +27,7 @@
 // export default api
 import {
     positionableApi,
-    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
+    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef, alignableScreenSpaceDeclaration, anchorDeclaration,
     fillablePropsTypeDef, outlinablePropsTypeDef,
     spritePropsFields, spritePropsOmitted, spriteMembers, tintModeNameDeclaration, blendModeNameDeclaration,
     rectanglePropsFields, rectanglePropsOmitted, rectangleMembers,
@@ -74,6 +74,10 @@ export interface VersionedApiConstants {
     viewablePropsTypeDef: string
     interactablePropsTypeDef: string
     alignablePropsTypeDef: string
+    // Optional: snapshots cut before screenSpace existed don't export it.
+    alignableScreenSpaceDeclaration?: string
+    // Optional: snapshots cut before the Anchor enum was exposed don't export it.
+    anchorDeclaration?: string
     fillablePropsTypeDef: string
     outlinablePropsTypeDef: string
     spritePropsFields: string
@@ -246,6 +250,8 @@ ${v.rotatablePropsTypeDef}
 ${v.viewablePropsTypeDef}
 ${v.interactablePropsTypeDef}
 ${v.alignablePropsTypeDef}
+${v.alignableScreenSpaceDeclaration ?? ''}
+${v.anchorDeclaration ?? ''}
 ${v.fillablePropsTypeDef ?? `declare type FillableProps = {}`}
 ${v.outlinablePropsTypeDef ?? `declare type OutlinableProps = {}`}
 `,
@@ -644,7 +650,7 @@ export {}`
 
 export const apiLib = buildApiLib({
     positionableApi,
-    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef,
+    positionablePropsTypeDef, sizablePropsTypeDef, rotatablePropsTypeDef, viewablePropsTypeDef, interactablePropsTypeDef, alignablePropsTypeDef, alignableScreenSpaceDeclaration, anchorDeclaration,
     fillablePropsTypeDef, outlinablePropsTypeDef,
     spritePropsFields, spritePropsOmitted, spriteMembers, tintModeNameDeclaration, blendModeNameDeclaration,
     rectanglePropsFields, rectanglePropsOmitted, rectangleMembers,

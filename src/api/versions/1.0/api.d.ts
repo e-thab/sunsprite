@@ -175,9 +175,6 @@ export type PositionableProps = {
     /** Position in the world. */
     position?: Vector2Like
 
-    /** Position in the world (alias of position). */
-    pos?: Vector2Like
-
     /** Horizontal position on the screen. */
     screenX?: number
 
@@ -186,9 +183,6 @@ export type PositionableProps = {
 
     /** Position on the screen. */
     screenPosition?: Vector2Like
-
-    /** Position on the screen (alias of position). */
-    screenPos?: Vector2Like
 }
 
 export type SizableProps = {
@@ -559,10 +553,6 @@ export declare class Sprite {
     get position(): Vector2
     set position(pos: Vector2Like)
 
-    /** Position in the world (alias of position). */
-    get pos(): Vector2
-    set pos(pos: Vector2Like)
-
     /** This object's horizontal position relative to the camera. */
     screenX: number
 
@@ -572,10 +562,6 @@ export declare class Sprite {
     /** This object's position relative to the camera. */
     get screenPosition(): Vector2
     set screenPosition(pos: Vector2Like)
-
-    /** This object's position relative to the camera (alias of screenPosition) */
-    get screenPos(): Vector2
-    set screenPos(pos: Vector2Like)
 
     /** The distance from this vector's end point to another vector's end point. */
     distanceTo(x: number, y: number): number
@@ -954,10 +940,6 @@ export declare class Rectangle {
     get position(): Vector2
     set position(pos: Vector2Like)
 
-    /** Position in the world (alias of position). */
-    get pos(): Vector2
-    set pos(pos: Vector2Like)
-
     /** This object's horizontal position relative to the camera. */
     screenX: number
 
@@ -967,10 +949,6 @@ export declare class Rectangle {
     /** This object's position relative to the camera. */
     get screenPosition(): Vector2
     set screenPosition(pos: Vector2Like)
-
-    /** This object's position relative to the camera (alias of screenPosition) */
-    get screenPos(): Vector2
-    set screenPos(pos: Vector2Like)
 
     /** The distance from this vector's end point to another vector's end point. */
     distanceTo(x: number, y: number): number
@@ -1278,10 +1256,6 @@ export declare class Circle {
     get position(): Vector2
     set position(pos: Vector2Like)
 
-    /** Position in the world (alias of position). */
-    get pos(): Vector2
-    set pos(pos: Vector2Like)
-
     /** This object's horizontal position relative to the camera. */
     screenX: number
 
@@ -1291,10 +1265,6 @@ export declare class Circle {
     /** This object's position relative to the camera. */
     get screenPosition(): Vector2
     set screenPosition(pos: Vector2Like)
-
-    /** This object's position relative to the camera (alias of screenPosition) */
-    get screenPos(): Vector2
-    set screenPos(pos: Vector2Like)
 
     /** The distance from this vector's end point to another vector's end point. */
     distanceTo(x: number, y: number): number
@@ -1612,10 +1582,6 @@ export declare class Label {
     /** Position in the world. */
     get position(): Vector2
     set position(pos: Vector2Like)
-
-    /** Position in the world (alias of position). */
-    get pos(): Vector2
-    set pos(pos: Vector2Like)
 
     /** This object's horizontal position relative to the camera. */
     screenX: number

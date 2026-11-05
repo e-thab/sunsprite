@@ -65,9 +65,10 @@ type PointArg = Point | ArrayPoint
 
 /**
  * A Vector2-interpretable value: an { x, y } object, an object with a
- * { position: { x, y } }, or a [x, y] array.
+ * { position: { x, y } }, or a [x, y] array. Hand-written copy of Vector2.ts's
+ * Vector2Like. Includes number[] because JS scripts infer [x, y] as number[].
  */
-type Vector2Like = { x: number, y: number } | { position: { x: number, y: number } } | [number, number]
+type Vector2Like = { x: number, y: number } | { position: { x: number, y: number } } | [number, number] | number[]
 
 /** Anything with a position: an { x, y } object, or an object with a { position: { x, y } }. */
 type HasPosition = { x: number, y: number } | { position: { x: number, y: number } }
