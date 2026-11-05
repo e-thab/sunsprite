@@ -1,5 +1,4 @@
 import Output from "../sandbox/output"
-import Warning from "./Warning"
 import { currentLocation } from "../../../../moduleRunner"
 import { atan2, cos, sin } from "./utility"
 
@@ -11,9 +10,10 @@ type PosObject = { position: XYObject }
 
 /** 
  * Type to be used when providing vector2 as arguments/setter values,
- * either an { x, y } object or an [x, y] array.
+ * either an { x, y } object or an [x, y] array. Union includes number[]
+ * so that JS user scripts don't throw a fit.
  */
-export type Vector2Like = XYObject | PosObject | XYArray
+export type Vector2Like = XYObject | PosObject | XYArray | number[]
 export type HasPosition = XYObject | PosObject
 
 export function isHasPosition(obj: any): obj is HasPosition {
@@ -287,7 +287,7 @@ export class Vector2 {
      * Overloaded Vector2 factory: Return a Vector2 created from any
      * Vector2-interpretable type.
      */
-    static from(xOrXy: number | number[] | Vector2Like, y?: number): Vector2 {
+    static from(xOrXy: number | Vector2Like, y?: number): Vector2 {
         if (isXYObject(xOrXy)) {
             return new Vector2(xOrXy.x, xOrXy.y)
         }

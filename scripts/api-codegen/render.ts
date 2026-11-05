@@ -104,6 +104,12 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
         lines.push(`export const ${prefix}Declaration = \`${esc(`${doc}declare type ${name} = ${type}`)}\``, '')
     }
 
+    // Likewise, e.g. Anchor -> anchorDeclaration = `declare enum Anchor {...}`.
+    for (const [name, declaration] of Object.entries(generated.enums)) {
+        const prefix = name.charAt(0).toLowerCase() + name.slice(1)
+        lines.push(`export const ${prefix}Declaration = \`${esc(declaration)}\``, '')
+    }
+
     return lines.join('\n')
 }
 

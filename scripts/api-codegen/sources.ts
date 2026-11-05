@@ -135,6 +135,18 @@ export const TYPE_ALIASES = [
     { file: apiPath('Sprite.ts'), name: 'TintModeName' },
     // Sprite.blendMode's getter type, the same way.
     { file: apiPath('Sprite.ts'), name: 'BlendModeName' },
+    // The screenSpace getter's type on everything composing Alignable.
+    { file: apiPath('mixins', 'Alignable.ts'), name: 'AlignableScreenSpace' },
+] as const
+
+/**
+ * Enums user code reaches by name, each emitted as a standalone
+ * `declare enum Name {...}`. An enum is a runtime value as well as a type, so
+ * each one also needs a key on core.ts's `api` object, or the editor would
+ * accept a reference that throws when the script runs.
+ */
+export const ENUMS = [
+    { file: apiPath('mixins', 'Alignable.ts'), name: 'Anchor' },
 ] as const
 
 /**
@@ -178,20 +190,6 @@ export const FREE_FUNCTIONS = [
     { file: apiPath('core.ts'), name: 'smoothDamp' },
     { file: apiPath('core.ts'), name: 'smoothFollow' },
 ] as const
-
-/**
- * Known, deliberate accommodations that real source's exact types don't carry —
- * kept as an explicit, narrow override table rather than silently reproduced or
- * silently dropped. Currently just one: user scripts typed in Monaco infer array
- * literals like `[1, 2]` as `number[]`, not the precise tuple `[number, number]`
- * that `ArrayPoint` requires — so the *declared* setter type is deliberately
- * widened here to avoid a false-positive editor error, even though the real
- * runtime setter's TS-checked parameter type doesn't need the widening.
- */
-export const SET_TYPE_OVERRIDES: Record<string, string> = {
-    'Line.pointA': 'Returnable<Vector2Like | number[]>',
-    'Line.pointB': 'Returnable<Vector2Like | number[]>',
-}
 
 /**
  * Files under src/api/ that are part of the real, runnable API surface

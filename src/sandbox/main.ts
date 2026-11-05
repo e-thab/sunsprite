@@ -4,7 +4,6 @@ import { DEV_VERSION } from '@/api/versions/constants'
 import { onHostMessage, postToHost } from './channel'
 import { API_VERSION_PARAM, type HostMessage } from './protocol'
 import { whenAudioUnlocked, cancelAudioUnlock } from './audioGate'
-import { _engineLive } from '@/api/core'
 
 // Entry point for runner.html — the document inside
 // `<iframe sandbox="allow-scripts">`. Phaser, the Sunsprite API, and every line
@@ -195,7 +194,9 @@ function watchContainerSize() {
 function startStatusReports() {
     setInterval(() => {
         const { mouse, clock, screen, camera } = core
-        if (!_engineLive || !mouse || !clock || !screen || !camera) return
+        // Off the loaded runtime, not a static import of @/api/core — that's always
+        // the dev copy, whose flag never flips while a snapshot version is running.
+        if (!core._engineLive || !mouse || !clock || !screen || !camera) return
         postToHost({
             type: 'status',
             fps: core.currentFps(),

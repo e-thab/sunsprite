@@ -58,9 +58,10 @@ type PointArg = Point | ArrayPoint
 
 /**
  * A Vector2-interpretable value: an { x, y } object, an object with a
- * { position: { x, y } }, or a [x, y] array.
+ * { position: { x, y } }, or a [x, y] array. Hand-written copy of Vector2.ts's
+ * Vector2Like. Includes number[] because JS scripts infer [x, y] as number[].
  */
-type Vector2Like = { x: number, y: number } | { position: { x: number, y: number } } | [number, number]
+type Vector2Like = { x: number, y: number } | { position: { x: number, y: number } } | [number, number] | number[]
 
 /** Anything with a position: an { x, y } object, or an object with a { position: { x, y } }. */
 type HasPosition = { x: number, y: number } | { position: { x: number, y: number } }
@@ -174,21 +175,6 @@ export type PositionableProps = {
 
     /** Position in the world. */
     position?: Vector2Like
-
-    /** Position in the world (alias of position). */
-    pos?: Vector2Like
-
-    /** Horizontal position on the screen. */
-    screenX?: number
-
-    /** Vertical position on the screen. */
-    screenY?: number
-
-    /** Position on the screen. */
-    screenPosition?: Vector2Like
-
-    /** Position on the screen (alias of position). */
-    screenPos?: Vector2Like
 }
 
 export type SizableProps = {
@@ -458,6 +444,75 @@ export type TintModeName = "fill" | "add" | "multiply" | "hard_light" | "overlay
 /** How a sprite's image is blended with what's rendered behind it. See Sprite.blendMode. */
 export type BlendModeName = "add" | "multiply" | "screen" | "normal" | "erase"
 
+export type AlignableScreenSpace = {
+    /** This object's horizontal position relative to the screen. */
+    x: number
+
+    /** This object's vertical position relative to the screen. */
+    y: number
+
+    /** This object's position relative to the screen. */
+    get position(): Vector2
+    set position(position: Vector2Like)
+
+    /** X coordinate at the left edge of this object, relative to the screen. */
+    left: number
+
+    /** X coordinate at the right edge of this object, relative to the screen. */
+    right: number
+
+    /** Y coordinate at the top edge of this object, relative to the screen. */
+    top: number
+
+    /** Y coordinate at the bottom edge of this object, relative to the screen. */
+    bottom: number
+
+    /** Position at the top left corner of this object, relative to the screen. */
+    get topLeft(): Vector2
+    set topLeft(topLeft: Vector2Like)
+
+    /** Position at the top edge in the horizontal center of this object, relative to the screen. */
+    get topCenter(): Vector2
+    set topCenter(topCenter: Vector2Like)
+
+    /** Position at the top right corner of this object, relative to the screen. */
+    get topRight(): Vector2
+    set topRight(topRight: Vector2Like)
+
+    /** Position at the bottom left corner of this object, relative to the screen. */
+    get bottomLeft(): Vector2
+    set bottomLeft(bottomLeft: Vector2Like)
+
+    /** Position at the bottom edge in the horizontal center of this object, relative to the screen. */
+    get bottomCenter(): Vector2
+    set bottomCenter(bottomCenter: Vector2Like)
+
+    /** Position at the bottom right corner of this object, relative to the screen. */
+    get bottomRight(): Vector2
+    set bottomRight(bottomRight: Vector2Like)
+
+    /** Position at the vertical center of the left edge of this object, relative to the screen. */
+    get centerLeft(): Vector2
+    set centerLeft(centerLeft: Vector2Like)
+
+    /** Position at the vertical center of the right edge of this object, relative to the screen. */
+    get centerRight(): Vector2
+    set centerRight(centerRight: Vector2Like)
+}
+
+/** The nine anchor points on an object, usable anywhere an anchor name is accepted. */
+export declare enum Anchor {
+    TopLeft = 'topleft',
+    TopCenter = 'topcenter',
+    TopRight = 'topright',
+    CenterLeft = 'centerleft',
+    Center = 'center',
+    CenterRight = 'centerright',
+    BottomLeft = 'bottomleft',
+    BottomCenter = 'bottomcenter',
+    BottomRight = 'bottomright',
+}
+
 export type SpriteProps = Omit<GameObjectProps, 'width' | 'height'> & {
     /**
      * Horizontal size in pixels.
@@ -559,27 +614,29 @@ export declare class Sprite {
     get position(): Vector2
     set position(pos: Vector2Like)
 
-    /** Position in the world (alias of position). */
-    get pos(): Vector2
-    set pos(pos: Vector2Like)
+    /**
+     * Used to access and/or modify this object's positioning data in screen-space coordinates.
+     * This allows you to position something relative to the screen itself.
+     *
+     * For example, placing a sprite's top left corner in the center of the screen:
+     *
+     * ```js
+     * sprite.screenSpace.topLeft = [0, 0]
+     * ```
+     */
+    readonly screenSpace: AlignableScreenSpace
 
-    /** This object's horizontal position relative to the camera. */
-    screenX: number
-
-    /** This object's vertical position relative to the camera. */
-    screenY: number
-
-    /** This object's position relative to the camera. */
-    get screenPosition(): Vector2
-    set screenPosition(pos: Vector2Like)
-
-    /** This object's position relative to the camera (alias of screenPosition) */
-    get screenPos(): Vector2
-    set screenPos(pos: Vector2Like)
-
-    /** The distance from this vector's end point to another vector's end point. */
+    /**
+     * Distance between this object and a point.
+     * @param x The point's x coordinate.
+     * @param y The point's y coordinate.
+     */
     distanceTo(x: number, y: number): number
 
+    /**
+     * Distance between the center of this object and the center of another object.
+     * @param other The other object.
+     */
     distanceTo(other: Vector2Like): number
 
     /**
@@ -597,6 +654,22 @@ export declare class Sprite {
      * at other's position.
      */
     goTo(other: Vector2Like, anchor?: AnchorPoint): void
+
+    /**
+     * Set position relative to the screen, without resizing.
+     * @param x New horizontal position relative to the screen.
+     * @param y New vertical position relative to the screen.
+     */
+    goToScreen(x: number, y: number): void
+
+    /**
+     * Set position relative to the screen, without resizing.
+     * @param other New position relative to the screen.
+     * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
+     * (or 'topLeft' — either casing is accepted), this object's top left point will be placed
+     * at other's position.
+     */
+    goToScreen(other: Vector2Like, anchor?: AnchorPoint): void
 
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
@@ -954,27 +1027,29 @@ export declare class Rectangle {
     get position(): Vector2
     set position(pos: Vector2Like)
 
-    /** Position in the world (alias of position). */
-    get pos(): Vector2
-    set pos(pos: Vector2Like)
+    /**
+     * Used to access and/or modify this object's positioning data in screen-space coordinates.
+     * This allows you to position something relative to the screen itself.
+     *
+     * For example, placing a sprite's top left corner in the center of the screen:
+     *
+     * ```js
+     * sprite.screenSpace.topLeft = [0, 0]
+     * ```
+     */
+    readonly screenSpace: AlignableScreenSpace
 
-    /** This object's horizontal position relative to the camera. */
-    screenX: number
-
-    /** This object's vertical position relative to the camera. */
-    screenY: number
-
-    /** This object's position relative to the camera. */
-    get screenPosition(): Vector2
-    set screenPosition(pos: Vector2Like)
-
-    /** This object's position relative to the camera (alias of screenPosition) */
-    get screenPos(): Vector2
-    set screenPos(pos: Vector2Like)
-
-    /** The distance from this vector's end point to another vector's end point. */
+    /**
+     * Distance between this object and a point.
+     * @param x The point's x coordinate.
+     * @param y The point's y coordinate.
+     */
     distanceTo(x: number, y: number): number
 
+    /**
+     * Distance between the center of this object and the center of another object.
+     * @param other The other object.
+     */
     distanceTo(other: Vector2Like): number
 
     /**
@@ -992,6 +1067,22 @@ export declare class Rectangle {
      * at other's position.
      */
     goTo(other: Vector2Like, anchor?: AnchorPoint): void
+
+    /**
+     * Set position relative to the screen, without resizing.
+     * @param x New horizontal position relative to the screen.
+     * @param y New vertical position relative to the screen.
+     */
+    goToScreen(x: number, y: number): void
+
+    /**
+     * Set position relative to the screen, without resizing.
+     * @param other New position relative to the screen.
+     * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
+     * (or 'topLeft' — either casing is accepted), this object's top left point will be placed
+     * at other's position.
+     */
+    goToScreen(other: Vector2Like, anchor?: AnchorPoint): void
 
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
@@ -1278,27 +1369,29 @@ export declare class Circle {
     get position(): Vector2
     set position(pos: Vector2Like)
 
-    /** Position in the world (alias of position). */
-    get pos(): Vector2
-    set pos(pos: Vector2Like)
+    /**
+     * Used to access and/or modify this object's positioning data in screen-space coordinates.
+     * This allows you to position something relative to the screen itself.
+     *
+     * For example, placing a sprite's top left corner in the center of the screen:
+     *
+     * ```js
+     * sprite.screenSpace.topLeft = [0, 0]
+     * ```
+     */
+    readonly screenSpace: AlignableScreenSpace
 
-    /** This object's horizontal position relative to the camera. */
-    screenX: number
-
-    /** This object's vertical position relative to the camera. */
-    screenY: number
-
-    /** This object's position relative to the camera. */
-    get screenPosition(): Vector2
-    set screenPosition(pos: Vector2Like)
-
-    /** This object's position relative to the camera (alias of screenPosition) */
-    get screenPos(): Vector2
-    set screenPos(pos: Vector2Like)
-
-    /** The distance from this vector's end point to another vector's end point. */
+    /**
+     * Distance between this object and a point.
+     * @param x The point's x coordinate.
+     * @param y The point's y coordinate.
+     */
     distanceTo(x: number, y: number): number
 
+    /**
+     * Distance between the center of this object and the center of another object.
+     * @param other The other object.
+     */
     distanceTo(other: Vector2Like): number
 
     /**
@@ -1316,6 +1409,22 @@ export declare class Circle {
      * at other's position.
      */
     goTo(other: Vector2Like, anchor?: AnchorPoint): void
+
+    /**
+     * Set position relative to the screen, without resizing.
+     * @param x New horizontal position relative to the screen.
+     * @param y New vertical position relative to the screen.
+     */
+    goToScreen(x: number, y: number): void
+
+    /**
+     * Set position relative to the screen, without resizing.
+     * @param other New position relative to the screen.
+     * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
+     * (or 'topLeft' — either casing is accepted), this object's top left point will be placed
+     * at other's position.
+     */
+    goToScreen(other: Vector2Like, anchor?: AnchorPoint): void
 
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
@@ -1613,27 +1722,29 @@ export declare class Label {
     get position(): Vector2
     set position(pos: Vector2Like)
 
-    /** Position in the world (alias of position). */
-    get pos(): Vector2
-    set pos(pos: Vector2Like)
+    /**
+     * Used to access and/or modify this object's positioning data in screen-space coordinates.
+     * This allows you to position something relative to the screen itself.
+     *
+     * For example, placing a sprite's top left corner in the center of the screen:
+     *
+     * ```js
+     * sprite.screenSpace.topLeft = [0, 0]
+     * ```
+     */
+    readonly screenSpace: AlignableScreenSpace
 
-    /** This object's horizontal position relative to the camera. */
-    screenX: number
-
-    /** This object's vertical position relative to the camera. */
-    screenY: number
-
-    /** This object's position relative to the camera. */
-    get screenPosition(): Vector2
-    set screenPosition(pos: Vector2Like)
-
-    /** This object's position relative to the camera (alias of screenPosition) */
-    get screenPos(): Vector2
-    set screenPos(pos: Vector2Like)
-
-    /** The distance from this vector's end point to another vector's end point. */
+    /**
+     * Distance between this object and a point.
+     * @param x The point's x coordinate.
+     * @param y The point's y coordinate.
+     */
     distanceTo(x: number, y: number): number
 
+    /**
+     * Distance between the center of this object and the center of another object.
+     * @param other The other object.
+     */
     distanceTo(other: Vector2Like): number
 
     /**
@@ -1651,6 +1762,22 @@ export declare class Label {
      * at other's position.
      */
     goTo(other: Vector2Like, anchor?: AnchorPoint): void
+
+    /**
+     * Set position relative to the screen, without resizing.
+     * @param x New horizontal position relative to the screen.
+     * @param y New vertical position relative to the screen.
+     */
+    goToScreen(x: number, y: number): void
+
+    /**
+     * Set position relative to the screen, without resizing.
+     * @param other New position relative to the screen.
+     * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
+     * (or 'topLeft' — either casing is accepted), this object's top left point will be placed
+     * at other's position.
+     */
+    goToScreen(other: Vector2Like, anchor?: AnchorPoint): void
 
     /** Set position to a random point within the current visible screen area. */
     goToRandom(): void
@@ -1974,11 +2101,11 @@ export declare class Line {
 
     /** Position of end point A. */
     get pointA(): Vector2
-    set pointA(pointA: Returnable<Vector2Like | number[]>)
+    set pointA(pointA: Returnable<Vector2Like>)
 
     /** Position of end point B. */
     get pointB(): Vector2
-    set pointB(pointB: Returnable<Vector2Like | number[]>)
+    set pointB(pointB: Returnable<Vector2Like>)
 
     /** The color of the line. */
     color: string
@@ -2593,17 +2720,149 @@ export declare const Clock: {
 
 /** Game screen reference. */
 export declare const Screen: {
+    /**
+     * Game screen width.
+     * @readonly 
+     */
     readonly width: number
 
+    /**
+     * Game screen height.
+     * @readonly 
+     */
     readonly height: number
 
+    /**
+     * Y value of the top edge of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenY = Screen.top`. Using `rect.y = Screen.top` only puts
+     * rect at the top edge of the screen if Camera.y is 0.
+     * @readonly 
+     */
     readonly top: number
 
+    /**
+     * Y value of the bottom edge of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenY = Screen.bottom`. Using `rect.y = Screen.bottom` only puts
+     * rect at the bottom edge of the screen if Camera.y is 0.
+     * @readonly 
+     */
     readonly bottom: number
 
+    /**
+     * X value of the left edge of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenX = Screen.left`. Using `rect.x = Screen.left` only puts
+     * rect at the left edge of the screen if Camera.x is 0.
+     * @readonly 
+     */
     readonly left: number
 
+    /**
+     * X value of the right edge of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenX = Screen.right`. Using `rect.x = Screen.right` only puts
+     * rect at the right edge of the screen if Camera.x is 0.
+     * @readonly 
+     */
     readonly right: number
+
+    /**
+     * Position of the top left corner of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenTopLeft = Screen.topLeft`. Using `rect.topLeft = Screen.topLeft` only puts
+     * rect at the top left corner of the screen if Camera.position is [0, 0].
+     * @readonly 
+     */
+    readonly topLeft: Vector2
+
+    /**
+     * Position of the center of the top edge of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenTopCenter = Screen.topCenter`. Using `rect.topCenter = Screen.topCenter` only puts
+     * rect at the center of the top edge of the screen if Camera.position is [0, 0].
+     * @readonly 
+     */
+    readonly topCenter: Vector2
+
+    /**
+     * Position of the top right corner of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenTopRight = Screen.topRight`. Using `rect.topRight = Screen.topRight` only puts
+     * rect at the top right corner of the screen if Camera.position is [0, 0].
+     * @readonly 
+     */
+    readonly topRight: Vector2
+
+    /**
+     * Position of the bottom left corner of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenBottomLeft = Screen.bottomLeft`. Using `rect.bottomLeft = Screen.bottomLeft` only puts
+     * rect at the bottom left corner of the screen if Camera.position is [0, 0].
+     * @readonly 
+     */
+    readonly bottomLeft: Vector2
+
+    /**
+     * Position of the center of the bottom edge of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenBottomCenter = Screen.bottomCenter`. Using `rect.bottomCenter = Screen.bottomCenter` only puts
+     * rect at the center of the bottom edge of the screen if Camera.position is [0, 0].
+     * @readonly 
+     */
+    readonly bottomCenter: Vector2
+
+    /**
+     * Position of the bottom right corner of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenBottomRight = Screen.bottomRight`. Using `rect.bottomRight = Screen.bottomRight` only puts
+     * rect at the bottom right corner of the screen if Camera.position is [0, 0].
+     * @readonly 
+     */
+    readonly bottomRight: Vector2
+
+    /**
+     * Position of the center of the left edge of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenCenterLeft = Screen.centerLeft`. Using `rect.centerLeft = Screen.centerLeft` only puts
+     * rect at the center of the left edge of the screen if Camera.position is [0, 0].
+     * @readonly 
+     */
+    readonly centerLeft: Vector2
+
+    /**
+     * Position of the center of the right edge of the game screen, in screen-space coordinates.
+     * 
+     * **NOTE:** This value changes with screen size, *not* camera position.
+     * It's meant to be used with screen-based position setters, as in
+     * `rect.screenCenterRight = Screen.centerRight`. Using `rect.centerRight = Screen.centerRight` only puts
+     * rect at the center of the right edge of the screen if Camera.position is [0, 0].
+     * @readonly 
+     */
+    readonly centerRight: Vector2
 }
 
 /** User mouse reference. */
