@@ -4,6 +4,12 @@ import { isVector2Like, Vector2, type Vector2Like } from "../Vector2"
 import { camera } from "../core"
 import Random from "../Random"
 
+export type PositionableScreenSpace = {
+    x: number,
+    y: number,
+    position: Vector2,
+}
+
 export type PositionableProps = {
     /** Horizontal position in the world. */
     x?: number
@@ -11,16 +17,6 @@ export type PositionableProps = {
     y?: number
     /** Position in the world. */
     position?: Vector2Like
-    /** Position in the world (alias of position). */
-    pos?: Vector2Like
-    /** Horizontal position on the screen. */
-    screenX?: number
-    /** Vertical position on the screen. */
-    screenY?: number
-    /** Position on the screen. */
-    screenPosition?: Vector2Like
-    /** Position on the screen (alias of position). */
-    screenPos?: Vector2Like
 }
 
 export function Positionable<Base extends Class>(base: Base) {
@@ -41,7 +37,6 @@ export function Positionable<Base extends Class>(base: Base) {
             this.x = props?.x ?? 0
             this.y = props?.y ?? 0
             if (props?.position) this.position = props.position
-            if (props?.pos) this.pos = props.pos
         }
 
         /** Horizontal position in the world. */
@@ -73,51 +68,56 @@ export function Positionable<Base extends Class>(base: Base) {
             this._updatePosition()
         }
 
-        // Alias for position: pos
-        /** Position in the world (alias of position). */
-        get pos(): Vector2 {
-            return this.position
-        }
-        set pos(pos: Vector2Like) {
-            this.position = pos
+        /**
+         * Used to access and/or modify this object's positioning data in screen-space coordinates.
+         * This allows you to position the object and its edges relative to the screen itself.
+         * 
+         * For example, placing a sprite in the center of the screen:
+         * 
+         * ```js
+         * sprite.screenSpace.position = [0, 0]
+         * ```
+         */
+        get screenSpace(): PositionableScreenSpace {
+            const positionable = this
+            return {
+                /** Horizontal position relative to the screen. */
+                get x(): number {
+                    return positionable.x - camera.x
+                },
+                set x(x: number) {
+                    positionable.x = camera.x + x
+                },
+
+                /** Vertical position relative to the screen. */
+                get y(): number {
+                    return positionable.y - camera.y
+                },
+                set y(y: number) {
+                    positionable.y = camera.y + y
+                },
+
+                /** Position relative to the screen. */
+                get position(): Vector2 {
+                    return new Vector2(this.x, this.y)
+                },
+                set position(pos: Vector2Like) {
+                    pos = Vector2.from(pos)
+                    positionable.position = new Vector2(camera.x + pos.x, camera.y + pos.y)
+                },
+            }
         }
 
-        /** This object's horizontal position relative to the camera. */
-        get screenX(): number {
-            return this.x - camera.x
-        }
-        set screenX(newX: number) {
-            this.x = camera.x - newX
-        }
-
-        /** This object's vertical position relative to the camera. */
-        get screenY(): number {
-            return this.y - camera.y
-        }
-        set screenY(newY: number) {
-            this.y = camera.y - newY
-        }
-
-        /** This object's position relative to the camera. */
-        get screenPosition(): Vector2 {
-            return new Vector2(this.screenX, this.screenY)
-        }
-        set screenPosition(pos: Vector2Like) {
-            pos = Vector2.from(pos)
-            this.position = new Vector2(camera.x - pos.x, camera.y - pos.y)
-        }
-        
-        /** This object's position relative to the camera (alias of screenPosition) */
-        get screenPos(): Vector2 {
-            return this.screenPosition
-        }
-        set screenPos(pos: Vector2Like) {
-            pos = Vector2.from(pos)
-            this.screenPosition = pos
-        }
-
-        /** The distance from this vector's end point to another vector's end point. */
+        /**
+         * Distance between this object and a point.
+         * @param x The point's x coordinate.
+         * @param y The point's y coordinate.
+         */
         distanceTo(x: number, y: number): number
+        /**
+         * Distance between the center of this object and the center of another object.
+         * @param other The other object.
+         */
         distanceTo(other: Vector2Like): number
         distanceTo(xOrOther: number | Vector2Like, y?: number) {
             if (isVector2Like(xOrOther)) {
@@ -158,16 +158,32 @@ export function Positionable<Base extends Class>(base: Base) {
                 this.x = x
                 this.y = y
             } else {
+                // TODO: Explain better
                 throw new Error('Bad goTo args')
             }
         }
 
-        _goToMouse() {
-            // temp private
-            // CHECK PHASER IMPLEMENTATION
-            // Super slow in a forever loop, look into this
-            // if (this._refObj) this._refObj.x = mouseX + app.screen.width / 2
-            // if (this._refObj) this._refObj.y = -mouseY + app.screen.height / 2
+        /**
+         * Set position relative to the screen.
+         * @param position New position relative to the screen.
+         */
+        goToScreen(position: Vector2Like): void
+        /**
+         * Set position relative to the screen.
+         * @param x New horizontal position relative to the screen.
+         * @param y New vertical position relative to the screen.
+         */
+        goToScreen(x: number, y: number): void
+        goToScreen(xOrPoint: number | Vector2Like, y?: number) {
+            if (typeof xOrPoint === 'number' && typeof y === 'number') {
+                this.goTo(camera.x + xOrPoint, camera.y + y)
+            } else if (typeof xOrPoint === 'object' && y === undefined) {
+                const { x, y } = Vector2.from(xOrPoint)
+                this.goTo(camera.x + x, camera.y + y)
+            } else {
+                // TODO: Explain better
+                throw new Error('Bad goToScreen args')
+            }
         }
 
         /** Set position to a random point within the current visible screen area. */
