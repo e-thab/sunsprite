@@ -99,13 +99,14 @@ export const COLORS_FILE = apiPath('Colors.ts')
 
 /**
  * Plain `const <exportName> = {...}` object literals (not classes) that are
- * part of the real api-object surface — Random and Files. Extracted via
+ * part of the real api-object surface — Random, Files and Phaser. Extracted via
  * extractObjectLiteral into the same propsFields/members shape a concrete
  * class produces, so it shares render.ts's existing output path.
  */
 export const OBJECT_LITERALS = [
     { file: apiPath('Random.ts'), exportName: 'Random', className: 'Random' },
     { file: apiPath('Files.ts'), exportName: 'Files', className: 'Files' },
+    { file: apiPath('PhaserRef.ts'), exportName: 'Phaser', className: 'Phaser' },
 ] as const
 
 /**

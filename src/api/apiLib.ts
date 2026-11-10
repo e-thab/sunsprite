@@ -38,8 +38,8 @@ import {
     vLinePropsFields, vLinePropsOmitted, vLineMembers,
     soundPropsFields, soundMembers, busMembers, busPropsDeclaration, mixerMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
+    randomMembers, filesMembers, phaserMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, phaserDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration, waitDeclaration, loadDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
@@ -124,6 +124,9 @@ export interface VersionedApiConstants {
     // Optional: snapshots cut before Files existed don't export these, and
     // buildApiLib leaves the whole Files section out for them.
     filesMembers?: string
+    // Optional: snapshots cut before Phaser existed don't export these, and
+    // buildApiLib leaves the whole Phaser section out for them.
+    phaserMembers?: string
     backgroundMembers: string
     backgroundStyleDeclaration: string
     backgroundPropsDeclaration: string
@@ -135,6 +138,7 @@ export interface VersionedApiConstants {
     backgroundDoc: string
     randomDoc: string
     filesDoc?: string
+    phaserDoc?: string
     timerDoc: string
     vector2Doc: string
     spriteDoc: string
@@ -379,6 +383,10 @@ ${v.randomMembers}
 ${v.filesMembers === undefined ? '' : `
 ${v.filesDoc ?? ''}declare const Files: {
 ${v.filesMembers}
+}
+`}${v.phaserMembers === undefined ? '' : `
+${v.phaserDoc ?? ''}declare const Phaser: {
+${v.phaserMembers}
 }
 `}
 /**
@@ -665,8 +673,8 @@ export const apiLib = buildApiLib({
     vLinePropsFields, vLinePropsOmitted, vLineMembers,
     soundPropsFields, soundMembers, busMembers, busPropsDeclaration, mixerMembers,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
+    randomMembers, filesMembers, phaserMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, phaserDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
     afterDeclaration, everyDeclaration, whenDeclaration, waitDeclaration, loadDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,

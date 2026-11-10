@@ -15,6 +15,7 @@ import Output from '@/sandbox/output'
 import Warning from '@api/Warning'
 import Random from '@api/Random'
 import Files from '@api/Files'
+import PhaserRef from '@api/PhaserRef'
 import Colors from '@api/Colors'
 import { Anchor } from '@mixins/Alignable'
 import Timer from '@api/Timer'
@@ -1167,6 +1168,7 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
+			Phaser: PhaserRef,
 			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Mixer: mixer, Colors, Anchor,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },

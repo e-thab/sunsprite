@@ -2,9 +2,8 @@ import { camera, screen } from "@api/core"
 import { Vector2 } from "@api/Vector2"
 
 /**
- * Without arguments: returns a random float of any possible value, from around -1.79 * 10^308 to
- * 1.79 * 10^308, the limit for 64-bit floats. That's from -179 uncentillion to 179 uncentillion.
- * The majority of the numbers returned will have extremely large absolute values.
+ * Without arguments: returns a random float between 0 and 1 on the interval [0, 1) (0 inclusive, 1 exclusive).
+ * That means that 0 is a (very rare) possibility, but the result can never be 1, only very close.
  */
 function randomNumber(): number
 /**
