@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { scene } from '@api/core'
-import { _audioSourceStatus, _reportFailedLoad, type AudioSource } from '@api/assets'
+import { _audioSourceStatus, _audioUrl, _reportFailedLoad, type AudioSource } from '@api/assets'
 import Bus, { busDefaults } from '@api/Bus'
 import { mixer, _client } from '@api/Mixer'
 
@@ -15,7 +15,7 @@ const soundDefaults = {
 }
 
 export type SoundProps = {
-    /** The sound's audio: the name of an audio file in your project, like 'jump.mp3', or a URL. */
+    /** The sound's audio: the name of an audio file in your project, like 'jump.mp3', a name you gave one with load(), or a URL. */
     src?: AudioSource
     /**
      * Bus this sound belongs to. Buses are used to modify categories of sounds together so that
@@ -141,7 +141,7 @@ export default class Sound {
                 this._ref = this._createRef(src)
                 if (playWhenLoaded) this._ref.play()
             })
-            loadingScene.load.audio(src, src)
+            loadingScene.load.audio(src, _audioUrl(src))
             loadingScene.load.start()
         }
 
@@ -213,7 +213,7 @@ export default class Sound {
         this._applyLoop(ref)
     }
 
-    /** The sound's audio: the name of an audio file in your project, like 'jump.mp3', or a URL. */
+    /** The sound's audio: the name of an audio file in your project, like 'jump.mp3', a name you gave one with load(), or a URL. */
     get src(): string {
         return this._src
     }

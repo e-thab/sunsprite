@@ -167,6 +167,7 @@ export const FREE_FUNCTIONS = [
     { file: apiPath('control.ts'), name: 'every' },
     { file: apiPath('control.ts'), name: 'when' },
     { file: apiPath('control.ts'), name: 'wait' },
+    { file: apiPath('core.ts'), name: 'load' },
     { file: apiPath('core.ts'), name: 'keyPressed' },
     { file: apiPath('core.ts'), name: 'keyJustPressed' },
     { file: apiPath('core.ts'), name: 'keyJustReleased' },

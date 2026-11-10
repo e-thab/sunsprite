@@ -92,6 +92,20 @@ type LibraryImageRecord = {
     position: number
 }
 
+// An image or sound hosted on another site, linked by URL. Like a library link
+// it stores no file data and counts against no storage quota, and removing one
+// only removes the link. Its kind is the user's say rather than read off the
+// URL, which needn't end in a file extension. Its own table (url_files): see
+// that migration for why it isn't a library_images row.
+type UrlFileRecord = {
+    id: string
+    name: string
+    url: string
+    kind: AssetKind
+    folderId: string | null
+    position: number
+}
+
 // Structurally identical to ScriptRecord — content lives inline, same as a
 // script — but kept as its own type/table rather than reusing ScriptRecord:
 // text files are never executed or import()-able, and don't count toward
@@ -116,6 +130,8 @@ export type TreeNode =
     // size is always 0 — a link stores nothing — but kept on the node so
     // folderSizeBytes can sum every non-folder kind the same way.
     | { kind: 'libraryImage', id: string, name: string, position: number, libraryPath: string, size: number }
+    // Same as libraryImage: size is always 0. fileKind says image or sound.
+    | { kind: 'urlFile', id: string, name: string, position: number, url: string, fileKind: AssetKind, size: number }
     | { kind: 'text', id: string, name: string, position: number, size: number }
 
 // VS Code's default explorer order: folders before files, each alphabetical,
@@ -289,6 +305,7 @@ export const useFileStore = defineStore('files', () => {
     const folders = ref<FolderRecord[]>([])
     const images = ref<ImageRecord[]>([])
     const libraryImages = ref<LibraryImageRecord[]>([])
+    const urlFiles = ref<UrlFileRecord[]>([])
     const textFiles = ref<TextFileRecord[]>([])
 
     function clear() {
@@ -367,12 +384,12 @@ export const useFileStore = defineStore('files', () => {
     // }
 
     // Guest sandbox only — writes the live scripts/folders/textFiles/
-    // libraryImages arrays back out as one JSON blob. Uploaded images are
-    // deliberately excluded: uploads always require a real project (see
+    // libraryImages/urlFiles arrays back out as one JSON blob. Uploaded images
+    // are deliberately excluded: uploads always require a real project (see
     // uploadImage), so the sandbox never has any.
     function persistGuestProject() {
         if (guestResetPending) return
-        const data = { folders: folders.value, scripts: scripts.value, textFiles: textFiles.value, libraryImages: libraryImages.value }
+        const data = { folders: folders.value, scripts: scripts.value, textFiles: textFiles.value, libraryImages: libraryImages.value, urlFiles: urlFiles.value }
         localStorage.setItem(GUEST_PROJECT_STORAGE_KEY, JSON.stringify(data))
     }
 
@@ -491,10 +508,13 @@ export const useFileStore = defineStore('files', () => {
         const containedLibraryImages: TreeNode[] = libraryImages.value
             .filter((img) => img.folderId === folderId)
             .map((img) => ({ kind: 'libraryImage' as const, id: img.id, name: img.name, position: img.position, libraryPath: img.libraryPath, size: 0 }))
+        const containedUrlFiles: TreeNode[] = urlFiles.value
+            .filter((file) => file.folderId === folderId)
+            .map((file) => ({ kind: 'urlFile' as const, id: file.id, name: file.name, position: file.position, url: file.url, fileKind: file.kind, size: 0 }))
         const containedTextFiles: TreeNode[] = textFiles.value
             .filter((f) => f.folderId === folderId)
             .map((f) => ({ kind: 'text' as const, id: f.id, name: f.name, position: f.position, size: sizeEncoder.encode(f.content).length }))
-        return [...subfolders, ...containedScripts, ...containedImages, ...containedLibraryImages, ...containedTextFiles].sort(compareTreeNodes)
+        return [...subfolders, ...containedScripts, ...containedImages, ...containedLibraryImages, ...containedUrlFiles, ...containedTextFiles].sort(compareTreeNodes)
     }
 
     // Recursive sum of everything under a folder — descends into
@@ -609,6 +629,7 @@ export const useFileStore = defineStore('files', () => {
         scripts.value = scripts.value.filter((s) => !(s.folderId !== null && removedFolderIds.has(s.folderId)))
         images.value = images.value.filter((img) => !(img.folderId !== null && removedFolderIds.has(img.folderId)))
         libraryImages.value = libraryImages.value.filter((img) => !(img.folderId !== null && removedFolderIds.has(img.folderId)))
+        urlFiles.value = urlFiles.value.filter((file) => !(file.folderId !== null && removedFolderIds.has(file.folderId)))
         textFiles.value = textFiles.value.filter((f) => !(f.folderId !== null && removedFolderIds.has(f.folderId)))
 
         if (!projectId.value) persistGuestProject()
@@ -656,23 +677,26 @@ export const useFileStore = defineStore('files', () => {
         folders.value = []
         images.value = []
         libraryImages.value = []
+        urlFiles.value = []
         textFiles.value = []
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
         scriptSnapshot.value = {}
         runningScriptName.value = undefined
 
-        const [{ data: folderRows, error: folderError }, { data: scriptRows, error: scriptError }, { data: imageRows, error: imageError }, { data: libraryImageRows, error: libraryImageError }, { data: textFileRows, error: textFileError }] = await Promise.all([
+        const [{ data: folderRows, error: folderError }, { data: scriptRows, error: scriptError }, { data: imageRows, error: imageError }, { data: libraryImageRows, error: libraryImageError }, { data: urlFileRows, error: urlFileError }, { data: textFileRows, error: textFileError }] = await Promise.all([
             supabase.from('folders').select('id, name, parent_id, position').eq('project_id', id).order('position'),
             supabase.from('scripts').select('id, name, content, folder_id, position, updated_at').eq('project_id', id).order('position'),
             supabase.from('images').select('id, name, object_key, content_type, size, folder_id, position').eq('project_id', id).order('position'),
             supabase.from('library_images').select('id, name, library_path, folder_id, position').eq('project_id', id).order('position'),
+            supabase.from('url_files').select('id, name, url, kind, folder_id, position').eq('project_id', id).order('position'),
             supabase.from('text_files').select('id, name, content, folder_id, position, updated_at').eq('project_id', id).order('position'),
         ])
         if (folderError) throw folderError
         if (scriptError) throw scriptError
         if (imageError) throw imageError
         if (libraryImageError) throw libraryImageError
+        if (urlFileError) throw urlFileError
         if (textFileError) throw textFileError
 
         if (folderRows.length === 0 && scriptRows.length === 0) {
@@ -710,6 +734,7 @@ export const useFileStore = defineStore('files', () => {
                 folderId: row.folder_id,
                 position: row.position,
             }))
+            urlFiles.value = urlFileRows.map((row) => urlFileFromRow(row))
             textFiles.value = textFileRows.map((row) => ({
                 id: row.id,
                 name: row.name,
@@ -728,6 +753,7 @@ export const useFileStore = defineStore('files', () => {
         folders.value = []
         images.value = []
         libraryImages.value = []
+        urlFiles.value = []
         textFiles.value = []
         dirtyFiles.value = new Set()
         scriptSnapshot.value = {}
@@ -749,11 +775,12 @@ export const useFileStore = defineStore('files', () => {
         const raw = localStorage.getItem(GUEST_PROJECT_STORAGE_KEY)
         if (raw) {
             try {
-                const data = JSON.parse(raw) as { folders?: FolderRecord[], scripts?: ScriptRecord[], textFiles?: TextFileRecord[], libraryImages?: LibraryImageRecord[] }
+                const data = JSON.parse(raw) as { folders?: FolderRecord[], scripts?: ScriptRecord[], textFiles?: TextFileRecord[], libraryImages?: LibraryImageRecord[], urlFiles?: UrlFileRecord[] }
                 folders.value = data.folders ?? []
                 scripts.value = data.scripts ?? []
                 textFiles.value = data.textFiles ?? []
                 libraryImages.value = data.libraryImages ?? []
+                urlFiles.value = data.urlFiles ?? []
                 filesSavedThisSession.value = []
                 dirtyFiles.value = new Set()
                 scriptSnapshot.value = {}
@@ -784,6 +811,7 @@ export const useFileStore = defineStore('files', () => {
         }]
         textFiles.value = []
         libraryImages.value = []
+        urlFiles.value = []
         filesSavedThisSession.value = []
         dirtyFiles.value = new Set()
         scriptSnapshot.value = {}
@@ -971,14 +999,15 @@ export const useFileStore = defineStore('files', () => {
         image.position = position
     }
 
-    // Uploaded files and library links live in separate tables, each with its
-    // own unique(project_id, name), but share one namespace — a file's name is
-    // its asset key in the running game (see projectAssets) — so a name has to
-    // be free across both, which only the client can check. `exceptId` is the
-    // row being renamed, so it doesn't clash with itself.
+    // Uploaded files, library links and URL files live in separate tables, each
+    // with its own unique(project_id, name), but share one namespace — a file's
+    // name is its asset key in the running game (see projectAssets) — so a name
+    // has to be free across all three, which only the client can check.
+    // `exceptId` is the row being renamed, so it doesn't clash with itself.
     function isImageNameTaken(name: string, exceptId?: string): boolean {
         return images.value.some((img) => img.id !== exceptId && img.name === name)
             || libraryImages.value.some((img) => img.id !== exceptId && img.name === name)
+            || urlFiles.value.some((file) => file.id !== exceptId && file.name === name)
     }
 
     // `name` itself if it's free, otherwise the first free "name_2.png",
@@ -1005,6 +1034,7 @@ export const useFileStore = defineStore('files', () => {
     const projectAssets = computed<ProjectAsset[]>(() => [
         ...images.value.map((img) => ({ name: img.name, kind: uploadKind(img), url: img.publicUrl })),
         ...libraryImages.value.map((img) => ({ name: img.name, kind: libraryKind(img.libraryPath), url: new URL(img.libraryPath, window.location.href).href })),
+        ...urlFiles.value.map((file) => ({ name: file.name, kind: file.kind, url: file.url })),
     ])
 
     // ---- Library images ----
@@ -1077,6 +1107,85 @@ export const useFileStore = defineStore('files', () => {
 
         image.folderId = folderId
         image.position = position
+        if (!projectId.value) persistGuestProject()
+    }
+
+    // ---- URL files ----
+    // Links to images and sounds on other sites. The same shape as library
+    // links throughout, guest sandbox included: there's nothing to store but a
+    // name, a URL and which kind of file it is.
+
+    // The table's check only allows 'image' and 'audio'; anything else would be
+    // a row this code didn't write, read as an image like an unknown upload.
+    function urlFileFromRow(row: { id: string, name: string, url: string, kind: string, folder_id: string | null, position: number }): UrlFileRecord {
+        return {
+            id: row.id,
+            name: row.name,
+            url: row.url,
+            kind: row.kind === 'audio' ? 'audio' : 'image',
+            folderId: row.folder_id,
+            position: row.position,
+        }
+    }
+
+    async function addUrlFile(url: string, kind: AssetKind, name: string, folderId: string | null = null): Promise<string> {
+        const position = nextPosition(folderId)
+
+        if (!projectId.value) {
+            urlFiles.value.push({ id: generateId(), name, url, kind, folderId, position })
+            persistGuestProject()
+            return name
+        }
+
+        const { data, error } = await supabase
+            .from('url_files')
+            .insert({ project_id: projectId.value, name, url, kind, folder_id: folderId, position })
+            .select('id, name, url, kind, folder_id, position')
+            .single()
+        if (error) throw error
+
+        urlFiles.value.push(urlFileFromRow(data))
+        return data.name
+    }
+
+    async function renameUrlFile(id: string, newName: string) {
+        const file = urlFiles.value.find((f) => f.id === id)
+        if (!file) throw new Error('File not found')
+
+        if (projectId.value) {
+            const { error } = await supabase.from('url_files').update({ name: newName }).eq('id', id)
+            if (error) throw error
+        }
+
+        file.name = newName
+        if (!projectId.value) persistGuestProject()
+    }
+
+    // Only ever removes the link: the file itself belongs to whatever site hosts it.
+    async function removeUrlFile(id: string) {
+        const file = urlFiles.value.find((f) => f.id === id)
+        if (!file) return
+
+        if (projectId.value) {
+            const { error } = await supabase.from('url_files').delete().eq('id', id)
+            if (error) throw error
+        }
+
+        urlFiles.value = urlFiles.value.filter((f) => f.id !== id)
+        if (!projectId.value) persistGuestProject()
+    }
+
+    async function moveUrlFile(id: string, folderId: string | null, position: number) {
+        const file = urlFiles.value.find((f) => f.id === id)
+        if (!file) return
+
+        if (projectId.value) {
+            const { error } = await supabase.from('url_files').update({ folder_id: folderId, position }).eq('id', id)
+            if (error) throw error
+        }
+
+        file.folderId = folderId
+        file.position = position
         if (!projectId.value) persistGuestProject()
     }
 
@@ -1180,6 +1289,7 @@ export const useFileStore = defineStore('files', () => {
         folders,
         images,
         libraryImages,
+        urlFiles,
         textFiles,
         activate,
         savedThisSession,
@@ -1226,6 +1336,10 @@ export const useFileStore = defineStore('files', () => {
         renameLibraryImage,
         removeLibraryImage,
         moveLibraryImage,
+        addUrlFile,
+        renameUrlFile,
+        removeUrlFile,
+        moveUrlFile,
         createTextFile,
         renameTextFile,
         deleteTextFile,

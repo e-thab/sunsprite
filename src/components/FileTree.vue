@@ -17,6 +17,7 @@ import {
 	LIBRARY_DRAG_MIME,
 	UPLOAD_ACCEPT_ATTR,
 	UPLOAD_FORMAT_LABELS,
+	type AssetKind,
 	uploadDisplayName,
 	uploadFileTypeFor,
 	uploadFileTypeForExtension,
@@ -210,6 +211,25 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			onSelect: onFileSelect,
 		}
 	}
+	if (node.kind === 'urlFile') {
+		// Same shape as a library link, pointed at another site. Its kind is
+		// stored, not read off the URL, so a URL with no extension still gets
+		// the right row; the extension only adds a type label when there is one.
+		const fileType = uploadFileTypeForExtension(urlExtension(node.url))
+		const sound = node.fileKind === 'audio'
+		return {
+			label: node.name,
+			kind: 'urlFile',
+			id: node.id,
+			parentId,
+			sound,
+			thumbnail: sound ? undefined : node.url,
+			icon: sound ? (fileType?.icon ?? 'catppuccin:audio') : undefined,
+			path: node.url,
+			typeLabel: fileType?.label,
+			onSelect: onFileSelect,
+		}
+	}
 	if (node.kind === 'text') {
 		return {
 			label: node.name,
@@ -311,9 +331,14 @@ function itemStateClass(item: TreeItem): string | undefined {
 	return undefined
 }
 
-// An uploaded sound, or a link to one of the Library's.
+// An uploaded sound, or a link to one in the Library or on another site.
 function isSoundItem(item: TreeItem): boolean {
-	return item.kind === 'audio' || (item.kind === 'libraryImage' && item.sound)
+	return item.kind === 'audio' || ((item.kind === 'libraryImage' || item.kind === 'urlFile') && item.sound)
+}
+
+// Library links and URL files: no data of their own, so removing one only removes the link.
+function isLinkItem(item: TreeItem): boolean {
+	return item.kind === 'libraryImage' || item.kind === 'urlFile'
 }
 
 function libraryChipTitle(item: TreeItem): string {
@@ -321,12 +346,25 @@ function libraryChipTitle(item: TreeItem): string {
 	return `Linked from the Library: ${item.path}${credit}\nDoesn't use project storage`
 }
 
+function urlChipTitle(item: TreeItem): string {
+	return `Linked from ${item.path}\nDoesn't use project storage`
+}
+
+// A URL's extension, lowercase, ignoring any query or fragment — '' if it has
+// none, which plenty of image and sound URLs don't.
+function urlExtension(url: string): string {
+	const path = url.split(/[?#]/)[0] ?? ''
+	const name = path.slice(path.lastIndexOf('/') + 1)
+	const dot = name.lastIndexOf('.')
+	return dot === -1 ? '' : name.slice(dot + 1).toLowerCase()
+}
+
 // Human label for the rename/delete tooltips below — a plain if-chain reads
 // better here than a 4-way ternary once 'text' joins 'folder'/'image'/'script'.
 function kindLabel(item: TreeItem): string {
 	if (item.kind === 'folder') return 'folder'
 	if (isSoundItem(item)) return 'sound'
-	if (item.kind === 'image' || item.kind === 'libraryImage') return 'image'
+	if (item.kind === 'image' || isLinkItem(item)) return 'image'
 	if (item.kind === 'text') return 'text file'
 	return 'script'
 }
@@ -446,6 +484,110 @@ function uploadFile(folderId: string | null) {
 		}
 	}
 	input.click()
+}
+
+// ---- Add from URL ----
+// A link to an image or sound on another site, preloaded with the rest of the
+// project's files. No upload, so the guest sandbox gets this too.
+
+// Longest URL the url_files table accepts.
+const MAX_URL_LENGTH = 2048
+
+// How long the reachability check waits for the site to answer.
+const URL_CHECK_TIMEOUT_MS = 8000
+
+// https only, same as the table's check: the game fetches these from an https
+// page, and a browser blocks a plain-http request from one.
+function parseFileUrl(input: string): string | undefined {
+	try {
+		const url = new URL(input.trim())
+		return url.protocol === 'https:' ? url.href : undefined
+	} catch {
+		return undefined
+	}
+}
+
+// The game loads files with fetches the hosting site has to allow (CORS),
+// unlike the tree's own thumbnail and audio preview, which would show the file
+// fine either way. So a URL that can't be used is caught here rather than
+// looking right in the tree and failing in the game. Only waits for the
+// response headers, then drops the body. Returns what went wrong, if anything.
+async function checkUrlLoads(url: string): Promise<string | undefined> {
+	const controller = new AbortController()
+	const timer = setTimeout(() => controller.abort(), URL_CHECK_TIMEOUT_MS)
+	try {
+		const response = await fetch(url, { signal: controller.signal })
+		if (!response.ok) return `The site answered with an error (HTTP ${response.status}).`
+		return undefined
+	} catch {
+		return "The site couldn't be reached, or doesn't let other sites use its files."
+	} finally {
+		clearTimeout(timer)
+		controller.abort()
+	}
+}
+
+// The URL's own file name if it has one, like "gator.png" — decoded, since a
+// name with %20s in it isn't what anyone would type — or else just "image" or
+// "sound". Either way the user can change it before it's added.
+function nameFromUrl(url: string, kind: AssetKind): string {
+	const path = new URL(url).pathname
+	let name = path.slice(path.lastIndexOf('/') + 1)
+	try {
+		name = decodeURIComponent(name)
+	} catch {
+		// Malformed escapes: keep it as it was.
+	}
+	name = name.trim()
+	if (!name) return kind === 'audio' ? 'sound' : 'image'
+	const { base, extension } = splitFileName(name)
+	return joinFileName(base.slice(0, MAX_FILE_NAME_LENGTH), extension)
+}
+
+async function addFromUrl(folderId: string | null, kind: AssetKind) {
+	const noun = kind === 'audio' ? 'sound' : 'image'
+	const input = await namePromptStore.prompt({
+		title: `Add ${noun} from URL`,
+		description: `The address of the ${noun}, starting with https://`,
+		maxLength: MAX_URL_LENGTH,
+		confirmLabel: 'Next',
+	})
+	if (!input) return
+
+	const url = parseFileUrl(input)
+	if (!url) {
+		window.alert('That isn\'t a valid URL. It needs to start with https://')
+		return
+	}
+
+	const problem = await checkUrlLoads(url)
+	if (problem && !window.confirm(`${problem} Games can only use files from sites that allow it, so this ${noun} may not load.\n\nAdd it anyway?`)) return
+
+	// The limit is on the base name (see checkNameLength), so the prompt
+	// leaves room for the suggested name's extension on top of it.
+	const suggested = fileStore.uniqueImageName(nameFromUrl(url, kind))
+	const suggestedExtension = splitFileName(suggested).extension
+	const typed = await namePromptStore.prompt({
+		title: `Name this ${noun}`,
+		description: `Scripts use this name as the ${noun}'s src.`,
+		initialValue: suggested,
+		maxLength: MAX_FILE_NAME_LENGTH + (suggestedExtension ? suggestedExtension.length + 1 : 0),
+		confirmLabel: 'Add',
+	})
+	if (!typed) return
+
+	if (!checkNameLength(splitFileName(typed).base)) return
+	if (fileStore.isImageNameTaken(typed)) {
+		window.alert('A file with that name already exists in this project.')
+		return
+	}
+
+	try {
+		await fileStore.addUrlFile(url, kind, typed, folderId)
+		if (folderId !== null) ensureFolderExpanded(folderId)
+	} catch (err) {
+		window.alert(err instanceof Error ? err.message : `Failed to add ${noun}`)
+	}
 }
 
 // ---- Audio preview ----
@@ -582,6 +724,14 @@ function folderMenuItems(folderId: string | null): DropdownMenuItem[] {
 		{ label: 'New folder', icon: 'tabler:folder-plus', onSelect: () => addFolder(folderId) },
 	]
 	if (fileStore.projectId) items.push({ label: 'Upload file', icon: 'tabler:upload', onSelect: () => uploadFile(folderId) })
+	items.push({
+		label: 'Add from URL',
+		icon: 'tabler:world-download',
+		children: [
+			{ label: 'Image', icon: 'tabler:photo', onSelect: () => addFromUrl(folderId, 'image') },
+			{ label: 'Sound', icon: 'tabler:music', onSelect: () => addFromUrl(folderId, 'audio') },
+		],
+	})
 	return items
 }
 
@@ -602,7 +752,7 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 			? { label: 'Stop', icon: 'tabler:player-stop-filled', onSelect: () => toggleAudioPreview(item) }
 			: { label: 'Play', icon: 'tabler:player-play-filled', onSelect: () => toggleAudioPreview(item) })
 		primary.push({ label: 'Copy sound URL', icon: 'tabler:copy-filled', onSelect: () => copyFileUrl(item.path) })
-	} else if ((item.kind === 'image' || item.kind === 'libraryImage') && item.path) {
+	} else if ((item.kind === 'image' || isLinkItem(item)) && item.path) {
 		primary.push({ label: 'Copy image URL', icon: 'tabler:copy-filled', onSelect: () => copyFileUrl(item.path) })
 	}
 	if (item.kind === 'script') {
@@ -617,9 +767,9 @@ function itemMenuItems(item: TreeItem): DropdownMenuItem[][] {
 	// reorganization) but never deleted from here — nothing else guarantees
 	// a project always has one, and Restart depends on it existing.
 	//
-	// A library image only ever loses its link (the asset stays in the
-	// Library), so it reads as "Remove" rather than "Delete".
-	if (item.kind === 'libraryImage') {
+	// A library or URL file only ever loses its link (the file stays in the
+	// Library, or on the site hosting it), so it reads as "Remove" rather than "Delete".
+	if (isLinkItem(item)) {
 		groups.push([{ label: `Remove ${kindLabel(item)}`, icon: 'tabler:link-off', color: 'error', onSelect: () => deleteItem(item) }])
 	} else if (!(item.kind === 'script' && isMainScript(scriptName(item)))) {
 		groups.push([{ label: `Delete ${kindLabel(item)}`, icon: 'tabler:trash-filled', color: 'error', onSelect: () => deleteItem(item) }])
@@ -827,8 +977,8 @@ async function renameFolder(id: string, currentName: string, parentId: string | 
 	await fileStore.renameFolder(id, name)
 }
 
-// Covers library links too — they share one namespace with uploads (see
-// fileStore.isImageNameTaken), and only differ in which table gets written.
+// Covers library and URL links too — they share one namespace with uploads
+// (see fileStore.isImageNameTaken), and only differ in which table gets written.
 async function renameImage(item: TreeItem, name: string) {
 	if (!name || name === scriptName(item)) return
 
@@ -838,6 +988,7 @@ async function renameImage(item: TreeItem, name: string) {
 	}
 
 	if (item.kind === 'libraryImage') await fileStore.renameLibraryImage(item.id, name)
+	else if (item.kind === 'urlFile') await fileStore.renameUrlFile(item.id, name)
 	else await fileStore.renameImage(item.id, name)
 }
 
@@ -877,7 +1028,7 @@ function commitRename(item: TreeItem) {
 	// The extension itself was never part of renamingValue (see startRename),
 	// so it's re-attached here rather than trusted from what was typed.
 	const name = joinFileName(typed, fileExtension(item))
-	if (item.kind === 'image' || item.kind === 'audio' || item.kind === 'libraryImage') renameImage(item, name)
+	if (item.kind === 'image' || item.kind === 'audio' || isLinkItem(item)) renameImage(item, name)
 	else if (item.kind === 'text') renameTextFile(item.id, scriptName(item), name)
 	else renameScript(scriptName(item), name)
 }
@@ -970,6 +1121,17 @@ async function removeLibraryImage(id: string) {
 	}
 }
 
+// Asks first, unlike a library link: the Library can't give this one back in
+// a click, and the URL may not be written down anywhere else.
+async function removeUrlFile(id: string, name: string) {
+	if (!window.confirm(`Remove "${name}"? The file stays on the site it's hosted on, but you'll need its URL to add it again.`)) return
+	try {
+		await fileStore.removeUrlFile(id)
+	} catch (err) {
+		window.alert(err instanceof Error ? err.message : 'Failed to remove file')
+	}
+}
+
 function deleteItem(item: TreeItem) {
 	if (item.kind === 'folder') return deleteFolder(item.id, scriptName(item))
 	if (item.kind === 'image' || item.kind === 'audio') {
@@ -979,6 +1141,10 @@ function deleteItem(item: TreeItem) {
 	if (item.kind === 'libraryImage') {
 		if (previewingAudioId.value === item.id) stopAudioPreview()
 		return removeLibraryImage(item.id)
+	}
+	if (item.kind === 'urlFile') {
+		if (previewingAudioId.value === item.id) stopAudioPreview()
+		return removeUrlFile(item.id, scriptName(item))
 	}
 	if (item.kind === 'text') return deleteTextFile(item.id, scriptName(item))
 	return deleteScript(scriptName(item))
@@ -1011,7 +1177,7 @@ function deleteItem(item: TreeItem) {
 
 type DraggedNode = {
 	id: string
-	kind: 'folder' | 'script' | 'image' | 'audio' | 'libraryImage' | 'text'
+	kind: 'folder' | 'script' | 'image' | 'audio' | 'libraryImage' | 'urlFile' | 'text'
 	name: string
 	parentId: string | null
 	// For a folder: itself plus everything under it, none of which it can be
@@ -1025,7 +1191,7 @@ const draggedNodes = ref<DraggedNode[] | null>(null)
 const dropTarget = ref<DropTarget | null>(null)
 
 function isDraggable(item: TreeItem): boolean {
-	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image' || item.kind === 'audio' || item.kind === 'libraryImage' || item.kind === 'text'
+	return item.kind === 'folder' || item.kind === 'script' || item.kind === 'image' || item.kind === 'audio' || isLinkItem(item) || item.kind === 'text'
 }
 
 // The stored position is still written, but only so the column stays
@@ -1035,6 +1201,7 @@ async function moveDraggedTo(dragged: DraggedNode, folderId: string | null) {
 	if (dragged.kind === 'folder') await fileStore.moveFolder(dragged.id, folderId, position)
 	else if (dragged.kind === 'image' || dragged.kind === 'audio') await fileStore.moveImage(dragged.id, folderId, position)
 	else if (dragged.kind === 'libraryImage') await fileStore.moveLibraryImage(dragged.id, folderId, position)
+	else if (dragged.kind === 'urlFile') await fileStore.moveUrlFile(dragged.id, folderId, position)
 	else if (dragged.kind === 'text') await fileStore.moveTextFile(dragged.id, folderId, position)
 	else await fileStore.moveScript(dragged.id, folderId, position)
 }
@@ -1360,6 +1527,18 @@ async function addLibraryDrop(paths: string, folderId: string | null) {
 									<LibraryCredit :attribution="item.attribution" :path="item.path" />
 								</template>
 							</UPopover>
+							<!-- Same idea for a file linked from another site, in the
+							     secondary color so the two kinds of link read apart.
+							     Clicking it shows the full URL. -->
+							<UPopover v-else-if="item.kind === 'urlFile'" :content="{ align: 'end' }">
+								<button type="button" class="library-chip url-chip" :title="urlChipTitle(item)" @click.stop>
+									<UIcon name="tabler:world" class="library-chip-icon" />
+								</button>
+
+								<template #content>
+									<LibraryCredit :path="item.path" />
+								</template>
+							</UPopover>
 							<span v-else class="item-size" :title="`${(item.size ?? 0).toLocaleString()} bytes`">{{ formatBytes(item.size ?? 0) }}</span>
 							<div class="item-actions" @contextmenu="forwardRowContextMenu($event, item)">
 								<UDropdownMenu
@@ -1683,6 +1862,22 @@ async function addLibraryDrop(paths: string, folderId: string | null) {
 	width: 1em;
 	height: 1.15em;
 	color: var(--theme-primary);
+}
+
+/* A file linked from another site: the library chip's shape in the secondary
+   color. After .library-chip's rules so these win at equal specificity. */
+.url-chip {
+	color: var(--theme-secondary);
+	border-color: var(--theme-secondary);
+}
+
+.url-chip:hover,
+.url-chip[data-state="open"] {
+	background-color: color-mix(in srgb, var(--theme-secondary) 15%, transparent);
+}
+
+.url-chip .library-chip-icon {
+	color: var(--theme-secondary);
 }
 
 .library-label {

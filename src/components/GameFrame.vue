@@ -69,6 +69,7 @@ onBeforeUnmount(() => {
   height: 100%;
   border: 0;
   background-color: #353b48;
+  color-scheme: normal;
   /* A drag-selection gesture on the host page can still highlight an iframe
      as a whole (a browser quirk with replaced elements), even though the
      sandboxed document inside it already blocks selection on its own

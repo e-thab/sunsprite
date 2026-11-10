@@ -3,7 +3,7 @@ export const meta = {
 	title: 'Functions',
 	icon: 'tabler:function',
 	summary: 'The global functions available to every script.',
-	order: ['game-loop', 'random', 'input', 'output', 'files', 'math'],
+	order: ['game-loop', 'random', 'input', 'output', 'files', 'load', 'math'],
 }
 
 export default {}

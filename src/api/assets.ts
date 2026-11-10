@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import type { ThemePalette } from '@/theme/themes'
-import type { ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
+import type { OutputLocation, ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
 import Output from '@/sandbox/output'
 import { currentLocation } from '@api/moduleRunner'
 import { describeMissingFile, isBareFileName, type NamedAsset } from '@api/fileNames'
@@ -23,7 +23,7 @@ import { _defaultColor as backgroundColor } from '@api/Background'
 // doesn't cost a reload.
 
 /**
- * An image: the name of an image file in your project, like 'player.png', or a URL.
+ * An image: the name of an image file in your project, like 'player.png', a name you gave one with load(), or a URL.
  *
  * Plain `string` here; the editor's declarations narrow it to the project's
  * real file names for completion (see apiLib.ts's ImageSource and
@@ -32,8 +32,17 @@ import { _defaultColor as backgroundColor } from '@api/Background'
  */
 export type ImageSource = string
 
-/** A sound: the name of an audio file in your project, like 'jump.mp3', or a URL. See ImageSource. */
+/** A sound: the name of an audio file in your project, like 'jump.mp3', a name you gave one with load(), or a URL. See ImageSource. */
 export type AudioSource = string
+
+/** What load() can fetch, in the words scripts use: load()'s optional third argument. */
+export type LoadType = 'image' | 'sound'
+
+/** What a file loads as, in Phaser's terms: a texture or an entry in the audio cache. */
+type MediaKind = ProjectAsset['kind']
+
+/** What load() has been asked for under one name. `audioType` is what Phaser is told the format is, for a sound. */
+type LoadRequest = { url: string, kind: MediaKind, audioType?: string }
 
 /** The project's files for the current run, set by runUserCode before the game exists. */
 let manifest: readonly ProjectAsset[] = []
@@ -63,6 +72,30 @@ const reported = new Set<string>()
 let sharedAudioContext: AudioContext | undefined
 
 /**
+ * What load() has been asked for this run, by name. Images and sounds share
+ * one set of names, so a name used as the wrong kind can be explained. The URLs
+ * also survive into the next run's cache pruning.
+ */
+let loadRequests = new Map<string, LoadRequest>()
+
+/**
+ * The line that first asked for each file loaded on demand this run, by the
+ * key it's loaded under: load() calls, and path/URL sources. A failure points
+ * back here, since it arrives from the loader long after the script's stack
+ * has gone. Project files aren't in here: no line asks for those.
+ */
+const loadLocations = new Map<string, OutputLocation | undefined>()
+
+/** Keys already warned about being used while still downloading, so it's only said once per key. */
+const warnedStillLoading = new Set<string>()
+
+/** Bumped every run, so a load finishing after a restart can tell it no longer belongs to the current game. */
+let currentRun = 0
+
+/** The progress bar for load() calls on the loader's current batch, if there is one. */
+let loadProgress: { files: Map<string, MediaKind>, redraw: () => void, hide: () => void } | undefined
+
+/**
  * One AudioContext for every Game this document builds, passed in through the
  * game config. Phaser closes a context it created itself when its Game is
  * destroyed; one handed to it is only suspended, and resumed by the next Game.
@@ -90,12 +123,21 @@ export function _setProjectAssets(assets: readonly ProjectAsset[], runTheme?: Th
     textFiles = new Map(runTextFiles.map((file) => [file.name, file.content]))
     failedNames.clear()
     reported.clear()
+    warnedStillLoading.clear()
+    loadLocations.clear()
+    currentRun++
+    // Now, not at the old scene's teardown: the compact bar isn't part of its canvas.
+    loadProgress?.hide()
+    loadProgress = undefined
 
     // Forget files that have left the project, so a long session doesn't keep
-    // every image anyone ever uploaded alive.
-    const urls = new Set(assets.map((asset) => asset.url))
+    // every image anyone ever uploaded alive. URLs the last run load()ed count
+    // as still in use: the script that's about to run most likely asks for
+    // them again, and auto-run restarts on every edit.
+    const urls = new Set([...assets.map((asset) => asset.url), ...[...loadRequests.values()].map((request) => request.url)])
     for (const url of imageCache.keys()) if (!urls.has(url)) imageCache.delete(url)
     for (const url of audioCache.keys()) if (!urls.has(url)) audioCache.delete(url)
+    loadRequests = new Map()
 }
 
 /**
@@ -128,11 +170,13 @@ export function _preloadProjectAssets(scene: Phaser.Scene) {
         // R2 key keeps the original name's, but stating it is sturdier. And a
         // format the browser can't play is skipped by Phaser with only a
         // console warning, so it's checked (and explained) here instead.
-        const extension = audioExtension(asset.name)
-        const type = playableAudioType(extension, scene.sys.game.device.audio)
+        // The name's extension first, then the URL's: a sound added from a URL
+        // can be named anything, and its URL needn't end in one either.
+        const extension = [asset.name, asset.url].map(fileExtension).find((ext) => AUDIO_EXTENSIONS.has(ext)) ?? ''
+        const type = audioLoadType(extension, scene.sys.game.device.audio)
         if (!type) {
             failedNames.add(asset.name)
-            report(asset.name, `This browser can't play .${extension} files, so '${asset.name}' wasn't loaded.`)
+            report(asset.name, `This browser can't play ${extension ? `.${extension} files` : 'sounds'}, so '${asset.name}' wasn't loaded.`)
             continue
         }
         scene.load.audio(asset.name, { url: asset.url, type })
@@ -155,15 +199,164 @@ export function _preloadProjectAssets(scene: Phaser.Scene) {
 
     if (pending.length === 0) return
 
-    const hideProgress = showLoadingProgress(scene, new Set(pending.map((asset) => asset.name)))
+    // Too early for the Background wrapper to have set this itself.
+    scene.cameras.main.setBackgroundColor(backgroundColor)
+    const progress = showLoadingProgress(scene, new Map(pending.map((asset) => [asset.name, asset.kind])))
     scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
-        hideProgress()
+        progress.hide()
         collectLoaded(scene, pending, loadErrors)
     })
 }
 
-function audioExtension(name: string): string {
-    return name.slice(name.lastIndexOf('.') + 1).toLowerCase()
+/**
+ * Extensions load() takes to mean a sound when it isn't told the type: every
+ * format Phaser can check the browser for, not just the ones the project's
+ * uploads allow, since a URL can point at anything.
+ */
+const AUDIO_EXTENSIONS = new Set(['mp3', 'ogg', 'wav', 'm4a', 'aac', 'opus', 'flac', 'webm'])
+
+/**
+ * The engine behind the API's load(): fetches an image or a sound under a name
+ * of the script's choosing. Which one comes from `type` if the script gave one,
+ * otherwise from the URL's extension. Phaser's loader works just as well after
+ * preload as during it, and scripts can already wait on a promise at their top
+ * level (imports rely on that too, see moduleRunner.ts), so this needs nothing
+ * from the scene's preload phase.
+ *
+ * Always resolves, even if the file can't be loaded: that's reported, and a
+ * rejection at a script's top level would stop the whole game over one file.
+ * Never settles if the game restarts first, because the rest of the old script
+ * would otherwise carry on and build its objects in the new game. The fade-out
+ * in core.ts's retireGame leaves a real window for that: the old loader can
+ * still finish after `scene` has moved on.
+ */
+export function _loadFile(scene: Phaser.Scene, key: string, url: string, type?: LoadType): Promise<void> {
+    if (typeof key !== 'string' || typeof url !== 'string') {
+        throw new Error(`load() needs names and URLs, like load('gator', 'https://example.com/gator.png') or load({ gator: 'https://example.com/gator.png' })`)
+    }
+    if (type !== undefined && type !== 'image' && type !== 'sound') {
+        throw new Error(`load()'s third argument is the type of file, and must be 'image' or 'sound'.`)
+    }
+
+    const extension = fileExtension(url)
+    const kind: MediaKind = type === 'sound' || (type === undefined && AUDIO_EXTENSIONS.has(extension)) ? 'audio' : 'image'
+
+    // Phaser skips a key it already has without saying so, which would leave
+    // the script using a different file than the URL it just asked for.
+    const requested = loadRequests.get(key)
+    const taken = requested !== undefined
+        ? requested.url !== url || requested.kind !== kind
+        : key !== url && (scene.textures.exists(key) || scene.cache.audio.exists(key) || manifest.some((asset) => asset.name === key))
+    if (taken) {
+        Output.runtimeWarning(`The name '${key}' is already used by another file, so this load() was ignored. Try a different name.`, currentLocation())
+        return Promise.resolve()
+    }
+
+    // Asked for again: it either already arrived or already failed and was reported.
+    if (isLoaded(scene, kind, key) || failedNames.has(key)) return Promise.resolve()
+
+    if (requested === undefined && isBareFileName(key) && reported.has(key)) {
+        Output.runtimeWarning(`'${key}' was used before this load() call. Move the load() above anything that uses it.`, currentLocation())
+        // That report was about the earlier use. If this load fails, that still needs saying.
+        reported.delete(key)
+    }
+
+    const audioType = kind === 'audio'
+        ? audioLoadType(AUDIO_EXTENSIONS.has(extension) ? extension : '', scene.sys.game.device.audio)
+        : undefined
+
+    loadRequests.set(key, { url, kind, audioType })
+    rememberLoadLocation(key)
+
+    if (kind === 'audio' && !audioType) {
+        failedNames.add(key)
+        report(key, `This browser can't play ${extension ? `.${extension} files` : 'sounds'}, so '${key}' wasn't loaded.`)
+        return Promise.resolve()
+    }
+
+    if (kind === 'image') {
+        const cached = imageCache.get(url)
+        if (cached && scene.textures.addImage(key, cached)) return Promise.resolve()
+    } else {
+        const cached = audioCache.get(url)
+        if (cached) {
+            scene.cache.audio.add(key, cached)
+            return Promise.resolve()
+        }
+    }
+
+    if (!loadProgress) {
+        const files = new Map<string, MediaKind>()
+        loadProgress = { files, ...showLoadingProgress(scene, files) }
+    }
+    loadProgress.files.set(key, kind)
+    loadProgress.redraw()
+
+    const run = currentRun
+    return new Promise((resolve) => {
+        scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
+            if (run !== currentRun) return
+
+            loadProgress?.hide()
+            loadProgress = undefined
+
+            if (!keepLoaded(scene, kind, key, url)) {
+                failedNames.add(key)
+                _reportFailedLoad(key, kind)
+            }
+            resolve()
+        })
+        if (kind === 'image') scene.load.image(key, url)
+        else if (audioType) scene.load.audio(key, { url, type: audioType })
+        scene.load.start()
+    })
+}
+
+function isLoaded(scene: Phaser.Scene, kind: MediaKind, key: string): boolean {
+    return kind === 'image' ? scene.textures.exists(key) : scene.cache.audio.exists(key)
+}
+
+/**
+ * Whether a file the loader was given made it into the game's caches, keeping
+ * it for the next run if it did.
+ */
+function keepLoaded(scene: Phaser.Scene, kind: MediaKind, key: string, url: string): boolean {
+    if (!isLoaded(scene, kind, key)) return false
+    if (kind === 'image') {
+        const source = scene.textures.get(key).getSourceImage()
+        if (source instanceof HTMLImageElement) imageCache.set(url, source)
+    } else {
+        const buffer = scene.cache.audio.get(key)
+        if (buffer instanceof AudioBuffer) audioCache.set(url, buffer)
+    }
+    return true
+}
+
+/**
+ * Where to fetch an image source with a 'load' status: the URL load() was given
+ * if it's one of its image names, otherwise the source is its own URL. If load()
+ * is still fetching it, Phaser ignores the repeat request for the same key.
+ */
+export function _imageUrl(src: string): string {
+    const request = loadRequests.get(src)
+    return request?.kind === 'image' ? request.url : src
+}
+
+/**
+ * Same as _imageUrl, for a sound. A name from load() comes with the format
+ * load() settled on, since its URL may not have an extension Phaser can read one from.
+ */
+export function _audioUrl(src: string): string | { url: string, type: string } {
+    const request = loadRequests.get(src)
+    return request?.kind === 'audio' && request.audioType ? { url: request.url, type: request.audioType } : src
+}
+
+/** A file name or URL's extension, lowercase, ignoring any query or fragment: 'mp3' for '…/jump.MP3?v=2'. Empty if there isn't one. */
+function fileExtension(nameOrUrl: string): string {
+    const path = nameOrUrl.split(/[?#]/)[0] ?? ''
+    const name = path.slice(path.lastIndexOf('/') + 1)
+    const dot = name.lastIndexOf('.')
+    return dot === -1 ? '' : name.slice(dot + 1).toLowerCase()
 }
 
 /**
@@ -178,6 +371,17 @@ function playableAudioType(extension: string, device: Phaser.Device.Audio): stri
     return device[extension as keyof Phaser.Device.Audio] ? extension : undefined
 }
 
+/**
+ * The type to tell Phaser's loader a sound is, from its audio extension, or ''
+ * when it has none. Phaser only uses the type to check the browser can play
+ * it; the decoder goes by what's actually in the file. So a sound with no
+ * extension to go on can be passed off as any format the browser supports.
+ */
+function audioLoadType(extension: string, device: Phaser.Device.Audio): string | undefined {
+    if (extension) return playableAudioType(extension, device)
+    return [...AUDIO_EXTENSIONS].map((format) => playableAudioType(format, device)).find((type) => type !== undefined)
+}
+
 function loadFailureReason(file: Phaser.Loader.File): string {
     const status = file.xhrLoader?.status
     return status ? `HTTP ${status}` : 'network error'
@@ -190,16 +394,7 @@ function loadFailureReason(file: Phaser.Loader.File): string {
  */
 function collectLoaded(scene: Phaser.Scene, pending: readonly ProjectAsset[], loadErrors: ReadonlyMap<string, string>) {
     for (const asset of pending) {
-        if (asset.kind === 'image' && scene.textures.exists(asset.name)) {
-            const source = scene.textures.get(asset.name).getSourceImage()
-            if (source instanceof HTMLImageElement) imageCache.set(asset.url, source)
-            continue
-        }
-        if (asset.kind === 'audio' && scene.cache.audio.exists(asset.name)) {
-            const buffer = scene.cache.audio.get(asset.name)
-            if (buffer instanceof AudioBuffer) audioCache.set(asset.url, buffer)
-            continue
-        }
+        if (keepLoaded(scene, asset.kind, asset.name, asset.url)) continue
 
         failedNames.add(asset.name)
         const reason = loadErrors.get(asset.name)
@@ -212,7 +407,12 @@ function collectLoaded(scene: Phaser.Scene, pending: readonly ProjectAsset[], lo
 function report(key: string, message: string) {
     if (reported.has(key)) return
     reported.add(key)
-    Output.runtimeError(message)
+    Output.runtimeError(message, loadLocations.get(key))
+}
+
+/** Only the first line to ask is kept: it's the one a failure gets reported against, and a `forever` can keep asking. */
+function rememberLoadLocation(key: string) {
+    if (!loadLocations.has(key)) loadLocations.set(key, currentLocation())
 }
 
 /**
@@ -232,13 +432,31 @@ export function _audioSourceStatus(audio: Phaser.Cache.BaseCache, src: string): 
     return checkMissing(src, 'audio')
 }
 
-function checkMissing(src: string, kind: 'image' | 'audio'): 'load' | 'missing' {
+function checkMissing(src: string, kind: MediaKind): 'load' | 'missing' {
     if (failedNames.has(src)) return 'missing'
-    if (!isBareFileName(src)) return 'load'
 
+    // A name from load(), not here yet. Whatever asked for it still gets the
+    // file when it arrives, the same as a URL would.
+    if (loadRequests.get(src)?.kind === kind) {
+        if (!warnedStillLoading.has(src)) {
+            warnedStillLoading.add(src)
+            const consequence = kind === 'image' ? 'it will appear once it has' : `it won't play until it has`
+            Output.runtimeWarning(`'${src}' hasn't finished loading, so ${consequence}. Did you forget to \`await\` its load()?`, currentLocation())
+        }
+        return 'load'
+    }
+
+    if (!isBareFileName(src)) {
+        rememberLoadLocation(src)
+        return 'load'
+    }
+
+    // Names from load() count as files here, so one used as the wrong kind
+    // gets "'jump' is a sound, not an image." rather than "no image named".
     if (!reported.has(src)) {
         reported.add(src)
-        Output.runtimeWarning(describeMissingFile(src, kind, manifest), currentLocation())
+        const loaded = [...loadRequests].map(([name, request]) => ({ name, kind: request.kind }))
+        Output.runtimeWarning(describeMissingFile(src, kind, [...manifest, ...loaded]), currentLocation())
     }
     return 'missing'
 }
@@ -275,62 +493,59 @@ export function _reportFailedLoad(src: string, kind: 'image' | 'audio') {
 // files are all cached, or small, would otherwise flash a bar for a frame.
 const PROGRESS_DELAY_MS = 150
 
+/** One way of showing progress: how many files have settled out of how many, and one still going. */
+type ProgressView = {
+    draw: (settled: number, total: number, current: string, currentKind: MediaKind | undefined) => void
+    destroy: () => void
+}
+
 /**
- * A progress bar on the game canvas while the run's files download, removed
- * just before create() — and so the user's script — runs. Drawn in screen
- * pixels by the scene's own default camera, which is all there is this early:
- * the Sunsprite Camera/Screen/Background wrappers are only set up in create().
- * Returns the cleanup.
+ * Progress while files download: the run's project files, removed just before
+ * create() — and so the user's script — runs, or a script's own load() calls,
+ * removed when the loader's batch finishes. `files` (name to kind) is read live,
+ * so load() can add to a bar already up, calling redraw() to show it.
+ *
+ * The bar's style is picked when it appears: the big one while the canvas is
+ * still empty, which covers a script's opening load()s too, and the compact one
+ * once there's a game on screen not to cover.
  */
-function showLoadingProgress(scene: Phaser.Scene, pendingNames: ReadonlySet<string>): () => void {
-    let graphics: Phaser.GameObjects.Graphics | undefined
-    let label: Phaser.GameObjects.Text | undefined
-    const total = pendingNames.size
-    let settled = 0
+function showLoadingProgress(scene: Phaser.Scene, files: ReadonlyMap<string, MediaKind>): { redraw: () => void, hide: () => void } {
+    let view: ProgressView | undefined
+    let current = ''
+    const settled = new Set<string>()
 
-    const accent = Phaser.Display.Color.ValueToColor(theme?.primary ?? '#ff69b4').color
-    scene.cameras.main.setBackgroundColor(backgroundColor)
-
-    const draw = () => {
-        if (!graphics || !label) return
-        const { width, height } = scene.scale
-        const barWidth = Math.min(240, width * 0.6)
-        const barHeight = 6
-        const x = (width - barWidth) / 2
-        const y = height / 2
-
-        graphics.clear()
-        graphics.fillStyle(0xffffff, 0.15)
-        graphics.fillRoundedRect(x, y, barWidth, barHeight, barHeight / 2)
-        if (settled > 0) {
-            graphics.fillStyle(accent, 1)
-            graphics.fillRoundedRect(x, y, Math.max(barHeight, barWidth * (settled / total)), barHeight, barHeight / 2)
-        }
-
-        label.setPosition(width / 2, y - 14)
-        label.setText(`Loading files… ${settled} / ${total}`)
+    // Files download in parallel and can finish in any order, so several may be
+    // going at once. Moving on to the next unfinished one whenever a file settles
+    // keeps the name changing with the count, rather than staying on a slow file
+    // that the others overtake.
+    const moveToNextFile = () => {
+        const order = [...files.keys()]
+        const start = order.indexOf(current) + 1
+        current = [...order.slice(start), ...order.slice(0, start)].find((name) => !settled.has(name)) ?? current
     }
 
-    // Counted per project file rather than read off the loader's own PROGRESS
-    // fraction, which also counts anything else queued in the same batch.
-    // A file that errors counts as settled too; one that downloads but fails
-    // to decode fires neither event, which only leaves the bar a step short
-    // for the moment before COMPLETE removes it.
+    const redraw = () => {
+        if (!view) return
+        if (!current) moveToNextFile()
+        view.draw(settled.size, files.size, current, files.get(current))
+    }
+
+    // Tracked per file rather than read off the loader's own PROGRESS fraction,
+    // which also counts anything else queued in the same batch. A file that
+    // errors counts as settled too; one that downloads but fails to decode
+    // fires neither event, which only leaves the bar a step short for the
+    // moment before COMPLETE removes it.
     const onSettled = (file: Phaser.Loader.File | string) => {
         const key = typeof file === 'string' ? file : file.key
-        if (!pendingNames.has(key)) return
-        settled = Math.min(total, settled + 1)
-        draw()
+        if (!files.has(key)) return
+        settled.add(key)
+        moveToNextFile()
+        redraw()
     }
 
     const timer = setTimeout(() => {
-        graphics = scene.add.graphics()
-        label = scene.add.text(0, 0, '', {
-            fontFamily: 'system-ui, sans-serif',
-            fontSize: '14px',
-            color: '#ffffffb3',
-        }).setOrigin(0.5, 1)
-        draw()
+        view = scene.children.length === 0 ? centeredProgress(scene) : compactProgress()
+        redraw()
     }, PROGRESS_DELAY_MS)
 
     // FILE_COMPLETE's first argument is the key; FILE_LOAD_ERROR's is the File.
@@ -338,22 +553,97 @@ function showLoadingProgress(scene: Phaser.Scene, pendingNames: ReadonlySet<stri
     scene.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, onSettled)
     // The game is created at Phaser's default size and fitted to its panel a
     // tick later (see core.ts's resizeStage), usually after this has drawn.
-    scene.scale.on(Phaser.Scale.Events.RESIZE, draw)
+    scene.scale.on(Phaser.Scale.Events.RESIZE, redraw)
 
-    const cleanup = () => {
+    const hide = () => {
         clearTimeout(timer)
         scene.load.off(Phaser.Loader.Events.FILE_COMPLETE, onSettled)
         scene.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, onSettled)
-        scene.scale.off(Phaser.Scale.Events.RESIZE, draw)
-        scene.events.off(Phaser.Scenes.Events.DESTROY, cleanup)
-        graphics?.destroy()
-        label?.destroy()
-        graphics = undefined
-        label = undefined
+        scene.scale.off(Phaser.Scale.Events.RESIZE, redraw)
+        scene.events.off(Phaser.Scenes.Events.DESTROY, hide)
+        view?.destroy()
+        view = undefined
     }
     // A restart while files are still downloading destroys this scene before
     // COMPLETE ever fires — without this, the pending timer would go on to
     // add the bar to a scene that no longer exists.
-    scene.events.once(Phaser.Scenes.Events.DESTROY, cleanup)
-    return cleanup
+    scene.events.once(Phaser.Scenes.Events.DESTROY, hide)
+    return { redraw, hide }
+}
+
+/**
+ * The big bar in the middle of an empty canvas. Drawn in screen pixels by the
+ * scene's own default camera, which is all there is during preload: the
+ * Sunsprite Camera/Screen/Background wrappers are only set up in create().
+ */
+function centeredProgress(scene: Phaser.Scene): ProgressView {
+    // Scroll factor 0: a script calling load() may have moved the camera already.
+    const graphics = scene.add.graphics().setScrollFactor(0)
+    const label = scene.add.text(0, 0, '', {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '14px',
+        color: '#ffffffb3',
+    }).setOrigin(0.5, 1).setScrollFactor(0)
+    const accent = Phaser.Display.Color.ValueToColor(accentColor()).color
+
+    return {
+        draw(settled, total) {
+            const { width, height } = scene.scale
+            const barWidth = Math.min(240, width * 0.6)
+            const barHeight = 6
+            const x = (width - barWidth) / 2
+            const y = height / 2
+
+            graphics.clear()
+            graphics.fillStyle(0xffffff, 0.15)
+            graphics.fillRoundedRect(x, y, barWidth, barHeight, barHeight / 2)
+            if (settled > 0) {
+                graphics.fillStyle(accent, 1)
+                graphics.fillRoundedRect(x, y, Math.max(barHeight, barWidth * (settled / total)), barHeight, barHeight / 2)
+            }
+
+            label.setPosition(width / 2, y - 14)
+            label.setText(`Loading files… (${settled}/${total})`)
+        },
+        destroy() {
+            graphics.destroy()
+            label.destroy()
+        },
+    }
+}
+
+/**
+ * The small bar in the canvas's bottom-left corner, over a game already on
+ * screen. Page elements rather than game objects, so the script's camera zoom
+ * and depths can't move or hide it. The canvas fills this document, so the
+ * corner of the page is the corner of the game. Only load() gets here: project
+ * files load before anything's on screen.
+ */
+function compactProgress(): ProgressView {
+    const box = document.createElement('div')
+    box.style.cssText = 'position: fixed; left: 12px; bottom: 12px; box-sizing: border-box; min-width: 160px; max-width: calc(100% - 24px); padding: 6px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.6); color: rgba(255, 255, 255, 0.85); font: 12px system-ui, sans-serif; pointer-events: none;'
+    const label = document.createElement('div')
+    label.style.cssText = 'margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'
+    const track = document.createElement('div')
+    track.style.cssText = 'height: 4px; border-radius: 2px; overflow: hidden; background: rgba(255, 255, 255, 0.15);'
+    const fill = document.createElement('div')
+    fill.style.cssText = `width: 0; height: 100%; background: ${accentColor()};`
+
+    track.append(fill)
+    box.append(label, track)
+    document.body.append(box)
+
+    return {
+        draw(settled, total, current, currentKind) {
+            label.textContent = `Loading ${currentKind === 'audio' ? 'sound' : 'image'} '${current}' (${settled}/${total})`
+            fill.style.width = `${(settled / total) * 100}%`
+        },
+        destroy() {
+            box.remove()
+        },
+    }
+}
+
+function accentColor(): string {
+    return theme?.primary ?? '#ff69b4'
 }

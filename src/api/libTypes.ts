@@ -102,7 +102,7 @@ type AnchorPoint =
 type AlignableLike = { x: number, y: number, width: number, height: number }
 
 /**
- * An image: the name of an image file in your project, like 'player.png', or a URL.
+ * An image: the name of an image file in your project, like 'player.png', a name you gave one with load(), or a URL.
  *
  * ImageFile is the project's own image names, declared per project by
  * CodeEditor.vue (see projectAssetsLib) so they complete inside the quotes.
@@ -113,7 +113,7 @@ type AlignableLike = { x: number, y: number, width: number, height: number }
  */
 type ImageSource = ImageFile | (string & {})
 
-/** A sound: the name of an audio file in your project, like 'jump.mp3', or a URL. See ImageSource. */
+/** A sound: the name of an audio file in your project, like 'jump.mp3', a name you gave one with load(), or a URL. See ImageSource. */
 type AudioSource = AudioFile | (string & {})
 
 /**
