@@ -1,4 +1,4 @@
-import { clock, mouse } from "@api/core"
+import { clock, mouse, _updatePinned } from "@api/core"
 import { forever } from "@api/control"
 import { isVector2Like, Vector2, type Vector2Like, type HasPosition } from "@api/Vector2"
 import { smoothStep } from "./utility"
@@ -30,6 +30,7 @@ export default class Camera {
     set x(x: number) {
         this._x = x
         this._cam.scrollX = x
+        _updatePinned()
     }
 
     get y(): number {
@@ -38,6 +39,7 @@ export default class Camera {
     set y(y: number) {
         this._y = y
         this._cam.scrollY = -y
+        _updatePinned()
     }
 
     get top(): number {
@@ -86,6 +88,7 @@ export default class Camera {
     set zoom(zoom: number) {
         this._zoom = zoom
         this._cam.setZoom(zoom, zoom)
+        _updatePinned()
     }
 
     zoomToward(pos: Vector2Like, factor: number) {

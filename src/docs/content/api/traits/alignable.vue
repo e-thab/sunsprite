@@ -13,6 +13,7 @@ export default {}
 
 	<DocSection id="content-1">
 		<p>Adds edge and corner handles to an object: each of its four edges as a single coordinate, and each of its corner and edge-center points as a Vector2. All of them are settable as well as readable, so moving an object by its right edge or its top left corner takes one assignment. Alignable also replaces the goTo() Positionable declares, adding an anchor argument that picks which of those points lands on the given position.</p>
+		<p>For a rotated object, edges and corners belong to its axis-aligned bounding box: left is the x of its leftmost point, topLeft is (left, top), and so on. Setting an edge resizes the object by the smallest change to its own width and height that puts the edge there, keeping the opposite edge in place.</p>
 	</DocSection>
 
 	<DocProperties>
@@ -28,10 +29,13 @@ export default {}
 		<DocProperty name="bottomRight" type="Vector2">Position at the bottom right corner of this object.</DocProperty>
 		<DocProperty name="centerLeft" type="Vector2">Position at the vertical center of the left edge of this object.</DocProperty>
 		<DocProperty name="centerRight" type="Vector2">Position at the vertical center of the right edge of this object.</DocProperty>
+		<DocProperty name="pinned" type="boolean">Whether this object stays in place and the same size on the screen as the camera moves and zooms, like a UI element. Combines Positionable's and Sizable's pinning.</DocProperty>
 	</DocProperties>
 
 	<DocMethods>
 		<DocMethod signature="goTo(x: number, y: number): void">Set world position from separate x and y values.</DocMethod>
 		<DocMethod signature="goTo(other: Vector2Like, anchor?: AnchorPoint): void">Set world position from a Vector2-like object. The anchor picks which of this object's own points is placed there — with 'topleft' (or 'topLeft'; either casing is accepted), its top left corner lands on the given position.</DocMethod>
+		<DocMethod signature="pin(): void">Keep this object in place and the same size on the screen as the camera moves and zooms. Place it with screenSpace first, then pin it, to make a UI element.</DocMethod>
+		<DocMethod signature="unpin(): void">Stop keeping this object in place on the screen. It stays where it is, at its current size, in the world.</DocMethod>
 	</DocMethods>
 </template>

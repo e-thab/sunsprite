@@ -3,6 +3,7 @@ import type { Class } from "@mixins/shared"
 import type { PositionableScreenSpace } from "@mixins/Positionable"
 import { isVector2Like, Vector2, type Vector2Like } from "@api/Vector2"
 import { camera } from "@api/core"
+import { deg2rad } from "@api/utility"
 
 /** The nine anchor points on an object, usable anywhere an anchor name is accepted. */
 export enum Anchor {
@@ -157,18 +158,28 @@ export type AlignableProps = {
     centerLeft?: Vector2Like
     /** Position at the vertical center of the right edge of this object. */
     centerRight?: Vector2Like
+
+    /**
+     * Keeps this object in place and the same size on the screen as the camera moves and
+     * zooms, like a UI element.
+     */
+    pinned?: boolean
 }
 
 /**
  * A trait that defines position alignment and anchor point behaviors.
+ *
+ * Edges and corners are those of the object's axis-aligned bounding box: once it's rotated,
+ * left is the x of its leftmost point, topLeft is (left, top), and so on.
  * 
  * If a class composes Alignable, it must have { x: number, y: number, width: number, height: number }.
- * When extending Positionable, Sizable, and Alignable, make sure Positionable and Sizable come
- * earlier in the inheritance chain, e.g.
+ * When extending Positionable, Sizable, Rotatable, and Alignable, make sure Positionable, Sizable,
+ * and Rotatable come earlier in the inheritance chain, e.g.
  * 
  * class ClassName extends
  *  ExampleMixin(
  *  Alignable(
+ *  Rotatable(
  *  Sizable(
  *  Positionable(
  *  OtherMixin(
@@ -184,6 +195,17 @@ export function Alignable<Base extends Class<{
     get height(): number
     set height(height: number)
     get screenSpace(): PositionableScreenSpace
+    // Pinning comes in halves from Positionable (position) and Sizable (scale); Alignable
+    // pins both, so an aligned edge or corner stays put on the screen too
+    _positionPinned: boolean
+    _pinPosition(): void
+    _unpinPosition(): void
+    _scalePinned: boolean
+    _pinScale(): void
+    _unpinScale(): void
+    // From Rotatable; the object is drawn at (_rotation - _rotationOffset) degrees
+    _rotation: number
+    _rotationOffset: number
 }>>(base: Base) {
     return class Alignable extends base {
         constructor(...args: any[]) {
@@ -203,42 +225,145 @@ export function Alignable<Base extends Class<{
             if (props?.bottomLeft) this.bottomLeft = props.bottomLeft
             if (props?.bottomCenter) this.bottomCenter = props.bottomCenter
             if (props?.bottomRight) this.bottomRight = props.bottomRight
+            // Positionable and Sizable each pin their own half from props.pinned already
         }
 
-        /** X coordinate at the left edge of this object. */
+        /**
+         * Whether this object stays in place and the same size on the screen as the camera moves
+         * and zooms, like a UI element. Moving or resizing a pinned object pins it at its new
+         * position and size. Setting this is the same as calling pin() or unpin().
+         */
+        get pinned(): boolean {
+            return this._positionPinned || this._scalePinned
+        }
+        set pinned(pinned: boolean) {
+            if (pinned) this.pin()
+            else this.unpin()
+        }
+
+        /**
+         * Keep this object in place and the same size on the screen, wherever and however big it
+         * is right now, as the camera moves and zooms. Use it with screenSpace to place UI elements:
+         *
+         * ```js
+         * scoreLabel.screenSpace.topLeft = [Screen.left + 10, Screen.top - 10]
+         * scoreLabel.pin()
+         * ```
+         */
+        pin() {
+            this._pinPosition()
+            this._pinScale()
+        }
+
+        /** Stop keeping this object in place on the screen. It stays where it is, at its current size, in the world. */
+        unpin() {
+            this._unpinPosition()
+            this._unpinScale()
+        }
+
+        /**
+         * The angle, in radians, that bounds are worked out at. Shapes that look the same at
+         * any rotation (circles) override this to return 0.
+         */
+        _boundsRadians(): number {
+            return deg2rad(this._rotation - this._rotationOffset)
+        }
+
+        /**
+         * |cos| and |sin| of _boundsRadians(), snapped at right angles so an object rotated by
+         * a multiple of 90 degrees gets exact bounds instead of ones off by float error.
+         */
+        _boundsTrig(): [number, number] {
+            const radians = this._boundsRadians()
+            const cos = Math.abs(Math.cos(radians))
+            const sin = Math.abs(Math.sin(radians))
+            if (sin < 1e-12) return [1, 0]
+            if (cos < 1e-12) return [0, 1]
+            return [cos, sin]
+        }
+
+        /** Half the width and height of this object's axis-aligned bounding box. */
+        _halfBounds(): [number, number] {
+            const [cos, sin] = this._boundsTrig()
+            const { width, height } = this
+            return [(width * cos + height * sin) / 2, (width * sin + height * cos) / 2]
+        }
+
+        /**
+         * Resize this object so its bounding box is `size` wide (axis 'x') or tall (axis 'y'),
+         * changing its own width and height by the smallest amount that does it. Unrotated, that's
+         * just width for 'x' and height for 'y'; at 90 degrees they swap, and in between both change.
+         */
+        _setBoundsSize(axis: 'x' | 'y', size: number) {
+            const [cos, sin] = this._boundsTrig()
+            // How much the bounding box grows per unit of width and of height
+            const [perWidth, perHeight] = axis === 'x' ? [cos, sin] : [sin, cos]
+            const { width, height } = this
+            const change = size - (width * perWidth + height * perHeight)
+
+            let newWidth = width + change * perWidth
+            let newHeight = height + change * perHeight
+            // Shrinking far enough would take one side below zero; past that point, the other side
+            // alone makes up the difference (this is continuous with the case above)
+            if (newWidth < 0) {
+                newWidth = 0
+                newHeight = perHeight > 0 ? size / perHeight : 0
+            } else if (newHeight < 0) {
+                newHeight = 0
+                newWidth = perWidth > 0 ? size / perWidth : 0
+            }
+
+            // Only set what changed: some objects tie the two together (Circle's height sets its width)
+            if (newWidth !== width) this.width = newWidth
+            if (newHeight !== height) this.height = newHeight
+        }
+
+        /**
+         * X coordinate at the left edge of this object (its leftmost point, if rotated).
+         * Setting it resizes the object, keeping the right edge in place.
+         */
         get left(): number {
-            return this.x - this.width / 2
+            return this.x - this._halfBounds()[0]
         }
         set left(left: number) {
-            this.width = Math.abs(this.right - left)
-            this.x = left + this.width / 2
+            this._setBoundsSize('x', Math.abs(this.right - left))
+            this.x = left + this._halfBounds()[0]
         }
 
-        /** X coordinate at the right edge of this object. */
+        /**
+         * X coordinate at the right edge of this object (its rightmost point, if rotated).
+         * Setting it resizes the object, keeping the left edge in place.
+         */
         get right(): number {
-            return this.x + this.width / 2
+            return this.x + this._halfBounds()[0]
         }
         set right(right: number) {
-            this.width = Math.abs(this.left - right)
-            this.x = right - this.width / 2
+            this._setBoundsSize('x', Math.abs(this.left - right))
+            this.x = right - this._halfBounds()[0]
         }
 
-        /** Y coordinate at the top edge of this object. */
+        /**
+         * Y coordinate at the top edge of this object (its highest point, if rotated).
+         * Setting it resizes the object, keeping the bottom edge in place.
+         */
         get top(): number {
-            return this.y + this.height / 2
+            return this.y + this._halfBounds()[1]
         }
         set top(top: number) {
-            this.height = Math.abs(this.bottom - top)
-            this.y = top - this.height / 2
+            this._setBoundsSize('y', Math.abs(this.bottom - top))
+            this.y = top - this._halfBounds()[1]
         }
 
-        /** Y coordinate at the bottom edge of this object. */
+        /**
+         * Y coordinate at the bottom edge of this object (its lowest point, if rotated).
+         * Setting it resizes the object, keeping the top edge in place.
+         */
         get bottom(): number {
-            return this.y - this.height / 2
+            return this.y - this._halfBounds()[1]
         }
         set bottom(bottom: number) {
-            this.height = Math.abs(this.top - bottom)
-            this.y = bottom + this.height / 2
+            this._setBoundsSize('y', Math.abs(this.top - bottom))
+            this.y = bottom + this._halfBounds()[1]
         }
 
         /** Position at the top left corner of this object. */
@@ -453,7 +578,7 @@ export function Alignable<Base extends Class<{
          * @param other New world position.
          * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
          * (or 'topLeft' — either casing is accepted), this object's top left point will be placed
-         * at other's position.
+         * at other's position. If rotated, the point is on its axis-aligned bounding box.
          */
         goTo(other: Vector2Like, anchor?: AnchorPoint): void
         goTo(xOrOther: number | Vector2Like, yOrAnchor?: number | AnchorPoint) {
@@ -474,8 +599,9 @@ export function Alignable<Base extends Class<{
                 // Going to a Vector2Like with a self-anchor; e.g. goTo([10, 25], 'topleft')
                 else if (typeof(anchor) === 'string') {
                     const [ xFact, yFact ] = anchorOffsets(anchor)
-                    this.x = point.x - this.width * xFact
-                    this.y = point.y - this.height * yFact
+                    const [ halfWidth, halfHeight ] = this._halfBounds()
+                    this.x = point.x - 2 * halfWidth * xFact
+                    this.y = point.y - 2 * halfHeight * yFact
                 }
             }
         }
@@ -491,7 +617,7 @@ export function Alignable<Base extends Class<{
          * @param other New position relative to the screen.
          * @param anchor Where to anchor this object in its new position. e.g., if using 'topleft'
          * (or 'topLeft' — either casing is accepted), this object's top left point will be placed
-         * at other's position.
+         * at other's position. If rotated, the point is on its axis-aligned bounding box.
          */
         goToScreen(other: Vector2Like, anchor?: AnchorPoint): void
         goToScreen(xOrOther: number | Vector2Like, yOrAnchor?: number | AnchorPoint) {

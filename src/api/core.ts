@@ -274,6 +274,17 @@ export function currentFps(): number {
 export let resizeReactors: { _onResize(): void }[] = []
 
 /**
+ * Internal. Callbacks that keep pinned objects in place on the screen, run by Camera
+ * whenever it moves or zooms. Registered and removed by pin()/unpin().
+ */
+export const pinReactors: Set<() => void> = new Set()
+
+/** Internal. Called by Camera after any change to its position or zoom. */
+export function _updatePinned() {
+	for (const reactor of pinReactors) reactor()
+}
+
+/**
  * A map associating Phaser objects to custom Sunsprite objects. Will be used to allow for
  * interfacing more directly with Phaser if desired
  */
@@ -1237,6 +1248,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_crash = false
 	clearControls()
 	resizeReactors = []
+	pinReactors.clear()
 	allTimers = []
 	autoSmooths = []
 

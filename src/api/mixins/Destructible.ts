@@ -26,6 +26,8 @@ export function Destructible<Base extends Class>(base: Base) {
          * [See the docs page on removing an object from an array.]()
          */
         destroy() {
+            // Stop pinning (Positionable/Sizable/Alignable) from updating a destroyed object
+            if ('unpin' in this && typeof this.unpin === 'function') this.unpin()
             this._refObj?.destroy()
             this._isDestroyed = true
         }

@@ -1,7 +1,7 @@
 import type { Class } from "@mixins/shared"
 import type { ReferenceObject } from "@api/types"
 import { isVector2Like, Vector2, type Vector2Like } from "@api/Vector2"
-import { camera } from "@api/core"
+import { camera, pinReactors } from "@api/core"
 import Random from "@api/Random"
 
 export type PositionableScreenSpace = {
@@ -17,6 +17,8 @@ export type PositionableProps = {
     y?: number
     /** Position in the world. */
     position?: Vector2Like
+    /** Keeps this object in place on the screen as the camera moves. */
+    pinned?: boolean
 }
 
 export function Positionable<Base extends Class>(base: Base) {
@@ -24,6 +26,13 @@ export function Positionable<Base extends Class>(base: Base) {
         _refObj?: ReferenceObject
         _x: number = 0
         _y: number = 0
+        _positionPinned: boolean = false
+        // While pinned, position is stored as an offset from the camera in screen pixels
+        // (unaffected by zoom), and x/y are worked out from it whenever they're read
+        _pinnedX: number = 0
+        _pinnedY: number = 0
+        /** Registered with core while pinned; Camera runs it after moving or zooming. */
+        _syncPinnedPosition = () => this._updatePosition()
 
         constructor(...args: any[]) {
             super()
@@ -37,23 +46,26 @@ export function Positionable<Base extends Class>(base: Base) {
             this.x = props?.x ?? 0
             this.y = props?.y ?? 0
             if (props?.position) this.position = props.position
+            if (props?.pinned) this._pinPosition()
         }
 
         /** Horizontal position in the world. */
         get x(): number {
+            if (this._positionPinned) return camera.x + this._pinnedX / camera.zoom
             return this._x
         }
         set x(x: number) {
-            this._x = x
+            this._setX(x)
             this._updateX()
         }
 
         /** Vertical position in the world. */
         get y(): number {
+            if (this._positionPinned) return camera.y + this._pinnedY / camera.zoom
             return this._y
         }
         set y(y: number) {
-            this._y = y
+            this._setY(y)
             this._updateY()
         }
 
@@ -63,9 +75,70 @@ export function Positionable<Base extends Class>(base: Base) {
         }
         set position(pos: Vector2Like) {
             pos = Vector2.from(pos)
-            this._x = pos.x
-            this._y = pos.y
+            this._setX(pos.x)
+            this._setY(pos.y)
             this._updatePosition()
+        }
+
+        /**
+         * Whether this object stays in place on the screen as the camera moves, like a UI element.
+         * Moving a pinned object (by setting its position, screenSpace position, etc.) pins it
+         * at its new spot. Setting this is the same as calling pin() or unpin().
+         */
+        get pinned(): boolean {
+            return this._positionPinned
+        }
+        set pinned(pinned: boolean) {
+            if (pinned) this.pin()
+            else this.unpin()
+        }
+
+        /**
+         * Keep this object in place on the screen, wherever it is right now, as the camera moves.
+         * Use it with screenSpace to place UI elements:
+         *
+         * ```js
+         * healthBar.goToScreen(0, 200)
+         * // optionally: healthBar.screenSpace.position = [0, 200]
+         * healthBar.pin()
+         * ```
+         */
+        pin() {
+            this._pinPosition()
+        }
+
+        /** Stop keeping this object in place on the screen. It stays where it is in the world. */
+        unpin() {
+            this._unpinPosition()
+        }
+
+        _pinPosition() {
+            if (this._positionPinned) return
+            this._pinnedX = (this._x - camera.x) * camera.zoom
+            this._pinnedY = (this._y - camera.y) * camera.zoom
+            this._positionPinned = true
+            pinReactors.add(this._syncPinnedPosition)
+        }
+
+        _unpinPosition() {
+            if (!this._positionPinned) return
+            // Leave the object at the world position it's being shown at
+            this._x = this.x
+            this._y = this.y
+            this._positionPinned = false
+            pinReactors.delete(this._syncPinnedPosition)
+        }
+
+        /** Stores a new world x, as a screen offset if pinned. Doesn't update the Phaser object. */
+        _setX(x: number) {
+            if (this._positionPinned) this._pinnedX = (x - camera.x) * camera.zoom
+            else this._x = x
+        }
+
+        /** Stores a new world y, as a screen offset if pinned. Doesn't update the Phaser object. */
+        _setY(y: number) {
+            if (this._positionPinned) this._pinnedY = (y - camera.y) * camera.zoom
+            else this._y = y
         }
 
         /**

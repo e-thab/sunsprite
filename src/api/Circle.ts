@@ -76,6 +76,11 @@ export default class Circle extends Shape {
         this.width = height
     }
 
+    /** Alignable override: a circle's bounding box doesn't change as it rotates. */
+    _boundsRadians(): number {
+        return 0
+    }
+
     /** Shape override, resizes hitArea and uses setRadius to consistently resize geometry. */
     _redraw() {
         const r = this._radius * this._scale
