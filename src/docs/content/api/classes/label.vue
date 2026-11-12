@@ -24,6 +24,8 @@ export default {}
 		<DocProperty name="size" type="number">Font size.</DocProperty>
 		<DocProperty name="font" type="string">Font family.</DocProperty>
 		<DocProperty name="color" type="string">Fill color.</DocProperty>
+		<DocProperty name="alignH" type="'left' | 'center' | 'right'">Which side of the label stays in place when its text, size, or font changes. Lines of multi-line text line up on that side too. Setting it doesn't move the label, so place it by the same side, e.g. <code>score.left = Screen.left + 20</code>.</DocProperty>
+		<DocProperty name="alignV" type="'top' | 'center' | 'bottom'">Which edge of the label stays in place when its text, size, or font changes. Setting it doesn't move the label, so place it by the same edge, e.g. <code>log.top = Screen.top - 20</code>.</DocProperty>
 		<DocProperty name="x" type="number" from="api/traits/positionable">Horizontal position in the world.</DocProperty>
 		<DocProperty name="y" type="number" from="api/traits/positionable">Vertical position in the world.</DocProperty>
 		<DocProperty name="position" type="Vector2" from="api/traits/positionable">Position in the world.</DocProperty>
