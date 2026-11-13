@@ -35,7 +35,7 @@ export default {}
 	<DocMethods>
 		<DocMethod signature="goTo(x: number, y: number): void">Set world position from separate x and y values.</DocMethod>
 		<DocMethod signature="goTo(other: Vector2Like, anchor?: AnchorPoint): void">Set world position from a Vector2-like object. The anchor picks which of this object's own points is placed there — with 'topleft' (or 'topLeft'; either casing is accepted), its top left corner lands on the given position.</DocMethod>
-		<DocMethod signature="pin(): void">Keep this object in place and the same size on the screen as the camera moves and zooms. Place it with screenSpace first, then pin it, to make a UI element.</DocMethod>
+		<DocMethod signature="pin(): void">Keep this object in place and the same size on the screen as the camera moves and zooms. Good for something that only needs to stick to the screen for a while; for UI that always stays on the screen, use a <DocLink to="api/classes/ui" /> object instead.</DocMethod>
 		<DocMethod signature="unpin(): void">Stop keeping this object in place on the screen. It stays where it is, at its current size, in the world.</DocMethod>
 	</DocMethods>
 </template>

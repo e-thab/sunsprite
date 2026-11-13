@@ -71,15 +71,101 @@ export function anchorOffsets(anchor: AnchorPoint): readonly [number, number] {
     return offsets
 }
 
-/** Converts a world position to a position relative to the screen. */
-function worldToScreen({ x, y }: Vector2): Vector2 {
-    return new Vector2(x - camera.x, y - camera.y)
+/**
+ * How to view an object's position from another space (e.g. a world object's position as
+ * screen pixels): toX/toY convert one axis from the object's own space to the other,
+ * and fromX/fromY convert back.
+ */
+export type SpaceConversion = {
+    toX(x: number): number
+    toY(y: number): number
+    fromX(x: number): number
+    fromY(y: number): number
 }
 
-/** Converts a position relative to the screen to a world position. */
-function screenToWorld(screenPosition: Vector2Like): Vector2 {
-    const { x, y } = Vector2.from(screenPosition)
-    return new Vector2(x + camera.x, y + camera.y)
+/** Viewing a world object from the screen: what its screenSpace uses. */
+export const WORLD_TO_SCREEN: SpaceConversion = {
+    toX: x => camera._worldToScreenX(x),
+    toY: y => camera._worldToScreenY(y),
+    fromX: x => camera._screenToWorldX(x),
+    fromY: y => camera._screenToWorldY(y),
+}
+
+/** Viewing a UI object from the world: what its worldSpace uses. */
+export const SCREEN_TO_WORLD: SpaceConversion = {
+    toX: x => camera._screenToWorldX(x),
+    toY: y => camera._screenToWorldY(y),
+    fromX: x => camera._worldToScreenX(x),
+    fromY: y => camera._worldToScreenY(y),
+}
+
+/** Viewing an object from the space it's already in: a UI object's screenSpace. */
+export const SAME_SPACE: SpaceConversion = {
+    toX: x => x,
+    toY: y => y,
+    fromX: x => x,
+    fromY: y => y,
+}
+
+/**
+ * Builds a screenSpace/worldSpace object: every position, edge and corner of target, read and
+ * written through conversion. Edges convert along their own axis; setting one still resizes
+ * the object, just as setting it directly does.
+ */
+export function _spaceView(target: Record<keyof AlignableScreenSpace, any>, conversion: SpaceConversion): AlignableScreenSpace {
+    const { toX, toY, fromX, fromY } = conversion
+    const to = ({ x, y }: Vector2): Vector2 => new Vector2(toX(x), toY(y))
+    const from = (point: Vector2Like): Vector2 => {
+        const { x, y } = Vector2.from(point)
+        return new Vector2(fromX(x), fromY(y))
+    }
+
+    return {
+        get x(): number { return toX(target.x) },
+        set x(x: number) { target.x = fromX(x) },
+
+        get y(): number { return toY(target.y) },
+        set y(y: number) { target.y = fromY(y) },
+
+        get position(): Vector2 { return to(target.position) },
+        set position(position: Vector2Like) { target.position = from(position) },
+
+        get left(): number { return toX(target.left) },
+        set left(left: number) { target.left = fromX(left) },
+
+        get right(): number { return toX(target.right) },
+        set right(right: number) { target.right = fromX(right) },
+
+        get top(): number { return toY(target.top) },
+        set top(top: number) { target.top = fromY(top) },
+
+        get bottom(): number { return toY(target.bottom) },
+        set bottom(bottom: number) { target.bottom = fromY(bottom) },
+
+        get topLeft(): Vector2 { return to(target.topLeft) },
+        set topLeft(topLeft: Vector2Like) { target.topLeft = from(topLeft) },
+
+        get topCenter(): Vector2 { return to(target.topCenter) },
+        set topCenter(topCenter: Vector2Like) { target.topCenter = from(topCenter) },
+
+        get topRight(): Vector2 { return to(target.topRight) },
+        set topRight(topRight: Vector2Like) { target.topRight = from(topRight) },
+
+        get bottomLeft(): Vector2 { return to(target.bottomLeft) },
+        set bottomLeft(bottomLeft: Vector2Like) { target.bottomLeft = from(bottomLeft) },
+
+        get bottomCenter(): Vector2 { return to(target.bottomCenter) },
+        set bottomCenter(bottomCenter: Vector2Like) { target.bottomCenter = from(bottomCenter) },
+
+        get bottomRight(): Vector2 { return to(target.bottomRight) },
+        set bottomRight(bottomRight: Vector2Like) { target.bottomRight = from(bottomRight) },
+
+        get centerLeft(): Vector2 { return to(target.centerLeft) },
+        set centerLeft(centerLeft: Vector2Like) { target.centerLeft = from(centerLeft) },
+
+        get centerRight(): Vector2 { return to(target.centerRight) },
+        set centerRight(centerRight: Vector2Like) { target.centerRight = from(centerRight) },
+    }
 }
 
 // Vector2 properties are written as accessor pairs so they can be assigned any
@@ -126,6 +212,53 @@ export type AlignableScreenSpace = {
     get centerLeft(): Vector2
     set centerLeft(centerLeft: Vector2Like)
     /** Position at the vertical center of the right edge of this object, relative to the screen. */
+    get centerRight(): Vector2
+    set centerRight(centerRight: Vector2Like)
+}
+
+/** A UI object's positioning data in world coordinates: see its worldSpace. */
+export type AlignableWorldSpace = {
+    /** Horizontal world position of whatever's under this object on the screen. */
+    x: number
+    /** Vertical world position of whatever's under this object on the screen. */
+    y: number
+    /** World position of whatever's under this object on the screen. */
+    get position(): Vector2
+    set position(position: Vector2Like)
+
+    /** World x coordinate at the left edge of this object. */
+    left: number
+    /** World x coordinate at the right edge of this object. */
+    right: number
+    /** World y coordinate at the top edge of this object. */
+    top: number
+    /** World y coordinate at the bottom edge of this object. */
+    bottom: number
+
+    /** World position at the top left corner of this object. */
+    get topLeft(): Vector2
+    set topLeft(topLeft: Vector2Like)
+    /** World position at the top edge in the horizontal center of this object. */
+    get topCenter(): Vector2
+    set topCenter(topCenter: Vector2Like)
+    /** World position at the top right corner of this object. */
+    get topRight(): Vector2
+    set topRight(topRight: Vector2Like)
+
+    /** World position at the bottom left corner of this object. */
+    get bottomLeft(): Vector2
+    set bottomLeft(bottomLeft: Vector2Like)
+    /** World position at the bottom edge in the horizontal center of this object. */
+    get bottomCenter(): Vector2
+    set bottomCenter(bottomCenter: Vector2Like)
+    /** World position at the bottom right corner of this object. */
+    get bottomRight(): Vector2
+    set bottomRight(bottomRight: Vector2Like)
+
+    /** World position at the vertical center of the left edge of this object. */
+    get centerLeft(): Vector2
+    set centerLeft(centerLeft: Vector2Like)
+    /** World position at the vertical center of the right edge of this object. */
     get centerRight(): Vector2
     set centerRight(centerRight: Vector2Like)
 }
@@ -190,6 +323,8 @@ export type AlignableProps = {
 export function Alignable<Base extends Class<{
     x: number
     y: number
+    get position(): Vector2
+    set position(position: Vector2Like)
     get width(): number
     set width(width: number)
     get height(): number
@@ -243,11 +378,13 @@ export function Alignable<Base extends Class<{
 
         /**
          * Keep this object in place and the same size on the screen, wherever and however big it
-         * is right now, as the camera moves and zooms. Use it with screenSpace to place UI elements:
+         * is right now, as the camera moves and zooms. Good for something that only needs to
+         * stick to the screen temporarily. For UI that always stays on the screen, use a UI
+         * object instead, like `new UI.Label()`.
          *
          * ```js
-         * scoreLabel.screenSpace.topLeft = [Screen.left + 10, Screen.top - 10]
-         * scoreLabel.pin()
+         * marker.goToScreen(Screen.topLeft, 'topLeft')
+         * marker.pin()
          * ```
          */
         pin() {
@@ -457,114 +594,7 @@ export function Alignable<Base extends Class<{
          * ```
          */
         get screenSpace(): AlignableScreenSpace {
-            const alignable = this
-            const positionable = super.screenSpace
-            return {
-                get x(): number {
-                    return positionable.x
-                },
-                set x(x: number) {
-                    positionable.x = x
-                },
-
-                get y(): number {
-                    return positionable.y
-                },
-                set y(y: number) {
-                    positionable.y = y
-                },
-
-                get position(): Vector2 {
-                    return positionable.position
-                },
-                set position(position: Vector2Like) {
-                    positionable.position = Vector2.from(position)
-                },
-
-                get left(): number {
-                    return alignable.left - camera.x
-                },
-                set left(left: number) {
-                    alignable.left = left + camera.x
-                },
-
-                get right(): number {
-                    return alignable.right - camera.x
-                },
-                set right(right: number) {
-                    alignable.right = right + camera.x
-                },
-
-                get top(): number {
-                    return alignable.top - camera.y
-                },
-                set top(top: number) {
-                    alignable.top = top + camera.y
-                },
-
-                get bottom(): number {
-                    return alignable.bottom - camera.y
-                },
-                set bottom(bottom: number) {
-                    alignable.bottom = bottom + camera.y
-                },
-
-                get topLeft(): Vector2 {
-                    return worldToScreen(alignable.topLeft)
-                },
-                set topLeft(topLeft: Vector2Like) {
-                    alignable.topLeft = screenToWorld(topLeft)
-                },
-
-                get topCenter(): Vector2 {
-                    return worldToScreen(alignable.topCenter)
-                },
-                set topCenter(topCenter: Vector2Like) {
-                    alignable.topCenter = screenToWorld(topCenter)
-                },
-
-                get topRight(): Vector2 {
-                    return worldToScreen(alignable.topRight)
-                },
-                set topRight(topRight: Vector2Like) {
-                    alignable.topRight = screenToWorld(topRight)
-                },
-
-                get bottomLeft(): Vector2 {
-                    return worldToScreen(alignable.bottomLeft)
-                },
-                set bottomLeft(bottomLeft: Vector2Like) {
-                    alignable.bottomLeft = screenToWorld(bottomLeft)
-                },
-
-                get bottomCenter(): Vector2 {
-                    return worldToScreen(alignable.bottomCenter)
-                },
-                set bottomCenter(bottomCenter: Vector2Like) {
-                    alignable.bottomCenter = screenToWorld(bottomCenter)
-                },
-
-                get bottomRight(): Vector2 {
-                    return worldToScreen(alignable.bottomRight)
-                },
-                set bottomRight(bottomRight: Vector2Like) {
-                    alignable.bottomRight = screenToWorld(bottomRight)
-                },
-
-                get centerLeft(): Vector2 {
-                    return worldToScreen(alignable.centerLeft)
-                },
-                set centerLeft(centerLeft: Vector2Like) {
-                    alignable.centerLeft = screenToWorld(centerLeft)
-                },
-
-                get centerRight(): Vector2 {
-                    return worldToScreen(alignable.centerRight)
-                },
-                set centerRight(centerRight: Vector2Like) {
-                    alignable.centerRight = screenToWorld(centerRight)
-                },
-            }
+            return _spaceView(this, WORLD_TO_SCREEN)
         }
 
         /**
@@ -589,8 +619,9 @@ export function Alignable<Base extends Class<{
             }
             else if (isVector2Like(xOrOther)) {
                 const [other, anchor] = [xOrOther, yOrAnchor]
-                const point = Vector2.from(other)
-                
+                // A UI object going to a world object (or vice versa) goes where it appears on the screen
+                const point = camera._toSpaceOf(this, other)
+
                 // Going to a Vector2Like with no anchor; e.g. goTo(sprite)
                 if (anchor === undefined) {
                     this.x = point.x
@@ -622,10 +653,10 @@ export function Alignable<Base extends Class<{
         goToScreen(other: Vector2Like, anchor?: AnchorPoint): void
         goToScreen(xOrOther: number | Vector2Like, yOrAnchor?: number | AnchorPoint) {
             if (typeof(xOrOther) === 'number' && typeof(yOrAnchor) === 'number') {
-                this.goTo(camera.x + xOrOther, camera.y + yOrAnchor)
+                this.goTo(camera._screenToWorld([xOrOther, yOrAnchor]))
             }
             else if (isVector2Like(xOrOther) && typeof(yOrAnchor) !== 'number') {
-                this.goTo(screenToWorld(xOrOther), yOrAnchor)
+                this.goTo(camera._screenToWorld(xOrOther), yOrAnchor)
             }
         }
     }

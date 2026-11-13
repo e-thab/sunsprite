@@ -3,7 +3,7 @@ export const meta = {
 	title: 'Classes',
 	icon: 'tabler:triangle-square-circle',
 	summary: 'The things you create with new: sprites, shapes, lines, text, sounds, and timers.',
-	order: ['sprite', 'rectangle', 'circle', 'line', 'vline', 'hline', 'label', 'sound', 'timer', 'vector2'],
+	order: ['sprite', 'rectangle', 'circle', 'line', 'vline', 'hline', 'label', 'ui', 'sound', 'timer', 'vector2'],
 }
 
 export default {}

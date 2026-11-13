@@ -37,6 +37,9 @@ export const MIXINS = [
     // the composing class's declarations.
     { file: apiPath('mixins', 'Fillable.ts'), typeName: 'FillableProps', functionName: 'Fillable' },
     { file: apiPath('mixins', 'Outlinable.ts'), typeName: 'OutlinableProps', functionName: 'Outlinable' },
+    // Turns a world class into its UI counterpart (see UI.ts). It wraps a whole concrete class
+    // rather than an inline `class {...}`, which resolveComposedMembers layers first.
+    { file: apiPath('mixins', 'ScreenSpaced.ts'), typeName: undefined, functionName: 'ScreenSpaced' },
 ] as const
 
 export const CONCRETE_CLASSES = [
@@ -47,6 +50,14 @@ export const CONCRETE_CLASSES = [
     { file: apiPath('Line.ts'), typeName: 'LineProps', className: 'Line', constructorParams: undefined },
     { file: apiPath('HLine.ts'), typeName: 'HLineProps', className: 'HLine', constructorParams: undefined },
     { file: apiPath('VLine.ts'), typeName: 'VLineProps', className: 'VLine', constructorParams: undefined },
+    // UI.Sprite, UI.Label, etc.: each takes its world class's props, so there's no props type of
+    // their own to extract, and constructorParams names the world class's. apiLib.ts declares
+    // them inside `namespace UI`; a snapshot's api.d.ts declares them as plain classes.
+    { file: apiPath('UI.ts'), typeName: undefined, className: 'UISprite', constructorParams: 'options?: SpriteProps' },
+    { file: apiPath('UI.ts'), typeName: undefined, className: 'UILabel', constructorParams: 'options?: LabelProps' },
+    { file: apiPath('UI.ts'), typeName: undefined, className: 'UICircle', constructorParams: 'options?: CircleProps' },
+    { file: apiPath('UI.ts'), typeName: undefined, className: 'UIRectangle', constructorParams: 'options?: RectangleProps' },
+    { file: apiPath('UI.ts'), typeName: undefined, className: 'UILine', constructorParams: 'options?: LineProps' },
     // Not a GameObject and not a singleton: a plain class user code constructs
     // with an options object, so it takes the same typeName path the objects
     // above do. SoundProps has no base to intersect with, which both
@@ -138,6 +149,8 @@ export const TYPE_ALIASES = [
     { file: apiPath('Sprite.ts'), name: 'BlendModeName' },
     // The screenSpace getter's type on everything composing Alignable.
     { file: apiPath('mixins', 'Alignable.ts'), name: 'AlignableScreenSpace' },
+    // The worldSpace getter's type on UI objects (mixins/ScreenSpaced.ts).
+    { file: apiPath('mixins', 'Alignable.ts'), name: 'AlignableWorldSpace' },
 ] as const
 
 /**

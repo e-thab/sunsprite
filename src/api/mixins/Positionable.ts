@@ -38,6 +38,15 @@ export function Positionable<Base extends Class>(base: Base) {
             super()
         }
 
+        /**
+         * Whether x/y are screen pixels (a UI object, drawn by the UI camera) rather than world
+         * coordinates. A getter rather than a field so mixins/ScreenSpaced.ts can override it on
+         * the prototype, where it's already in effect while the base constructor runs.
+         */
+        get _ui(): boolean {
+            return false
+        }
+
         _initPositionable(props?: PositionableProps) {
             // Warn when setting:
             // pos & position
@@ -51,7 +60,7 @@ export function Positionable<Base extends Class>(base: Base) {
 
         /** Horizontal position in the world. */
         get x(): number {
-            if (this._positionPinned) return camera.x + this._pinnedX / camera.zoom
+            if (this._positionPinned) return camera._screenToWorldX(this._pinnedX)
             return this._x
         }
         set x(x: number) {
@@ -61,7 +70,7 @@ export function Positionable<Base extends Class>(base: Base) {
 
         /** Vertical position in the world. */
         get y(): number {
-            if (this._positionPinned) return camera.y + this._pinnedY / camera.zoom
+            if (this._positionPinned) return camera._screenToWorldY(this._pinnedY)
             return this._y
         }
         set y(y: number) {
@@ -94,8 +103,10 @@ export function Positionable<Base extends Class>(base: Base) {
         }
 
         /**
-         * Keep this object in place on the screen, wherever it is right now, as the camera moves.
-         * Use it with screenSpace to place UI elements:
+         * Keep this object in place and the same size on the screen, wherever and however big it
+         * is right now, as the camera moves and zooms. Good for something that only needs to
+         * stick to the screen temporarily. For UI that always stays on the screen, use a UI
+         * object instead, like `new UI.Label()`.
          *
          * ```js
          * healthBar.goToScreen(0, 200)
@@ -114,8 +125,8 @@ export function Positionable<Base extends Class>(base: Base) {
 
         _pinPosition() {
             if (this._positionPinned) return
-            this._pinnedX = (this._x - camera.x) * camera.zoom
-            this._pinnedY = (this._y - camera.y) * camera.zoom
+            this._pinnedX = camera._worldToScreenX(this._x)
+            this._pinnedY = camera._worldToScreenY(this._y)
             this._positionPinned = true
             pinReactors.add(this._syncPinnedPosition)
         }
@@ -131,13 +142,13 @@ export function Positionable<Base extends Class>(base: Base) {
 
         /** Stores a new world x, as a screen offset if pinned. Doesn't update the Phaser object. */
         _setX(x: number) {
-            if (this._positionPinned) this._pinnedX = (x - camera.x) * camera.zoom
+            if (this._positionPinned) this._pinnedX = camera._worldToScreenX(x)
             else this._x = x
         }
 
         /** Stores a new world y, as a screen offset if pinned. Doesn't update the Phaser object. */
         _setY(y: number) {
-            if (this._positionPinned) this._pinnedY = (y - camera.y) * camera.zoom
+            if (this._positionPinned) this._pinnedY = camera._worldToScreenY(y)
             else this._y = y
         }
 
@@ -152,22 +163,24 @@ export function Positionable<Base extends Class>(base: Base) {
          * ```
          */
         get screenSpace(): PositionableScreenSpace {
+            // Screen-space values are pixels from the center of the screen, so a zoomed-in
+            // camera spreads the same world distance over more of them
             const positionable = this
             return {
                 /** Horizontal position relative to the screen. */
                 get x(): number {
-                    return positionable.x - camera.x
+                    return camera._worldToScreenX(positionable.x)
                 },
                 set x(x: number) {
-                    positionable.x = camera.x + x
+                    positionable.x = camera._screenToWorldX(x)
                 },
 
                 /** Vertical position relative to the screen. */
                 get y(): number {
-                    return positionable.y - camera.y
+                    return camera._worldToScreenY(positionable.y)
                 },
                 set y(y: number) {
-                    positionable.y = camera.y + y
+                    positionable.y = camera._screenToWorldY(y)
                 },
 
                 /** Position relative to the screen. */
@@ -175,8 +188,7 @@ export function Positionable<Base extends Class>(base: Base) {
                     return new Vector2(this.x, this.y)
                 },
                 set position(pos: Vector2Like) {
-                    pos = Vector2.from(pos)
-                    positionable.position = new Vector2(camera.x + pos.x, camera.y + pos.y)
+                    positionable.position = camera._screenToWorld(pos)
                 },
             }
         }
@@ -194,8 +206,8 @@ export function Positionable<Base extends Class>(base: Base) {
         distanceTo(other: Vector2Like): number
         distanceTo(xOrOther: number | Vector2Like, y?: number) {
             if (isVector2Like(xOrOther)) {
-                // other = Vector2.from(xOrOther)
-                return this.position.distanceTo(xOrOther)
+                // A UI object and a world object are compared where they appear on the screen
+                return this.position.distanceTo(camera._toSpaceOf(this, xOrOther))
             }
             else if (typeof xOrOther === 'number' && typeof y === 'number') {
                 // other = Vector2.from(xOrOther, y)
@@ -227,7 +239,7 @@ export function Positionable<Base extends Class>(base: Base) {
                 this.x = xOrPoint
                 this.y = y
             } else if (typeof xOrPoint === 'object' && y === undefined) {
-                const { x, y } = Vector2.from(xOrPoint)
+                const { x, y } = camera._toSpaceOf(this, xOrPoint)
                 this.x = x
                 this.y = y
             } else {
@@ -249,10 +261,9 @@ export function Positionable<Base extends Class>(base: Base) {
         goToScreen(x: number, y: number): void
         goToScreen(xOrPoint: number | Vector2Like, y?: number) {
             if (typeof xOrPoint === 'number' && typeof y === 'number') {
-                this.goTo(camera.x + xOrPoint, camera.y + y)
+                this.goTo(camera._screenToWorld([xOrPoint, y]))
             } else if (typeof xOrPoint === 'object' && y === undefined) {
-                const { x, y } = Vector2.from(xOrPoint)
-                this.goTo(camera.x + x, camera.y + y)
+                this.goTo(camera._screenToWorld(xOrPoint))
             } else {
                 // TODO: Explain better
                 throw new Error('Bad goToScreen args')
@@ -261,7 +272,7 @@ export function Positionable<Base extends Class>(base: Base) {
 
         /** Set position to a random point within the current visible screen area. */
         goToRandom() {
-            this.goTo(Random.position())
+            this.goTo(this._ui ? Random.screenPosition() : Random.position())
         }
 
         _onResize() {

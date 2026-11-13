@@ -30,6 +30,7 @@ import Label from '@api/Label'
 import Line from '@api/Line'
 import HLine from '@api/HLine'
 import VLine from '@api/VLine'
+import { UI } from '@api/UI'
 import Sound from '@api/Sound'
 import { mixer, setClientVolume, setClientMute } from '@api/Mixer'
 import { after, clearControls, every, forever, repeat, repeatUntil, repeatWhile, runControls, wait, when } from '@api/control'
@@ -463,6 +464,8 @@ export const clock: Clock = new Clock()
 export let game: Game
 export let scene: Scene
 export let camera: Camera
+/** Internal. The Phaser camera UI objects are drawn by: never scrolls or zooms. Set up in create(). */
+export let uiCamera: Phaser.Cameras.Scene2D.Camera
 export let screen: Screen
 export let mouse: Mouse
 export let paused = false
@@ -1091,6 +1094,18 @@ class UserScene extends Scene {
 			camera = new Camera(cam)
 		}
 
+		// A second camera that never scrolls or zooms, so UI objects (src/api/UI.ts) can use
+		// plain screen pixels. Phaser draws cameras in the order they were added, so UI always
+		// shows above the world. Every object is drawn by exactly one of the two: anything in the
+		// scene already, or added to it later, is left to the main camera, and a UI object's
+		// constructor moves its own over (see mixins/ScreenSpaced.ts).
+		const ui = this.cameras.add(0, 0, undefined, undefined, false, 'ui')
+		uiCamera = ui
+		ui.ignore(this.children.list)
+		const leaveToMainCamera = (gameObject: Phaser.GameObjects.GameObject) => ui.ignore(gameObject)
+		this.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, leaveToMainCamera)
+		this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.ADDED_TO_SCENE, leaveToMainCamera))
+
 		if (screen) {
 			screen._setCam(camera)
 		} else {
@@ -1180,7 +1195,7 @@ class UserScene extends Scene {
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
 			Phaser: PhaserRef,
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, UI, Vector2, Timer, Warning, Sound,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Mixer: mixer, Colors, Anchor,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
 			forever, repeat, repeatUntil, repeatWhile, after, every, when, wait, load,

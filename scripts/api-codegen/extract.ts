@@ -484,6 +484,24 @@ export function resolveComposedMembers(
     const result: MemberSet = { members: new Map(), defaults: new Map(), withDefault: new Map() }
     const heritage = classNode.heritageClauses?.[0]?.types[0]?.expression
 
+    // `extends GameObject`, or a mixin chain wrapping a named class (`ScreenSpaced(Label)`):
+    // resolve the identifier to its real class declaration and layer its full composed set,
+    // inherited members included. `GameObject` here is a default-imported binding, so the
+    // symbol at this location is an import alias — `.declarations` on it points at the import
+    // clause, not the class, until resolved through to the real symbol it aliases.
+    const layerParentClass = (identifier: ts.Identifier) => {
+        let symbol = checker.getSymbolAtLocation(identifier)
+        if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol)
+        const decl = symbol?.declarations?.find(ts.isClassDeclaration)
+        if (decl) {
+            const parentSource = decl.getSourceFile()
+            // The recursive call's own trailing step already layers the parent's
+            // own members on top of whatever it inherits — no need to repeat that here.
+            const parentComposed = resolveComposedMembers(program, checker, parentSource, decl, mixinCache)
+            layerMembers(result, parentComposed)
+        }
+    }
+
     if (heritage && ts.isCallExpression(heritage)) {
         // Mixin chain: collect each called mixin name from outermost to innermost,
         // then apply their members outer-first so the innermost (base-most) mixin's
@@ -497,6 +515,10 @@ export function resolveComposedMembers(
             if (!arg) break
             current = arg
         }
+
+        // The innermost base is usually an inline `class {...}` with nothing to layer, but
+        // UI.ts's classes wrap a whole concrete class, whose members come first of all
+        if (ts.isIdentifier(current)) layerParentClass(current)
 
         for (const mixinName of [...chain].reverse()) {
             const mixin = MIXINS.find((m) => m.functionName === mixinName)
@@ -512,21 +534,7 @@ export function resolveComposedMembers(
             layerMembers(result, members)
         }
     } else if (heritage && ts.isIdentifier(heritage)) {
-        // `extends GameObject`: resolve the identifier to its real class declaration
-        // and recurse into its own heritage first, then layer its own members on top.
-        // `GameObject` here is a default-imported binding, so the symbol at this
-        // location is an import alias — `.declarations` on it points at the import
-        // clause, not the class, until resolved through to the real symbol it aliases.
-        let symbol = checker.getSymbolAtLocation(heritage)
-        if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol)
-        const decl = symbol?.declarations?.find(ts.isClassDeclaration)
-        if (decl) {
-            const parentSource = decl.getSourceFile()
-            // The recursive call's own trailing step already layers the parent's
-            // own members on top of whatever it inherits — no need to repeat that here.
-            const parentComposed = resolveComposedMembers(program, checker, parentSource, decl, mixinCache)
-            layerMembers(result, parentComposed)
-        }
+        layerParentClass(heritage)
     }
 
     // Finally, layer the class's own directly-declared members on top.

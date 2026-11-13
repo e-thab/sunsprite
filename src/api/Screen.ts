@@ -1,6 +1,10 @@
 import { Vector2 } from "./Vector2"
 import Camera from "./Camera"
 
+// Every value here is in screen pixels, measured from the center of the screen (y up), and is
+// unaffected by where the camera is or how far it's zoomed. That's the space UI objects live in,
+// and the one a world object's screenSpace converts to.
+
 /** Game screen reference. */
 export default class Screen {
     #cam: Camera
@@ -8,86 +12,90 @@ export default class Screen {
     constructor(cam: Camera) {
         this.#cam = cam
     }
-    
+
     /**
-     * Game screen width.
+     * Game screen width in pixels. Camera zoom doesn't change it.
      * @readonly
      */
     get width(): number {
-        return this.#cam.width
+        // The Phaser camera's viewport, not Camera.width, which shrinks as the camera zooms in
+        return this.#cam._cam.width
     }
     /**
-     * Game screen height.
+     * Game screen height in pixels. Camera zoom doesn't change it.
      * @readonly
      */
     get height(): number {
-        return this.#cam.height
+        return this.#cam._cam.height
     }
-    
+
     /**
-     * Y value of the top edge of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenY = Screen.top`. Using `rect.y = Screen.top` only puts
-     * rect at the top edge of the screen if Camera.y is 0.
-     * 
+     * Y value of the top edge of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `title.y = Screen.top - 40`, or with a world
+     * object's screenSpace, as in `rect.screenSpace.y = Screen.top - 40`. Using
+     * `rect.y = Screen.top` on a world object only puts rect at the top edge of the
+     * screen if the camera is at [0, 0] and zoom 1.
+     *
      * @readonly
      */
     get top(): number {
-        return this.#cam.height / 2
+        return this.height / 2
     }
 
     /**
-     * Y value of the bottom edge of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenY = Screen.bottom`. Using `rect.y = Screen.bottom` only puts
-     * rect at the bottom edge of the screen if Camera.y is 0.
-     * 
+     * Y value of the bottom edge of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `hint.y = Screen.bottom + 40`, or with a world
+     * object's screenSpace, as in `rect.screenSpace.y = Screen.bottom + 40`. Using
+     * `rect.y = Screen.bottom` on a world object only puts rect at the bottom edge of
+     * the screen if the camera is at [0, 0] and zoom 1.
+     *
      * @readonly
      */
     get bottom(): number {
-        return -this.#cam.height / 2
+        return -this.height / 2
     }
 
     /**
-     * X value of the left edge of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenX = Screen.left`. Using `rect.x = Screen.left` only puts
-     * rect at the left edge of the screen if Camera.x is 0.
-     * 
+     * X value of the left edge of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `menu.x = Screen.left + 100`, or with a world
+     * object's screenSpace, as in `rect.screenSpace.x = Screen.left + 100`. Using
+     * `rect.x = Screen.left` on a world object only puts rect at the left edge of the
+     * screen if the camera is at [0, 0] and zoom 1.
+     *
      * @readonly
      */
     get left(): number {
-        return -this.#cam.width / 2
+        return -this.width / 2
     }
 
     /**
-     * X value of the right edge of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenX = Screen.right`. Using `rect.x = Screen.right` only puts
-     * rect at the right edge of the screen if Camera.x is 0.
-     * 
+     * X value of the right edge of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `menu.x = Screen.right - 100`, or with a world
+     * object's screenSpace, as in `rect.screenSpace.x = Screen.right - 100`. Using
+     * `rect.x = Screen.right` on a world object only puts rect at the right edge of
+     * the screen if the camera is at [0, 0] and zoom 1.
+     *
      * @readonly
      */
     get right(): number {
-        return this.#cam.width / 2
+        return this.width / 2
     }
 
     /**
-     * Position of the top left corner of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenTopLeft = Screen.topLeft`. Using `rect.topLeft = Screen.topLeft` only puts
-     * rect at the top left corner of the screen if Camera.position is [0, 0].
-     * 
+     * Position of the top left corner of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `scoreLabel.goTo(Screen.topLeft, 'topLeft')`, or a
+     * world object by its screen position, as in `rect.goToScreen(Screen.topLeft, 'topLeft')`.
+     *
      * @readonly
      */
     get topLeft(): Vector2 {
@@ -95,13 +103,12 @@ export default class Screen {
     }
 
     /**
-     * Position of the center of the top edge of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenTopCenter = Screen.topCenter`. Using `rect.topCenter = Screen.topCenter` only puts
-     * rect at the center of the top edge of the screen if Camera.position is [0, 0].
-     * 
+     * Position of the center of the top edge of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `title.goTo(Screen.topCenter, 'topCenter')`, or a
+     * world object by its screen position, as in `rect.goToScreen(Screen.topCenter, 'topCenter')`.
+     *
      * @readonly
      */
     get topCenter(): Vector2 {
@@ -109,13 +116,12 @@ export default class Screen {
     }
 
     /**
-     * Position of the top right corner of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenTopRight = Screen.topRight`. Using `rect.topRight = Screen.topRight` only puts
-     * rect at the top right corner of the screen if Camera.position is [0, 0].
-     * 
+     * Position of the top right corner of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `scoreLabel.goTo(Screen.topRight, 'topRight')`, or a
+     * world object by its screen position, as in `rect.goToScreen(Screen.topRight, 'topRight')`.
+     *
      * @readonly
      */
     get topRight(): Vector2 {
@@ -123,13 +129,12 @@ export default class Screen {
     }
 
     /**
-     * Position of the bottom left corner of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenBottomLeft = Screen.bottomLeft`. Using `rect.bottomLeft = Screen.bottomLeft` only puts
-     * rect at the bottom left corner of the screen if Camera.position is [0, 0].
-     * 
+     * Position of the bottom left corner of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `healthBar.goTo(Screen.bottomLeft, 'bottomLeft')`, or a
+     * world object by its screen position, as in `rect.goToScreen(Screen.bottomLeft, 'bottomLeft')`.
+     *
      * @readonly
      */
     get bottomLeft(): Vector2 {
@@ -137,13 +142,12 @@ export default class Screen {
     }
 
     /**
-     * Position of the center of the bottom edge of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenBottomCenter = Screen.bottomCenter`. Using `rect.bottomCenter = Screen.bottomCenter` only puts
-     * rect at the center of the bottom edge of the screen if Camera.position is [0, 0].
-     * 
+     * Position of the center of the bottom edge of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `hint.goTo(Screen.bottomCenter, 'bottomCenter')`, or a
+     * world object by its screen position, as in `rect.goToScreen(Screen.bottomCenter, 'bottomCenter')`.
+     *
      * @readonly
      */
     get bottomCenter(): Vector2 {
@@ -151,13 +155,12 @@ export default class Screen {
     }
 
     /**
-     * Position of the bottom right corner of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenBottomRight = Screen.bottomRight`. Using `rect.bottomRight = Screen.bottomRight` only puts
-     * rect at the bottom right corner of the screen if Camera.position is [0, 0].
-     * 
+     * Position of the bottom right corner of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `minimap.goTo(Screen.bottomRight, 'bottomRight')`, or a
+     * world object by its screen position, as in `rect.goToScreen(Screen.bottomRight, 'bottomRight')`.
+     *
      * @readonly
      */
     get bottomRight(): Vector2 {
@@ -165,13 +168,12 @@ export default class Screen {
     }
 
     /**
-     * Position of the center of the left edge of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenCenterLeft = Screen.centerLeft`. Using `rect.centerLeft = Screen.centerLeft` only puts
-     * rect at the center of the left edge of the screen if Camera.position is [0, 0].
-     * 
+     * Position of the center of the left edge of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `menu.goTo(Screen.centerLeft, 'centerLeft')`, or a
+     * world object by its screen position, as in `rect.goToScreen(Screen.centerLeft, 'centerLeft')`.
+     *
      * @readonly
      */
     get centerLeft(): Vector2 {
@@ -179,13 +181,12 @@ export default class Screen {
     }
 
     /**
-     * Position of the center of the right edge of the game screen, in screen-space coordinates.
-     * 
-     * **NOTE:** This value changes with screen size, *not* camera position.
-     * It's meant to be used with screen-based position setters, as in
-     * `rect.screenCenterRight = Screen.centerRight`. Using `rect.centerRight = Screen.centerRight` only puts
-     * rect at the center of the right edge of the screen if Camera.position is [0, 0].
-     * 
+     * Position of the center of the right edge of the game screen, in pixels from the center of the screen.
+     *
+     * **NOTE:** This value changes with screen size, *not* camera position or zoom.
+     * Use it to place UI objects, as in `menu.goTo(Screen.centerRight, 'centerRight')`, or a
+     * world object by its screen position, as in `rect.goToScreen(Screen.centerRight, 'centerRight')`.
+     *
      * @readonly
      */
     get centerRight(): Vector2 {

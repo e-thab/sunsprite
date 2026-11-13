@@ -17,6 +17,7 @@ const MIXIN_EXPORT_NAME: Record<string, string> = {
     Alignable: 'alignable',
     Fillable: 'fillable',
     Outlinable: 'outlinable',
+    ScreenSpaced: 'screenSpaced',
 }
 
 /**
@@ -74,7 +75,7 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
     }
 
     for (const [className, bundle] of Object.entries(generated.concreteClasses)) {
-        const prefix = className.charAt(0).toLowerCase() + className.slice(1)
+        const prefix = exportPrefix(className)
         lines.push(
             // The class's own doc block (ends in a newline when present), for
             // apiLib to splice directly above its `class X`/`declare const X`.
@@ -100,17 +101,28 @@ export function renderGeneratedModule(generated: GeneratedDeclarations, header: 
     // Same standalone-statement shape as the free functions above, e.g.
     // BackgroundStyle -> backgroundStyleDeclaration = `declare type BackgroundStyle = ...`.
     for (const [name, { doc, type }] of Object.entries(generated.typeAliases)) {
-        const prefix = name.charAt(0).toLowerCase() + name.slice(1)
+        const prefix = exportPrefix(name)
         lines.push(`export const ${prefix}Declaration = \`${esc(`${doc}declare type ${name} = ${type}`)}\``, '')
     }
 
     // Likewise, e.g. Anchor -> anchorDeclaration = `declare enum Anchor {...}`.
     for (const [name, declaration] of Object.entries(generated.enums)) {
-        const prefix = name.charAt(0).toLowerCase() + name.slice(1)
+        const prefix = exportPrefix(name)
         lines.push(`export const ${prefix}Declaration = \`${esc(declaration)}\``, '')
     }
 
     return lines.join('\n')
+}
+
+/**
+ * The camelCase prefix a class's or type's exports are named with: Sprite -> sprite, and a
+ * leading acronym lowercased whole, UISprite -> uiSprite. A single leading capital is just the
+ * first letter, so HLine stays hLine.
+ */
+function exportPrefix(name: string): string {
+    const acronym = /^[A-Z]{2,}(?=[A-Z][a-z])/.exec(name)?.[0]
+    if (acronym) return acronym.toLowerCase() + name.slice(acronym.length)
+    return name.charAt(0).toLowerCase() + name.slice(1)
 }
 
 /** `['width', 'height']` -> `'width' | 'height'`, for an `Omit<Base, ...>` (see extract.ts's extractConcreteClass). */

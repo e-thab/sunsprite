@@ -62,6 +62,9 @@ function collectDeclaredNames(statements: readonly ts.Statement[], names: Set<st
             names.add(statement.name.text)
         } else if (ts.isEnumDeclaration(statement)) {
             names.add(statement.name.text)
+        } else if (ts.isModuleDeclaration(statement) && ts.isIdentifier(statement.name)) {
+            // A namespace's own name is a global (UI), though its members aren't
+            names.add(statement.name.text)
         }
         // `type`/`interface`/`namespace` statements are deliberately ignored —
         // none of them can correspond to a runtime `api` object key.
