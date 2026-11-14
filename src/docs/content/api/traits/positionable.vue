@@ -24,6 +24,7 @@ export default {}
 		<DocProperty name="screenY" type="number">This object's vertical position relative to the camera.</DocProperty>
 		<DocProperty name="screenPosition" type="Vector2">This object's position relative to the camera.</DocProperty>
 		<DocProperty name="screenPos" type="Vector2">This object's position relative to the camera. Alias of screenPosition.</DocProperty>
+		<DocProperty name="pinned" type="boolean">Whether this object stays in place on the screen as the camera moves. Moving a pinned object pins it at its new spot.</DocProperty>
 	</DocProperties>
 
 	<DocMethods>
@@ -32,5 +33,7 @@ export default {}
 		<DocMethod signature="goTo(x: number, y: number): void">Set world position from separate x and y values.</DocMethod>
 		<DocMethod signature="goTo(position: Vector2Like): void">Set world position from a Vector2-like object.</DocMethod>
 		<DocMethod signature="goToRandom(): void">Set position to a random point within the current visible screen area.</DocMethod>
+		<DocMethod signature="pin(): void">Keep this object in place on the screen, wherever it is right now, as the camera moves.</DocMethod>
+		<DocMethod signature="unpin(): void">Stop keeping this object in place on the screen. It stays where it is in the world.</DocMethod>
 	</DocMethods>
 </template>

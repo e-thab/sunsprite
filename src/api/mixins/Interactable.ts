@@ -89,6 +89,14 @@ export function Interactable<Base extends Class<{x: number, y: number}>>(base: B
             super()
         }
 
+        /**
+         * Converts a point in the Phaser coordinates of the camera this object is drawn by to
+         * this object's own x/y space. mixins/ScreenSpaced.ts overrides it for UI objects.
+         */
+        _fromPhaserPoint(x: number, y: number): { x: number, y: number } {
+            return getGamePoint({ x, y })
+        }
+
         _initInteractable(props?: InteractableProps) {
             // Interactivity is enabled lazily (see _updateInteractive) so that objects without
             // mouse actions don't block pointer events from reaching objects underneath them
@@ -205,7 +213,7 @@ export function Interactable<Base extends Class<{x: number, y: number}>>(base: B
                 // x = pointerX - initialPointerOffsetX
                 // y = pointerY - initialPointerOffsetY
                 if (!paused && clock.frame > this._lastDragFrame) {
-                    const { x, y } = getGamePoint({ x: localX, y: localY })
+                    const { x, y } = this._fromPhaserPoint(localX, localY)
                     this._refObj.emit(PointerEvents.DRAG, x, y)
                     this._lastDragFrame = clock.frame
                 }

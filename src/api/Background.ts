@@ -1,6 +1,6 @@
 import Phaser from "phaser"
 import Camera from "@api/Camera"
-import { _imageSourceStatus, type ImageSource } from "@api/assets"
+import { _imageSourceStatus, _imageUrl, type ImageSource } from "@api/assets"
 import { Vector2 } from "./Vector2"
 
 /** Also what assets.ts paints behind its loading bar, so loading and the game's first frame match. */
@@ -179,7 +179,7 @@ export default class Background {
             this._img.setTexture(src)
             this._updateStyle()
         })
-        this._scene.load.image(src, src)
+        this._scene.load.image(src, _imageUrl(src))
         this._scene.load.start()
     }
 

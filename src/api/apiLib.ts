@@ -37,11 +37,13 @@ import {
     hLinePropsFields, hLinePropsOmitted, hLineMembers,
     vLinePropsFields, vLinePropsOmitted, vLineMembers,
     soundPropsFields, soundMembers, busMembers, busPropsDeclaration, mixerMembers,
+    uiSpriteMembers, uiLabelMembers, uiCircleMembers, uiRectangleMembers, uiLineMembers, alignableWorldSpaceDeclaration,
+    uiSpriteDoc, uiLabelDoc, uiCircleDoc, uiRectangleDoc, uiLineDoc,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
+    randomMembers, filesMembers, phaserMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, phaserDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
-    afterDeclaration, everyDeclaration, whenDeclaration, waitDeclaration,
+    afterDeclaration, everyDeclaration, whenDeclaration, waitDeclaration, loadDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,
@@ -109,6 +111,19 @@ export interface VersionedApiConstants {
     vLineMembers: string
     soundPropsFields: string
     soundMembers: string
+    // Optional: snapshots cut before UI objects existed don't export these, and
+    // buildApiLib leaves the whole UI namespace out for them.
+    uiSpriteMembers?: string
+    uiLabelMembers?: string
+    uiCircleMembers?: string
+    uiRectangleMembers?: string
+    uiLineMembers?: string
+    uiSpriteDoc?: string
+    uiLabelDoc?: string
+    uiCircleDoc?: string
+    uiRectangleDoc?: string
+    uiLineDoc?: string
+    alignableWorldSpaceDeclaration?: string
     // Optional: snapshots cut before buses/the Mixer existed don't export
     // these, and buildApiLib leaves Bus/BusProps/Mixer out for them.
     busMembers?: string
@@ -124,6 +139,9 @@ export interface VersionedApiConstants {
     // Optional: snapshots cut before Files existed don't export these, and
     // buildApiLib leaves the whole Files section out for them.
     filesMembers?: string
+    // Optional: snapshots cut before Phaser existed don't export these, and
+    // buildApiLib leaves the whole Phaser section out for them.
+    phaserMembers?: string
     backgroundMembers: string
     backgroundStyleDeclaration: string
     backgroundPropsDeclaration: string
@@ -135,6 +153,7 @@ export interface VersionedApiConstants {
     backgroundDoc: string
     randomDoc: string
     filesDoc?: string
+    phaserDoc?: string
     timerDoc: string
     vector2Doc: string
     spriteDoc: string
@@ -156,6 +175,8 @@ export interface VersionedApiConstants {
     whenDeclaration: string
     // Optional: snapshots cut before wait existed don't export it.
     waitDeclaration?: string
+    // Likewise for load.
+    loadDeclaration?: string
     keyPressedDeclaration: string
     keyJustPressedDeclaration: string
     keyJustReleasedDeclaration: string
@@ -328,6 +349,8 @@ ${v.whenDeclaration}
 
 ${v.waitDeclaration ?? ''}
 
+${v.loadDeclaration ?? ''}
+
 ${v.keyPressedDeclaration}
 
 ${v.keyJustPressedDeclaration}
@@ -375,6 +398,10 @@ ${v.randomMembers}
 ${v.filesMembers === undefined ? '' : `
 ${v.filesDoc ?? ''}declare const Files: {
 ${v.filesMembers}
+}
+`}${v.phaserMembers === undefined ? '' : `
+${v.phaserDoc ?? ''}declare const Phaser: {
+${v.phaserMembers}
 }
 `}
 /**
@@ -594,6 +621,53 @@ ${v.circleDoc}class Circle {
 ${v.circleMembers}
 }`,
 
+// UI objects (src/api/UI.ts): each takes its world class's props, less pinned, which a UI
+// object ignores. A namespace rather than globals, so they're reached as UI.Sprite etc.
+v.uiSpriteMembers === undefined ? '' : `
+${v.alignableWorldSpaceDeclaration ?? ''}
+
+/**
+ * UI objects: sprites, labels, shapes and lines whose position and size are in screen pixels,
+ * measured from the center of the screen. Moving or zooming the camera doesn't affect them, and
+ * they always show in front of world objects.
+ *
+ * \`\`\`js
+ * const score = new UI.Label({ text: 'Score: 0' })
+ * score.goTo(Screen.topLeft, 'topLeft')
+ * \`\`\`
+ */
+namespace UI {
+${v.uiSpriteDoc}export class Sprite {
+    constructor(options?: Omit<SpriteProps, 'pinned'>)
+
+${v.uiSpriteMembers}
+}
+
+${v.uiLabelDoc}export class Label {
+    constructor(options?: Omit<LabelProps, 'pinned'>)
+
+${v.uiLabelMembers}
+}
+
+${v.uiCircleDoc}export class Circle {
+    constructor(options?: Omit<CircleProps, 'pinned'>)
+
+${v.uiCircleMembers}
+}
+
+${v.uiRectangleDoc}export class Rectangle {
+    constructor(options?: Omit<RectangleProps, 'pinned'>)
+
+${v.uiRectangleMembers}
+}
+
+${v.uiLineDoc}export class Line {
+    constructor(options?: LineProps)
+
+${v.uiLineMembers}
+}
+}`,
+
 // Sound
 `type SoundProps = {
 ${v.soundPropsFields}
@@ -660,11 +734,13 @@ export const apiLib = buildApiLib({
     hLinePropsFields, hLinePropsOmitted, hLineMembers,
     vLinePropsFields, vLinePropsOmitted, vLineMembers,
     soundPropsFields, soundMembers, busMembers, busPropsDeclaration, mixerMembers,
+    uiSpriteMembers, uiLabelMembers, uiCircleMembers, uiRectangleMembers, uiLineMembers, alignableWorldSpaceDeclaration,
+    uiSpriteDoc, uiLabelDoc, uiCircleDoc, uiRectangleDoc, uiLineDoc,
     cameraMembers, vector2Members, timerMembers, clockMembers, screenMembers, mouseMembers,
-    randomMembers, filesMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
-    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
+    randomMembers, filesMembers, phaserMembers, backgroundMembers, backgroundStyleDeclaration, backgroundPropsDeclaration,
+    mouseDoc, screenDoc, clockDoc, cameraDoc, backgroundDoc, randomDoc, filesDoc, phaserDoc, timerDoc, vector2Doc, spriteDoc, rectangleDoc, lineDoc, vLineDoc, hLineDoc, labelDoc, circleDoc, soundDoc, busDoc, mixerDoc,
     foreverDeclaration, repeatDeclaration, repeatUntilDeclaration, repeatWhileDeclaration,
-    afterDeclaration, everyDeclaration, whenDeclaration, waitDeclaration,
+    afterDeclaration, everyDeclaration, whenDeclaration, waitDeclaration, loadDeclaration,
     keyPressedDeclaration, keyJustPressedDeclaration, keyJustReleasedDeclaration,
     onKeyPressDeclaration, onKeyReleaseDeclaration, onKeyHoldDeclaration, onMouseDeclaration,
     pauseDeclaration, playDeclaration, printDeclaration,

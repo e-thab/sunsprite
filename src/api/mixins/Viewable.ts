@@ -22,23 +22,31 @@ export function Viewable<Base extends Class>(base: Base) {
         _layer: number = 0
         _visible: boolean = true
 
+        _queueShowWaiting: boolean = false
+        _queueShowCanceled: boolean = false
+
         constructor(...args: any[]) {
             super()
         }
 
         _initViewable(props?: ViewableProps) {
-            if (props?.alpha != null) this.alpha = props.alpha
-            if (props?.layer != null) this.layer = props.layer
-            if (props?.visible != null) this.visible = props.visible
+            if (props?.alpha != undefined) this.alpha = props.alpha
+            if (props?.layer != undefined) this.layer = props.layer
+            if (props?.visible != undefined) this.visible = props.visible
         }
-
+        
         _queueShow() {
             // Visible objects may flicker on create without this delay
             if (!this._refObj) return
 
             if (this.visible) {
                 this._refObj.setVisible(false)
-                new Promise(resolve => setTimeout(resolve, 0)).then(() => this._refObj.setVisible(true))
+                this._queueShowWaiting = true
+                new Promise(resolve => setTimeout(resolve, 0)).then(() => {
+                    this._refObj.setVisible(!this._queueShowCanceled)
+                    this._queueShowWaiting = false
+                    this._queueShowCanceled = false
+                })
             }
         }
 
@@ -79,12 +87,13 @@ export function Viewable<Base extends Class>(base: Base) {
 
         /** Show this object. */
         show() {
-            if (this._refObj) this._refObj.visible = true
+            if (this._refObj) this._refObj.setVisible(true)
         }
 
         /** Hide this object. */
         hide() {
-            if (this._refObj) this._refObj.visible = false
+            if (this._queueShowWaiting) this._queueShowCanceled = true
+            if (this._refObj) this._refObj.setVisible(false)
         }
 
         _sendToFrontLayer() {

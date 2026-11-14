@@ -1,5 +1,6 @@
 import type { Class } from "@mixins/shared"
 import { Vector2, type Vector2Like } from "@api/Vector2"
+import { camera } from "@api/core"
 import { cos, sin } from "../utility"
 
 export type OrientableProps = {
@@ -42,7 +43,8 @@ export function Orientable<Base extends Class<{
          * @param other The point, vector, or positionable object to look at.
          */
         lookAt(other: Vector2Like) {
-            other = Vector2.from(other)
+            // A UI object looking at a world object (or vice versa) looks where it appears on the screen
+            other = camera._toSpaceOf(this, other)
             this.direction = Vector2.from(other.x - this.x, other.y - this.y)
         }
 
@@ -61,7 +63,7 @@ export function Orientable<Base extends Class<{
          * @param unit The angle unit ('radians' or 'degrees'), defaults to degrees.
          */
         orbit(other: Vector2Like, angle: number, unit: 'radians' | 'degrees' = 'degrees') {
-            other = Vector2.from(other)
+            other = camera._toSpaceOf(this, other)
             const x = this.x
             const y = this.y
             this.x = other.x + (x - other.x) * cos(angle, unit) - (y - other.y) * sin(angle, unit)

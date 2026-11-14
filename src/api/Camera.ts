@@ -1,4 +1,4 @@
-import { clock, mouse } from "@api/core"
+import { clock, mouse, _updatePinned } from "@api/core"
 import { forever } from "@api/control"
 import { isVector2Like, Vector2, type Vector2Like, type HasPosition } from "@api/Vector2"
 import { smoothStep } from "./utility"
@@ -30,6 +30,7 @@ export default class Camera {
     set x(x: number) {
         this._x = x
         this._cam.scrollX = x
+        _updatePinned()
     }
 
     get y(): number {
@@ -38,6 +39,7 @@ export default class Camera {
     set y(y: number) {
         this._y = y
         this._cam.scrollY = -y
+        _updatePinned()
     }
 
     get top(): number {
@@ -86,6 +88,7 @@ export default class Camera {
     set zoom(zoom: number) {
         this._zoom = zoom
         this._cam.setZoom(zoom, zoom)
+        _updatePinned()
     }
 
     zoomToward(pos: Vector2Like, factor: number) {
@@ -210,5 +213,50 @@ export default class Camera {
     _setCam(cam: Phaser.Cameras.Scene2D.Camera) {
         this._cam = cam
         this.reset()
+    }
+
+    /** Internal. Converts a world x to screen pixels from the center of the screen. */
+    _worldToScreenX(x: number): number {
+        return (x - this.x) * this.zoom
+    }
+    /** Internal. Converts a world y to screen pixels from the center of the screen (y up). */
+    _worldToScreenY(y: number): number {
+        return (y - this.y) * this.zoom
+    }
+    /** Internal. Converts an x in screen pixels from the center of the screen to a world x. */
+    _screenToWorldX(x: number): number {
+        return this.x + x / this.zoom
+    }
+    /** Internal. Converts a y in screen pixels from the center of the screen (y up) to a world y. */
+    _screenToWorldY(y: number): number {
+        return this.y + y / this.zoom
+    }
+
+    /** Internal. Converts a world position to screen pixels from the center of the screen. */
+    _worldToScreen(position: Vector2Like): Vector2 {
+        const { x, y } = Vector2.from(position)
+        return new Vector2(this._worldToScreenX(x), this._worldToScreenY(y))
+    }
+    /** Internal. Converts a position in screen pixels from the center of the screen to a world position. */
+    _screenToWorld(position: Vector2Like): Vector2 {
+        const { x, y } = Vector2.from(position)
+        return new Vector2(this._screenToWorldX(x), this._screenToWorldY(y))
+    }
+
+    /**
+     * Internal. `other`'s position in the space `self` is positioned in: screen pixels for a UI
+     * object, the world for anything else. Objects that know which space they're in (a `_ui`
+     * boolean: every positionable object, and the mouse) are converted when it's the other one,
+     * so a UI arrow can point at a world planet. Plain points ([x, y], Vector2s) have no space
+     * of their own and are taken as already being in self's.
+     */
+    _toSpaceOf(self: object, other: Vector2Like): Vector2 {
+        const point = Vector2.from(other)
+        const otherIsUI = (other as { _ui?: unknown })._ui
+        if (typeof otherIsUI !== 'boolean') return point
+
+        const selfIsUI = (self as { _ui?: unknown })._ui === true
+        if (selfIsUI === otherIsUI) return point
+        return selfIsUI ? this._worldToScreen(point) : this._screenToWorld(point)
     }
 }

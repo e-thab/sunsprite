@@ -4,7 +4,7 @@ import Phaser from 'phaser'
 import type { Action, KeyAction, MouseInputAction, PointerAction, MouseInputEvent, Printable, Returnable, SmoothableKey, Smoothing } from './types'
 import type { ThemePalette } from '@/theme/themes'
 import type { ProjectAsset, ProjectTextFile } from '@/sandbox/protocol'
-import { _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@api/assets'
+import { _loadFile, _preloadProjectAssets, _setProjectAssets, _sharedAudioContext } from '@api/assets'
 import { isVector2, Vector2, type Vector2Like } from '@api/Vector2'
 import { Mouse, unwrap } from '@api/types'
 import { atan2, cos, sin, tan, deg2rad, rad2deg, clamp, smoothStep } from '@api/utility'
@@ -15,6 +15,7 @@ import Output from '@/sandbox/output'
 import Warning from '@api/Warning'
 import Random from '@api/Random'
 import Files from '@api/Files'
+import PhaserRef from '@api/PhaserRef'
 import Colors from '@api/Colors'
 import { Anchor } from '@mixins/Alignable'
 import Timer from '@api/Timer'
@@ -29,6 +30,7 @@ import Label from '@api/Label'
 import Line from '@api/Line'
 import HLine from '@api/HLine'
 import VLine from '@api/VLine'
+import { UI } from '@api/UI'
 import Sound from '@api/Sound'
 import { mixer, setClientVolume, setClientMute } from '@api/Mixer'
 import { after, clearControls, every, forever, repeat, repeatUntil, repeatWhile, runControls, wait, when } from '@api/control'
@@ -273,6 +275,17 @@ export function currentFps(): number {
 export let resizeReactors: { _onResize(): void }[] = []
 
 /**
+ * Internal. Callbacks that keep pinned objects in place on the screen, run by Camera
+ * whenever it moves or zooms. Registered and removed by pin()/unpin().
+ */
+export const pinReactors: Set<() => void> = new Set()
+
+/** Internal. Called by Camera after any change to its position or zoom. */
+export function _updatePinned() {
+	for (const reactor of pinReactors) reactor()
+}
+
+/**
  * A map associating Phaser objects to custom Sunsprite objects. Will be used to allow for
  * interfacing more directly with Phaser if desired
  */
@@ -451,6 +464,8 @@ export const clock: Clock = new Clock()
 export let game: Game
 export let scene: Scene
 export let camera: Camera
+/** Internal. The Phaser camera UI objects are drawn by: never scrolls or zooms. Set up in create(). */
+export let uiCamera: Phaser.Cameras.Scene2D.Camera
 export let screen: Screen
 export let mouse: Mouse
 export let paused = false
@@ -888,6 +903,66 @@ function _runSmooths(deltaMs: number) {
 }
 
 /**
+ * Loads an image or sound from a URL and gives it a name to use as a `src`. Put `await` in
+ * front of load, and the whole line above where you use it, so the file is ready before
+ * it's needed:
+ *
+ * ```js
+ * await load('queen', '/library/images/cards/card_clubs_Q.png')
+ * const card = new Sprite({ src: 'queen' })
+ * ```
+ *
+ * A URL ending in .mp3, .ogg, .wav or .m4a (or .aac, .opus, .flac or .webm) is loaded as a
+ * sound, anything else as an image. If a URL doesn't end in its file type, say which it is:
+ *
+ * ```js
+ * await load('theme', 'https://example.com/audio?id=42', 'sound')
+ * const music = new Sound({ src: 'theme', loop: true })
+ * ```
+ *
+ * Without `await`, the file loads in the background while the rest of the script continues. This
+ * can be useful for reducing load times at the beginning of the game, but should only be done if
+ * the file isn't actually used in the game yet while it's still loading.
+ *
+ * @param key The name to use for the file. Must be different from your project's file names.
+ * @param url The URL of the image or sound.
+ * @param type Whether the file is an `'image'` or a `'sound'`. Only needed when the URL doesn't end in its file type.
+ * @returns A promise that resolves once loading has finished.
+ */
+function load(key: string, url: string, type?: 'image' | 'sound'): Promise<void>
+/**
+ * Loads several images and sounds from URLs at once and gives each a name to use as a `src`.
+ * Put `await` in front of load near the top of your script so they're all ready before they're needed:
+ *
+ * ```js
+ * await load({
+ *     'queen': '/library/images/cards/card_clubs_Q.png',
+ *     'shuffle': 'https://example.com/sounds/shuffle.mp3'
+ * })
+ * const card = new Sprite({ src: 'queen' })
+ * ```
+ *
+ * Each URL is loaded as a sound if it ends in a sound file type like .mp3, and as an image
+ * otherwise. To load one whose URL doesn't end in its file type, use `load(key, url, type)` for it.
+ *
+ * Without `await`, the files load in the background while the rest of the script continues. This
+ * can be useful for reducing load times at the beginning of the game, but should only be done if
+ * the files aren't actually used in the game yet while they're still loading.
+ *
+ * @param files An object whose keys are the names to use for the files, and whose values are their URLs. Names must be different from your project's file names.
+ * @returns A promise that resolves once all of the files have finished loading.
+ */
+function load(files: Record<string, string>): Promise<void>
+function load(keyOrFiles: string | Record<string, string>, url?: string, type?: 'image' | 'sound'): Promise<void> {
+	if (typeof keyOrFiles === 'object' && keyOrFiles !== null && !Array.isArray(keyOrFiles)) {
+		const loads = Object.entries(keyOrFiles).map(([key, fileUrl]) => _loadFile(scene, key, fileUrl))
+		return Promise.all(loads).then(() => {})
+	}
+	// Anything else that isn't a name and a URL is rejected in there, for scripts the editor's types can't stop.
+	return _loadFile(scene, keyOrFiles as string, url as string, type)
+}
+
+/**
  * API utility
  */
 class UserScene extends Scene {
@@ -1019,6 +1094,18 @@ class UserScene extends Scene {
 			camera = new Camera(cam)
 		}
 
+		// A second camera that never scrolls or zooms, so UI objects (src/api/UI.ts) can use
+		// plain screen pixels. Phaser draws cameras in the order they were added, so UI always
+		// shows above the world. Every object is drawn by exactly one of the two: anything in the
+		// scene already, or added to it later, is left to the main camera, and a UI object's
+		// constructor moves its own over (see mixins/ScreenSpaced.ts).
+		const ui = this.cameras.add(0, 0, undefined, undefined, false, 'ui')
+		uiCamera = ui
+		ui.ignore(this.children.list)
+		const leaveToMainCamera = (gameObject: Phaser.GameObjects.GameObject) => ui.ignore(gameObject)
+		this.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, leaveToMainCamera)
+		this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.ADDED_TO_SCENE, leaveToMainCamera))
+
 		if (screen) {
 			screen._setCam(camera)
 		} else {
@@ -1107,10 +1194,11 @@ class UserScene extends Scene {
 		// I would like to move the API definition into its own file, but it relies on object instances
 		// that don't exist at compile time (timer, camera, etc.)... look into this
 		const api = {
-			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, Vector2, Timer, Warning, Sound,
+			Phaser: PhaserRef,
+			Sprite, Rectangle, Circle, Label, Line, HLine, VLine, UI, Vector2, Timer, Warning, Sound,
 			Clock: clock, Screen: screen, Camera: camera, Mouse: mouse, Background: background, Mixer: mixer, Colors, Anchor,
 			Output: { print: Output.print, error: Output.error, warn: Output.warn, clear: Output.clear },
-			forever, repeat, repeatUntil, repeatWhile, after, every, when, wait,
+			forever, repeat, repeatUntil, repeatWhile, after, every, when, wait, load,
 			keyPressed, keysPressed, keyJustPressed, keysJustPressed, keyJustReleased, keysJustReleased, onKeyPress, onKeyHold, onKeyRelease, onMouse,
 			print: Output.print, watch, unwatch, play, pause, /* setBackgroundColor, setBackgroundImage, clearBackgroundImage, */
 			Random, Files, deg2rad, rad2deg, sin, cos, tan, atan2, clamp,
@@ -1175,6 +1263,7 @@ export async function runUserCode(code: string, entryName: string, theme?: Theme
 	_crash = false
 	clearControls()
 	resizeReactors = []
+	pinReactors.clear()
 	allTimers = []
 	autoSmooths = []
 

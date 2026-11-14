@@ -1,7 +1,7 @@
 import type { GameObjectProps } from "./mixins"
 import { scene, resizeReactors } from "@api/core"
 import GameObject from "@api/GameObject"
-import { _imageSourceStatus, type ImageSource } from "@api/assets"
+import { _imageSourceStatus, _imageUrl, type ImageSource } from "@api/assets"
 import Phaser from "phaser"
 import Output from "@/sandbox/output"
 import { currentLocation } from "./moduleRunner"
@@ -88,7 +88,7 @@ function isBlendMode(value: unknown): value is BlendMode {
 
 type SpriteProps = GameObjectProps & {
     /**
-     * The sprite's image: the name of an image file in your project, like 'player.png', or a URL.
+     * The sprite's image: the name of an image file in your project, like 'player.png', a name you gave one with load(), or a URL.
      * @default `undefined`
      */
     src?: ImageSource
@@ -174,7 +174,7 @@ export default class Sprite extends GameObject {
     }
     
     /**
-     * The sprite's image: the name of an image file in your project, like 'player.png', or a URL.
+     * The sprite's image: the name of an image file in your project, like 'player.png', a name you gave one with load(), or a URL.
      * @default `undefined`
      */
     get src(): string | undefined {
@@ -213,10 +213,25 @@ export default class Sprite extends GameObject {
         scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
             // A failed load has been reported by assets.ts's loader error
             // handler; setTexture on the missing key falls back to __MISSING.
-            this._sprite.setTexture(keyOrPath)
+            this._applyLoadedTexture(keyOrPath)
         })
-        scene.load.image(keyOrPath, keyOrPath)
+        scene.load.image(keyOrPath, _imageUrl(keyOrPath))
         scene.load.start()
+    }
+
+    /**
+     * Swaps in a texture that arrived after the sprite was set up. A size set in
+     * pixels while the placeholder was showing is really a scale worked out
+     * against the placeholder, which would be wrong for the real image, so it's
+     * applied again. A width or height that no longer matches has been replaced
+     * by a `scale` set since, which carries over to the new texture as it is.
+     */
+    _applyLoadedTexture(key: string) {
+        const keepWidth = this._width !== 0 && Math.abs(this.width - this._width) < 0.001
+        const keepHeight = this._height !== 0 && Math.abs(this.height - this._height) < 0.001
+        this._sprite.setTexture(key)
+        if (keepWidth) this.width = this._width
+        if (keepHeight) this.height = this._height
     }
 
     /**

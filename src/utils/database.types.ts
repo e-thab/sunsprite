@@ -186,6 +186,57 @@ export type Database = {
           },
         ]
       }
+      url_files: {
+        Row: {
+          created_at: string
+          folder_id: string | null
+          id: string
+          kind: string
+          name: string
+          position: number
+          project_id: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          folder_id?: string | null
+          id?: string
+          kind: string
+          name: string
+          position?: number
+          project_id: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          folder_id?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          position?: number
+          project_id?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "url_files_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "url_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

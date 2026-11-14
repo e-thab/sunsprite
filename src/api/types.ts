@@ -168,12 +168,26 @@ export class Mouse {
 		this._pointer = pointer
 	}
 
+	/** Internal. The mouse's x/y are world coordinates: see Camera._toSpaceOf. */
+	get _ui(): boolean {
+		return false
+	}
+
+	/**
+	 * The pointer in the main camera's Phaser coordinates. Not the pointer's own worldX/worldY:
+	 * Phaser points those at whichever camera last hit-tested it, which is the UI camera
+	 * whenever the mouse is over a UI object.
+	 */
+	_phaserWorldPoint(): Phaser.Math.Vector2 {
+		return camera._cam.getWorldPoint(this._pointer.x, this._pointer.y)
+	}
+
 	get x(): number {
-		return this._pointer.worldX - camera.width / 2 * camera.zoom
+		return this._phaserWorldPoint().x - camera.width / 2 * camera.zoom
 	}
 
 	get y(): number {
-		return -this._pointer.worldY + camera.height / 2 * camera.zoom
+		return -this._phaserWorldPoint().y + camera.height / 2 * camera.zoom
 	}
 
 	get screenX(): number {
