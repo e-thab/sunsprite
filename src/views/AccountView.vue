@@ -2,9 +2,8 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/utils/supabase'
+import { USERNAME_FORMAT_ERROR, USERNAME_HELP, USERNAME_PATTERN } from '@/utils/username'
 import { useAuthStore } from '@/stores/authStore'
-
-const usernamePattern = /^[a-z0-9_]{3,20}$/
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -45,8 +44,8 @@ async function saveProfile() {
   usernameError.value = undefined
   savedMessage.value = ''
 
-  if (username.value && !usernamePattern.test(username.value)) {
-    usernameError.value = 'Lowercase letters, numbers, and underscores only (3-20 characters)'
+  if (username.value && !USERNAME_PATTERN.test(username.value)) {
+    usernameError.value = USERNAME_FORMAT_ERROR
     return
   }
 
@@ -103,7 +102,7 @@ onMounted(loadProfile)
 
       <div class="account-body">
         <template v-if="!loading">
-          <UFormField label="Username" :error="usernameError" help="Lowercase letters, numbers, underscores">
+          <UFormField label="Username" :error="usernameError" :help="USERNAME_HELP">
             <UInput v-model="username" autocomplete="username" spellcheck="false" class="full-width" @keyup.enter="saveProfile" />
           </UFormField>
           <UAlert v-if="errorMessage" color="error" variant="subtle" :description="errorMessage" />

@@ -77,6 +77,20 @@ type ImageRecord = {
     position: number
 }
 
+// An upload still in flight — shown in the tree as a placeholder row under the
+// name it'll be stored as, so there's feedback from the moment the file is
+// picked rather than only once the whole sign/PUT/confirm round trip is done.
+// Tied to the project it was started in, so switching projects mid-upload
+// doesn't carry the placeholder (or the finished file) along.
+type PendingUploadRecord = {
+    id: string
+    projectId: string
+    name: string
+    kind: AssetKind
+    folderId: string | null
+    position: number
+}
+
 // A link to one of the built-in Library assets (src/library, served at
 // /library/* — see api/library.ts) rather than an uploaded object — no file
 // data, no size, no R2 key. Images and sounds alike, despite the name (the
@@ -133,6 +147,8 @@ export type TreeNode =
     // Same as libraryImage: size is always 0. fileKind says image or sound.
     | { kind: 'urlFile', id: string, name: string, position: number, url: string, fileKind: AssetKind, size: number }
     | { kind: 'text', id: string, name: string, position: number, size: number }
+    // Not stored yet (see PendingUploadRecord), so size is 0 until it lands.
+    | { kind: 'pendingUpload', id: string, name: string, position: number, fileKind: AssetKind, size: number }
 
 // VS Code's default explorer order: folders before files, each alphabetical,
 // case-insensitive, with digit runs compared as numbers (sprite2 before
@@ -307,6 +323,7 @@ export const useFileStore = defineStore('files', () => {
     const libraryImages = ref<LibraryImageRecord[]>([])
     const urlFiles = ref<UrlFileRecord[]>([])
     const textFiles = ref<TextFileRecord[]>([])
+    const pendingUploads = ref<PendingUploadRecord[]>([])
 
     function clear() {
         // Debugging
@@ -514,7 +531,10 @@ export const useFileStore = defineStore('files', () => {
         const containedTextFiles: TreeNode[] = textFiles.value
             .filter((f) => f.folderId === folderId)
             .map((f) => ({ kind: 'text' as const, id: f.id, name: f.name, position: f.position, size: sizeEncoder.encode(f.content).length }))
-        return [...subfolders, ...containedScripts, ...containedImages, ...containedLibraryImages, ...containedUrlFiles, ...containedTextFiles].sort(compareTreeNodes)
+        const containedPendingUploads: TreeNode[] = pendingUploads.value
+            .filter((p) => p.projectId === projectId.value && p.folderId === folderId)
+            .map((p) => ({ kind: 'pendingUpload' as const, id: p.id, name: p.name, position: p.position, fileKind: p.kind, size: 0 }))
+        return [...subfolders, ...containedScripts, ...containedImages, ...containedLibraryImages, ...containedUrlFiles, ...containedTextFiles, ...containedPendingUploads].sort(compareTreeNodes)
     }
 
     // Recursive sum of everything under a folder — descends into
@@ -933,36 +953,62 @@ export const useFileStore = defineStore('files', () => {
         // an alias (audio/x-wav) or empty (.ogg on Windows), neither of which
         // the edge functions or the images table accept. It's what gets signed,
         // so it has to be what the PUT below sends too.
-        const contentType = uploadFileTypeFor(file)?.contentType ?? file.type
+        const fileType = uploadFileTypeFor(file)
+        const contentType = fileType?.contentType ?? file.type
 
-        const { data: signed, error: signError } = await supabase.functions.invoke('r2-sign-upload', {
-            body: { projectId: projectId.value, fileName: name, contentType, size: file.size },
-        })
-        if (signError) throw new Error(await functionErrorMessage(signError))
-
-        const putRes = await fetch(signed.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': contentType } })
-        if (!putRes.ok) throw new Error('Failed to upload file to storage')
-
-        // r2-confirm-upload HEADs the object we just PUT to verify the real
-        // size/content-type before creating the DB row (and cleans up the R2
-        // object itself if validation fails) — this is what makes the quota
-        // and content-type checks a real boundary rather than self-reported.
+        // Reserved up front, not after the PUT: the placeholder sorts among
+        // its siblings from the start, and two uploads into the same folder at
+        // once still get distinct positions (nextPosition sees the pending one).
+        const uploadProjectId = projectId.value
         const position = nextPosition(folderId)
-        const { data: confirmed, error: confirmError } = await supabase.functions.invoke('r2-confirm-upload', {
-            body: { projectId: projectId.value, folderId, name, objectKey: signed.objectKey, position },
-        })
-        if (confirmError) throw new Error(await functionErrorMessage(confirmError))
+        const pending: PendingUploadRecord = {
+            id: `pending-upload-${generateId()}`,
+            projectId: uploadProjectId,
+            name,
+            kind: fileType?.kind ?? (contentType.startsWith('audio/') ? 'audio' : 'image'),
+            folderId,
+            position,
+        }
+        pendingUploads.value.push(pending)
 
-        images.value.push({
-            id: confirmed.id,
-            name: confirmed.name,
-            objectKey: confirmed.objectKey,
-            publicUrl: confirmed.publicUrl,
-            contentType: confirmed.contentType,
-            size: confirmed.size,
-            folderId: confirmed.folderId,
-            position: confirmed.position,
-        })
+        try {
+            const { data: signed, error: signError } = await supabase.functions.invoke('r2-sign-upload', {
+                body: { projectId: uploadProjectId, fileName: name, contentType, size: file.size },
+            })
+            if (signError) throw new Error(await functionErrorMessage(signError))
+
+            const putRes = await fetch(signed.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': contentType } })
+            if (!putRes.ok) throw new Error('Failed to upload file to storage')
+
+            // r2-confirm-upload HEADs the object we just PUT to verify the real
+            // size/content-type before creating the DB row (and cleans up the R2
+            // object itself if validation fails) — this is what makes the quota
+            // and content-type checks a real boundary rather than self-reported.
+            const { data: confirmed, error: confirmError } = await supabase.functions.invoke('r2-confirm-upload', {
+                body: { projectId: uploadProjectId, folderId, name, objectKey: signed.objectKey, position },
+            })
+            if (confirmError) throw new Error(await functionErrorMessage(confirmError))
+
+            // The row exists either way, but if another project was opened
+            // meanwhile it belongs to that one's file list, not this one — it
+            // shows up there next time it's loaded.
+            if (projectId.value !== uploadProjectId) return
+
+            images.value.push({
+                id: confirmed.id,
+                name: confirmed.name,
+                objectKey: confirmed.objectKey,
+                publicUrl: confirmed.publicUrl,
+                contentType: confirmed.contentType,
+                size: confirmed.size,
+                folderId: confirmed.folderId,
+                position: confirmed.position,
+            })
+        } finally {
+            // Same tick as the push above, so the placeholder is swapped for
+            // the real row without a frame where neither is shown.
+            pendingUploads.value = pendingUploads.value.filter((p) => p.id !== pending.id)
+        }
     }
 
     async function renameImage(id: string, newName: string) {
@@ -1004,8 +1050,11 @@ export const useFileStore = defineStore('files', () => {
     // name is its asset key in the running game (see projectAssets) — so a name
     // has to be free across all three, which only the client can check.
     // `exceptId` is the row being renamed, so it doesn't clash with itself.
+    // Counts uploads still in flight too, so the same name can't be claimed
+    // twice before the first one lands.
     function isImageNameTaken(name: string, exceptId?: string): boolean {
         return images.value.some((img) => img.id !== exceptId && img.name === name)
+            || pendingUploads.value.some((p) => p.projectId === projectId.value && p.name === name)
             || libraryImages.value.some((img) => img.id !== exceptId && img.name === name)
             || urlFiles.value.some((file) => file.id !== exceptId && file.name === name)
     }

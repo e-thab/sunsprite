@@ -3,11 +3,10 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { supabase } from '@/utils/supabase'
+import { USERNAME_FORMAT_ERROR, USERNAME_HELP, USERNAME_PATTERN } from '@/utils/username'
 
 const authStore = useAuthStore()
 const router = useRouter()
-
-const usernamePattern = /^[a-z0-9_]{3,20}$/
 
 const username = ref('')
 const email = ref('')
@@ -35,8 +34,8 @@ async function checkUsername() {
   usernameError.value = undefined
   if (!username.value) return
 
-  if (!usernamePattern.test(username.value)) {
-    usernameError.value = 'Lowercase letters, numbers, and underscores only (3-20 characters)'
+  if (!USERNAME_PATTERN.test(username.value)) {
+    usernameError.value = USERNAME_FORMAT_ERROR
     return
   }
 
@@ -50,8 +49,8 @@ async function checkUsername() {
 async function onSubmit() {
   errorMessage.value = ''
 
-  if (!usernamePattern.test(username.value)) {
-    usernameError.value = 'Lowercase letters, numbers, and underscores only (3-20 characters)'
+  if (!USERNAME_PATTERN.test(username.value)) {
+    usernameError.value = USERNAME_FORMAT_ERROR
     return
   }
 
@@ -109,7 +108,7 @@ function onUpdateOpen(open: boolean) {
         <UButton variant="ghost" @click="onUpdateOpen(false)">Close</UButton>
       </div>
       <form v-else class="sign-up-form" @submit.prevent="onSubmit">
-        <UFormField label="Username" :error="usernameError" help="Lowercase letters, numbers, underscores">
+        <UFormField label="Username" :error="usernameError" :help="USERNAME_HELP">
           <UInput
             v-model="username"
             autocomplete="username"

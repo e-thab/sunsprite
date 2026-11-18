@@ -103,7 +103,8 @@ function onFileSelect(event: CustomEvent<{ originalEvent?: Event }>, item?: Tree
 // selects it, which recolors the row via the shared treeSelectionStore
 // v-model even though nothing should visually "select" a folder. select and
 // toggle are separate custom-event dispatches, so preventDefault here only
-// cancels the select half; toggling still works.
+// cancels the select half; toggling still works. Also keeps an in-flight
+// upload's placeholder row from being selected.
 function preventFolderSelect(event: Event) {
 	event.preventDefault()
 }
@@ -230,6 +231,21 @@ function buildNode(node: TreeNode, parentId: string | null): TreeItem {
 			onSelect: onFileSelect,
 		}
 	}
+	if (node.kind === 'pendingUpload') {
+		// Placeholder for an upload still in flight (see fileStore.uploadImage),
+		// under the name it'll be stored as. Nothing to open, drag, rename or
+		// delete yet — it's swapped for the real row once the upload lands, or
+		// just disappears if it fails.
+		return {
+			label: node.name,
+			kind: 'pendingUpload',
+			id: node.id,
+			parentId,
+			fileKind: node.fileKind,
+			typeLabel: uploadFileTypeForExtension(splitFileName(node.name).extension)?.label,
+			onSelect: preventFolderSelect,
+		}
+	}
 	if (node.kind === 'text') {
 		return {
 			label: node.name,
@@ -283,6 +299,7 @@ function visibleFileIds(): string[] {
 	const ids: string[] = []
 	const add = (list: TreeItem[]) => {
 		for (const item of list) {
+			if (item.kind === 'pendingUpload') continue
 			if (item.kind !== 'folder') ids.push(item.id)
 			else if (expandedFolderIds.value.includes(item.id)) add(item.children ?? [])
 		}
@@ -1439,13 +1456,14 @@ async function addLibraryDrop(paths: string, folderId: string | null) {
 					class="file-tree"
 				>
 					<template #item-leading="{ item, expanded }">
-						<img v-if="item.thumbnail" :src="item.thumbnail" :title="item.typeLabel" class="thumbnail-icon" alt="" />
+						<UIcon v-if="item.kind === 'pendingUpload'" name="tabler:loader-2" :title="item.typeLabel" class="leading-icon pending-upload-spinner" />
+						<img v-else-if="item.thumbnail" :src="item.thumbnail" :title="item.typeLabel" class="thumbnail-icon" alt="" />
 						<UIcon v-else-if="item.icon" :name="item.icon" :title="item.typeLabel" class="leading-icon" :class="itemStateClass(item)" />
 						<UIcon v-else-if="item.kind === 'folder' || item.children?.length" :name="expanded ? 'tabler:folder-open-filled' : 'tabler:folder-filled'" class="leading-icon" />
 					</template>
 
 					<template #item-label="{ item }">
-						<UContextMenu :items="itemMenuItems(item)" :content="{ onCloseAutoFocus: preventCloseAutoFocus }">
+						<UContextMenu :items="itemMenuItems(item)" :disabled="item.kind === 'pendingUpload'" :content="{ onCloseAutoFocus: preventCloseAutoFocus }">
 							<div
 								class="tree-row-dnd"
 								:ref="(el) => setRowDndRef(item, el)"
@@ -1485,13 +1503,15 @@ async function addLibraryDrop(paths: string, folderId: string | null) {
 							     item's current name in commitRename. -->
 							<span v-if="fileExtension(item)" class="rename-extension">.{{ fileExtension(item) }}</span>
 						</div>
+						<span v-else-if="item.kind === 'pendingUpload'" class="pending-upload-label">{{ item.label }}</span>
 						<template v-else>
 							<span :class="itemStateClass(item)">{{ item.label }}<span v-if="fileStore.isDirty(scriptName(item))" class="dirty-marker">*</span></span>
 						</template>
 					</template>
 
 					<template #item-trailing="{ item }">
-						<template v-if="renamingItemId !== item.id">
+						<span v-if="item.kind === 'pendingUpload'" class="item-size">Uploading…</span>
+						<template v-else-if="renamingItemId !== item.id">
 							<!-- A folder's own size is an aggregate over its
 							     contents (see buildNode/folderSizeBytes), not
 							     something intrinsic to the folder row itself —
@@ -1645,6 +1665,20 @@ async function addLibraryDrop(paths: string, folderId: string | null) {
 	width: 1.25rem;
 	height: 1.25rem;
 	flex-shrink: 0;
+}
+
+.pending-upload-spinner {
+	color: var(--theme-text-muted);
+	animation: pending-upload-spin 1s linear infinite;
+}
+
+@keyframes pending-upload-spin {
+	to { transform: rotate(360deg); }
+}
+
+.pending-upload-label {
+	color: var(--theme-text-muted);
+	font-style: italic;
 }
 
 /* Absolutely positioned against the tree-item link's own `position:
